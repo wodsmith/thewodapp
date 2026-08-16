@@ -1,0 +1,132 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/how-to/organizers/event-day/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Run Event Day"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "In-Person Score Entry​"
+    },
+    {
+      "level": 3,
+      "text": "Accessing Score Entry​"
+    },
+    {
+      "level": 3,
+      "text": "Score Entry Interface​"
+    },
+    {
+      "level": 3,
+      "text": "Entering Scores​"
+    },
+    {
+      "level": 3,
+      "text": "Score Entry Formats​"
+    },
+    {
+      "level": 3,
+      "text": "Status Overrides​"
+    },
+    {
+      "level": 2,
+      "text": "Online Submission Review​"
+    },
+    {
+      "level": 2,
+      "text": "The Public Leaderboard​"
+    },
+    {
+      "level": 2,
+      "text": "Leaderboard Preview (organizer-only)​"
+    },
+    {
+      "level": 2,
+      "text": "Managing Judges and Volunteers​"
+    },
+    {
+      "level": 3,
+      "text": "The Volunteers Tab​"
+    },
+    {
+      "level": 3,
+      "text": "Roster​"
+    },
+    {
+      "level": 3,
+      "text": "Judge Scheduling​"
+    },
+    {
+      "level": 2,
+      "text": "Broadcasts During the Event​"
+    },
+    {
+      "level": 2,
+      "text": "Handling Ties​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Workout Type",
+        "Input",
+        "Examples"
+      ],
+      "rowCount": 4
+    }
+  ],
+  "title": "How to Run Event Day | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 7008,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

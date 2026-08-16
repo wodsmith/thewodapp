@@ -1,0 +1,99 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/how-to/organizers/multi-workout-events/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Create Multi-Workout Events"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Create the parent event​"
+    },
+    {
+      "level": 2,
+      "text": "Add sub-events​"
+    },
+    {
+      "level": 2,
+      "text": "Configure points multipliers​"
+    },
+    {
+      "level": 2,
+      "text": "Schedule heats​"
+    },
+    {
+      "level": 2,
+      "text": "Enter results​"
+    },
+    {
+      "level": 2,
+      "text": "Edit a parent event​"
+    },
+    {
+      "level": 2,
+      "text": "Reorder sub-events​"
+    },
+    {
+      "level": 2,
+      "text": "Remove a sub-event or parent​"
+    },
+    {
+      "level": 2,
+      "text": "Limitations​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "How to Create Multi-Workout Events | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 3587,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

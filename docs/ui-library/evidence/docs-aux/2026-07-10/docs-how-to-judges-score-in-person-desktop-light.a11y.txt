@@ -1,0 +1,487 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e90]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Collapse sidebar category 'How-to Guides'" [expanded=true, ref=e92]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=false, ref=e97]
+                - StaticText "For Athletes"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=true, ref=e98]
+                - StaticText "For Judges & Volunteers"
+              - list
+                - listitem [level=3]
+                  - link "How to Sign Up as a Volunteer"
+                    - StaticText "How to Sign Up as a Volunteer"
+                - listitem [level=3]
+                  - link "How to Review Video Submissions"
+                    - StaticText "How to Review Video Submissions"
+                - listitem [level=3]
+                  - link "How to Score In-Person Events"
+                    - StaticText "How to Score In-Person Events"
+                - listitem [level=3]
+                  - link "How to Apply a Penalty"
+                    - StaticText "How to Apply a Penalty"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=false, ref=e99]
+                - StaticText "For Organizers"
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e94]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e96]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Judges & Volunteers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Score In-Person Events"
+      - sectionheader
+        - heading "How to Score In-Person Events" [level=1, ref=e29]
+      - paragraph
+        - StaticText "Enter live results for athletes during an in-person competition."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e12]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Approved volunteer with "
+          - strong
+            - StaticText "score-input"
+          - StaticText " access on the in-person competition"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "The competition is in-person type (online competitions use the "
+          - link "video review flow"
+          - StaticText ")"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Heat assignments are published (organizers do this from "
+          - strong
+            - StaticText "Volunteers → Judge Schedule"
+          - StaticText ")"
+      - heading "Where to Score Direct link to Where to Score" [level=2, ref=e13]
+        - StaticText "Where to Score"
+        - link "Direct link to Where to Score"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Organizers run scoring through the competition's "
+        - strong
+          - StaticText "Results"
+        - StaticText " page, which is also reachable on a tablet or phone via a deep link the organizer shares before the event:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Per-event grid: "
+          - code
+            - StaticText "/compete/organizer/{competitionId}/results?event={eventId}"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Mobile-optimized score entry: shared by the organizer on the day"
+      - paragraph
+        - StaticText "If you only have score-input access (not full organizer access), you'll be redirected to a scoped score-entry view that only shows the event/heat you're assigned to."
+      - heading "Score Entry Formats Direct link to Score Entry Formats" [level=2, ref=e14]
+        - StaticText "Score Entry Formats"
+        - link "Direct link to Score Entry Formats"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Match the input format to the workout type — the field shows a live preview of how WODsmith will interpret your input."
+      - table
+        - rowgroup
+          - row
+            - columnheader "Workout Type"
+            - columnheader "Format"
+            - columnheader "Examples"
+            - columnheader "Notes"
+        - row
+          - cell "For Time"
+            - strong
+              - StaticText "For Time"
+          - cell "mm:ss or m:ss"
+            - code
+              - StaticText "mm:ss"
+            - StaticText " or "
+            - code
+              - StaticText "m:ss"
+          - cell "3:45, 12:30, 1:02:34.567"
+            - code
+              - StaticText "3:45"
+            - StaticText ", "
+            - code
+              - StaticText "12:30"
+            - StaticText ", "
+            - code
+              - StaticText "1:02:34.567"
+          - cell "Bare digits (no colon) are read as raw seconds"
+        - row
+          - cell "AMRAP"
+            - strong
+              - StaticText "AMRAP"
+          - cell "rounds+reps"
+            - code
+              - StaticText "rounds+reps"
+          - cell "8+15, 12+0"
+            - code
+              - StaticText "8+15"
+            - StaticText ", "
+            - code
+              - StaticText "12+0"
+          - cell "The +0 is required if the athlete didn't break into a partial round"
+            - StaticText "The "
+            - code
+              - StaticText "+0"
+            - StaticText " is required if the athlete didn't break into a partial round"
+        - row
+          - cell "Max Weight"
+            - strong
+              - StaticText "Max Weight"
+          - cell "number"
+          - cell "225, 185.5"
+            - code
+              - StaticText "225"
+            - StaticText ", "
+            - code
+              - StaticText "185.5"
+          - cell "Lb or kg per the workout setting"
+        - row
+          - cell "For Time (capped)"
+            - strong
+              - StaticText "For Time (capped)"
+          - cell "mm:ss or cap"
+            - StaticText "mm:ss or "
+            - code
+              - StaticText "cap"
+          - cell "4:32, cap"
+            - code
+              - StaticText "4:32"
+            - StaticText ", "
+            - code
+              - StaticText "cap"
+          - cell "If athlete hit the cap, enter the reps completed in the secondary field that appears"
+            - StaticText "If athlete hit the cap, enter the "
+            - strong
+              - StaticText "reps completed"
+            - StaticText " in the secondary field that appears"
+      - paragraph
+        - StaticText "The live \"Parsed as: X\" feedback turns green for valid inputs and red for invalid — fix red errors before submitting."
+      - heading "Multi-Round Workouts Direct link to Multi-Round Workouts" [level=2, ref=e15]
+        - StaticText "Multi-Round Workouts"
+        - link "Direct link to Multi-Round Workouts"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When "
+        - code
+          - StaticText "roundsToScore > 1"
+        - StaticText " (e.g., a 3-round chipper), the form renders one input per round:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Enter each round's time (or AMRAP score) separately"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "WODsmith sums them server-side and derives per-round cap status"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "The leaderboard tiebreaker honors \"fewer capped rounds wins\""
+      - paragraph
+        - StaticText "Don't sum manually — let WODsmith do it."
+      - heading "Tiebreakers Direct link to Tiebreakers" [level=2, ref=e16]
+        - StaticText "Tiebreakers"
+        - link "Direct link to Tiebreakers"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Some workouts have a tiebreaker (e.g., \"time at the end of round 2 of a 3-round AMRAP\"). When present, an extra "
+        - strong
+          - StaticText "Tiebreak Score"
+        - StaticText " field appears using its own scheme:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Time tiebreak"
+          - StaticText " — "
+          - code
+            - StaticText "M:SS.mmm"
+          - StaticText " (e.g., "
+          - code
+            - StaticText "2:30.250"
+          - StaticText ")"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Reps tiebreak"
+          - StaticText " — integer (e.g., "
+          - code
+            - StaticText "100"
+          - StaticText ")"
+      - paragraph
+        - StaticText "Always enter the tiebreaker — leaving it blank silently drops it on save."
+      - heading "Status Overrides Direct link to Status Overrides" [level=2, ref=e17]
+        - StaticText "Status Overrides"
+        - link "Direct link to Status Overrides"
+          - StaticText "#"
+      - paragraph
+        - StaticText "If the athlete didn't complete the workout, use the "
+        - strong
+          - StaticText "Status"
+        - StaticText " dropdown:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Status"
+            - columnheader "Meaning"
+        - row
+          - cell "scored"
+            - strong
+              - StaticText "scored"
+          - cell "Normal completion (this is the default)"
+        - row
+          - cell "cap"
+            - strong
+              - StaticText "cap"
+          - cell "Hit the time cap (auto-set when input ≥ cap on capped workouts)"
+        - row
+          - cell "dnf"
+            - strong
+              - StaticText "dnf"
+          - cell "Did not finish — for partial AMRAP or capped time workouts"
+        - row
+          - cell "dns"
+            - strong
+              - StaticText "dns"
+          - cell "Did not start — athlete was registered but didn't compete"
+        - row
+          - cell "dq"
+            - strong
+              - StaticText "dq"
+          - cell "Disqualified — rule violation"
+        - row
+          - cell "withdrawn"
+            - strong
+              - StaticText "withdrawn"
+          - cell "Athlete withdrew before completing"
+      - paragraph
+        - StaticText "When you pick a terminal status ("
+        - code
+          - StaticText "dnf"
+        - StaticText ", "
+        - code
+          - StaticText "dns"
+        - StaticText ", "
+        - code
+          - StaticText "dq"
+        - StaticText ", "
+        - code
+          - StaticText "withdrawn"
+        - StaticText "), the score input collapses — leave it blank."
+      - heading "Saving and Confirming Direct link to Saving and Confirming" [level=2, ref=e18]
+        - StaticText "Saving and Confirming"
+        - link "Direct link to Saving and Confirming"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Scores "
+        - strong
+          - StaticText "auto-save"
+        - StaticText " as you type — there's no separate \"submit\" button. The save status shows next to the input:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Saved"
+          - StaticText " — confirmed in the database"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Saving…"
+          - StaticText " — request in flight"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Error"
+          - StaticText " — something went wrong (most often a parse error or stale registration)"
+      - paragraph
+        - StaticText "Always wait for "
+        - strong
+          - StaticText "Saved"
+        - StaticText " before moving to the next athlete. If you see "
+        - strong
+          - StaticText "Error"
+        - StaticText ", fix the issue or flag the organizer — don't skip past it."
+      - heading "Common Mistakes Direct link to Common Mistakes" [level=2, ref=e19]
+        - StaticText "Common Mistakes"
+        - link "Direct link to Common Mistakes"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Bare digits on a time workout"
+          - StaticText " — "
+          - code
+            - StaticText "2000"
+          - StaticText " is read as "
+          - strong
+            - StaticText "2000 seconds (33:20)"
+          - StaticText ", not \"20:00\". Always include the colon for times."
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Forgetting "
+            - code
+              - StaticText "+0"
+            - StaticText " on AMRAP"
+          - StaticText " — "
+          - code
+            - StaticText "12"
+          - StaticText " alone is invalid for AMRAP; use "
+          - code
+            - StaticText "12+0"
+          - StaticText "."
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Editing across multiple divisions"
+          - StaticText " — an athlete registered in two divisions for the same workout has "
+          - emphasis
+            - StaticText "two separate scores"
+          - StaticText ". Each one is scoped by division — make sure you're scoring the correct registration row."
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Pre-filling the cap value"
+          - StaticText " — for "
+          - code
+            - StaticText "time-with-cap"
+          - StaticText " workouts, WODsmith auto-derives "
+          - code
+            - StaticText "cap"
+          - StaticText " status when you enter a time ≥ the cap. Don't override the status manually."
+      - heading "After the Heat Direct link to After the Heat" [level=2, ref=e20]
+        - StaticText "After the Heat"
+        - link "Direct link to After the Heat"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Once the heat is complete:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Verify all athletes in the heat have a "
+          - strong
+            - StaticText "Saved"
+          - StaticText " status"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Flag any disputes to the organizer immediately — disputed scores are easier to resolve before the next heat starts"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Move to your next assigned heat (the "
+          - strong
+            - StaticText "Schedule"
+          - StaticText " tab shows your rotation)"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Review Video Submissions"
+          - StaticText " | "
+          - link "How to Apply a Penalty"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Review Video Submissions"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Review Video Submissions"
+      - link "Next How to Apply a Penalty »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Apply a Penalty"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Prerequisites"
+      - listitem [level=1]
+        - link "Where to Score"
+      - listitem [level=1]
+        - link "Score Entry Formats"
+      - listitem [level=1]
+        - link "Multi-Round Workouts"
+      - listitem [level=1]
+        - link "Tiebreakers"
+      - listitem [level=1]
+        - link "Status Overrides"
+      - listitem [level=1]
+        - link "Saving and Confirming"
+      - listitem [level=1]
+        - link "Common Mistakes"
+      - listitem [level=1]
+        - link "After the Heat"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

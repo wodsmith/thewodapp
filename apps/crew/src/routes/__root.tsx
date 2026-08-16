@@ -63,14 +63,17 @@ function RootComponent() {
     <div className="min-h-screen bg-background text-foreground">
       {!usesEventSidebar && !usesAuthShell && (
         <header className="border-b bg-background/95">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:flex-nowrap">
             <Link to="/" className="flex items-center gap-3 font-semibold">
               <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground">
                 C
               </span>
               <span>WODsmith Crew</span>
             </Link>
-            <nav className="flex items-center gap-1 text-sm">
+            <nav
+              aria-label="Primary navigation"
+              className="order-last flex w-full items-center justify-center gap-1 text-sm lg:order-none lg:w-auto"
+            >
               <Link
                 to="/calculator"
                 activeProps={{
@@ -99,7 +102,7 @@ function RootComponent() {
                 New event
               </Link>
             </nav>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="ml-auto flex shrink-0 items-center gap-2 text-sm">
               {session ? (
                 <>
                   <span className="hidden max-w-48 truncate text-muted-foreground sm:block">

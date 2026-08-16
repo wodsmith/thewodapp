@@ -1,0 +1,269 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e72]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Collapse sidebar category 'How-to Guides'" [expanded=true, ref=e74]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=true, ref=e79]
+                - StaticText "For Athletes"
+              - list
+                - listitem [level=3]
+                  - link "How to View Your Heat Schedule"
+                    - StaticText "How to View Your Heat Schedule"
+                - listitem [level=3]
+                  - link "How to Check Your Division Standings"
+                    - StaticText "How to Check Your Division Standings"
+                - listitem [level=3]
+                  - link "How to View Workout Standards"
+                    - StaticText "How to View Workout Standards"
+                - listitem [level=3]
+                  - link "How to View Broadcasts"
+                    - StaticText "How to View Broadcasts"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=false, ref=e80]
+                - StaticText "For Judges & Volunteers"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=false, ref=e81]
+                - StaticText "For Organizers"
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e76]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e78]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Athletes"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to View Workout Standards"
+      - sectionheader
+        - heading "How to View Workout Standards" [level=1, ref=e26]
+      - paragraph
+        - StaticText "Review every workout's structure, movement standards, scaling, and equipment so you arrive prepared."
+      - heading "Steps Direct link to Steps" [level=2, ref=e12]
+        - StaticText "Steps"
+        - link "Direct link to Steps"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open the competition page."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click the "
+          - strong
+            - StaticText "Workouts"
+          - StaticText " tab."
+      - paragraph
+        - image "Workouts tab with division-scoped variations"
+      - heading "Division-Scoped Standards Direct link to Division-Scoped Standards" [level=2, ref=e13]
+        - StaticText "Division-Scoped Standards"
+        - link "Direct link to Division-Scoped Standards"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The workouts list automatically filters to "
+        - strong
+          - StaticText "your division's variations"
+        - StaticText " when you're registered. The dropdown in the top right lets you peek at other divisions if you're curious how RX, Scaled, and Masters differ — useful when deciding whether to bump up or down before registration closes."
+      - paragraph
+        - StaticText "For each workout, you'll see:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Section"
+            - columnheader "What's there"
+        - row
+          - cell "Title and sponsor"
+            - strong
+              - StaticText "Title and sponsor"
+          - cell "Event name, optional presenting sponsor"
+        - row
+          - cell "Type"
+            - strong
+              - StaticText "Type"
+          - cell "For Time, AMRAP, Strength, etc."
+        - row
+          - cell "Description"
+            - strong
+              - StaticText "Description"
+          - cell "The full WOD description for your division"
+        - row
+          - cell "Target / Time cap"
+            - strong
+              - StaticText "Target / Time cap"
+          - cell "Goal time and the cap if it's a capped workout"
+        - row
+          - cell "Movements"
+            - strong
+              - StaticText "Movements"
+          - cell "Each movement with reps, weights, and equipment"
+        - row
+          - cell "View Details"
+            - strong
+              - StaticText "View Details"
+          - cell "Link to the per-event page with movement standards, demo videos, and resources"
+      - heading "What to Read Before Event Day Direct link to What to Read Before Event Day" [level=2, ref=e14]
+        - StaticText "What to Read Before Event Day"
+        - link "Direct link to What to Read Before Event Day"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For each event:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - strong
+            - StaticText "Movement standards"
+          - StaticText " — read every standard. A no-rep is the most common reason athletes lose points."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - strong
+            - StaticText "Equipment"
+          - StaticText " — note anything you need to bring (lifters, lifting straps, weight belt). The host gym usually provides barbells, plates, rowers, etc., but personal equipment is your responsibility."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - strong
+            - StaticText "Time cap"
+          - StaticText " — know it cold. Pacing for a 12-minute cap is wildly different from pacing for a 20-minute cap."
+        - listitem [level=1]
+          - ListMarker "4. "
+          - strong
+            - StaticText "Order"
+          - StaticText " — events are listed in the order they'll run. Plan your warm-up and recovery accordingly."
+      - heading "Sub-Events Direct link to Sub-Events" [level=2, ref=e15]
+        - StaticText "Sub-Events"
+        - link "Direct link to Sub-Events"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Some events are containers with multiple sub-workouts (e.g., \"Event 5: Triathlon\" with a 2k row + max double-unders + max snatch lifting). Sub-events show as nested cards under the parent. Each sub-event scores independently and contributes its own points to the leaderboard."
+      - heading "RX vs Scaled at a Glance Direct link to RX vs Scaled at a Glance" [level=2, ref=e16]
+        - StaticText "RX vs Scaled at a Glance"
+        - link "Direct link to RX vs Scaled at a Glance"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Element"
+            - columnheader "RX"
+            - columnheader "Scaled"
+        - row
+          - cell "Weights"
+          - cell "Prescribed"
+          - cell "Reduced"
+        - row
+          - cell "Movements"
+          - cell "Full standard (e.g., chest-to-bar pull-ups)"
+          - cell "Modified (e.g., banded pull-ups)"
+        - row
+          - cell "Equipment"
+          - cell "Standard"
+          - cell "Alternative"
+      - paragraph
+        - StaticText "If you registered for the wrong division, contact the organizer — they can transfer your registration to a different division before the registration deadline. Most organizers prefer this be done early so heat assignments don't have to be redone."
+      - heading "Online Competitions Direct link to Online Competitions" [level=2, ref=e17]
+        - StaticText "Online Competitions"
+        - link "Direct link to Online Competitions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For online competitions, the same Workouts tab also shows the "
+        - strong
+          - StaticText "submission window"
+        - StaticText " for each event — the open and close timestamps during which you can upload your video. Plan your filming and editing time around the close timestamp; late submissions don't count."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to View Your Heat Schedule"
+          - StaticText " | "
+          - link "How to Check Your Division Standings"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Check Your Division Standings"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Check Your Division Standings"
+      - link "Next How to View Broadcasts »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to View Broadcasts"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Steps"
+      - listitem [level=1]
+        - link "Division-Scoped Standards"
+      - listitem [level=1]
+        - link "What to Read Before Event Day"
+      - listitem [level=1]
+        - link "Sub-Events"
+      - listitem [level=1]
+        - link "RX vs Scaled at a Glance"
+      - listitem [level=1]
+        - link "Online Competitions"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

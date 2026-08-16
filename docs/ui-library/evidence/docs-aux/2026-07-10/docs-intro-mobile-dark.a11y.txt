@@ -1,0 +1,159 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Welcome to WODsmith"
+      - button "On this page"
+      - sectionheader
+        - heading "Welcome to WODsmith" [level=1, ref=e21]
+      - paragraph
+        - StaticText "WODsmith is a comprehensive workout management and competition platform designed for CrossFit gyms, athletes, and event organizers."
+      - heading "Choose Your Path Direct link to Choose Your Path" [level=2, ref=e9]
+        - StaticText "Choose Your Path"
+        - link "Direct link to Choose Your Path"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Select the documentation that matches your role:"
+      - heading "For Athletes Direct link to For Athletes" [level=3, ref=e10]
+        - StaticText "For Athletes"
+        - link "Direct link to For Athletes"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Competing in or registering for a competition?"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Register for a Competition"
+            - strong
+              - StaticText "Register for a Competition"
+          - StaticText " - Step-by-step guide to your first registration"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "View Your Schedule"
+            - strong
+              - StaticText "View Your Schedule"
+          - StaticText " - Find your heat times and workout order"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Track Your Results"
+            - strong
+              - StaticText "Track Your Results"
+          - StaticText " - Follow the leaderboard during events"
+      - heading "For Competition Organizers Direct link to For Competition Organizers" [level=3, ref=e11]
+        - StaticText "For Competition Organizers"
+        - link "Direct link to For Competition Organizers"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Running a throwdown or multi-gym event?"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Create Your First Competition"
+            - strong
+              - StaticText "Create Your First Competition"
+          - StaticText " - End-to-end setup guide"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Manage Registrations"
+            - strong
+              - StaticText "Manage Registrations"
+          - StaticText " - Handle athlete signups"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Run Event Day"
+            - strong
+              - StaticText "Run Event Day"
+          - StaticText " - Heats, scoring, and leaderboards"
+      - heading "For Judges & Volunteers Direct link to For Judges & Volunteers" [level=3, ref=e12]
+        - StaticText "For Judges & Volunteers"
+        - link "Direct link to For Judges & Volunteers"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Judging an event or helping run a competition?"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Sign Up and Complete Your First Shift"
+            - strong
+              - StaticText "Sign Up and Complete Your First Shift"
+          - StaticText " - End-to-end walkthrough"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Review Video Submissions"
+            - strong
+              - StaticText "Review Video Submissions"
+          - StaticText " - Verify athlete-submitted scores online"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Score In-Person Events"
+            - strong
+              - StaticText "Score In-Person Events"
+          - StaticText " - Enter live results during heats"
+      - heading "Concepts & Reference Direct link to Concepts & Reference" [level=2, ref=e13]
+        - StaticText "Concepts & Reference"
+        - link "Direct link to Concepts & Reference"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Core Concepts"
+            - strong
+              - StaticText "Core Concepts"
+          - StaticText " - Understand how WODsmith works"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Feature Reference"
+            - strong
+              - StaticText "Feature Reference"
+          - StaticText " - Detailed specifications for all features"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Scoring Rules"
+            - strong
+              - StaticText "Scoring Rules"
+          - StaticText " - How scores and rankings are calculated"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Next Tutorials »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Tutorials"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

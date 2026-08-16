@@ -1,0 +1,53 @@
+{
+  "bodyText": "WODsmith Admin Home Toggle theme PLATFORM Dashboard Teams Competitions Organizer Requests Entitlements Demo Competitions Documentation Admin / Organizer Requests Organizer Requests Review applications from teams wanting to host competitions No pending requests All organizer applications have been processed Past Requests (1) Approved CrossFit Box One Admin User Jul 10, 2026",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/organizer-requests",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Organizer Requests"
+    },
+    {
+      "level": 2,
+      "text": "Past Requests (1)"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

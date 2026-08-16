@@ -1,0 +1,48 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme E2E Test Gym Team Dashboard Today Fri, Jul 10, 2026 Browse Workouts Today's Workouts No workouts scheduled You don't have any workouts scheduled for today. Browse Workouts",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "http://127.0.0.1:3317/dashboard",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "E2E Test Gym"
+    },
+    {
+      "level": 2,
+      "text": "Today's Workouts"
+    },
+    {
+      "level": 3,
+      "text": "No workouts scheduled"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 974,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

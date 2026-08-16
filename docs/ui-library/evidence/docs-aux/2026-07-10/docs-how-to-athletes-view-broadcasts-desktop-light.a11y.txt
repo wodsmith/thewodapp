@@ -1,0 +1,245 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e54]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Collapse sidebar category 'How-to Guides'" [expanded=true, ref=e56]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=true, ref=e61]
+                - StaticText "For Athletes"
+              - list
+                - listitem [level=3]
+                  - link "How to View Your Heat Schedule"
+                    - StaticText "How to View Your Heat Schedule"
+                - listitem [level=3]
+                  - link "How to Check Your Division Standings"
+                    - StaticText "How to Check Your Division Standings"
+                - listitem [level=3]
+                  - link "How to View Workout Standards"
+                    - StaticText "How to View Workout Standards"
+                - listitem [level=3]
+                  - link "How to View Broadcasts"
+                    - StaticText "How to View Broadcasts"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=false, ref=e62]
+                - StaticText "For Judges & Volunteers"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=false, ref=e63]
+                - StaticText "For Organizers"
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e58]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e60]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Athletes"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to View Broadcasts"
+      - sectionheader
+        - heading "How to View Broadcasts" [level=1, ref=e24]
+      - paragraph
+        - StaticText "See announcements the organizer has sent to athletes."
+      - heading "Viewing Announcements Direct link to Viewing Announcements" [level=2, ref=e12]
+        - StaticText "Viewing Announcements"
+        - link "Direct link to Viewing Announcements"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open the competition page."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click the "
+          - strong
+            - StaticText "Announcements"
+          - StaticText " tab."
+      - paragraph
+        - image "Announcements tab with two broadcasts"
+      - paragraph
+        - StaticText "Broadcasts appear in reverse chronological order — newest at the top — showing the title, message body, and timestamp."
+      - paragraph
+        - StaticText "If the organizer hasn't posted any announcements yet, you'll see an empty-state message."
+      - heading "Email Notifications Direct link to Email Notifications" [level=2, ref=e13]
+        - StaticText "Email Notifications"
+        - link "Direct link to Email Notifications"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When the organizer sends a broadcast with email enabled, you'll also receive the message in your inbox. The email contains the same title and body as the in-app announcement, plus a link back to the competition page."
+      - paragraph
+        - StaticText "If you don't see the emails, check your spam folder and add the organizer's sending domain to your safe senders list."
+      - heading "Audience Filters Direct link to Audience Filters" [level=2, ref=e14]
+        - StaticText "Audience Filters"
+        - link "Direct link to Audience Filters"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Organizers can target broadcasts to specific groups:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "All athletes"
+          - StaticText " — everyone who's registered"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "By division"
+          - StaticText " — only RX athletes, or only Masters, etc."
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "All volunteers / by role"
+          - StaticText " — only your judges, or only your medical staff"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Pending invites"
+          - StaticText " — teammates who haven't yet accepted their invitation"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Public"
+          - StaticText " — everyone associated with the competition"
+      - paragraph
+        - StaticText "You only see broadcasts whose audience includes you. If your team captain mentions a broadcast you didn't get, you may have been filtered out — usually by division or registration question answer."
+      - heading "When Will I Get Broadcasts? Direct link to When Will I Get Broadcasts?" [level=2, ref=e15]
+        - StaticText "When Will I Get Broadcasts?"
+        - link "Direct link to When Will I Get Broadcasts?"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Common moments organizers send broadcasts:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Phase"
+            - columnheader "Typical broadcast"
+        - row
+          - cell "Registration open"
+            - strong
+              - StaticText "Registration open"
+          - cell "Welcome message, what to expect"
+        - row
+          - cell "One week out"
+            - strong
+              - StaticText "One week out"
+          - cell "Heat list published, equipment reminders"
+        - row
+          - cell "Day before"
+            - strong
+              - StaticText "Day before"
+          - cell "Floor plan, parking, check-in time"
+        - row
+          - cell "Event morning"
+            - strong
+              - StaticText "Event morning"
+          - cell "Briefings, weather updates, rule reminders"
+        - row
+          - cell "During the event"
+            - strong
+              - StaticText "During the event"
+          - cell "Schedule changes, score corrections, finalist announcements"
+        - row
+          - cell "Post-event"
+            - strong
+              - StaticText "Post-event"
+          - cell "Awards, photos, next-event teaser"
+      - paragraph
+        - StaticText "Treat the "
+        - strong
+          - StaticText "Announcements"
+        - StaticText " tab as your primary source of truth — competition information posted in Slack, Instagram, or the host gym's group chat may not match what's official."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to View Your Schedule"
+          - StaticText " | "
+          - link "How to Check Standings"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to View Workout Standards"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to View Workout Standards"
+      - link "Next How to Sign Up as a Volunteer »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Sign Up as a Volunteer"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Viewing Announcements"
+      - listitem [level=1]
+        - link "Email Notifications"
+      - listitem [level=1]
+        - link "Audience Filters"
+      - listitem [level=1]
+        - link "When Will I Get Broadcasts?"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

@@ -22,6 +22,34 @@ Multiple calls within the same request lifecycle (e.g. handler + nested `require
 
 Custom Worker handlers that run before TanStack Start installs its request context must not call `getSessionFromCookie()`. They validate the raw `Cookie` header with [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromRequestCookie]] instead, which uses the same session token validation without depending on Start's `AsyncLocalStorage`.
 
+## Profile Settings
+
+Authenticated users can update their name and avatar while their account email remains an immutable, accessible display value.
+
+[[apps/wodsmith-start/src/routes/_protected/settings/profile/index.tsx#ProfileSettingsPage]] keeps email outside React Hook Form registration and the [[apps/wodsmith-start/src/server-fns/profile-fns.ts#updateUserProfileFn|profile update payload]]. Its disabled input uses the shared `Field` compound for its label and description association. [[apps/wodsmith-start/test/routes/settings/profile.test.tsx]] covers loaded and skeleton rendering, controlled editable fields, email accessibility, and payload exclusion.
+
+## Athlete Settings
+
+Authenticated athletes edit profile details and unit-specific physical stats while the persisted height and weight remain canonical metric values.
+
+The physical-stat proxy inputs in [[apps/wodsmith-start/src/routes/_protected/settings/athlete/index.tsx#AthleteSettingsPage]] use the shared `Field` compound because React Hook Form owns the canonical values rather than those display controls. [[apps/wodsmith-start/test/routes/settings/athlete.test.tsx]] covers both unit systems, field accessibility, and their conversions.
+
+### Accessible imperial physical stats
+
+The default imperial feet, inches, and pounds controls render with programmatic labels and descriptions without requiring a `FormField` context.
+
+### Accessible metric physical stats
+
+The metric centimeters and kilograms controls render with programmatic labels and descriptions after the athlete changes unit preference.
+
+### Canonical physical-stat hydration
+
+Persisted values of 178 centimeters and 75 kilograms hydrate to 5 feet, 10 inches, and 165 pounds for an imperial athlete.
+
+### Canonical physical-stat submission
+
+Imperial display values of 5 feet, 10 inches, and 165 pounds submit as 178 centimeters and 75 kilograms while retaining the imperial preference.
+
 ## Authorization
 
 Route-level auth is enforced by the `_protected` layout route. Server function auth uses middleware that validates the session and injects the current user.

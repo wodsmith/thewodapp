@@ -1,0 +1,220 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Judges & Volunteers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Sign Up as a Volunteer"
+      - button "On this page"
+      - sectionheader
+        - heading "How to Sign Up as a Volunteer" [level=1, ref=e22]
+      - paragraph
+        - StaticText "Apply to volunteer or judge for a WODsmith competition."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e9]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A WODsmith account (any user can volunteer; no special role required)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "An invite link from the organizer, "
+          - strong
+            - StaticText "or"
+          - StaticText " a public competition page with volunteer signup enabled"
+      - heading "Direct Invite Flow Direct link to Direct Invite Flow" [level=2, ref=e10]
+        - StaticText "Direct Invite Flow"
+        - link "Direct link to Direct Invite Flow"
+          - StaticText "#"
+      - paragraph
+        - StaticText "If the organizer added you to the "
+        - strong
+          - StaticText "Volunteers → Roster"
+        - StaticText " with your email, you'll get an email titled \"You're invited to volunteer at [Competition Name]\"."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click the link in the email."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Sign in if prompted, using the email the organizer invited."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Review the prefilled form."
+      - paragraph
+        - image "Volunteer signup form"
+      - list
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Fill in any optional details:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Phone Number"
+              - StaticText " — for day-of coordination"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Certifications / Credentials"
+              - StaticText " — CrossFit L1 Judge, L2, EMT, First Aid/CPR, etc."
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Custom registration questions"
+              - StaticText " — set by the organizer (T-shirt size, dietary preferences)"
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Submit Application"
+          - StaticText "."
+      - heading "Public Signup Flow Direct link to Public Signup Flow" [level=2, ref=e11]
+        - StaticText "Public Signup Flow"
+        - link "Direct link to Public Signup Flow"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When the organizer hasn't sent a direct invite, the competition's public page shows a "
+        - strong
+          - StaticText "Sign Up to Volunteer"
+        - StaticText " button on the right rail."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open the competition page (e.g., "
+          - code
+            - StaticText "/compete/{slug}"
+          - StaticText ")."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Sign Up to Volunteer"
+          - StaticText "."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Sign in or create an account."
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Complete the same form shown above."
+      - heading "What Happens Next Direct link to What Happens Next" [level=2, ref=e12]
+        - StaticText "What Happens Next"
+        - link "Direct link to What Happens Next"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Your application enters the organizer's "
+        - strong
+          - StaticText "Volunteers → Roster"
+        - StaticText " with status "
+        - strong
+          - StaticText "Application"
+        - StaticText ". The organizer reviews and approves it, optionally assigning roles like "
+        - strong
+          - StaticText "Judge"
+        - StaticText ", "
+        - strong
+          - StaticText "Scorekeeper"
+        - StaticText ", "
+        - strong
+          - StaticText "Medical"
+        - StaticText ", or "
+        - strong
+          - StaticText "Emcee"
+        - StaticText "."
+      - paragraph
+        - StaticText "Once approved:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "You appear on the public roster (if the organizer enabled this)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "You can be assigned to "
+          - strong
+            - StaticText "Shifts"
+          - StaticText " (time-based work blocks) and "
+          - strong
+            - StaticText "Heats"
+          - StaticText " (judge rotations)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "You'll see additional menu items on the competition page based on your role:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Judges with score-input access see "
+              - strong
+                - StaticText "Review"
+              - StaticText " (online) or score-entry deep links (in-person)"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "All approved volunteers see their assigned shifts and heat assignments"
+      - heading "Editing Your Application Direct link to Editing Your Application" [level=2, ref=e13]
+        - StaticText "Editing Your Application"
+        - link "Direct link to Editing Your Application"
+          - StaticText "#"
+      - paragraph
+        - StaticText "If you need to update your information after submitting, contact the organizer. Email and name changes that affect billing or identity require the organizer to re-issue the invite."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Review Video Submissions"
+          - StaticText " | "
+          - link "How to Score In-Person Events"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to View Broadcasts"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to View Broadcasts"
+      - link "Next How to Review Video Submissions »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Review Video Submissions"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

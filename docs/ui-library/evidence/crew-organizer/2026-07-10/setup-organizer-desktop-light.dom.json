@@ -1,0 +1,97 @@
+{
+  "bodyText": "WODsmith Crew Home Workflow Setup Heats Staffing Plan Volunteers Operations Volunteer Shifts Judge Assignments Confirmations Event Day Print Packet Toggle Sidebar ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Event details Confirm the details volunteers and staff will use for planning. Event name Start date End date Timezone Eastern Time (ET) Central Time (CT) Mountain Time (MT) Arizona (no DST) Pacific Time (PT) Alaska Time (AKT) Hawaii Time (HT) UTC Save changes Workouts Create the workouts athletes will compete in. Add heat times for each on the Heats page. Add workout Fran 21-15-9 Thrusters (95/65 lb) and Pull-ups 2 heats Murph 1 mile Run, 100 Pull-ups, 200 Push-ups, 300 Squats, 1 mile Run 2 heats Cindy 5 Pull-ups, 10 Push-ups, 15 Squats - AMRAP 20 minutes 2 heats Locations Add the floors or areas where heats run. Each location's lane count sets how many lanes a heat there has — pick a location when scheduling heats. Add location North Floor 4 lanes 3 heats South Floor 4 lanes 3 heats",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "label": "Event name",
+      "name": "",
+      "type": "input"
+    },
+    {
+      "label": "Start date",
+      "name": "",
+      "type": "date"
+    },
+    {
+      "label": "End date",
+      "name": "",
+      "type": "date"
+    },
+    {
+      "label": "Timezone\nEastern Time (ET)\nCentral Time (CT)\nMountain Time (MT)\nArizona (no DST)\nPacific Time (PT)\nAlaska Time (AKT)\nHawaii Time (HT)\nUTC",
+      "name": "",
+      "type": "select"
+    }
+  ],
+  "finalUrl": "/events/e2e_competition/setup",
+  "forms": [
+    {
+      "action": "",
+      "method": "get"
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Event details"
+    },
+    {
+      "level": 2,
+      "text": "Workouts"
+    },
+    {
+      "level": 3,
+      "text": "Fran"
+    },
+    {
+      "level": 3,
+      "text": "Murph"
+    },
+    {
+      "level": 3,
+      "text": "Cindy"
+    },
+    {
+      "level": 2,
+      "text": "Locations"
+    },
+    {
+      "level": 3,
+      "text": "North Floor"
+    },
+    {
+      "level": 3,
+      "text": "South Floor"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 1297,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

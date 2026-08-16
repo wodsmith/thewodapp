@@ -1200,7 +1200,7 @@ function SubEventForm({
 
             {/* Movements */}
             <div className="space-y-2">
-              <FormLabel>Movements</FormLabel>
+              <h2 className="text-sm font-medium leading-none">Movements</h2>
               {selectedMovements.length > 0 && (
                 <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
                   {movements

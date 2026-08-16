@@ -1,0 +1,26 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e8]
+      - heading "WODsmith" [level=1, ref=e12]
+    - navigation
+      - link "WORKOUTS" [ref=e13]
+      - link "LOG" [ref=e14]
+      - link "TEAM" [ref=e15]
+      - link "COMPETE" [ref=e16]
+      - button "Test's Team (personal)" [expanded=false, ref=e17]
+      - link [ref=e18]
+      - button "Switch to dark mode" [ref=e19]
+      - button "Log out" [ref=e20]
+- main
+  - heading "E2E Test Gym" [level=1, ref=e2]
+  - paragraph
+  - button "Previous day" [ref=e3]
+  - button "Today" [ref=e4]
+  - button "Fri, Jul 10, 2026" [expanded=false, ref=e5]
+  - button "Next day" [ref=e6]
+  - link "Browse Workouts" [ref=e7]
+  - generic
+    - heading "Today's Workouts" [level=2, ref=e9]
+    - heading "No workouts scheduled" [level=3, ref=e10]
+    - link "Browse Workouts" [ref=e11]
+- region "Notifications alt+T" [ref=e1]

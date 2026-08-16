@@ -1,0 +1,29 @@
+- banner
+  - link "wodsmith compete WODsmithCompete" [ref=e2]
+    - heading "WODsmithCompete" [level=1, ref=e8]
+  - navigation
+    - link "COMPETITIONS" [ref=e9]
+    - link "HOST A COMP" [ref=e10]
+    - link [ref=e11]
+    - button "Switch to dark mode" [ref=e12]
+    - button "Log out" [ref=e13]
+- main
+  - sectionheader
+    - heading "Competitions" [level=1, ref=e14]
+  - tablist "Filter competitions"
+    - tab "All4" [selected, ref=e15]
+    - tab "Open2" [ref=e16]
+    - tab "Live1" [ref=e17]
+    - tab "Upcoming1" [ref=e18]
+    - tab "Past8" [ref=e19]
+  - searchbox "Search competitions" [ref=e20]
+  - button "Filters" [ref=e3]
+  - link "Online Qualifier 2026 CrossFit Box One Jul 10–24, 2026 Online Live Now" [ref=e4]
+    - heading "Online Qualifier 2026" [level=3, ref=e21]
+  - link "Winter Throwdown 2025 CrossFit Box One Jul 24, 2026 CrossFit Box One Register" [ref=e5]
+    - heading "Winter Throwdown 2025" [level=3, ref=e22]
+  - link "E2E Test Throwdown E2E Test Gym Aug 9–10, 2026 E2E Test Gym Register" [ref=e6]
+    - heading "E2E Test Throwdown" [level=3, ref=e23]
+  - link "2026 WODsmith Invitational CrossFit Box One Sep 8–9, 2026 CrossFit Box One Upcoming" [ref=e7]
+    - heading "2026 WODsmith Invitational" [level=3, ref=e24]
+- region "Notifications alt+T" [ref=e1]

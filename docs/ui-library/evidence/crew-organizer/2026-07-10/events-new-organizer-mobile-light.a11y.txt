@@ -1,0 +1,43 @@
+- banner
+  - link "C WODsmith Crew" [ref=e2]
+  - navigation
+    - link "Calculator" [ref=e5]
+    - link "Events" [ref=e6]
+    - link "New event" [ref=e7]
+  - button "Log out" [ref=e3]
+- main
+  - heading "New Crew event" [level=1, ref=e4]
+  - paragraph
+    - StaticText "Create a normal competition and attach its Crew settings row."
+  - generic
+    - LabelText
+      - StaticText "Event name"
+      - textbox "Event name" [required, ref=e10]
+    - LabelText
+      - StaticText "Slug"
+      - textbox "Slug" [required, ref=e11]
+    - LabelText
+      - StaticText "Start date"
+      - Date "Start date": 2026-07-10
+        - generic
+          - spinbutton "Month Month" [ref=e17]: 7
+          - spinbutton "Day Day" [ref=e18]: 10
+          - spinbutton "Year Year" [ref=e19]: 2026
+        - button "Show date picker" [ref=e15]
+    - LabelText
+      - StaticText "End date"
+      - Date "End date": 2026-07-10
+        - generic
+          - spinbutton "Month Month" [ref=e20]: 7
+          - spinbutton "Day Day" [ref=e21]: 10
+          - spinbutton "Year Year" [ref=e22]: 2026
+        - button "Show date picker" [ref=e16]
+    - LabelText
+      - textbox "Source event URL" [ref=e12]
+    - LabelText
+      - textbox "External registration URL" [ref=e13]
+    - LabelText
+      - textbox "Description" [ref=e14]
+    - button "Create Crew event" [ref=e8]
+    - link "Cancel" [ref=e9]
+- region "Notifications alt+T" [ref=e1]

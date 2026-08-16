@@ -1,0 +1,75 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Welcome to WODsmith"
+    },
+    {
+      "level": 2,
+      "text": "Choose Your Path​"
+    },
+    {
+      "level": 3,
+      "text": "For Athletes​"
+    },
+    {
+      "level": 3,
+      "text": "For Competition Organizers​"
+    },
+    {
+      "level": 3,
+      "text": "For Judges & Volunteers​"
+    },
+    {
+      "level": 2,
+      "text": "Concepts & Reference​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "Welcome to WODsmith | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 2388,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

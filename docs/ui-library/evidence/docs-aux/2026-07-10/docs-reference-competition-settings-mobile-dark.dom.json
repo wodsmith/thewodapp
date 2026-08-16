@@ -1,0 +1,132 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/reference/competition-settings/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Competition Settings Reference"
+    },
+    {
+      "level": 2,
+      "text": "General Settings​"
+    },
+    {
+      "level": 2,
+      "text": "Rotation Settings​"
+    },
+    {
+      "level": 2,
+      "text": "Waiver Settings​"
+    },
+    {
+      "level": 2,
+      "text": "Event Settings​"
+    },
+    {
+      "level": 2,
+      "text": "Venue & Schedule Settings​"
+    },
+    {
+      "level": 2,
+      "text": "Pricing Settings​"
+    },
+    {
+      "level": 2,
+      "text": "Access Control​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Setting",
+        "Type",
+        "Description"
+      ],
+      "rowCount": 12
+    },
+    {
+      "headers": [
+        "Setting",
+        "Type",
+        "Description"
+      ],
+      "rowCount": 2
+    },
+    {
+      "headers": [
+        "Setting",
+        "Type",
+        "Description"
+      ],
+      "rowCount": 3
+    },
+    {
+      "headers": [
+        "Setting",
+        "Type",
+        "Description"
+      ],
+      "rowCount": 10
+    },
+    {
+      "headers": [
+        "Setting",
+        "Type",
+        "Description"
+      ],
+      "rowCount": 5
+    },
+    {
+      "headers": [
+        "Setting",
+        "Type",
+        "Description"
+      ],
+      "rowCount": 1
+    }
+  ],
+  "title": "Competition Settings Reference | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 7428,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

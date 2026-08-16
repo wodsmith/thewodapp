@@ -4,13 +4,27 @@ import { useServerFn } from "@tanstack/react-start"
 import { CheckCircle2, Loader2 } from "lucide-react"
 import { useState } from "react"
 import {
+  VOLUNTEER_AVAILABILITY,
+  VOLUNTEER_ROLE_LABELS,
+  VOLUNTEER_ROLE_TYPE_VALUES,
+  VOLUNTEER_ROLE_TYPES,
+  type VolunteerRoleType,
+} from "../../db/schemas/volunteers"
+import {
+  type PublicCrewVolunteerEvent,
+  type PublicCrewVolunteerQuestion,
+  type PublicCrewVolunteerWaiver,
+  submitCrewVolunteerSignupFn,
+} from "../../server-fns/crew-volunteer-fns"
+import { WaiverViewer } from "../compete/waiver-viewer"
+import { Button } from "../ui/button"
+import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "../ui/card"
-import { Button } from "../ui/button"
 import { Checkbox } from "../ui/checkbox"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
@@ -22,20 +36,6 @@ import {
   SelectValue,
 } from "../ui/select"
 import { Textarea } from "../ui/textarea"
-import {
-  VOLUNTEER_AVAILABILITY,
-  VOLUNTEER_ROLE_LABELS,
-  VOLUNTEER_ROLE_TYPES,
-  VOLUNTEER_ROLE_TYPE_VALUES,
-  type VolunteerRoleType,
-} from "../../db/schemas/volunteers"
-import {
-  submitCrewVolunteerSignupFn,
-  type PublicCrewVolunteerEvent,
-  type PublicCrewVolunteerQuestion,
-  type PublicCrewVolunteerWaiver,
-} from "../../server-fns/crew-volunteer-fns"
-import { WaiverViewer } from "../compete/waiver-viewer"
 
 interface CrewVolunteerSignupFormProps {
   event: PublicCrewVolunteerEvent
@@ -156,7 +156,9 @@ export function CrewVolunteerSignupForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Volunteer for {event.name}</CardTitle>
+        <CardTitle>
+          <h1>Volunteer for {event.name}</h1>
+        </CardTitle>
         <CardDescription>
           Share your contact details, availability, and preferred roles.
         </CardDescription>

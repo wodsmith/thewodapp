@@ -1,0 +1,57 @@
+{
+  "bodyText": "WODsmith Admin Home Toggle theme PLATFORM Dashboard Teams Competitions Organizer Requests Entitlements Demo Competitions Documentation Admin / Documentation Documentation Contextual help shown in the docs drawer on organizer pages New doc /compete/organizer/_dashboard/ 1 Add a doc for /compete/organizer/_dashboard/ /compete/organizer/$competitionId 1 Add a doc for /compete/organizer/$competitionId /compete/organizer/$competitionId/athletes/ 1 Add a doc for /compete/organizer/$competitionId/athletes/ /compete/organizer/$competitionId/broadcasts 1 Add a doc for /compete/organizer/$competitionId/broadcasts /compete/organizer/$competitionId/edit 1 Add a doc for /compete/organizer/$competitionId/edit /compete/organizer/$competitionId/schedule 1 Add a doc for /compete/organizer/$competitionId/schedule",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "search",
+      "name": null,
+      "label": null,
+      "required": false
+    }
+  ],
+  "finalUrl": "/admin/docs",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Documentation"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

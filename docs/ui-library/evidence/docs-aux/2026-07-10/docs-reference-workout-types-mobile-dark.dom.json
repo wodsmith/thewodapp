@@ -1,0 +1,226 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/reference/workout-types/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Workout Types Reference"
+    },
+    {
+      "level": 2,
+      "text": "Available Workout Schemes​"
+    },
+    {
+      "level": 2,
+      "text": "For Time​"
+    },
+    {
+      "level": 3,
+      "text": "Score Input Format​"
+    },
+    {
+      "level": 2,
+      "text": "For Time (with cap)​"
+    },
+    {
+      "level": 3,
+      "text": "Score Input Format​"
+    },
+    {
+      "level": 2,
+      "text": "AMRAP (As Many Rounds/Reps As Possible)​"
+    },
+    {
+      "level": 3,
+      "text": "Score Input Format​"
+    },
+    {
+      "level": 2,
+      "text": "Max Reps​"
+    },
+    {
+      "level": 2,
+      "text": "Max Load (Strength)​"
+    },
+    {
+      "level": 3,
+      "text": "Common Formats​"
+    },
+    {
+      "level": 2,
+      "text": "EMOM (Every Minute On the Minute)​"
+    },
+    {
+      "level": 3,
+      "text": "Variants​"
+    },
+    {
+      "level": 2,
+      "text": "Distance-Based​"
+    },
+    {
+      "level": 3,
+      "text": "Meters​"
+    },
+    {
+      "level": 3,
+      "text": "Feet​"
+    },
+    {
+      "level": 2,
+      "text": "Calories​"
+    },
+    {
+      "level": 2,
+      "text": "Points​"
+    },
+    {
+      "level": 2,
+      "text": "Pass/Fail​"
+    },
+    {
+      "level": 2,
+      "text": "Workout Styles vs Schemes​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Scheme",
+        "Display Name",
+        "Score Format",
+        "Example"
+      ],
+      "rowCount": 11
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Attribute",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Term",
+        "Description",
+        "Typical Scheme"
+      ],
+      "rowCount": 4
+    }
+  ],
+  "title": "Workout Types Reference | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 8919,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

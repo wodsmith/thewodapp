@@ -1,0 +1,152 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/concepts/heat-scheduling/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Heat Scheduling Strategy"
+    },
+    {
+      "level": 2,
+      "text": "Why Heats Exist​"
+    },
+    {
+      "level": 2,
+      "text": "The Math of Heat Scheduling​"
+    },
+    {
+      "level": 3,
+      "text": "Basic Calculations​"
+    },
+    {
+      "level": 3,
+      "text": "Compound Complexity​"
+    },
+    {
+      "level": 2,
+      "text": "Athlete Experience Considerations​"
+    },
+    {
+      "level": 3,
+      "text": "Wait Time​"
+    },
+    {
+      "level": 3,
+      "text": "Heat Placement​"
+    },
+    {
+      "level": 2,
+      "text": "Division Interactions​"
+    },
+    {
+      "level": 3,
+      "text": "Separate Heats​"
+    },
+    {
+      "level": 3,
+      "text": "Mixed Heats​"
+    },
+    {
+      "level": 3,
+      "text": "Interleaved Heats​"
+    },
+    {
+      "level": 2,
+      "text": "Judge Assignments​"
+    },
+    {
+      "level": 3,
+      "text": "Fixed Lane Judging​"
+    },
+    {
+      "level": 3,
+      "text": "Rotating Judge Assignments​"
+    },
+    {
+      "level": 3,
+      "text": "Volunteer Considerations​"
+    },
+    {
+      "level": 2,
+      "text": "Transition Time Reality​"
+    },
+    {
+      "level": 3,
+      "text": "Floor Reset​"
+    },
+    {
+      "level": 3,
+      "text": "Athlete Movement​"
+    },
+    {
+      "level": 3,
+      "text": "Standards Brief​"
+    },
+    {
+      "level": 2,
+      "text": "WODsmith's Auto-Generation​"
+    },
+    {
+      "level": 2,
+      "text": "Common Scheduling Problems​"
+    },
+    {
+      "level": 2,
+      "text": "The Day-Of Shuffle​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Problem",
+        "Cause",
+        "Solution"
+      ],
+      "rowCount": 5
+    }
+  ],
+  "title": "Heat Scheduling Strategy | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 7637,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

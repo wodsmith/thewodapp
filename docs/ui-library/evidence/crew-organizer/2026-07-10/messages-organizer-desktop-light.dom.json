@@ -1,0 +1,75 @@
+{
+  "bodyText": "WODsmith Crew Home Workflow Setup Heats Staffing Plan Volunteers Operations Volunteer Shifts Judge Assignments Confirmations Event Day Print Packet Toggle Sidebar ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Confirmations 11 assignments, 3 awaiting a volunteer response Shifts Pending 0 Sent 3 Confirmed 6 Declined 1 Change requested 0 No response 3 Send assignment emails 0 assignment emails ready to send Will send 0 Already sent 1 No email 0 Already answered 8 Not due 0 Past shift 2 Send assignment emails Send reminder emails 1 reminder email ready to send Will send 1 Already sent 0 No email 0 Already answered 8 Not due 0 Past shift 2 Send reminder emails Send all unsent 0 ready Remind no responses 1 due now Review declines 1 assignment Review change requests 0 assignments No-response list 3 assignments Export no-response list No response 3 Tara Brooks Sent Athlete Check-In · Check-In · Fri, Jul 10 4:05 PM - 6:05 PM <email> · Lobby Sent Jul 10 5:05 PM Grace Martinez Sent North Lane 2 Judge · Judge · Fri, Jul 10 5:25 PM - 6:35 PM <email> · North Floor / Lane 2 Sent Jul 10 5:05 PM Kai Robinson Sent Equipment Reset · Equipment · Fri, Jul 10 5:50 PM - 8:05 PM <email> · Equipment Staging Sent Jul 10 5:05 PM Declined 1 Hank Brown Declined Score Table · Scorekeeper · Fri, Jul 10 4:55 PM - 7:25 PM <email> · Scoring Desk Seeded decline so organizers can demo response triage. Responded Jul 10 5:05 PM Change requested 0 No assignments Confirmed 6 Ivy Chen Confirmed Athlete Check-In · Check-In · Fri, Jul 10 4:05 PM - 6:05 PM <email> · Lobby Responded Jul 10 5:05 PM Jules Patel Checked in North Floor Crew · Floor Manager · Fri, Jul 10 4:45 PM - 6:45 PM <email> · North Floor Responded Jul 10 5:05 PM Rosa King Confirmed North Floor Crew · Floor Manager · Fri, Jul 10 4:45 PM - 6:45 PM <email> · North Floor Responded Jul 10 5:05 PM Uma Miller Confirmed Score Table · Scorekeeper · Fri, Jul 10 4:55 PM - 7:25 PM <email> · Scoring Desk Responded Jul 10 5:05 PM Sam Lee Confirmed Equipment Reset · Equipment · Fri, Jul 10 5:50 PM - 8:05 PM <email> · Equipment Staging Responded Jul 10 5:05 PM Vince Adams Confirmed Media Runner · Media · Fri, Jul 10 7:05 PM - 8:35 PM <email> · Awards Backdrop Responded Jul 10 5:05 PM Event-day outcomes 1 Frank Garcia No-show Medical Station · Medical · Fri, Jul 10 4:50 PM - 8:20 PM <email> · Medical Tent Seeded no-show for event-day replacement visibility. Responded Jul 10 5:05 PM",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/events/e2e_competition/messages",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Confirmations"
+    },
+    {
+      "level": 3,
+      "text": "Send assignment emails"
+    },
+    {
+      "level": 3,
+      "text": "Send reminder emails"
+    },
+    {
+      "level": 3,
+      "text": "No-response list"
+    },
+    {
+      "level": 3,
+      "text": "No response"
+    },
+    {
+      "level": 3,
+      "text": "Declined"
+    },
+    {
+      "level": 3,
+      "text": "Change requested"
+    },
+    {
+      "level": 3,
+      "text": "Confirmed"
+    },
+    {
+      "level": 3,
+      "text": "Event-day outcomes"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 2623,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

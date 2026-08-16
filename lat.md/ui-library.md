@@ -1,0 +1,617 @@
+# UI Library
+
+The UI library boundary lets WODsmith evolve reusable primitives independently from route features while preserving app behavior during a stacked migration.
+
+## Current boundary
+
+The shared package now includes dependency-closed feedback, identity, navigation, disclosure, progress, scrolling, empty-state, field, and metric presentation while preserving every Start and Crew route import.
+
+\`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]], and children-driven field, empty-state, and metric composition in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
+
+[[packages/ui/src/components/auth-entry.tsx#AuthEntry|Auth entry]] is a children-driven compound pattern for responsive account-entry composition. It owns structure and semantics only; route controllers, forms, auth state, branding, and theme activation remain app-owned. Start and Crew sign-in are its first consumers.
+
+\`list-item\` remains an app adapter because its prop and compound APIs need a separate composition decision. The custom \`toggle-group\` remains app-owned pending an accessibility/API review. Divergent \`searchable-select\`, \`sidebar\`, domain components, and \`use-mobile\` also remain app-owned.
+
+### Empty state composition
+
+[[packages/ui/src/components/empty-state.tsx#EmptyState|EmptyState]] owns portable plain and bounded presentation without owning route state, copy, heading level, actions, or live-region policy.
+
+Root and Card are explicit surfaces instead of modes. Icon, Title, Description, and Actions compose caller content inside either surface; Start and Crew expose identity-only UI adapters while organizer compatibility adapters preserve the legacy feature API.
+
+#### Plain empty state
+
+Root forwards native div props, refs, and classes so callers can opt into roles such as status while composing decorative icons, explicit headings, descriptions, buttons, and links.
+
+#### Bounded empty state card
+
+Card provides the explicit bounded surface and forwards native div props, refs, and classes without introducing variant or domain props.
+
+#### Explicit heading child
+
+Title slots exactly one concrete h1 through h6 child so the caller owns document hierarchy while the primitive owns portable typography.
+
+#### Empty state context misuse
+
+Icon, Title, Description, and Actions fail with a specific error outside Root or Card, preventing detached compound parts from silently losing their composition contract.
+
+#### Organizer compatibility adapter
+
+The mirrored [[apps/wodsmith-start/src/components/organizer/empty-state.tsx#OrganizerEmptyState|Start]] and [[apps/crew/src/components/organizer/empty-state.tsx#OrganizerEmptyState|Crew]] adapters map the legacy prop API to explicit EmptyState surfaces.
+
+The [adapter inventory](../docs/ui-library/organizer-empty-state-adapter.md) records the original 19 sites, ten direct component migrations, and nine remaining Start route sites. Legacy layout, action behavior, and decorative icon semantics remain stable.
+
+##### Start adapter
+
+Start keeps its organizer feature API stable while the adapter composes the shared primitive.
+
+###### Plain presentation
+
+The plain adapter retains centered spacing, h3 hierarchy, description width, and decorative icon treatment without adding a bounded surface.
+
+###### Card presentation
+
+The default adapter retains the prior card border, foreground, shadow, and nested content spacing without applying the shared card's default maximum width or padding.
+
+###### Incomplete actions
+
+An action renders only when its label and callback are both present, preserving the legacy optional-pair contract.
+
+###### Action behavior
+
+Primary and outlined secondary buttons retain their order, supplied icons, callback behavior, mobile equal-width stretch, and centered row alignment from `sm` upward.
+
+###### Mirrored source parity
+
+The Start source stays byte-identical to the Crew source so both application surfaces keep one compatibility contract.
+
+##### Crew adapter
+
+Crew mirrors the Start organizer feature API and shared primitive composition exactly.
+
+###### Plain presentation
+
+The plain adapter retains centered spacing, h3 hierarchy, description width, and decorative icon treatment without adding a bounded surface.
+
+###### Card presentation
+
+The default adapter retains the prior card border, foreground, shadow, and nested content spacing without applying the shared card's default maximum width or padding.
+
+###### Incomplete actions
+
+An action renders only when its label and callback are both present, preserving the legacy optional-pair contract.
+
+###### Action behavior
+
+Primary and outlined secondary buttons retain their order, supplied icons, callback behavior, mobile equal-width stretch, and centered row alignment from `sm` upward.
+
+###### Mirrored source parity
+
+The Crew source stays byte-identical to the Start source so both application surfaces keep one compatibility contract.
+
+#### Direct organizer consumers
+
+Four mirrored component clusters compose `@repo/ui` EmptyState directly so each caller owns its surface, heading, copy, and actions without a feature prop adapter.
+
+Registration questions and event-mapping prerequisites keep their plain presentation. Invite sources and venues keep the legacy card nesting and spacing. The Sources tab now uses an h2 below its route h1; nested component states keep h3 headings.
+
+##### Start registration questions empty state
+
+The Start empty-question test verifies an h3 title and that Add Question opens the existing registration-question dialog.
+
+##### Crew registration questions empty state
+
+The Crew mirror verifies the same heading and action semantics without changing question state or payloads.
+
+##### Start event mapping event prerequisite
+
+The Start mapper test verifies the missing-events branch keeps its h3 and prerequisite guidance.
+
+##### Start event mapping division prerequisite
+
+The Start mapper test verifies the missing-divisions branch keeps its h3 and prerequisite guidance.
+
+##### Crew event mapping event prerequisite
+
+The Crew mapper test verifies the missing-events branch keeps its h3 and prerequisite guidance.
+
+##### Crew event mapping division prerequisite
+
+The Crew mapper test verifies the missing-divisions branch keeps its h3 and prerequisite guidance.
+
+##### Start invite sources empty action
+
+The Start invite test verifies the Sources tab uses an h2 and invokes the optional Add source callback only when supplied.
+
+##### Crew invite sources empty action
+
+The Crew invite test verifies the Sources tab uses an h2 and preserves optional action omission and invocation.
+
+##### Start venue empty action
+
+The Start venue test verifies the empty h3 remains below the Venues h2 and Add venue opens the existing dialog.
+
+##### Crew venue empty action
+
+The Crew venue test verifies the mirrored heading hierarchy and existing dialog action.
+
+### Metric composition
+
+[[packages/ui/src/components/metric.tsx#Metric|Metric]] owns portable metric structure and presentation without owning grids, calculations, data fetching, actions, animation, or state vocabulary.
+
+Root, Card, and Inset are explicit children-driven surfaces that render native description lists. Label renders a term, Value and Supporting render definitions, and its optional nested Icon is decorative by default. Start and Crew expose identity-only adapters for reviewed consumer migrations.
+
+#### Semantic metric root
+
+Root and every portable part forward native attributes, refs, and classes while preserving `dl`, `dt`, and `dd` semantics, tabular values, and a decorative icon nested within its term.
+
+#### Explicit metric surfaces
+
+Card provides a bounded card surface and Inset provides a compact muted surface without boolean presentation props; Root remains unframed for caller-owned layout.
+
+#### Metric value variants
+
+Value exposes only finite `sm`, `md`, and `lg` sizes plus neutral, positive, warning, and critical tones. Visible labels and supporting text must carry meaning independently of color.
+
+#### Metric overflow safety
+
+Every surface and text part has a zero minimum width, while labels, values, code-like identifiers, and supporting copy can wrap without forcing horizontal overflow.
+
+#### Metric context misuse
+
+Icon, Label, Value, and Supporting fail with a specific error outside Root, Card, or Inset so detached parts cannot silently lose the semantic composition contract.
+
+#### Crew compact preview consumers
+
+Crew copy-event and template previews compose compact metrics directly while preserving their grids, values, and visible value-before-label layout.
+
+The semantic source order remains label then value, and caller-owned `order-first` styling keeps the existing visual order without weakening the `dl`, `dt`, and `dd` relationship.
+
+##### Copy prior event metrics
+
+The copy-preview test verifies Copy, Skip, and Deny are semantic pairs, including zero, with the prior compact surface and visible order.
+
+##### Copy prior event empty state
+
+The copy-preview test verifies an event with no eligible source keeps its existing message and does not fabricate metric structure.
+
+##### Template preview metrics
+
+The template-preview test verifies Roles, New, and Skipped are semantic pairs, including long and zero values, with the prior compact surface and visible order.
+
+##### Template unavailable state
+
+The template-preview test verifies an unavailable template keeps the panel non-rendering rather than creating empty metric structure.
+
+### Field composition
+
+[[packages/ui/src/components/field.tsx#Field|Field]] and FieldGroup own portable label, control, description, error, fieldset, and legend semantics without owning validation state or form controllers.
+
+Callers provide a stable id plus optional description and error content to the compound root. Field.Control slots exactly one concrete child, preserves existing described-by tokens, appends deduplicated metadata ids in description/error order, and marks invalid state only for renderable error content.
+
+Metadata renderers read the root contract and omit themselves when their content is absent. FieldGroup uses a native fieldset with a direct legend and the same description/error semantics. Compound parts fail fast outside their matching root.
+
+Start and Crew expose identity-only \`field\` adapters for reviewed consumer migrations. Canonical React Hook Form fields stay on the existing primitives and retain their misuse guard.
+
+#### Accessible field metadata
+
+The field control receives its accessible name, ordered description and error references, invalid state, enforced ids, semantic error role, and metadata refs.
+
+#### Absent field metadata
+
+A field without description or error content omits metadata nodes, described-by references, and invalid state while preserving root props and classes.
+
+#### Slotted control precedence
+
+A custom slotted child cannot override the field id, metadata references, or invalid state, while native props, classes, and composed refs remain intact.
+
+#### Single slotted control
+
+Field.Control rejects zero, multiple, or Fragment children so Radix Slot always receives exactly one concrete control.
+
+#### Stable field id
+
+Field.Root rejects a blank id because label and metadata relationships require a caller-owned stable identifier.
+
+#### Field context misuse
+
+Every Field compound part fails with a specific error when rendered outside Field.Root.
+
+#### Accessible field group
+
+FieldGroup renders a native fieldset with a direct legend, ordered description and error references, invalid state, native props, classes, and refs.
+
+#### Absent group metadata
+
+A field group without description or error content omits metadata nodes and ARIA state, while FieldGroup.Root rejects blank ids.
+
+#### Field group context misuse
+
+Every FieldGroup compound part fails with a specific error when rendered outside FieldGroup.Root.
+
+#### Rotation editor field groups
+
+The Start and Crew multi-rotation editors use FieldGroup only for the rotations collection while preserving every row-level React Hook Form field and persistence contract.
+
+##### Organizer rotation editor group
+
+The organizer and cohost editor renders a named Rotations fieldset in create and edit states, supports block add/remove, and preserves batch create and update payloads.
+
+###### Organizer rotation create
+
+Create state renders the named collection with a canonical Judge field, supports adding and removing blocks, and preserves the batch-create payload.
+
+###### Organizer rotation update
+
+Edit state renders existing rotation values and preserves the batch-update payload for organizer and cohost callers.
+
+##### Crew rotation editor group
+
+The Crew editor renders the same named Rotations fieldset, preserves existing blocks and add/remove behavior, and sends unchanged judge and rotation values to its save callback.
+
+###### Crew rotation create
+
+Create state renders the named collection with a canonical Judge field, supports adding and removing blocks, and preserves the Crew save payload.
+
+###### Crew rotation update
+
+Edit state renders existing rotation values and preserves the Crew save payload.
+
+#### Scaling level field groups
+
+The Start and Crew scaling-group dialogs use FieldGroup for the levels collection while preserving their React Hook Form title and description fields, drag ordering, and server-function contracts.
+
+##### Organizer scaling level create
+
+Create state renders a named Scaling Levels group, labels every row and control target, supports add, remove, and reorder, and preserves the ordered create payload.
+
+##### Organizer scaling level validation
+
+Invalid level labels render the collection error through FieldGroup without requiring React Hook Form field context or crashing the organizer dialog.
+
+##### Organizer scaling level update
+
+Edit state renders sorted existing levels and its creation-only note while preserving the canonical organizer update payload without level mutations.
+
+##### Crew scaling level create
+
+Crew create state mirrors the named group, row labels, controls, collection editing, and ordered create payload used by Start.
+
+##### Crew scaling level validation
+
+Invalid Crew level labels render a semantic collection error without the former React Hook Form context crash.
+
+##### Crew scaling level update
+
+Crew edit state mirrors sorted levels and the creation-only note while retaining the unchanged update payload.
+
+#### Registration option field groups
+
+The Start and Crew registration-question editors use FieldGroup for select options while preserving text/number rendering, question schemas, server actions, and create/update payloads.
+
+##### Organizer registration option type rendering
+
+The organizer editor omits the Options group for text questions and renders a named fieldset with a labeled option input only for select questions.
+
+##### Organizer registration option editing
+
+Organizer select options are trimmed, deduplicated, removable through named controls, and stored in the existing React Hook Form options value.
+
+##### Organizer registration option validation
+
+Submitting an empty select question marks the Options fieldset invalid and renders the existing minimum-option message as a semantic error without a Form context crash.
+
+##### Organizer registration option create payload
+
+Organizer create state preserves the competition, team, type, label, help text, options, required, teammate, and target values sent to the existing create action.
+
+##### Organizer registration option update payload
+
+Organizer edit state loads existing options and preserves the canonical question update payload.
+
+##### Crew registration option type rendering
+
+The Crew editor mirrors the organizer type-dependent Options fieldset and labeled option input.
+
+##### Crew registration option editing
+
+Crew mirrors trimmed option addition, duplicate rejection, and accessible removal without changing form ownership.
+
+##### Crew registration option validation
+
+Crew renders empty-select validation through the shared FieldGroup semantics without requiring React Hook Form field context.
+
+##### Crew registration option create payload
+
+Crew preserves the canonical competition question create payload while composing the select options collection.
+
+##### Crew registration option update payload
+
+Crew edit state retains existing select options and sends the unchanged update payload.
+
+## Shared package boundary
+
+The workspace package \`@repo/ui\` under \`packages/ui\` exposes direct component subpaths, \`cn\`, and a shared stylesheet without a root barrel migration.
+
+The package may own presentational primitives, their variants, and portable styling contracts. It must not import TanStack route modules, server functions, database code, authentication state, or app feature types.
+
+React and React DOM are explicit peer contracts, while package tests pin both runtimes to the same 19.2.3 resolution used by Start and Crew.
+
+Its production TypeScript configuration includes only package source. Cross-app compatibility is verified separately, while Start and Crew type-check their adapters as consumers.
+
+The package build transpiles source to ignored JavaScript under \`dist\`. Declarations are not configured, and direct subpath exports continue to resolve the package TypeScript sources.
+
+The shared Tailwind v4 stylesheet at \`packages/ui/src/styles.css\` owns semantic theme utilities, light/dark token values, and base body/border styles. Its \`dark\` variant follows a \`.dark\` ancestor, matching app theme state rather than the operating-system preference.
+
+Each app imports Tailwind first, then \`@repo/ui/styles.css\`, then its typography plugin, and retains only app-specific keyframes and range-control rules.
+
+## Storybook contract
+
+Storybook is the isolated development and static-build surface for the current boundary.
+
+[[apps/wodsmith-start/.storybook/main.ts]] uses the React Vite framework with a dedicated [[apps/wodsmith-start/.storybook/vite.config.ts|Storybook Vite config]], avoiding the Start app's Cloudflare and server plugins. [[apps/wodsmith-start/.storybook/preview.tsx]] scopes Docs theme state to story wrappers so dark examples do not restyle Docs chrome.
+
+Canvas theme state also reaches its iframe root and body. This lets body-portalled overlays inherit the toolbar-selected semantic tokens even when the operating-system preference is the opposite theme.
+
+Representative stories cover foundations plus form validation, field and fieldset composition, selection controls, dialogs, sheets, menus, popovers, tooltips, tabs, alerts, avatars, breadcrumbs, collapsibles, hover cards, progress, and scroll areas by importing direct \`@repo/ui/*\` entry points.
+
+The new stories verify field naming, descriptions, invalid transitions, disabled and slotted controls, native fieldset groups, empty-state and metric surfaces, alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
+
+### Bounded empty state story
+
+The Card story verifies its bounded surface, explicit h2, and decorative icon semantics.
+
+### Plain empty state story
+
+The Plain story verifies caller-owned status semantics, live-region policy, and an explicit h3.
+
+### Empty state action story
+
+The action story verifies arbitrary primary and secondary controls, button activation, link targets, and keyboard order.
+
+### Dynamic empty state story
+
+The filtered-results story verifies a caller-owned state transition while the primitive remains presentation-only.
+
+### Mobile empty state story
+
+The long-content story verifies that bounded empty states, actions, and expanded copy remain contained at 320 and 390 px.
+
+### Empty state heading levels story
+
+The heading-level story verifies that callers can provide different valid document levels without a heading-level prop.
+
+### Neutral metric grid story
+
+The neutral grid story verifies three independent card description lists with explicit term and definition semantics while the caller owns the responsive grid.
+
+### Metric icon and supporting story
+
+The icon story verifies decorative icon behavior and a second definition for supporting context without adding an icon meaning or supporting-text prop to the surface.
+
+### Metric tone story
+
+The tone story exercises every finite value tone with visible supporting text so neutral, positive, warning, and critical meaning never depends on color alone.
+
+### Compact metric inset story
+
+The compact story verifies the explicit muted Inset surface and small Value presentation without a compact boolean prop.
+
+### Mobile metric overflow story
+
+The long-content story verifies description-list semantics and containment for code-like values and unbroken supporting references at 320 and 390 px.
+
+### Metric state composition story
+
+The state story verifies caller-owned `aria-busy` Skeleton composition and an adjacent destructive Alert without adding loading or error behavior to Metric.
+
+Auth-entry stories cover the standard Card and unframed Plain surfaces, a forced-dark composition under opposite operating-system preference, composed error and pending status regions, keyboard order, long copy, and 320/390 px overflow safety.
+
+### Semantic contrast audit
+
+Semantic primary and destructive foreground pairs meet WCAG AA contrast for normal text in both themes.
+
+Primary contrast is 4.729:1 in light mode and 5.538:1 in dark mode. Destructive contrast is 4.619:1 in light mode and 5.251:1 in dark mode. Standalone primary/destructive text also exceeds 4.5:1 against its theme background.
+
+The Start, Crew, and shared-package audit covers 267 \`bg-primary\`, 82 \`text-primary-foreground\`, 265 standalone \`text-primary\`, 94 \`bg-destructive\`, 24 \`text-destructive-foreground\`, and 1,039 \`dark:\` utility occurrences.
+
+Foreground exceptions are state-matched: light \`bg-black\` becomes dark \`bg-primary\`, group-hover foreground changes accompany group-hover backgrounds, and destructive foreground hover states accompany destructive hover backgrounds. No unmatched foreground/background pair needs a local color override.
+
+[[apps/wodsmith-start/storybook-tests/semantic-contrast.spec.ts]] reads every Canvas story id from the static \`index.json\`, runs light and dark with opposite OS preferences, exercises portal states, and requires zero axe color-contrast violations. The confirmation dialog coverage explicitly audits the shared default Button's pointer-hover state, including its dark-theme foreground pair. The suite separately verifies Docs theme isolation.
+
+## Compatibility contract
+
+Focused package tests prove that Start and Crew adapters expose the same runtime objects and exact export names as direct \`@repo/ui\` imports.
+
+[[packages/ui/test/compatibility.test.ts]] checks exact export names and runtime identity for the added adapters as well as the shared stylesheet contract.
+
+[[packages/ui/test/primitives.test.tsx]] verifies alert, avatar fallback, breadcrumb, collapsible, progress, and scroll-area behavior alongside the existing form and overlay accessibility contracts. Hover timing and portal behavior stay in the browser-backed Storybook play test.
+
+[[packages/ui/test/field.test.tsx]] verifies accessible names, metadata id order and deduplication, omission, invalid state, slotted custom controls, native props and refs, fieldset legend semantics, stable ids, and strict compound-context errors.
+
+The same package suite verifies auth-entry heading semantics, native props, refs, class merging, and both explicit surfaces without coupling the package to any auth controller.
+
+[[packages/ui/test/empty-state.test.tsx]] verifies both explicit empty-state surfaces, native props and refs, decorative icons, explicit heading children, arbitrary actions, and strict compound-context errors.
+
+[[packages/ui/test/metric.test.tsx]] verifies description-list semantics, explicit surfaces, finite value variants, native props and refs, decorative icons, long-content wrapping, and strict compound-context errors.
+
+## Crew metric consumer tests
+
+Crew import summary tests keep each migrated label and value in a direct shared Metric description-list pair without changing import or heat workflow behavior.
+
+### Combined import summary composition
+
+The combined import preview retains all nine summary label/value sites while replacing its local presentation helper with direct shared Metric composition.
+
+### Volunteer import summary composition
+
+The volunteer import preview retains all nine summary label/value sites while replacing its local presentation helper with direct shared Metric composition.
+
+### Heats import summary composition
+
+The heats import preview retains all nine summary label/value sites while replacing its local presentation helper with direct shared Metric composition.
+
+### Consumer value edge cases
+
+Direct consumer-style Metric composition preserves zero, composed React nodes, and long unbroken values as ordered semantic label/value pairs.
+
+## Inventory contract
+
+The checked-in inventory makes route and component coupling visible before each extraction slice.
+
+\`apps/wodsmith-start/scripts/generate-ui-library-inventory.mjs\` counts direct primitive consumers, identifies package-owned implementations, compares Start and Crew paths, and verifies the generated artifact is current.
+
+## Page coverage contract
+
+The checked-in page contract makes every browser surface and explicit non-page decision visible before route components move into the shared library.
+
+The human-owned plan lives at `docs/ui-library/page-coverage.plan.json`. Deterministic discovery joins it into generated JSON and Markdown ledgers without treating generated output as a planning surface.
+
+### Discovery identity
+
+Route identity preserves framework semantics while URL patterns represent the browser address that evidence will eventually exercise.
+
+TanStack discovery starts from each registered `routeTree.gen.ts`, joins every generated alias to its source `createFileRoute` or `createRootRoute` declaration, and then scans declarations only to reject orphans. Route filenames alone are never inventory inputs.
+
+TypeScript syntax trees identify route option properties and calls, so comments, strings, regex literals, and braces inside comments cannot create false component, handler, or redirect classifications.
+
+Canonical TanStack IDs preserve pathless and index identity. For example, source ID `/compete/$slug/` becomes `tanstack:wodsmith-start:/compete/$slug/_index`, while its URL pattern is `/compete/:slug`.
+
+### Tree and source reconciliation
+
+Generated routes and source declarations must form a one-to-one mapping before any coverage plan can be rendered.
+
+The gate rejects unregistered app packages, missing imports, source/tree ID mismatches, orphan declarations, duplicate IDs, and unknown classifications. Shared URL patterns remain valid because layouts, pathless groups, and index pages can intentionally address the same URL.
+
+### Classification priority
+
+Mechanical classification distinguishes visual pages from infrastructure without using target counts as an input.
+
+Root and pathless routes are layouts. Server handlers and API routes are nonvisual; component-free redirects are redirect-only. Components with descendants and an index are layouts, those without an index are page-layouts, and other components are pages.
+
+Crew `/events` is therefore a page-layout/list, while `/events/$eventId` is a layout covered through its index descendant. Conditional redirects do not hide routes that also render components.
+
+The reconciled baseline is 328 records: 239 page/page-layout records and 89 explicit non-page decisions. The 239 visual records plus 17 redirects equal 256 browser-addressable patterns; the earlier ~203 estimate incorrectly treated trailing-slash index pages as layouts.
+
+### Docs and service decisions
+
+Docusaurus and service-only surfaces remain full records even when they do not produce browser evidence scenarios.
+
+Docs discovery records Markdown and MDX with YAML frontmatter plus category metadata. The configured route base is validated against Docusaurus and applied to every URL; `intro` keeps its ID while its slug maps to `/` today.
+
+Team Memory contributes seven HTTP endpoints and one scheduled surface, OG Worker contributes three wildcard-aware HTTP decisions, and the PostHog proxy contributes one wildcard decision. Protocol and method remain part of every service ID.
+
+Service discovery walks TypeScript syntax rather than matching source text. Team Memory chains and mounts plus pathname-derived Worker predicates reconcile against the registry; unknown path flow fails closed. PostHog requires straight-line delegation through the unshadowed canonical `./proxy` import.
+
+### Validation invariants
+
+The plan validator requires explicit placeholders for every page and page-layout while keeping exclusions reasoned and scenario-free.
+
+Each scenario names persona, fixture, params, query, data state, theme, viewport, evidence, blockers, and status. Required axis values need coverage but not a Cartesian product; dynamic parameters must have values even while a scenario is pending.
+
+Verified scenarios require hash-matched evidence and no blockers. Each evidence item names a known kind, portable repository-relative `ref`, and SHA-256; absolute and escaping refs are rejected on POSIX and Windows. Supported kinds include capture manifests alongside browser artifacts.
+
+Live browser evidence requires a capture manifest entry tied to the route and scenario. The requested path, params, query, viewport profile and dimensions, themes, environment, revision, tool, and exact artifact set must match; duplicate, unreferenced, missing, or on-disk orphan evidence fails validation.
+
+Scenario IDs must be nonblank strings. Blocked scenarios require a code and detail; pending and verified scenarios cannot retain blockers. Layout-only records must name a visual descendant, and other exclusions require a reason.
+
+### Checked-in ledger gate
+
+Generation and CI fail whenever the human plan, discovered repository surfaces, generated JSON, or generated Markdown drift apart.
+
+`page-coverage:scaffold` adds explicit pending or exclusion decisions, `page-coverage:generate` joins the ledger, and `check:page-coverage` performs read-only validation. No initial record claims verified browser evidence.
+
+### Public and auth-entry evidence
+
+The first deployed evidence slice covers anonymous Start and Crew public/auth-entry surfaces while keeping deployed observations distinct from PR-head verification.
+
+`docs/ui-library/public-entry-coverage-audit.md` records 14 route records and 32 scenarios: 25 verified observations and seven explicit blockers. Evidence came from fresh anonymous sessions against Start production and the Crew demo deployment without submitting forms or mutating data.
+
+Start verified responsive light/dark behavior for competition discovery, legal, maintenance, and basic auth-entry pages. Missing-token reset and verification error states were observed separately from their blocked token-backed happy paths.
+
+Crew verified desktop and mobile light output, but all four requested-dark scenarios remained light and are blocked with `THEME_NOT_IMPLEMENTED`. At 390 px, Crew home expands to 600 px and calculator to 759 px; these verified overflow observations require responsive follow-up. Valid token paths remain blocked until disposable fixtures exist.
+
+Observed repetition makes auth-entry composition, long-form legal documents, and centered status pages shared-library candidates. Competition discovery and the Crew staffing calculator remain route-specific; the team-invite UI stays unassessed because only its source gate was observed.
+
+### Docs and auxiliary app evidence
+
+The second deployed evidence slice covers all public Docs pages plus anonymous CRM and Ledger entry and redirect behavior, while preserving explicit blockers for authenticated content and Gameday.
+
+[The Docs and auxiliary app coverage audit](../docs/ui-library/docs-aux-coverage-audit.md) records 101 scenarios across 51 visual records: 84 verified and 17 blocked. The complete plan now has 109 verified, 24 blocked, and 174 pending scenarios.
+
+All 34 Docs records have desktop/light and mobile/dark accessibility and DOM evidence. Representative screenshots cover six representative routes in both variants; every captured Docs route honored the requested theme and reported no horizontal overflow.
+
+CRM and Ledger password roots verified dark desktop and mobile output without overflow. Their hard-coded dark state blocks requested-light scenarios, while anonymous probes verify redirects for all 12 protected visual routes without claiming authenticated page output.
+
+Gameday remains blocked because no deployed DNS target or exact-revision local Vite/API runtime was available. Its browser output and component disposition are not inferred from source inspection.
+
+The duplicated CRM and Ledger password experience supports a shared authentication-entry composition. Docs stays Docusaurus-owned and route-specific; authenticated auxiliary-app patterns remain unassessed until reproducible credentials and seeded data exist.
+
+### Protected athlete evidence
+
+The third evidence slice covers a bounded authenticated Start workflow across the dashboard, workouts, logs, programming, and personal settings using only disposable local infrastructure.
+
+[The protected athlete coverage audit](../docs/ui-library/protected-athlete-coverage-audit.md) records 35 scenarios across 15 visual records: 33 verified and two blocked. The complete plan now has 142 verified, 26 blocked, and 159 pending scenarios.
+
+The owner fixture verifies responsive light/dark output for scheduled-workout emptiness, populated workouts, filtered emptiness, workout detail and forms, missing-workout states, empty logs, a preselected log form, empty subscriptions, and representative settings pages. A separate seeded athlete verifies the dashboard workout-tracking redirect.
+
+Programming browse remains blocked because the required base seed exposes a public track instead of the audited empty state. Profile settings remains a verified error state. Athlete settings now verifies its route-specific imperial and metric form output after the form-context fix.
+
+Observed repetition supports a children-driven shared empty state and presentation-only settings header or section composition. Workout forms, calendars, scoring, navigation state, authentication, and route controllers remain app-owned.
+
+### Crew organizer evidence
+
+The fourth evidence slice covers the authenticated Crew organizer workflow from event discovery and setup through staffing, confirmations, event-day operations, and exports.
+
+[The Crew organizer coverage audit](../docs/ui-library/crew-organizer-coverage-audit.md) records 24 verified scenarios across 12 visual records. The complete plan now has 166 verified, 26 blocked, and 147 pending scenarios.
+
+Every route verifies desktop and mobile light output from the populated `e2e_competition` fixture with scrubbed accessibility, DOM, console, and network evidence. Thirteen representative screenshots cover the primary list, form, overview, roster, day-of, setup, and export surfaces.
+
+The follow-up responsive slice makes the public Crew header wrap navigation below the brand and account row on narrow screens. The print packet constrains its screen-only outer table while preserving internal schedule scrolling and automatic print layout.
+
+Focused browser coverage verifies Events, New event, and all three print-packet tabs at 390 × 844, including visible header actions, document containment, the nested schedule scroller, and print-only header/chrome behavior.
+
+The route records remain route-specific. Repetition supports presentation-only page headers, metric/status panels, empty states, responsive table containment, and the shared non-RHF field composition; Crew navigation, permissions, scheduling state, print semantics, and route actions remain app-owned.
+
+#### Responsive public header
+
+At 390 × 844, Events and New event keep every public navigation link and the account action visible while the document remains contained within the viewport.
+
+#### Export table containment and print layout
+
+At 390 × 844, each selected packet tab updates its route and content before containment is checked; the schedule table scrolls internally, and print media repeats its header while hiding app chrome.
+
+### Crew admin evidence
+
+The fifth evidence slice covers the private Crew operator workflow across event discovery, diagnostics, billing, conversion, and readiness.
+
+[The Crew admin coverage audit](../docs/ui-library/crew-admin-coverage-audit.md) records 12 verified scenarios across six visual records. The complete plan now has 178 verified, 26 blocked, and 141 pending scenarios.
+
+The existing global-admin fixture reaches the control room, event list, event diagnostics, billing, conversion, and readiness surfaces without new seed data. The organizer fixture remains insufficient because these routes and their server functions require the global `admin` role.
+
+Every route verifies desktop and mobile light output from the populated `e2e_competition` fixture. The control room and event list stay contained at 390 px while keeping public-header actions visible, and the other routes report no overflow.
+
+The routes remain route-specific. Repetition supports presentation-only headers, metric and fact panels, empty and progress states, checklist cards, responsive table containment, and operator-action presentation while permissions and workflow semantics remain app-owned.
+
+### Crew token and series evidence
+
+The sixth evidence slice covers Crew's public volunteer token workflow, volunteer signup, and authenticated series crew pool.
+
+[The Crew token and series coverage audit](../docs/ui-library/crew-token-series-coverage-audit.md) records 10 verified scenarios across five visual records. The complete plan now has 188 verified, 26 blocked, and 136 pending scenarios.
+
+Confirmation, consent, schedule, and signup use the populated Crew demo fixture without an authenticated session. The series pool uses the organizer fixture plus a disposable local group relation and contains 18 unique volunteers.
+
+Every route verifies desktop and mobile light output from exact revision `b241ddfc4c3a023669c1604147e3bda3ce8343a5`. Text evidence scrubs the deterministic fixture token and synthetic emails, while the manifest retains the fixture path required to validate route parameters.
+
+All five routes remain route-specific. Repetition supports presentation-only public headers, metric panels, fact rows, status badges, and responsive action groups; `FieldGroup` is already shared while token, response, consent, signup, and series semantics remain app-owned.
+
+### Start admin evidence
+
+The seventh evidence slice covers Start's private platform-admin workflow across dashboard, competition, documentation, entitlement, organizer-request, and team operations.
+
+[The Start admin coverage audit](../docs/ui-library/start-admin-coverage-audit.md) records 16 verified scenarios across eight visual records. The complete plan now has 204 verified, 26 blocked, and 128 pending scenarios.
+
+The disposable global-admin fixture reaches all eight routes against an isolated local database. Every route verifies desktop and mobile light output from exact revision `739ca5370f292aac9f20a1ae7389c6e6e07e9e4c` with no redirects, console errors, failing responses, or horizontal overflow.
+
+The dashboard and demo-competition fixes preserve stable direct-load hydration and semantic heading order. The demo detail list also retains valid list nesting in both responsive captures.
+
+All eight routes remain route-specific. Repetition supports presentation-only page headers, metric cards, collection summaries, status badges, empty states, and responsive collection containment while authorization, loaders, forms, mutations, and admin navigation remain app-owned.

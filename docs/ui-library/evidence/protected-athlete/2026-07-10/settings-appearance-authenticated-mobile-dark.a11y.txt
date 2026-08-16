@@ -1,0 +1,20 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e5]
+      - heading "WODsmith" [level=1, ref=e7]
+    - button "Toggle navigation menu" [expanded=false, ref=e6]
+- main
+  - complementary
+    - navigation
+      - link "Overview" [ref=e8]
+      - link "Profile" [ref=e9]
+      - link "Appearance" [ref=e10]
+      - link "Athlete profile" [ref=e11]
+      - link "Teams" [ref=e12]
+      - link "Sessions" [ref=e13]
+      - link "Billing" [ref=e14]
+      - button "Sign out" [expanded=false, ref=e15]
+  - heading "Appearance" [level=1, ref=e2]
+  - button "Light" [ref=e3]
+  - button "Dark" [ref=e4]
+- region "Notifications alt+T" [ref=e1]

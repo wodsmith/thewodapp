@@ -1,0 +1,130 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/reference/divisions/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Divisions Reference"
+    },
+    {
+      "level": 2,
+      "text": "Creating Divisions​"
+    },
+    {
+      "level": 3,
+      "text": "Division Fields​"
+    },
+    {
+      "level": 2,
+      "text": "Common Division Patterns​"
+    },
+    {
+      "level": 3,
+      "text": "Ability-Based Divisions​"
+    },
+    {
+      "level": 3,
+      "text": "Age Group Divisions​"
+    },
+    {
+      "level": 3,
+      "text": "Team Divisions​"
+    },
+    {
+      "level": 2,
+      "text": "Division Management​"
+    },
+    {
+      "level": 3,
+      "text": "Reordering​"
+    },
+    {
+      "level": 3,
+      "text": "Deleting Divisions​"
+    },
+    {
+      "level": 3,
+      "text": "Best Practices​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Field",
+        "Type",
+        "Required",
+        "Description"
+      ],
+      "rowCount": 2
+    },
+    {
+      "headers": [
+        "Division",
+        "Typical Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Division",
+        "Typical Age Range"
+      ],
+      "rowCount": 7
+    },
+    {
+      "headers": [
+        "Division",
+        "Typical Configuration"
+      ],
+      "rowCount": 4
+    }
+  ],
+  "title": "Divisions Reference | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 4273,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

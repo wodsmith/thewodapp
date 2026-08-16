@@ -1,10 +1,10 @@
 "use client"
 
+import { EmptyState } from "@repo/ui/empty-state"
 import { useServerFn } from "@tanstack/react-start"
 import { Check, Grid3X3, Minus } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -177,23 +177,35 @@ export function EventDivisionMapper({ competitionId, data, onSaved }: Props) {
 
   if (data.events.length === 0) {
     return (
-      <OrganizerEmptyState
-        variant="plain"
-        icon={Grid3X3}
-        title="No events yet"
-        description="Add competition events first, then configure which divisions can see each event."
-      />
+      <EmptyState.Root className="gap-0 px-6 py-12">
+        <EmptyState.Icon className="mb-4 rounded-lg">
+          <Grid3X3 className="h-6 w-6 text-muted-foreground" />
+        </EmptyState.Icon>
+        <EmptyState.Title className="break-normal text-wrap text-lg font-semibold tracking-normal">
+          <h3>No events yet</h3>
+        </EmptyState.Title>
+        <EmptyState.Description className="mt-2 max-w-md break-normal text-wrap">
+          Add competition events first, then configure which divisions can see
+          each event.
+        </EmptyState.Description>
+      </EmptyState.Root>
     )
   }
 
   if (data.divisions.length === 0) {
     return (
-      <OrganizerEmptyState
-        variant="plain"
-        icon={Grid3X3}
-        title="No divisions yet"
-        description="Set up competition divisions first, then map events to the divisions that should see them."
-      />
+      <EmptyState.Root className="gap-0 px-6 py-12">
+        <EmptyState.Icon className="mb-4 rounded-lg">
+          <Grid3X3 className="h-6 w-6 text-muted-foreground" />
+        </EmptyState.Icon>
+        <EmptyState.Title className="break-normal text-wrap text-lg font-semibold tracking-normal">
+          <h3>No divisions yet</h3>
+        </EmptyState.Title>
+        <EmptyState.Description className="mt-2 max-w-md break-normal text-wrap">
+          Set up competition divisions first, then map events to the divisions
+          that should see them.
+        </EmptyState.Description>
+      </EmptyState.Root>
     )
   }
 

@@ -1,0 +1,56 @@
+{
+  "bodyText": "Toggle Sidebar WODsmith Admin WODSMITH ADMIN E2E Crew Demo Throwdown 2026-07-11 to 2026-07-12 Plan No plan Billing status Comped Source Comp Upgrade credit No upgrade credit recorded Event billing Event E2E Crew Demo Throwdown Event ID e2e_competition Event access Not active yet Fulfillment Comped event Amount No event charge recorded Refund state No refund recorded Payment Link ID Not recorded Checkout Session ID Not recorded Payment Intent ID Not recorded Organizer team e2e_test_team OPERATOR ACTIONS Payment Link unavailable Mutating admin billing actions remain in the existing billing service layer; this PR exposes the guarded admin read surface. Billing audit No billing audit events recorded yet.",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/crew/events/e2e_competition/billing",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 3,
+      "text": "Event billing"
+    },
+    {
+      "level": 3,
+      "text": "OPERATOR ACTIONS"
+    },
+    {
+      "level": 3,
+      "text": "Billing audit"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1597,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

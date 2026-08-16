@@ -1,0 +1,147 @@
+- generic
+  - main
+    - sectionheader
+      - button "Toggle Sidebar" [ref=e2]
+        - StaticText "Toggle Sidebar"
+      - link "wodsmith crew WODsmithCrew" [ref=e3]
+        - image "wodsmith crew"
+        - StaticText "WOD"
+        - StaticText "smith"
+        - StaticText "Crew"
+    - sectionheader
+      - paragraph
+        - StaticText "ORGANIZER CREW"
+      - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+      - paragraph
+        - StaticText "2026-07-10 to 2026-07-11"
+    - generic
+      - heading "Judging Schedule" [level=2, ref=e5]
+      - paragraph
+        - StaticText "Plan judge coverage on the rotation timeline, then publish. Once published, fine-tune individual lane assignments below."
+      - LabelText
+        - StaticText "Workout:"
+      - combobox "Workout:" [expanded=false, ref=e6]: Event 1.00: Fran
+        - generic [ref=e7] clickable [onclick]
+          - StaticText "Event 1.00: Fran"
+      - StaticText "Published v1"
+      - generic
+        - heading "Published Assignments" [level=3, ref=e8]
+        - paragraph
+        - button "Auto-fill workout" [ref=e9]
+        - heading "Judge Assignment Overview" [level=3, ref=e10]
+        - heading "FRI, JUL 10" [level=4, ref=e11]
+        - StaticText "1.00"
+        - StaticText "Fran"
+        - StaticText "4:50 PM"
+        - StaticText "-"
+        - StaticText "5:16 PM"
+        - StaticText "0"
+        - StaticText "/"
+        - StaticText "8"
+        - StaticText "judges"
+        - StaticText "0"
+        - StaticText "%"
+        - StaticText "2.00"
+        - StaticText "Murph"
+        - StaticText "5:45 PM"
+        - StaticText "-"
+        - StaticText "6:11 PM"
+        - StaticText "0"
+        - StaticText "/"
+        - StaticText "8"
+        - StaticText "judges"
+        - StaticText "0"
+        - StaticText "%"
+        - StaticText "3.00"
+        - StaticText "Cindy"
+        - StaticText "6:40 PM"
+        - StaticText "-"
+        - StaticText "7:06 PM"
+        - StaticText "0"
+        - StaticText "/"
+        - StaticText "8"
+        - StaticText "judges"
+        - StaticText "0"
+        - StaticText "%"
+        - heading "Available Judges" [level=4, ref=e12]
+        - paragraph
+        - textbox "Search judges..." [ref=e36]
+        - button "Frank Garcia 0 Med" [ref=e13]
+        - button "Frank Garcia 0 –" [ref=e14]
+        - button "Grace Martinez 0 L1" [ref=e15]
+        - button "Grace Martinez 0 –" [ref=e16]
+        - button "Lena Nguyen 0 L1" [ref=e17]
+        - button "Miles Olsen 0 L1" [ref=e18]
+        - button "Nora Diaz 0 L1" [ref=e19]
+        - button "Owen Reed 0 L1" [ref=e20]
+        - button "Priya Shah 0 L1" [ref=e21]
+        - button "Quinn Stone 0 L1" [ref=e22]
+        - button "Wren Clark 0 L1" [ref=e23]
+        - button [ref=e24]
+        - generic
+        - StaticText "0"
+        - StaticText "/"
+        - StaticText "4"
+        - button "Fill heat" [ref=e25]
+        - StaticText "7/10/26, 4:50 PM"
+        - StaticText "North Floor"
+        - StaticText "L"
+        - StaticText "1"
+        - StaticText "Empty"
+        - StaticText "L"
+        - StaticText "2"
+        - StaticText "Empty"
+        - StaticText "L"
+        - StaticText "3"
+        - StaticText "Empty"
+        - StaticText "L"
+        - StaticText "4"
+        - StaticText "Empty"
+        - button "Assign Judge" [expanded=false, ref=e26]
+        - button [ref=e27]
+        - generic
+        - StaticText "0"
+        - StaticText "/"
+        - StaticText "4"
+        - button "Fill heat" [ref=e28]
+        - StaticText "7/10/26, 4:58 PM"
+        - StaticText "South Floor"
+        - StaticText "L"
+        - StaticText "1"
+        - StaticText "Empty"
+        - StaticText "L"
+        - StaticText "2"
+        - StaticText "Empty"
+        - StaticText "L"
+        - StaticText "3"
+        - StaticText "Empty"
+        - StaticText "L"
+        - StaticText "4"
+        - StaticText "Empty"
+        - button "Assign Judge" [expanded=false, ref=e29]
+      - generic
+        - heading "Rotations" [level=3, ref=e30]
+        - paragraph
+        - button "Event defaults" [expanded=false, ref=e31]
+        - paragraph
+        - paragraph
+        - button "Publish rotations" [expanded=false, disabled, ref=e32]
+        - heading "Rotation Timeline" [level=3, ref=e33]
+        - paragraph
+        - checkbox "Only show lanes with athletes" [checked=false, ref=e34]
+        - LabelText
+        - generic
+        - button "Add" [ref=e35]
+        - paragraph
+        - generic
+          - StaticText "Coverage: 0% (0/8)"
+        - LayoutTable
+          - button [ref=e37]
+          - button [ref=e38]
+          - button [ref=e39]
+          - button [ref=e40]
+          - button [ref=e41]
+          - button [ref=e42]
+          - button [ref=e43]
+          - button [ref=e44]
+  - region "Notifications alt+T" [ref=e1]

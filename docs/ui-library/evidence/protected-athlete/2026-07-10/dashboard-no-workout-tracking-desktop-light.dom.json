@@ -1,0 +1,73 @@
+{
+  "bodyText": "WODsmith Compete COMPETITIONS HOST A COMP Toggle theme Competitions Discover events, register to compete, and track your performance. All4 Open2 Live1 Upcoming1 Past8 Filters OQ Online Qualifier 2026 CrossFit Box One Jul 10–24, 2026 Online Live Now WT Winter Throwdown 2025 CrossFit Box One Jul 24, 2026 CrossFit Box One Register ET E2E Test Throwdown E2E Test Gym Aug 9–10, 2026 E2E Test Gym Register 2W 2026 WODsmith Invitational CrossFit Box One Sep 8–9, 2026 CrossFit Box One Upcoming © 2026 WODsmith. All rights reserved.",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "disabled": false,
+      "name": "competition-search",
+      "placeholder": "Search…",
+      "required": false,
+      "tag": "input",
+      "type": "search"
+    }
+  ],
+  "finalUrl": "http://127.0.0.1:3317/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith Compete"
+    },
+    {
+      "level": 1,
+      "text": "Competitions"
+    },
+    {
+      "level": 3,
+      "text": "Online Qualifier 2026"
+    },
+    {
+      "level": 3,
+      "text": "Winter Throwdown 2025"
+    },
+    {
+      "level": 3,
+      "text": "E2E Test Throwdown"
+    },
+    {
+      "level": 3,
+      "text": "2026 WODsmith Invitational"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "title": "Find Fitness Competitions | WODsmith",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

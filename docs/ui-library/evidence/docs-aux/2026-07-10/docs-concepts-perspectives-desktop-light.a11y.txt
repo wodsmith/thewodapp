@@ -1,0 +1,365 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e62]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e64]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e66]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Collapse sidebar category 'Concepts'" [expanded=true, ref=e68]
+          - list
+            - listitem [level=2]
+              - link "WODsmith Core Concepts"
+                - StaticText "WODsmith Core Concepts"
+            - listitem [level=2]
+              - link "The Competition Day Flow"
+                - StaticText "The Competition Day Flow"
+            - listitem [level=2]
+              - link "Heat Scheduling Strategy"
+                - StaticText "Heat Scheduling Strategy"
+            - listitem [level=2]
+              - link "The Division System"
+                - StaticText "The Division System"
+            - listitem [level=2]
+              - link "Three Perspectives: Athlete, Organizer, Judge"
+                - StaticText "Three Perspectives: Athlete, Organizer, Judge"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Concepts"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Three Perspectives: Athlete, Organizer, Judge"
+      - sectionheader
+        - heading "Three Perspectives: Athlete, Organizer, Judge" [level=1, ref=e27]
+      - paragraph
+        - StaticText "Every WODsmith competition is the same event seen from three angles. Understanding which perspective you're in — and what the platform shows each perspective — saves time and confusion."
+      - heading "The Three Perspectives Direct link to The Three Perspectives" [level=2, ref=e12]
+        - StaticText "The Three Perspectives"
+        - link "Direct link to The Three Perspectives"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "            Organizer"
+            - LineBreak "\n"
+            - StaticText "              ↓"
+            - LineBreak "\n"
+            - StaticText "   creates · configures · publishes"
+            - LineBreak "\n"
+            - StaticText "              ↓"
+            - LineBreak "\n"
+            - StaticText "       ┌──────┴──────┐"
+            - LineBreak "\n"
+            - StaticText "       ↓             ↓"
+            - LineBreak "\n"
+            - StaticText "    Athlete   ←   Judge"
+            - LineBreak "\n"
+            - StaticText "   competes    verifies"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Perspective"
+            - columnheader "Primary surface"
+            - columnheader "Goal"
+        - row
+          - cell "Organizer"
+            - strong
+              - StaticText "Organizer"
+          - cell "/compete/organizer/{competitionId}"
+            - code
+              - StaticText "/compete/organizer/{competitionId}"
+          - cell "Set up and run the event"
+        - row
+          - cell "Athlete"
+            - strong
+              - StaticText "Athlete"
+          - cell "/compete/{slug}"
+            - code
+              - StaticText "/compete/{slug}"
+          - cell "Compete and track results"
+        - row
+          - cell "Judge / Volunteer"
+            - strong
+              - StaticText "Judge / Volunteer"
+          - cell "/compete/{slug}/review (online) or scoring URLs (in-person)"
+            - code
+              - StaticText "/compete/{slug}/review"
+            - StaticText " (online) or scoring URLs (in-person)"
+          - cell "Verify scores and judge submissions"
+      - heading "What Each Sees Direct link to What Each Sees" [level=2, ref=e13]
+        - StaticText "What Each Sees"
+        - link "Direct link to What Each Sees"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The same competition page renders differently depending on your role and entitlements."
+      - heading "Athlete View Direct link to Athlete View" [level=3, ref=e14]
+        - StaticText "Athlete View"
+        - link "Direct link to Athlete View"
+          - StaticText "#"
+      - paragraph
+        - image "Athlete view of a competition"
+      - paragraph
+        - StaticText "Athletes see:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Event details, sponsors, schedule, workouts, leaderboard, announcements"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A registration panel on the right rail (or \"You're Registered!\" once they sign up)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Their personal heat assignments highlighted on the schedule"
+      - paragraph
+        - StaticText "Athletes never see organizer-only data — pending registrations from other athletes, draft events, unpublished division results, judge rotations."
+      - heading "Organizer View Direct link to Organizer View" [level=3, ref=e15]
+        - StaticText "Organizer View"
+        - link "Direct link to Organizer View"
+          - StaticText "#"
+      - paragraph
+        - image "Organizer view of the same competition"
+      - paragraph
+        - StaticText "Organizers see:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A dedicated sidebar nav grouped by "
+          - strong
+            - StaticText "Competition Setup"
+          - StaticText " (divisions, events, scoring, registrations, waivers), "
+          - strong
+            - StaticText "Run Competition"
+          - StaticText " (schedule, volunteers, results, leaderboard preview, broadcasts), and "
+          - strong
+            - StaticText "Business"
+          - StaticText " (pricing, revenue, coupons, sponsors)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Live counts (registrations, revenue, paid registrations)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Quick-action cards that flag missing setup steps (no events, no heats, no published divisions)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A "
+          - strong
+            - StaticText "Leaderboard Preview"
+          - StaticText " that bypasses publish gates so they can sanity-check standings before going public"
+      - paragraph
+        - StaticText "Organizers can also impersonate the athlete view by clicking "
+        - strong
+          - StaticText "View Public Page"
+        - StaticText " in the header — a critical sanity check before publishing."
+      - heading "Judge / Volunteer View Direct link to Judge / Volunteer View" [level=3, ref=e16]
+        - StaticText "Judge / Volunteer View"
+        - link "Direct link to Judge / Volunteer View"
+          - StaticText "#"
+      - paragraph
+        - image "Judge view: review queue"
+      - paragraph
+        - StaticText "Judges with score-input access see:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "The standard athlete tabs on the public competition page"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "An additional "
+          - strong
+            - StaticText "Review"
+          - StaticText " link (online competitions) or score-entry deep links (in-person)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A queue of pending submissions filtered to the events they're assigned to"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Per-submission tools: video player, athlete details, score editor, vote button, penalty form, status dropdown"
+      - paragraph
+        - StaticText "Judges "
+        - emphasis
+          - StaticText "don't"
+        - StaticText " see organizer business data (revenue, coupons, registrations from athletes they aren't reviewing). They see exactly what they need to verify scores — nothing more."
+      - heading "Why the Same Page Renders Differently Direct link to Why the Same Page Renders Differently" [level=2, ref=e17]
+        - StaticText "Why the Same Page Renders Differently"
+        - link "Direct link to Why the Same Page Renders Differently"
+          - StaticText "#"
+      - paragraph
+        - StaticText "WODsmith uses entitlements and team permissions to gate views, not separate apps. A single user might be an organizer for one competition, an athlete in another, and a judge in a third — all from the same account. The platform decides what to show based on:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - strong
+            - StaticText "Who you are"
+          - StaticText " — your user account"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - strong
+            - StaticText "What you've registered for"
+          - StaticText " — your competition registrations"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - strong
+            - StaticText "What entitlements you've been granted"
+          - StaticText " — score-input access, cohost permissions"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - strong
+            - StaticText "What team permissions you have"
+          - StaticText " — admin/owner of the organizing team"
+      - paragraph
+        - StaticText "This unified model means that data structures are shared, but views are scoped. Athletes can't see other athletes' registration questions. Judges can't see revenue. Organizers see everything for their team."
+      - heading "Crossing Perspectives Direct link to Crossing Perspectives" [level=2, ref=e18]
+        - StaticText "Crossing Perspectives"
+        - link "Direct link to Crossing Perspectives"
+          - StaticText "#"
+      - paragraph
+        - StaticText "A common workflow involves crossing perspectives:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "An organizer uses the public page to verify a typo before publishing"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A judge competes in a different competition the same weekend"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "An athlete becomes a volunteer for a teammate's event"
+      - paragraph
+        - StaticText "The right top-bar menus and the "
+        - strong
+          - StaticText "Organize"
+        - StaticText " button (visible only to users with organizing-team membership somewhere) make these transitions explicit."
+      - heading "What This Means for Documentation Direct link to What This Means for Documentation" [level=2, ref=e19]
+        - StaticText "What This Means for Documentation"
+        - link "Direct link to What This Means for Documentation"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The docs are organized by perspective for a reason: the same task (\"score an event\") looks different depending on who's doing it."
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Athletes"
+          - StaticText " read about "
+          - emphasis
+            - StaticText "checking"
+          - StaticText " their scores"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Judges"
+          - StaticText " read about "
+          - emphasis
+            - StaticText "entering"
+          - StaticText " and "
+          - emphasis
+            - StaticText "verifying"
+          - StaticText " scores"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Organizers"
+          - StaticText " read about "
+          - emphasis
+            - StaticText "managing"
+          - StaticText " the scoring system as a whole"
+      - paragraph
+        - StaticText "When in doubt, jump to the perspective that matches your current task — even if you'd normally identify with another role."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "Continue: "
+          - link "The Competition Day Flow"
+          - StaticText " | "
+          - link "Division System"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « The Division System"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "The Division System"
+    - list
+      - listitem [level=1]
+        - link "The Three Perspectives"
+      - listitem [level=1]
+        - link "What Each Sees"
+        - list
+          - listitem [level=2]
+            - link "Athlete View"
+          - listitem [level=2]
+            - link "Organizer View"
+          - listitem [level=2]
+            - link "Judge / Volunteer View"
+      - listitem [level=1]
+        - link "Why the Same Page Renders Differently"
+      - listitem [level=1]
+        - link "Crossing Perspectives"
+      - listitem [level=1]
+        - link "What This Means for Documentation"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

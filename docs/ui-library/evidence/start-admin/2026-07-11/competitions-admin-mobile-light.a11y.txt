@@ -1,0 +1,164 @@
+- banner
+  - link "WODsmith" [ref=e2]
+  - StaticText "Admin"
+  - link "Home" [ref=e3]
+  - button "Switch to dark mode" [ref=e4]
+    - StaticText "Toggle theme"
+  - button "Log out" [ref=e5]
+- complementary
+  - paragraph
+    - StaticText "PLATFORM"
+  - navigation
+    - link "Dashboard" [ref=e7]
+    - link "Teams" [ref=e8]
+    - link "Competitions" [ref=e9]
+    - link "Organizer Requests" [ref=e10]
+    - link "Entitlements" [ref=e11]
+    - link "Demo Competitions" [ref=e12]
+    - link "Documentation" [ref=e13]
+- main
+  - navigation
+    - link "Admin" [ref=e14]
+    - StaticText "/"
+    - StaticText "Competitions"
+  - heading "All Competitions" [level=1, ref=e6]
+  - paragraph
+    - StaticText "Browse and manage competitions from all organizers"
+  - generic
+    - StaticText "Competitions (12)"
+  - StaticText "All competitions across all organizers"
+  - table
+    - rowgroup
+      - row
+        - columnheader "Name" [ref=e75]
+        - columnheader "Organizer" [ref=e76]
+        - columnheader "Status" [ref=e77]
+        - columnheader "Start date" [ref=e78]
+        - columnheader "Actions" [ref=e79]
+    - row
+      - cell "E2E Test Throwdown" [ref=e15]
+        - StaticText "E2E Test Throwdown"
+      - cell "E2E Test Gym" [ref=e16]
+      - cell "Published" [ref=e17]
+      - cell "Aug 9, 2026" [ref=e18]
+      - cell "View Manage" [ref=e19]
+        - link "View" [ref=e80]
+        - link "Manage" [ref=e81]
+    - row
+      - cell "2026 WODsmith Invitational" [ref=e20]
+        - StaticText "2026 WODsmith Invitational"
+      - cell "CrossFit Box One" [ref=e21]
+      - cell "Published" [ref=e22]
+      - cell "Sep 8, 2026" [ref=e23]
+      - cell "View Manage" [ref=e24]
+        - link "View" [ref=e82]
+        - link "Manage" [ref=e83]
+    - row
+      - cell "2026 Regional Qualifier" [ref=e25]
+        - StaticText "2026 Regional Qualifier"
+      - cell "CrossFit Box One" [ref=e26]
+      - cell "Published" [ref=e27]
+      - cell "Jun 26, 2026" [ref=e28]
+      - cell "View Manage" [ref=e29]
+        - link "View" [ref=e84]
+        - link "Manage" [ref=e85]
+    - row
+      - cell "Boise Throwdown Series: 2026 Mountain West Throwdown Series" [ref=e30]
+        - StaticText "Boise Throwdown"
+        - generic
+          - StaticText "Series: 2026 Mountain West Throwdown Series"
+      - cell "CrossFit Box One" [ref=e31]
+      - cell "Published" [ref=e32]
+      - cell "Jun 5, 2026" [ref=e33]
+      - cell "View Manage" [ref=e34]
+        - link "View" [ref=e86]
+        - link "Manage" [ref=e87]
+    - row
+      - cell "Salt Lake Throwdown Series: 2026 Mountain West Throwdown Series" [ref=e35]
+        - StaticText "Salt Lake Throwdown"
+        - generic
+          - StaticText "Series: 2026 Mountain West Throwdown Series"
+      - cell "CrossFit Box One" [ref=e36]
+      - cell "Published" [ref=e37]
+      - cell "Jun 12, 2026" [ref=e38]
+      - cell "View Manage" [ref=e39]
+        - link "View" [ref=e88]
+        - link "Manage" [ref=e89]
+    - row
+      - cell "Denver Throwdown Series: 2026 Mountain West Throwdown Series" [ref=e40]
+        - StaticText "Denver Throwdown"
+        - generic
+          - StaticText "Series: 2026 Mountain West Throwdown Series"
+      - cell "CrossFit Box One" [ref=e41]
+      - cell "Published" [ref=e42]
+      - cell "Jun 19, 2026" [ref=e43]
+      - cell "View Manage" [ref=e44]
+        - link "View" [ref=e90]
+        - link "Manage" [ref=e91]
+    - row
+      - cell "Portland Throwdown Series: 2026 Mountain West Throwdown Series" [ref=e45]
+        - StaticText "Portland Throwdown"
+        - generic
+          - StaticText "Series: 2026 Mountain West Throwdown Series"
+      - cell "CrossFit Box One" [ref=e46]
+      - cell "Published" [ref=e47]
+      - cell "Jun 26, 2026" [ref=e48]
+      - cell "View Manage" [ref=e49]
+        - link "View" [ref=e92]
+        - link "Manage" [ref=e93]
+    - row
+      - cell "Phoenix Throwdown Series: 2026 Mountain West Throwdown Series" [ref=e50]
+        - StaticText "Phoenix Throwdown"
+        - generic
+          - StaticText "Series: 2026 Mountain West Throwdown Series"
+      - cell "CrossFit Box One" [ref=e51]
+      - cell "Published" [ref=e52]
+      - cell "Jul 3, 2026" [ref=e53]
+      - cell "View Manage" [ref=e54]
+        - link "View" [ref=e94]
+        - link "Manage" [ref=e95]
+    - row
+      - cell "Online Qualifier 2026 Series: 2025 Throwdown Series" [ref=e55]
+        - StaticText "Online Qualifier 2026"
+        - generic
+          - StaticText "Series: 2025 Throwdown Series"
+      - cell "CrossFit Box One" [ref=e56]
+      - cell "Published" [ref=e57]
+      - cell "Jul 10, 2026" [ref=e58]
+      - cell "View Manage" [ref=e59]
+        - link "View" [ref=e96]
+        - link "Manage" [ref=e97]
+    - row
+      - cell "Summer Showdown Week 1 Series: 2026 Summer Showdown" [ref=e60]
+        - StaticText "Summer Showdown Week 1"
+        - generic
+          - StaticText "Series: 2026 Summer Showdown"
+      - cell "CrossFit Box One" [ref=e61]
+      - cell "Published" [ref=e62]
+      - cell "Jul 3, 2026" [ref=e63]
+      - cell "View Manage" [ref=e64]
+        - link "View" [ref=e98]
+        - link "Manage" [ref=e99]
+    - row
+      - cell "Summer Showdown Week 2 Series: 2026 Summer Showdown" [ref=e65]
+        - StaticText "Summer Showdown Week 2"
+        - generic
+          - StaticText "Series: 2026 Summer Showdown"
+      - cell "CrossFit Box One" [ref=e66]
+      - cell "Published" [ref=e67]
+      - cell "Jul 7, 2026" [ref=e68]
+      - cell "View Manage" [ref=e69]
+        - link "View" [ref=e100]
+        - link "Manage" [ref=e101]
+    - row
+      - cell "Winter Throwdown 2025 Series: 2025 Throwdown Series" [ref=e70]
+        - StaticText "Winter Throwdown 2025"
+        - generic
+          - StaticText "Series: 2025 Throwdown Series"
+      - cell "CrossFit Box One" [ref=e71]
+      - cell "Published" [ref=e72]
+      - cell "Jul 24, 2026" [ref=e73]
+      - cell "View Manage" [ref=e74]
+        - link "View" [ref=e102]
+        - link "Manage" [ref=e103]
+- region "Notifications alt+T" [ref=e1]

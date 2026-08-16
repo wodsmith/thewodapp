@@ -1,0 +1,119 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/how-to/organizers/registration-questions/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Create Registration Questions"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Adding a Question​"
+    },
+    {
+      "level": 2,
+      "text": "Question Types​"
+    },
+    {
+      "level": 3,
+      "text": "Text Questions​"
+    },
+    {
+      "level": 3,
+      "text": "Select Questions​"
+    },
+    {
+      "level": 3,
+      "text": "Number Questions​"
+    },
+    {
+      "level": 2,
+      "text": "Question Options​"
+    },
+    {
+      "level": 3,
+      "text": "Required​"
+    },
+    {
+      "level": 3,
+      "text": "Ask Teammate Separately​"
+    },
+    {
+      "level": 2,
+      "text": "Reordering Questions​"
+    },
+    {
+      "level": 2,
+      "text": "Editing and Deleting Questions​"
+    },
+    {
+      "level": 2,
+      "text": "Viewing Registration Answers​"
+    },
+    {
+      "level": 2,
+      "text": "Filtering by Answers​"
+    },
+    {
+      "level": 2,
+      "text": "Exporting Registrations​"
+    },
+    {
+      "level": 2,
+      "text": "How Athletes See Questions​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "How to Create Registration Questions | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 6850,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

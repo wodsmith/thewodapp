@@ -1,0 +1,89 @@
+- banner
+  - link "C WODsmith Crew" [ref=e2]
+    - StaticText "C"
+    - StaticText "WODsmith Crew"
+  - navigation "Primary navigation" [ref=e3]
+    - link "Calculator" [ref=e6]
+    - link "Events" [ref=e7]
+    - link "New event" [ref=e8]
+  - link "Sign in" [ref=e4]
+  - link "Sign up" [ref=e5]
+- main
+  - paragraph
+    - StaticText "Volunteer schedule"
+  - heading "E2E Crew Demo Throwdown" [level=1, ref=e9]
+  - paragraph
+    - StaticText "Grace Martinez · [fixture-volunteer-email]"
+  - link "iCal" [ref=e10]
+  - link "Google" [ref=e11]
+  - button "Print" [ref=e12]
+  - link "Consent" [ref=e13]
+  - generic
+    - paragraph
+      - StaticText "Volunteer"
+    - paragraph
+      - StaticText "Grace Martinez"
+    - paragraph
+      - StaticText "Email"
+    - paragraph
+      - StaticText "[fixture-volunteer-email]"
+    - paragraph
+      - StaticText "Availability"
+    - paragraph
+      - StaticText "All day"
+    - paragraph
+      - StaticText "Preferred roles"
+    - paragraph
+      - StaticText "Judge"
+  - generic
+    - paragraph
+      - StaticText "Phone"
+    - paragraph
+      - StaticText "555-2002"
+    - paragraph
+      - StaticText "Credentials"
+    - paragraph
+      - StaticText "L1 judge course complete"
+    - paragraph
+      - StaticText "Availability notes"
+    - paragraph
+      - StaticText "Available all day on both competition floors."
+  - generic
+    - heading "Assignments" [level=2, ref=e14]
+    - link "Response page" [ref=e15]
+    - article
+      - heading "North Lane 2 Judge" [level=3, ref=e16]
+      - paragraph
+        - StaticText "Judge"
+      - StaticText "Pending"
+      - DescriptionList
+        - paragraph
+          - StaticText "Start"
+        - paragraph
+          - StaticText "Fri, Jul 10 8:15 PM"
+        - paragraph
+          - StaticText "End"
+        - paragraph
+          - StaticText "Fri, Jul 10 9:25 PM"
+        - paragraph
+          - StaticText "Location"
+        - paragraph
+          - StaticText "North Floor / Lane 2"
+        - paragraph
+          - StaticText "Event dates"
+        - paragraph
+          - StaticText "2026-07-10 to 2026-07-11"
+      - paragraph
+        - StaticText "Primary owner for this block."
+      - button "Confirm" [ref=e17]
+      - generic
+        - LabelText
+          - StaticText "Request change"
+          - textbox "Request change" [ref=e20]
+        - button "Send request" [ref=e18]
+      - generic
+        - LabelText
+          - StaticText "Decline"
+          - textbox "Decline" [ref=e21]
+        - button "Decline" [ref=e19]
+- region "Notifications alt+T" [ref=e1]

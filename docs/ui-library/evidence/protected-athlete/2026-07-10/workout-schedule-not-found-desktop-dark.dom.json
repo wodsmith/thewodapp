@@ -1,0 +1,40 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme Workout Not Found The workout you're looking for doesn't exist or has been removed. Back to Workouts",
+  "effectiveTheme": "dark",
+  "fields": [],
+  "finalUrl": "http://127.0.0.1:3317/workouts/e2e_missing_workout/schedule",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "Workout Not Found"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 974,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

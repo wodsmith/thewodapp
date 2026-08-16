@@ -1,0 +1,742 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e258]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e260]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Collapse sidebar category 'Reference'" [expanded=true, ref=e262]
+          - list
+            - listitem [level=2]
+              - link "Workout Types Reference"
+                - StaticText "Workout Types Reference"
+            - listitem [level=2]
+              - link "Scoring Rules Reference"
+                - StaticText "Scoring Rules Reference"
+            - listitem [level=2]
+              - link "Team Roles Reference"
+                - StaticText "Team Roles Reference"
+            - listitem [level=2]
+              - link "Divisions Reference"
+                - StaticText "Divisions Reference"
+            - listitem [level=2]
+              - link "Competition Settings Reference"
+                - StaticText "Competition Settings Reference"
+            - listitem [level=2]
+              - link "Broadcasts"
+                - StaticText "Broadcasts"
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e264]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Reference"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Workout Types Reference"
+      - sectionheader
+        - heading "Workout Types Reference" [level=1, ref=e39]
+      - paragraph
+        - StaticText "Technical specifications for all workout schemes supported in WODsmith."
+      - paragraph
+        - image "Workout Scheme Dropdown"
+      - heading "Available Workout Schemes Direct link to Available Workout Schemes" [level=2, ref=e12]
+        - StaticText "Available Workout Schemes"
+        - link "Direct link to Available Workout Schemes"
+          - StaticText "#"
+      - paragraph
+        - StaticText "WODsmith supports the following workout schemes:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Scheme"
+            - columnheader "Display Name"
+            - columnheader "Score Format"
+            - columnheader "Example"
+        - row
+          - cell "time"
+            - code
+              - StaticText "time"
+          - cell "For Time"
+          - cell "mm:ss or m:ss"
+            - StaticText "mm:ss or m:ss"
+          - cell "3:45, 12:30"
+        - row
+          - cell "time-with-cap"
+            - code
+              - StaticText "time-with-cap"
+          - cell "For Time (with cap)"
+          - cell "mm:ss or CAP+reps"
+            - StaticText "mm:ss or CAP+reps"
+          - cell "8:42 or CAP+15"
+        - row
+          - cell "rounds-reps"
+            - code
+              - StaticText "rounds-reps"
+          - cell "AMRAP (Rounds + Reps)"
+          - cell "R+r"
+          - cell "5+12, 10+0"
+        - row
+          - cell "reps"
+            - code
+              - StaticText "reps"
+          - cell "Max Reps"
+          - cell "Integer"
+          - cell "150"
+        - row
+          - cell "load"
+            - code
+              - StaticText "load"
+          - cell "Max Load"
+          - cell "lbs/kg"
+          - cell "225"
+        - row
+          - cell "calories"
+            - code
+              - StaticText "calories"
+          - cell "Max Calories"
+          - cell "Integer"
+          - cell "50"
+        - row
+          - cell "meters"
+            - code
+              - StaticText "meters"
+          - cell "Max Distance (meters)"
+          - cell "Integer"
+          - cell "1000"
+        - row
+          - cell "feet"
+            - code
+              - StaticText "feet"
+          - cell "Max Distance (feet)"
+          - cell "Integer"
+          - cell "500"
+        - row
+          - cell "points"
+            - code
+              - StaticText "points"
+          - cell "Points"
+          - cell "Integer"
+          - cell "100"
+        - row
+          - cell "emom"
+            - code
+              - StaticText "emom"
+          - cell "EMOM"
+          - cell "Completion or reps"
+          - cell "-"
+        - row
+          - cell "pass-fail"
+            - code
+              - StaticText "pass-fail"
+          - cell "Pass/Fail"
+          - cell "Pass or Fail"
+          - cell "-"
+      - heading "For Time Direct link to For Time" [level=2, ref=e13]
+        - StaticText "For Time"
+        - link "Direct link to For Time"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Complete prescribed work as fast as possible"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "time"
+            - code
+              - StaticText "time"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Time (MM:SS or M:SS)"
+            - StaticText "Time (MM:SS or M:SS)"
+        - row
+          - cell "Tiebreaker"
+            - strong
+              - StaticText "Tiebreaker"
+          - cell "Earlier finish"
+      - heading "Score Input Format Direct link to Score Input Format" [level=3, ref=e14]
+        - StaticText "Score Input Format"
+        - link "Direct link to Score Input Format"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "3:45       # 3 minutes 45 seconds"
+            - LineBreak "\n"
+            - StaticText "12:30      # 12 minutes 30 seconds"
+            - LineBreak "\n"
+            - StaticText "1:05:30    # 1 hour 5 minutes 30 seconds"
+            - LineBreak "\n"
+            - StaticText "90         # Interpreted as 90 seconds (1:30)"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - heading "For Time (with cap) Direct link to For Time (with cap)" [level=2, ref=e15]
+        - StaticText "For Time (with cap)"
+        - link "Direct link to For Time (with cap)"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Complete prescribed work with time limit"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "time-with-cap"
+            - code
+              - StaticText "time-with-cap"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Time or CAP+remaining reps"
+        - row
+          - cell "Tiebreaker"
+            - strong
+              - StaticText "Tiebreaker"
+          - cell "Earlier finish (timed), fewer remaining reps (capped)"
+      - heading "Score Input Format Direct link to Score Input Format" [level=3, ref=e16]
+        - StaticText "Score Input Format"
+        - link "Direct link to Score Input Format"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "8:42       # Completed in 8:42"
+            - LineBreak "\n"
+            - StaticText "CAP+15     # Did not finish, 15 reps remaining"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - heading "AMRAP (As Many Rounds/Reps As Possible) Direct link to AMRAP (As Many Rounds/Reps As Possible)" [level=2, ref=e17]
+        - StaticText "AMRAP (As Many Rounds/Reps As Possible)"
+        - link "Direct link to AMRAP (As Many Rounds/Reps As Possible)"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Timed workout with maximum repetitions"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "rounds-reps"
+            - code
+              - StaticText "rounds-reps"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Rounds + Reps (e.g., \"5+12\")"
+        - row
+          - cell "Tiebreaker"
+            - strong
+              - StaticText "Tiebreaker"
+          - cell "Time to complete last full round"
+      - heading "Score Input Format Direct link to Score Input Format" [level=3, ref=e18]
+        - StaticText "Score Input Format"
+        - link "Direct link to Score Input Format"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "5+12       # 5 complete rounds plus 12 additional reps"
+            - LineBreak "\n"
+            - StaticText "10+0       # 10 complete rounds, no extra reps"
+            - LineBreak "\n"
+            - StaticText "5.12       # Alternative format (interpreted as 5+12)"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - paragraph
+        - image "AMRAP Score Entry"
+      - heading "Max Reps Direct link to Max Reps" [level=2, ref=e19]
+        - StaticText "Max Reps"
+        - link "Direct link to Max Reps"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Maximum repetitions in given time or sets"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "reps"
+            - code
+              - StaticText "reps"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Total reps (integer)"
+        - row
+          - cell "Use Case"
+            - strong
+              - StaticText "Use Case"
+          - cell "Tabata-style workouts, max effort sets"
+      - heading "Max Load (Strength) Direct link to Max Load (Strength)" [level=2, ref=e20]
+        - StaticText "Max Load (Strength)"
+        - link "Direct link to Max Load (Strength)"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Heavy single or rep max"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "load"
+            - code
+              - StaticText "load"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Weight in lbs or kg"
+        - row
+          - cell "Use Case"
+            - strong
+              - StaticText "Use Case"
+          - cell "1RM tests, strength PRs"
+      - heading "Common Formats Direct link to Common Formats" [level=3, ref=e21]
+        - StaticText "Common Formats"
+        - link "Direct link to Common Formats"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "225        # 225 lbs"
+            - LineBreak "\n"
+            - StaticText "102.5      # 102.5 lbs (decimals allowed)"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - heading "EMOM (Every Minute On the Minute) Direct link to EMOM (Every Minute On the Minute)" [level=2, ref=e22]
+        - StaticText "EMOM (Every Minute On the Minute)"
+        - link "Direct link to EMOM (Every Minute On the Minute)"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Prescribed work at start of each minute"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "emom"
+            - code
+              - StaticText "emom"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Completion status or total reps"
+        - row
+          - cell "Rest"
+            - strong
+              - StaticText "Rest"
+          - cell "Remainder of each minute"
+      - heading "Variants Direct link to Variants" [level=3, ref=e23]
+        - StaticText "Variants"
+        - link "Direct link to Variants"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Standard EMOM"
+          - StaticText ": Same work every minute"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Alternating EMOM"
+          - StaticText ": Different work on odd/even minutes"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "E2MOM"
+          - StaticText ": Every 2 minutes (still uses "
+          - code
+            - StaticText "emom"
+          - StaticText " scheme)"
+      - heading "Distance-Based Direct link to Distance-Based" [level=2, ref=e24]
+        - StaticText "Distance-Based"
+        - link "Direct link to Distance-Based"
+          - StaticText "#"
+      - heading "Meters Direct link to Meters" [level=3, ref=e25]
+        - StaticText "Meters"
+        - link "Direct link to Meters"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Maximum distance in meters"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "meters"
+            - code
+              - StaticText "meters"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Distance in meters"
+        - row
+          - cell "Use Case"
+            - strong
+              - StaticText "Use Case"
+          - cell "Row, run, or ski erg for distance"
+      - heading "Feet Direct link to Feet" [level=3, ref=e26]
+        - StaticText "Feet"
+        - link "Direct link to Feet"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Maximum distance in feet"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "feet"
+            - code
+              - StaticText "feet"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Distance in feet"
+        - row
+          - cell "Use Case"
+            - strong
+              - StaticText "Use Case"
+          - cell "Handstand walks, sled pushes"
+      - heading "Calories Direct link to Calories" [level=2, ref=e27]
+        - StaticText "Calories"
+        - link "Direct link to Calories"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Maximum calories burned"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "calories"
+            - code
+              - StaticText "calories"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Calories (integer)"
+        - row
+          - cell "Use Case"
+            - strong
+              - StaticText "Use Case"
+          - cell "Assault bike, rower, ski erg for calories"
+      - heading "Points Direct link to Points" [level=2, ref=e28]
+        - StaticText "Points"
+        - link "Direct link to Points"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Point-based scoring"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "points"
+            - code
+              - StaticText "points"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Points (integer)"
+        - row
+          - cell "Use Case"
+            - strong
+              - StaticText "Use Case"
+          - cell "Multi-modal scoring, judge-scored events"
+      - heading "Pass/Fail Direct link to Pass/Fail" [level=2, ref=e29]
+        - StaticText "Pass/Fail"
+        - link "Direct link to Pass/Fail"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Attribute"
+            - columnheader "Description"
+        - row
+          - cell "Format"
+            - strong
+              - StaticText "Format"
+          - cell "Binary completion status"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "pass-fail"
+            - code
+              - StaticText "pass-fail"
+        - row
+          - cell "Scoring"
+            - strong
+              - StaticText "Scoring"
+          - cell "Pass or Fail"
+        - row
+          - cell "Use Case"
+            - strong
+              - StaticText "Use Case"
+          - cell "Skill tests, minimum work requirements"
+      - heading "Workout Styles vs Schemes Direct link to Workout Styles vs Schemes" [level=2, ref=e30]
+        - StaticText "Workout Styles vs Schemes"
+        - link "Direct link to Workout Styles vs Schemes"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Note that some common workout terms describe "
+        - emphasis
+          - StaticText "styles"
+        - StaticText " rather than scoring schemes:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Term"
+            - columnheader "Description"
+            - columnheader "Typical Scheme"
+        - row
+          - cell "Chipper"
+            - strong
+              - StaticText "Chipper"
+          - cell "Sequential movements, complete all reps before moving on"
+          - cell "time or time-with-cap"
+            - code
+              - StaticText "time"
+            - StaticText " or "
+            - code
+              - StaticText "time-with-cap"
+        - row
+          - cell "Ladder"
+            - strong
+              - StaticText "Ladder"
+          - cell "Increasing/decreasing rep schemes (21-15-9, etc.)"
+          - cell "time or time-with-cap"
+            - code
+              - StaticText "time"
+            - StaticText " or "
+            - code
+              - StaticText "time-with-cap"
+        - row
+          - cell "Tabata"
+            - strong
+              - StaticText "Tabata"
+          - cell "20s work / 10s rest intervals"
+          - cell "reps (lowest round or total)"
+            - code
+              - StaticText "reps"
+            - StaticText " (lowest round or total)"
+        - row
+          - cell "Pyramid"
+            - strong
+              - StaticText "Pyramid"
+          - cell "Up-and-down rep scheme (1-2-3-4-3-2-1)"
+          - cell "time or rounds-reps"
+            - code
+              - StaticText "time"
+            - StaticText " or "
+            - code
+              - StaticText "rounds-reps"
+      - paragraph
+        - StaticText "These are programming styles that use the standard scoring schemes above."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "Scoring Rules Reference"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Reference"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Reference"
+      - link "Next Scoring Rules Reference »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Scoring Rules Reference"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Available Workout Schemes"
+      - listitem [level=1]
+        - link "For Time"
+        - list
+          - listitem [level=2]
+            - link "Score Input Format"
+      - listitem [level=1]
+        - link "For Time (with cap)"
+        - list
+          - listitem [level=2]
+            - link "Score Input Format"
+      - listitem [level=1]
+        - link "AMRAP (As Many Rounds/Reps As Possible)"
+        - list
+          - listitem [level=2]
+            - link "Score Input Format"
+      - listitem [level=1]
+        - link "Max Reps"
+      - listitem [level=1]
+        - link "Max Load (Strength)"
+        - list
+          - listitem [level=2]
+            - link "Common Formats"
+      - listitem [level=1]
+        - link "EMOM (Every Minute On the Minute)"
+        - list
+          - listitem [level=2]
+            - link "Variants"
+      - listitem [level=1]
+        - link "Distance-Based"
+        - list
+          - listitem [level=2]
+            - link "Meters"
+          - listitem [level=2]
+            - link "Feet"
+      - listitem [level=1]
+        - link "Calories"
+      - listitem [level=1]
+        - link "Points"
+      - listitem [level=1]
+        - link "Pass/Fail"
+      - listitem [level=1]
+        - link "Workout Styles vs Schemes"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

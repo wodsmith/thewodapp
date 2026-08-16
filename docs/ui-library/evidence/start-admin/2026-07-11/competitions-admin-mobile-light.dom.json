@@ -1,0 +1,49 @@
+{
+  "bodyText": "WODsmith Admin Home Toggle theme PLATFORM Dashboard Teams Competitions Organizer Requests Entitlements Demo Competitions Documentation Admin / Competitions All Competitions Browse and manage competitions from all organizers Competitions (12) All competitions across all organizers Name Organizer Status Start date Actions E2E Test Throwdown E2E Test Gym Published Aug 9, 2026 View Manage 2026 WODsmith Invitational CrossFit Box One Published Sep 8, 2026 View Manage 2026 Regional Qualifier CrossFit Box One Published Jun 26, 2026 View Manage Boise Throwdown Series: 2026 Mountain West Throwdown Series CrossFit Box One Published Jun 5, 2026 View Manage Salt Lake Throwdown Series: 2026 Mountain West Throwdown Series CrossFit Box One Published Jun 12, 2026 View Manage Denver Throwdown Series: 2026 Mountain West Throwdown Series CrossFit Box One Published Jun 19, 2026 View Manage Portland Throwdown Series: 2026 Mountain West Throwdown Series CrossFit Box One Published Jun 26, 2026 View Manage Phoenix Throwdown Series: 2026 Mountain West Throwdown Series CrossFit Box One Published Jul 3, 2026 View Manage Online Qualifier 2026 Series: 2025 Throwdown Series CrossFit Box One Published Jul 10, 2026 View Manage Summer Showdown Week 1 Series: 2026 Summer Showdown CrossFit Box One Published Jul 3, 2026 View Manage Summer Showdown Week 2 Series: 2026 Summer Showdown CrossFit Box One Published Jul 7, 2026 View Manage Winter Throwdown 2025 Series: 2025 Throwdown Series CrossFit Box One Published Jul 24, 2026 View Manage",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/competitions",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "All Competitions"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 2382,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

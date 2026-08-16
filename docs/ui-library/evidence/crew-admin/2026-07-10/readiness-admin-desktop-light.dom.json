@@ -1,0 +1,75 @@
+{
+  "bodyText": "WODsmith Admin Overview Operator Readiness Billing Conversion Views Organizer view Event list Toggle Sidebar WODSMITH ADMIN E2E Crew Demo Throwdown 2026-07-11 to 2026-07-12 Admin readiness Operator diagnostic detail for setup, source data, imports, schedule, roster, shifts, judge publishing, and confirmations. Needs attention Ready 4/7 Needs attention 3 Blocked 0 Progress 57% Event dates and timezone 2026-07-11 to 2026-07-12 Needs attention Timezone: America/Denver 0/5 operator setup checks complete. Review setup Venues, floors, and lanes 2 venues, 8 total lanes Ready Lane counts are available for schedule planning. Open schedule Workouts and heats 3/3 workouts published, 6 heats Ready 3/3 workouts published. 0 unpublished workouts remaining. 6/6 heats scheduled. 6/6 heat schedules published. 0/0 heat schedule imports applied. Review imports Volunteer roster 21 volunteers, 21 assignable Ready 21 active, 0 pending, 0 accepted. 0/0 volunteer imports applied. Open volunteers Shifts and assignments 11/12 shift slots assigned Needs attention 7 shifts configured. 1 open slot remaining. Manage shifts Judge rotation publishing 3 active judge assignment versions Ready 0 rotations drafted. 23 judge assignments found. Use this as a manual pilot checkpoint until the Crew judge rotation UI lands. Open schedule Assignment confirmations 5/11 assignments confirmed Needs attention 0 not sent. 3 sent. 1 declined. 0 change requested. 1 no-show. 0 replaced. Review shifts Source counts Setup checks 0/5 Venues and lanes 2 / 8 Workouts and heats 3 / 6 Roster 21 total, 21 assignable Shift coverage 11/12 Confirmations 5/11 No response 3 Judge versions 3",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/crew/events/e2e_competition/readiness",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 3,
+      "text": "Admin readiness"
+    },
+    {
+      "level": 3,
+      "text": "Event dates and timezone"
+    },
+    {
+      "level": 3,
+      "text": "Venues, floors, and lanes"
+    },
+    {
+      "level": 3,
+      "text": "Workouts and heats"
+    },
+    {
+      "level": 3,
+      "text": "Volunteer roster"
+    },
+    {
+      "level": 3,
+      "text": "Shifts and assignments"
+    },
+    {
+      "level": 3,
+      "text": "Judge rotation publishing"
+    },
+    {
+      "level": 3,
+      "text": "Assignment confirmations"
+    },
+    {
+      "level": 3,
+      "text": "Source counts"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 1767,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

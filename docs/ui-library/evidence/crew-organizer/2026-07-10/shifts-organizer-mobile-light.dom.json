@@ -1,0 +1,43 @@
+{
+  "bodyText": "Toggle Sidebar WODsmith Crew ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Volunteer shifts Manage time-based volunteer shifts for event-day roles Add shift Friday, Jul 10 7 shifts Shift Name Role Time Location Assigned Actions Athlete Check-In Check-In 4:05 PM - 6:05 PM Lobby 2 / 2 North Floor Crew Floor Manager 4:45 PM - 6:45 PM North Floor 2 / 2 Medical Station Medical 4:50 PM - 8:20 PM Medical Tent 1 / 1 Score Table Scorekeeper 4:55 PM - 7:25 PM Scoring Desk 2 / 2 North Lane 2 Judge Judge 5:25 PM - 6:35 PM North Floor / Lane 2 1 / 1 Equipment Reset Equipment 5:50 PM - 8:05 PM Equipment Staging 2 / 3 Media Runner Media 7:05 PM - 8:35 PM Awards Backdrop 1 / 1",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/events/e2e_competition/shifts",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Volunteer shifts"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1296,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

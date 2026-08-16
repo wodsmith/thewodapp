@@ -1,0 +1,79 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-broadcasts/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to View Broadcasts"
+    },
+    {
+      "level": 2,
+      "text": "Viewing Announcements​"
+    },
+    {
+      "level": 2,
+      "text": "Email Notifications​"
+    },
+    {
+      "level": 2,
+      "text": "Audience Filters​"
+    },
+    {
+      "level": 2,
+      "text": "When Will I Get Broadcasts?​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Phase",
+        "Typical broadcast"
+      ],
+      "rowCount": 6
+    }
+  ],
+  "title": "How to View Broadcasts | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 3599,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

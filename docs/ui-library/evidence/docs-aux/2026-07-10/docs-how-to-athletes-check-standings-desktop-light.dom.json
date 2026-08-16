@@ -1,0 +1,98 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/how-to/athletes/check-standings/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Check Your Division Standings"
+    },
+    {
+      "level": 2,
+      "text": "Steps​"
+    },
+    {
+      "level": 2,
+      "text": "Reading the Leaderboard​"
+    },
+    {
+      "level": 2,
+      "text": "Filtering and Sorting​"
+    },
+    {
+      "level": 2,
+      "text": "Real-Time Updates​"
+    },
+    {
+      "level": 2,
+      "text": "Tiebreakers​"
+    },
+    {
+      "level": 2,
+      "text": "Status Icons​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Column",
+        "Meaning"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Icon",
+        "Meaning"
+      ],
+      "rowCount": 5
+    }
+  ],
+  "title": "How to Check Your Division Standings | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 3321,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

@@ -1,0 +1,57 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e6]
+      - heading "WODsmith" [level=1, ref=e8]
+    - navigation
+      - link "WORKOUTS" [ref=e9]
+      - link "LOG" [ref=e10]
+      - link "TEAM" [ref=e11]
+      - link "COMPETE" [ref=e12]
+      - button "Test's Team (personal)" [expanded=false, ref=e13]
+      - link [ref=e14]
+      - button "Switch to dark mode" [ref=e15]
+      - button "Log out" [ref=e16]
+- main
+  - sectionheader
+    - heading "Settings" [level=1, ref=e7]
+  - complementary
+    - navigation
+      - link "Overview" [ref=e17]
+      - link "Profile" [ref=e18]
+      - link "Appearance" [ref=e19]
+      - link "Athlete profile" [ref=e20]
+      - link "Teams" [ref=e21]
+      - link "Sessions" [ref=e22]
+      - link "Billing" [ref=e23]
+      - button "Sign out" [expanded=false, ref=e24]
+  - StaticText "OVERVIEW"
+  - heading "Hey, Test." [level=1, ref=e2]
+    - StaticText "Hey, Test."
+  - paragraph
+    - StaticText "One place to manage everything WODsmith knows about you — from how your name shows on the leaderboard to which competitions invoice you."
+  - generic
+    - StaticText "TU"
+    - StaticText "ATHLETE"
+    - heading "Test User" [level=2, ref=e25]
+    - StaticText "[redacted-email]"
+    - link "Edit athlete" [ref=e26]
+  - StaticText "GET REGISTRATION READY"
+  - heading "Profile completion" [level=3, ref=e3]
+  - paragraph
+    - StaticText "Finish these so organizers can register you without back-and-forth."
+  - generic
+    - StaticText "25%"
+  - generic
+    - StaticText "1/4 DONE"
+  - list
+    - listitem [level=1]
+      - link "Add your name" [ref=e27]
+    - listitem [level=1]
+      - link "Upload an avatar" [ref=e28]
+    - listitem [level=1]
+      - link "Date of birth & gender" [ref=e29]
+    - listitem [level=1]
+      - link "Height & weight" [ref=e30]
+  - link "Browse Competitions" [ref=e4]
+  - link "Manage" [ref=e5]
+- region "Notifications alt+T" [ref=e1]

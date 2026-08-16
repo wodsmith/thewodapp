@@ -1,0 +1,16 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e11]
+      - heading "WODsmith" [level=1, ref=e13]
+    - button "Toggle navigation menu" [expanded=false, ref=e12]
+- main
+  - link [ref=e2]
+  - heading "Fran" [level=1, ref=e3]
+  - link "Edit" [ref=e4]
+  - link "Schedule" [ref=e5]
+  - heading "DESCRIPTION" [level=2, ref=e6]
+  - heading "REMIX INFO" [level=2, ref=e7]
+  - link "Remix this workout" [ref=e8]
+  - heading "WORKOUT RESULTS" [level=2, ref=e9]
+  - link "Log result" [ref=e10]
+- region "Notifications alt+T" [ref=e1]

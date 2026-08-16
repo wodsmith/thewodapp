@@ -1,0 +1,134 @@
+- main
+  - sectionheader
+    - button "Toggle Sidebar" [ref=e2]
+      - StaticText "Toggle Sidebar"
+    - link "wodsmith crew WODsmithCrew" [ref=e3]
+      - image "wodsmith crew"
+      - StaticText "WOD"
+      - StaticText "smith"
+      - StaticText "Crew"
+  - sectionheader
+    - paragraph
+      - StaticText "ORGANIZER CREW"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-10 to 2026-07-11"
+  - generic
+    - heading "Print packet" [level=2, ref=e5]
+    - paragraph
+      - StaticText "Jul 10, 6:05 PM / America/Denver"
+    - button "Master CSV" [ref=e6]
+    - button "Print" [ref=e7]
+    - tablist "Print packet sections"
+      - tab "Master Schedule (13)" [selected, ref=e8]
+        - StaticText "Master Schedule (13)"
+      - tab "Judges (6)" [ref=e9]
+        - StaticText "Judges (6)"
+      - tab "Shifts (7)" [ref=e10]
+        - StaticText "Shifts (7)"
+    - table
+      - row
+        - cell "Jul 10, 2026" [ref=e11]
+          - generic
+            - heading "Jul 10, 2026" [level=3, ref=e12]
+            - table
+              - rowgroup
+                - row
+                  - columnheader "TIME" [ref=e91]
+                  - columnheader "BLOCK" [ref=e92]
+                  - columnheader "LOCATION" [ref=e93]
+                  - columnheader "ROLE" [ref=e94]
+                  - columnheader "COVERAGE" [ref=e95]
+                  - columnheader "PEOPLE" [ref=e96]
+              - row
+                - cell "Jul 10, 4:48 PM - Jul 10, 6:48 PM" [ref=e13]
+                - cell "Athlete Check-In" [ref=e14]
+                - cell "Lobby" [ref=e15]
+                - cell "Check-In" [ref=e16]
+                - cell "2/2" [ref=e17]
+                - cell "Ivy Chen; Tara Brooks" [ref=e18]
+              - row
+                - cell "Jul 10, 5:28 PM - Jul 10, 7:28 PM" [ref=e19]
+                - cell "North Floor Crew" [ref=e20]
+                - cell "North Floor" [ref=e21]
+                - cell "Floor Manager" [ref=e22]
+                - cell "2/2" [ref=e23]
+                - cell "Jules Patel; Rosa King" [ref=e24]
+              - row
+                - cell "Jul 10, 5:33 PM - Jul 10, 5:51 PM" [ref=e25]
+                - cell "Fran - Heat 1" [ref=e26]
+                - cell "North Floor" [ref=e27]
+                - cell "Judge lanes" [ref=e28]
+                - cell "4/4" [ref=e29]
+                - cell "Grace Martinez; Lena Nguyen; Miles Olsen; Nora Diaz" [ref=e30]
+              - row
+                - cell "Jul 10, 5:33 PM - Jul 10, 9:03 PM" [ref=e31]
+                - cell "Medical Station" [ref=e32]
+                - cell "Medical Tent" [ref=e33]
+                - cell "Medical" [ref=e34]
+                - cell "1/1" [ref=e35]
+                - cell "Frank Garcia" [ref=e36]
+              - row
+                - cell "Jul 10, 5:38 PM - Jul 10, 8:08 PM" [ref=e37]
+                - cell "Score Table" [ref=e38]
+                - cell "Scoring Desk" [ref=e39]
+                - cell "Scorekeeper" [ref=e40]
+                - cell "2/2" [ref=e41]
+                - cell "Hank Brown; Uma Miller" [ref=e42]
+              - row
+                - cell "Jul 10, 5:41 PM - Jul 10, 5:59 PM" [ref=e43]
+                - cell "Fran - Heat 2" [ref=e44]
+                - cell "South Floor" [ref=e45]
+                - cell "Judge lanes" [ref=e46]
+                - cell "4/4" [ref=e47]
+                - cell "Lena Nguyen; Miles Olsen; Nora Diaz; Owen Reed" [ref=e48]
+              - row
+                - cell "Jul 10, 6:08 PM - Jul 10, 7:18 PM" [ref=e49]
+                - cell "North Lane 2 Judge" [ref=e50]
+                - cell "North Floor / Lane 2" [ref=e51]
+                - cell "Judge" [ref=e52]
+                - cell "1/1" [ref=e53]
+                - cell "Grace Martinez" [ref=e54]
+              - row
+                - cell "Jul 10, 6:28 PM - Jul 10, 6:46 PM" [ref=e55]
+                - cell "Murph - Heat 1" [ref=e56]
+                - cell "North Floor" [ref=e57]
+                - cell "Judge lanes" [ref=e58]
+                - cell "4/4" [ref=e59]
+                - cell "Miles Olsen; Nora Diaz; Owen Reed; Priya Shah" [ref=e60]
+              - row
+                - cell "Jul 10, 6:33 PM - Jul 10, 8:48 PM" [ref=e61]
+                - cell "Equipment Reset" [ref=e62]
+                - cell "Equipment Staging" [ref=e63]
+                - cell "Equipment" [ref=e64]
+                - cell "2/3 (1 open)" [ref=e65]
+                - cell "Kai Robinson; Sam Lee" [ref=e66]
+              - row
+                - cell "Jul 10, 6:36 PM - Jul 10, 6:54 PM" [ref=e67]
+                - cell "Murph - Heat 2" [ref=e68]
+                - cell "South Floor" [ref=e69]
+                - cell "Judge lanes" [ref=e70]
+                - cell "4/4" [ref=e71]
+                - cell "Nora Diaz; Owen Reed; Priya Shah; Quinn Stone" [ref=e72]
+              - row
+                - cell "Jul 10, 7:23 PM - Jul 10, 7:41 PM" [ref=e73]
+                - cell "Cindy - Heat 1" [ref=e74]
+                - cell "North Floor" [ref=e75]
+                - cell "Judge lanes" [ref=e76]
+                - cell "4/4" [ref=e77]
+                - cell "Owen Reed; Priya Shah; Quinn Stone; Wren Clark" [ref=e78]
+              - row
+                - cell "Jul 10, 7:31 PM - Jul 10, 7:49 PM" [ref=e79]
+                - cell "Cindy - Heat 2" [ref=e80]
+                - cell "South Floor" [ref=e81]
+                - cell "Judge lanes" [ref=e82]
+                - cell "3/4 (1 open)" [ref=e83]
+                - cell "Priya Shah; Quinn Stone; Wren Clark" [ref=e84]
+              - row
+                - cell "Jul 10, 7:48 PM - Jul 10, 9:18 PM" [ref=e85]
+                - cell "Media Runner" [ref=e86]
+                - cell "Awards Backdrop" [ref=e87]
+                - cell "Media" [ref=e88]
+                - cell "1/1" [ref=e89]
+                - cell "Vince Adams" [ref=e90]
+- region "Notifications alt+T" [ref=e1]

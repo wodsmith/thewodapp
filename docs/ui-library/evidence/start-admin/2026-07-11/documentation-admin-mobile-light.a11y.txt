@@ -1,0 +1,65 @@
+- banner
+  - link "WODsmith" [ref=e2]
+  - StaticText "Admin"
+  - link "Home" [ref=e3]
+  - button "Switch to dark mode" [ref=e4]
+    - StaticText "Toggle theme"
+  - button "Log out" [ref=e5]
+- complementary
+  - paragraph
+    - StaticText "PLATFORM"
+  - navigation
+    - link "Dashboard" [ref=e20]
+    - link "Teams" [ref=e21]
+    - link "Competitions" [ref=e22]
+    - link "Organizer Requests" [ref=e23]
+    - link "Entitlements" [ref=e24]
+    - link "Demo Competitions" [ref=e25]
+    - link "Documentation" [ref=e26]
+- main
+  - navigation
+    - link "Admin" [ref=e27]
+    - StaticText "/"
+    - StaticText "Documentation"
+  - heading "Documentation" [level=1, ref=e6]
+  - paragraph
+    - StaticText "Contextual help shown in the docs drawer on organizer pages"
+  - link "New doc" [ref=e7]
+  - searchbox "Search routes…" [ref=e28]
+  - button "/compete/organizer/_dashboard/ 1" [expanded=false, ref=e8]
+    - StaticText "/compete/organizer/_dashboard/"
+    - StaticText "1"
+  - link "Add a doc for /compete/organizer/_dashboard/" [ref=e9]
+    - StaticText "Add a doc for "
+    - StaticText "/compete/organizer/_dashboard/"
+  - button "/compete/organizer/$competitionId 1" [expanded=false, ref=e10]
+    - StaticText "/compete/organizer/$competitionId"
+    - StaticText "1"
+  - link "Add a doc for /compete/organizer/$competitionId" [ref=e11]
+    - StaticText "Add a doc for "
+    - StaticText "/compete/organizer/$competitionId"
+  - button "/compete/organizer/$competitionId/athletes/ 1" [expanded=false, ref=e12]
+    - StaticText "/compete/organizer/$competitionId/athletes/"
+    - StaticText "1"
+  - link "Add a doc for /compete/organizer/$competitionId/athletes/" [ref=e13]
+    - StaticText "Add a doc for "
+    - StaticText "/compete/organizer/$competitionId/athletes/"
+  - button "/compete/organizer/$competitionId/broadcasts 1" [expanded=false, ref=e14]
+    - StaticText "/compete/organizer/$competitionId/broadcasts"
+    - StaticText "1"
+  - link "Add a doc for /compete/organizer/$competitionId/broadcasts" [ref=e15]
+    - StaticText "Add a doc for "
+    - StaticText "/compete/organizer/$competitionId/broadcasts"
+  - button "/compete/organizer/$competitionId/edit 1" [expanded=false, ref=e16]
+    - StaticText "/compete/organizer/$competitionId/edit"
+    - StaticText "1"
+  - link "Add a doc for /compete/organizer/$competitionId/edit" [ref=e17]
+    - StaticText "Add a doc for "
+    - StaticText "/compete/organizer/$competitionId/edit"
+  - button "/compete/organizer/$competitionId/schedule 1" [expanded=false, ref=e18]
+    - StaticText "/compete/organizer/$competitionId/schedule"
+    - StaticText "1"
+  - link "Add a doc for /compete/organizer/$competitionId/schedule" [ref=e19]
+    - StaticText "Add a doc for "
+    - StaticText "/compete/organizer/$competitionId/schedule"
+- region "Notifications alt+T" [ref=e1]

@@ -1,0 +1,403 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e42]
+      - heading "WODsmith" [level=1, ref=e99]
+    - button "Toggle navigation menu" [expanded=false, ref=e43]
+- main
+  - heading "WORKOUTS" [level=1, ref=e2]
+  - link "Create workout" [ref=e3]
+  - heading "Scheduled Workouts" [level=2, ref=e4]
+  - button "Today" [ref=e5]
+  - button "This Week" [ref=e6]
+  - button "Refresh" [ref=e7]
+  - heading "No workouts scheduled for today" [level=4, ref=e8]
+  - paragraph
+    - StaticText "Check back tomorrow or switch to the weekly view to see upcoming workouts."
+  - textbox "Search workouts..." [ref=e44]
+  - button [ref=e9]
+  - button [ref=e10]
+  - button "Filters" [expanded=false, ref=e11]
+  - link "01 Fran time 21-15-9 Thrusters (95/65 lb) and Pull-ups Time" [ref=e12]
+    - StaticText "01"
+    - StaticText "Fran"
+    - StaticText "time"
+    - paragraph
+    - StaticText "Time"
+  - link "02 Murph time 1 mile Run, 100 Pull-ups, 200 Push-ups, 300 Squats, 1 mile Run Time" [ref=e13]
+    - StaticText "02"
+    - StaticText "Murph"
+    - StaticText "time"
+    - paragraph
+    - StaticText "Time"
+  - link "03 Cindy rounds-reps 5 Pull-ups, 10 Push-ups, 15 Squats - AMRAP 20 minutes Time" [ref=e14]
+    - StaticText "03"
+    - StaticText "Cindy"
+    - StaticText "rounds-reps"
+    - paragraph
+    - StaticText "Time"
+  - link "04 Nicole reps AMRAP: 5 rounds • 400-meter run • Max reps pull-ups Target: 55 reps total Movements pull up run Tags benchmark girl Time" [ref=e15]
+    - StaticText "04"
+    - StaticText "Nicole"
+    - StaticText "reps"
+    - paragraph
+      - StaticText "AMRAP:\n\n5 rounds\n• 400-meter run\n• Max reps pull-ups\n\nTarget: 55 reps total"
+    - heading "Movements" [level=4, ref=e45]
+    - StaticText "pull up"
+    - StaticText "run"
+    - heading "Tags" [level=4, ref=e46]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "05 Nancy time For time: 5 rounds • 400-meter run • 15 overhead squats (95/65lb) Target: 22 minutes Movements overhead squat run Tags benchmark girl Time" [ref=e16]
+    - StaticText "05"
+    - StaticText "Nancy"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n5 rounds\n• 400-meter run\n• 15 overhead squats (95/65lb)\n\nTarget: 22 minutes"
+    - heading "Movements" [level=4, ref=e47]
+    - StaticText "overhead squat"
+    - StaticText "run"
+    - heading "Tags" [level=4, ref=e48]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "06 Megan time For time: 21-15-9 reps • Burpees • KB Swings (53/35lb) • Double-unders Target: 8 minutes Movements burpee double under kettlebell swing Tags benchmark girl Time" [ref=e17]
+    - StaticText "06"
+    - StaticText "Megan"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n21-15-9 reps\n• Burpees\n• KB Swings (53/35lb)\n• Double-unders\n\nTarget: 8 minutes"
+    - heading "Movements" [level=4, ref=e49]
+    - StaticText "burpee"
+    - StaticText "double under"
+    - StaticText "kettlebell swing"
+    - heading "Tags" [level=4, ref=e50]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "07 Mary rounds-reps AMRAP 20 minutes: • 5 handstand push-ups • 10 pistols (alternating legs) • 15 pull-ups Target: 5 rounds Movements handstand push up pistol pull up Tags amrap benchmark girl Time" [ref=e18]
+    - StaticText "07"
+    - StaticText "Mary"
+    - StaticText "rounds-reps"
+    - paragraph
+      - StaticText "AMRAP 20 minutes:\n• 5 handstand push-ups\n• 10 pistols (alternating legs)\n• 15 pull-ups\n\nTarget: 5 rounds"
+    - heading "Movements" [level=4, ref=e51]
+    - StaticText "handstand push up"
+    - StaticText "pistol"
+    - StaticText "pull up"
+    - heading "Tags" [level=4, ref=e52]
+    - StaticText "amrap"
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "08 Marguerita time For time: 50 rounds • 1 Burpee • 1 Push-up • 1 Jumping-jack • 1 Sit-up • 1 Handstand push up Target: 25 minutes Movements burpee handstand push up jumping jack push up sit up Tags benchmark girl Time" [ref=e19]
+    - StaticText "08"
+    - StaticText "Marguerita"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n50 rounds\n• 1 Burpee\n• 1 Push-up\n• 1 Jumping-jack\n• 1 Sit-up\n• 1 Handstand push up\n\nTarget: 25 minutes"
+    - heading "Movements" [level=4, ref=e53]
+    - StaticText "burpee"
+    - StaticText "handstand push up"
+    - StaticText "jumping jack"
+    - StaticText "push up"
+    - StaticText "sit up"
+    - heading "Tags" [level=4, ref=e54]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "09 Maggie time For time: 5 rounds • 20 Handstand Push-ups • 40 Pull-ups • 60 Pistols (alternating legs) Target: 60 minutes Movements handstand push up pistol pull up Tags benchmark girl Time" [ref=e20]
+    - StaticText "09"
+    - StaticText "Maggie"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n5 rounds\n• 20 Handstand Push-ups\n• 40 Pull-ups\n• 60 Pistols (alternating legs)\n\nTarget: 60 minutes"
+    - heading "Movements" [level=4, ref=e55]
+    - StaticText "handstand push up"
+    - StaticText "pistol"
+    - StaticText "pull up"
+    - heading "Tags" [level=4, ref=e56]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "10 Lynne reps 5 rounds: • Max reps Bench Press (body weight) • Pull-ups Target: 50 reps total Movements bench press pull up Tags benchmark girl Time" [ref=e21]
+    - StaticText "10"
+    - StaticText "Lynne"
+    - StaticText "reps"
+    - paragraph
+      - StaticText "5 rounds:\n• Max reps Bench Press (body weight)\n• Pull-ups\n\nTarget: 50 reps total"
+    - heading "Movements" [level=4, ref=e57]
+    - StaticText "bench press"
+    - StaticText "pull up"
+    - heading "Tags" [level=4, ref=e58]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "11 Linda time For time: 10-9-8-7-6-5-4-3-2-1 reps • Deadlift (1.5 BW) • Bench Press (BW) • Clean (0.75 BW) Target: 30 minutes Movements bench press clean deadlift Tags benchmark girl Time" [ref=e22]
+    - StaticText "11"
+    - StaticText "Linda"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n10-9-8-7-6-5-4-3-2-1 reps\n• Deadlift (1.5 BW)\n• Bench Press (BW)\n• Clean (0.75 BW)\n\nTarget: 30 minutes"
+    - heading "Movements" [level=4, ref=e59]
+    - StaticText "bench press"
+    - StaticText "clean"
+    - StaticText "deadlift"
+    - heading "Tags" [level=4, ref=e60]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "12 Kelly time For time: 5 rounds • 400-meter run • 30 box jumps (24/20 inch) • 30 wall ball shots (20/14 lbs) Target: 50 minutes Movements box jump run wall ball Tags benchmark girl Time" [ref=e23]
+    - StaticText "12"
+    - StaticText "Kelly"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n5 rounds\n• 400-meter run\n• 30 box jumps (24/20 inch)\n• 30 wall ball shots (20/14 lbs)\n\nTarget: 50 minutes"
+    - heading "Movements" [level=4, ref=e61]
+    - StaticText "box jump"
+    - StaticText "run"
+    - StaticText "wall ball"
+    - heading "Tags" [level=4, ref=e62]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "13 Karen time For time: • 150 Wall Ball Shots (20/14lb) Target: 15 minutes Movements wall ball Tags benchmark girl Time" [ref=e24]
+    - StaticText "13"
+    - StaticText "Karen"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n• 150 Wall Ball Shots (20/14lb)\n\nTarget: 15 minutes"
+    - heading "Movements" [level=4, ref=e63]
+    - StaticText "wall ball"
+    - heading "Tags" [level=4, ref=e64]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "14 Jackie time For time: • 1,000-meter row • 50 thrusters (45/35lb) • 30 pull-ups Target: 18 minutes Movements pull up row thruster Tags benchmark chipper girl Time" [ref=e25]
+    - StaticText "14"
+    - StaticText "Jackie"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n• 1,000-meter row\n• 50 thrusters (45/35lb)\n• 30 pull-ups\n\nTarget: 18 minutes"
+    - heading "Movements" [level=4, ref=e65]
+    - StaticText "pull up"
+    - StaticText "row"
+    - StaticText "thruster"
+    - heading "Tags" [level=4, ref=e66]
+    - StaticText "benchmark"
+    - StaticText "chipper"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "15 Isabel time For time: • 30 Snatches (135/95lb) Target: 16 minutes Movements snatch Tags benchmark girl Time" [ref=e26]
+    - StaticText "15"
+    - StaticText "Isabel"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n• 30 Snatches (135/95lb)\n\nTarget: 16 minutes"
+    - heading "Movements" [level=4, ref=e67]
+    - StaticText "snatch"
+    - heading "Tags" [level=4, ref=e68]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "16 Hope points AMRAP 3 rounds: • Burpees • Power snatch (75/55lb) • Box jump (24/20 inch) • Thruster (75/55lb) • Chest to bar Pull-ups Target: 150 points Movements box jump burpee chest to bar pull up power snatch thruster Tags benchmark girl Time" [ref=e27]
+    - StaticText "16"
+    - StaticText "Hope"
+    - StaticText "points"
+    - paragraph
+      - StaticText "AMRAP 3 rounds:\n• Burpees\n• Power snatch (75/55lb)\n• Box jump (24/20 inch)\n• Thruster (75/55lb)\n• Chest to bar Pull-ups\n\nTarget: 150 points"
+    - heading "Movements" [level=4, ref=e69]
+    - StaticText "box jump"
+    - StaticText "burpee"
+    - StaticText "chest to bar pull up"
+    - StaticText "power snatch"
+    - StaticText "thruster"
+    - heading "Tags" [level=4, ref=e70]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "17 Helen time For time: 3 rounds • 400-meter run • 21 kettlebell swings (50/35lb) • 12 pull-ups Target: 16 minutes Movements kettlebell swing pull up run Tags benchmark girl Time" [ref=e28]
+    - StaticText "17"
+    - StaticText "Helen"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n3 rounds\n• 400-meter run\n• 21 kettlebell swings (50/35lb)\n• 12 pull-ups\n\nTarget: 16 minutes"
+    - heading "Movements" [level=4, ref=e71]
+    - StaticText "kettlebell swing"
+    - StaticText "pull up"
+    - StaticText "run"
+    - heading "Tags" [level=4, ref=e72]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "18 Gwen load For time: • 15-12-9 Clean and Jerks (unbroken) • Rest as needed between sets Score is weight used for all three unbroken sets. Each set must be unbroken (touch and go at floor) only; even a re-grip off the floor is a foul. Use same load for each set. Target: 390 pounds Movements clean and jerk Tags benchmark girl Time" [ref=e29]
+    - StaticText "18"
+    - StaticText "Gwen"
+    - StaticText "load"
+    - paragraph
+      - StaticText "For time:\n• 15-12-9 Clean and Jerks (unbroken)\n• Rest as needed between sets\n\nScore is weight used for all three unbroken sets. Each set must be unbroken (touch and go at floor) only; even a re-grip off the floor is a foul. Use same load for each set.\n\nTarget: 390 pounds"
+    - heading "Movements" [level=4, ref=e73]
+    - StaticText "clean and jerk"
+    - heading "Tags" [level=4, ref=e74]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "19 Grace time For time: • 30 Clean-and-Jerks (135/95lb) Target: 8 minutes Movements clean and jerk Tags benchmark girl Time" [ref=e30]
+    - StaticText "19"
+    - StaticText "Grace"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n• 30 Clean-and-Jerks (135/95lb)\n\nTarget: 8 minutes"
+    - heading "Movements" [level=4, ref=e75]
+    - StaticText "clean and jerk"
+    - heading "Tags" [level=4, ref=e76]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "20 Fran time For time: 21-15-9 reps • Thrusters (95/75lb) • Pull-ups Target: 5 minutes Movements pull up thruster Tags benchmark girl Time" [ref=e31]
+    - StaticText "20"
+    - StaticText "Fran"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n21-15-9 reps\n• Thrusters (95/75lb)\n• Pull-ups\n\nTarget: 5 minutes"
+    - heading "Movements" [level=4, ref=e77]
+    - StaticText "pull up"
+    - StaticText "thruster"
+    - heading "Tags" [level=4, ref=e78]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "21 Eva time For time: 5 rounds • 800-meter run • 30 kettlebell swings (2 pood) • 30 pull-ups Target: 70 minutes Movements kettlebell swing pull up run Tags benchmark girl Time" [ref=e32]
+    - StaticText "21"
+    - StaticText "Eva"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n5 rounds\n• 800-meter run\n• 30 kettlebell swings (2 pood)\n• 30 pull-ups\n\nTarget: 70 minutes"
+    - heading "Movements" [level=4, ref=e79]
+    - StaticText "kettlebell swing"
+    - StaticText "pull up"
+    - StaticText "run"
+    - heading "Tags" [level=4, ref=e80]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "22 Elizabeth time For time: 21-15-9 reps • Squat Cleans (135/95lb) • Ring Dips Movements clean Tags benchmark girl Time" [ref=e33]
+    - StaticText "22"
+    - StaticText "Elizabeth"
+    - StaticText "time"
+    - paragraph
+    - heading "Movements" [level=4, ref=e81]
+    - StaticText "clean"
+    - heading "Tags" [level=4, ref=e82]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "23 Diane time For time: 21-15-9 reps • Deadlifts (225/155lb) • Handstand push-ups Target: 4 minutes Movements deadlift handstand push up Tags benchmark girl Time" [ref=e34]
+    - StaticText "23"
+    - StaticText "Diane"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n21-15-9 reps\n• Deadlifts (225/155lb)\n• Handstand push-ups\n\nTarget: 4 minutes"
+    - heading "Movements" [level=4, ref=e83]
+    - StaticText "deadlift"
+    - StaticText "handstand push up"
+    - heading "Tags" [level=4, ref=e84]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "24 Cindy rounds-reps AMRAP 20 minutes: • 5 pull-ups • 10 push-ups • 15 air squats Target: 12 rounds Movements pull up push up air squat Tags amrap benchmark girl Time" [ref=e35]
+    - StaticText "24"
+    - StaticText "Cindy"
+    - StaticText "rounds-reps"
+    - paragraph
+      - StaticText "AMRAP 20 minutes:\n• 5 pull-ups\n• 10 push-ups\n• 15 air squats\n\nTarget: 12 rounds"
+    - heading "Movements" [level=4, ref=e85]
+    - StaticText "pull up"
+    - StaticText "push up"
+    - StaticText "air squat"
+    - heading "Tags" [level=4, ref=e86]
+    - StaticText "amrap"
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "25 Chelsea emom EMOM 30: • 5 pull-ups • 10 push-ups • 15 air squats Target: 20 rounds Movements pull up push up air squat Tags benchmark emom girl Time" [ref=e36]
+    - StaticText "25"
+    - StaticText "Chelsea"
+    - StaticText "emom"
+    - paragraph
+      - StaticText "EMOM 30:\n• 5 pull-ups\n• 10 push-ups\n• 15 air squats\n\nTarget: 20 rounds"
+    - heading "Movements" [level=4, ref=e87]
+    - StaticText "pull up"
+    - StaticText "push up"
+    - StaticText "air squat"
+    - heading "Tags" [level=4, ref=e88]
+    - StaticText "benchmark"
+    - StaticText "emom"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "26 Candy time For time: 5 rounds • 20 pull-ups • 40 push-ups • 60 squats Target: 38 minutes Movements pull up push up air squat Tags benchmark girl Time" [ref=e37]
+    - StaticText "26"
+    - StaticText "Candy"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n5 rounds\n• 20 pull-ups\n• 40 push-ups\n• 60 squats\n\nTarget: 38 minutes"
+    - heading "Movements" [level=4, ref=e89]
+    - StaticText "pull up"
+    - StaticText "push up"
+    - StaticText "air squat"
+    - heading "Tags" [level=4, ref=e90]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "27 Barbara time For time: 5 rounds • 20 pull-ups • 30 push-ups • 40 sit-ups • 50 air squats • 3 minutes rest Target: 8 minutes per round Movements pull up push up sit up air squat Tags benchmark girl Time" [ref=e38]
+    - StaticText "27"
+    - StaticText "Barbara"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n5 rounds\n• 20 pull-ups\n• 30 push-ups\n• 40 sit-ups\n• 50 air squats\n• 3 minutes rest\n\nTarget: 8 minutes per round"
+    - heading "Movements" [level=4, ref=e91]
+    - StaticText "pull up"
+    - StaticText "push up"
+    - StaticText "sit up"
+    - StaticText "air squat"
+    - heading "Tags" [level=4, ref=e92]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "28 Annie time For time: 50-40-30-20-10 reps • Double-unders • Sit-ups Target: 11 minutes Movements double under sit up Tags benchmark girl Time" [ref=e39]
+    - StaticText "28"
+    - StaticText "Annie"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n50-40-30-20-10 reps\n• Double-unders\n• Sit-ups\n\nTarget: 11 minutes"
+    - heading "Movements" [level=4, ref=e93]
+    - StaticText "double under"
+    - StaticText "sit up"
+    - heading "Tags" [level=4, ref=e94]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "29 Angie time For time: • 100 pull-ups • 100 push-ups • 100 sit-ups • 100 squats Target: 28 minutes Movements pull up push up sit up air squat Tags benchmark girl Time" [ref=e40]
+    - StaticText "29"
+    - StaticText "Angie"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n• 100 pull-ups\n• 100 push-ups\n• 100 sit-ups\n• 100 squats\n\nTarget: 28 minutes"
+    - heading "Movements" [level=4, ref=e95]
+    - StaticText "pull up"
+    - StaticText "push up"
+    - StaticText "sit up"
+    - StaticText "air squat"
+    - heading "Tags" [level=4, ref=e96]
+    - StaticText "benchmark"
+    - StaticText "girl"
+    - StaticText "Time"
+  - link "30 Amanda time For time: 9-7-5 reps • Muscle-ups • Squat Snatches (135/95lb) Target: 14 minutes Movements muscle up snatch Tags benchmark girl Time" [ref=e41]
+    - StaticText "30"
+    - StaticText "Amanda"
+    - StaticText "time"
+    - paragraph
+      - StaticText "For time:\n\n9-7-5 reps\n• Muscle-ups\n• Squat Snatches (135/95lb)\n\nTarget: 14 minutes"
+    - heading "Movements" [level=4, ref=e97]
+    - heading "Tags" [level=4, ref=e98]
+- region "Notifications alt+T" [ref=e1]

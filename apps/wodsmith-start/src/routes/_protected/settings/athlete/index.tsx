@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Field } from "@/components/ui/field"
 import {
   Form,
   FormControl,
@@ -118,7 +119,7 @@ function AthleteSettingsPage() {
 
     if (heightCm && preferredUnits === "imperial") {
       const formatted = cmToFeetInches(heightCm)
-      const match = formatted.match(/(\d+)'(\d+)"/)
+      const match = formatted.match(/^(\d+)'(\d+)"?$/)
       if (match) {
         setLocalFeet(match[1] || "")
         setLocalInches(match[2] || "")
@@ -343,9 +344,9 @@ function AthleteSettingsPage() {
               <div className="space-y-6">
                 {preferredUnits === "imperial" ? (
                   <div className="grid gap-6 sm:grid-cols-3">
-                    <FormItem>
-                      <FormLabel>Height (feet)</FormLabel>
-                      <FormControl>
+                    <Field.Root id="athlete-height-feet" description="Feet">
+                      <Field.Label>Height (feet)</Field.Label>
+                      <Field.Control>
                         <Input
                           type="number"
                           placeholder="5"
@@ -353,13 +354,13 @@ function AthleteSettingsPage() {
                           onChange={(e) => setLocalFeet(e.target.value)}
                           onBlur={handleImperialHeightChange}
                         />
-                      </FormControl>
-                      <FormDescription>Feet</FormDescription>
-                    </FormItem>
+                      </Field.Control>
+                      <Field.Description />
+                    </Field.Root>
 
-                    <FormItem>
-                      <FormLabel>Height (inches)</FormLabel>
-                      <FormControl>
+                    <Field.Root id="athlete-height-inches" description="Inches">
+                      <Field.Label>Height (inches)</Field.Label>
+                      <Field.Control>
                         <Input
                           type="number"
                           placeholder="10"
@@ -367,13 +368,13 @@ function AthleteSettingsPage() {
                           onChange={(e) => setLocalInches(e.target.value)}
                           onBlur={handleImperialHeightChange}
                         />
-                      </FormControl>
-                      <FormDescription>Inches</FormDescription>
-                    </FormItem>
+                      </Field.Control>
+                      <Field.Description />
+                    </Field.Root>
 
-                    <FormItem>
-                      <FormLabel>Weight (lbs)</FormLabel>
-                      <FormControl>
+                    <Field.Root id="athlete-weight-lbs" description="Pounds">
+                      <Field.Label>Weight (lbs)</Field.Label>
+                      <Field.Control>
                         <Input
                           type="number"
                           placeholder="165"
@@ -381,9 +382,9 @@ function AthleteSettingsPage() {
                           onChange={(e) => setLocalWeight(e.target.value)}
                           onBlur={handleWeightChange}
                         />
-                      </FormControl>
-                      <FormDescription>Pounds</FormDescription>
-                    </FormItem>
+                      </Field.Control>
+                      <Field.Description />
+                    </Field.Root>
                   </div>
                 ) : (
                   <div className="grid gap-6 sm:grid-cols-2">
@@ -414,9 +415,9 @@ function AthleteSettingsPage() {
                       )}
                     />
 
-                    <FormItem>
-                      <FormLabel>Weight (kg)</FormLabel>
-                      <FormControl>
+                    <Field.Root id="athlete-weight-kg" description="Kilograms">
+                      <Field.Label>Weight (kg)</Field.Label>
+                      <Field.Control>
                         <Input
                           type="number"
                           placeholder="75"
@@ -424,9 +425,9 @@ function AthleteSettingsPage() {
                           onChange={(e) => setLocalWeight(e.target.value)}
                           onBlur={handleWeightChange}
                         />
-                      </FormControl>
-                      <FormDescription>Kilograms</FormDescription>
-                    </FormItem>
+                      </Field.Control>
+                      <Field.Description />
+                    </Field.Root>
                   </div>
                 )}
               </div>
@@ -727,7 +728,11 @@ function AthleteSettingsPage() {
             <CardContent className="space-y-4">
               {(
                 [
-                  ["instagram", "Instagram", "https://instagram.com/yourhandle"],
+                  [
+                    "instagram",
+                    "Instagram",
+                    "https://instagram.com/yourhandle",
+                  ],
                   ["facebook", "Facebook", "https://facebook.com/yourpage"],
                   ["twitter", "Twitter/X", "https://twitter.com/yourhandle"],
                   ["tiktok", "TikTok", "https://tiktok.com/@yourhandle"],

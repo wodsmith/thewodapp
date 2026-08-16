@@ -1,0 +1,79 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/how-to/judges/sign-up-as-volunteer/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Sign Up as a Volunteer"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Direct Invite Flow​"
+    },
+    {
+      "level": 2,
+      "text": "Public Signup Flow​"
+    },
+    {
+      "level": 2,
+      "text": "What Happens Next​"
+    },
+    {
+      "level": 2,
+      "text": "Editing Your Application​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "How to Sign Up as a Volunteer | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 2669,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

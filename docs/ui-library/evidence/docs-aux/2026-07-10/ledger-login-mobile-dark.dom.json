@@ -1,0 +1,39 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://ledger.wodsmith.com/",
+  "forms": [
+    {
+      "inputs": [
+        {
+          "name": "",
+          "placeholder": "Enter password",
+          "tag": "input",
+          "type": "password"
+        },
+        {
+          "name": "",
+          "placeholder": "",
+          "tag": "button",
+          "type": "submit"
+        }
+      ]
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "WODsmith Ledger"
+    }
+  ],
+  "landmarks": [],
+  "language": "en",
+  "tables": [],
+  "title": "WODsmith Ledger",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 844,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

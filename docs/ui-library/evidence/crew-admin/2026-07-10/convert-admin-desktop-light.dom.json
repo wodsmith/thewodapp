@@ -1,0 +1,115 @@
+{
+  "bodyText": "WODsmith Admin Overview Operator Readiness Billing Conversion Views Organizer view Event list Toggle Sidebar WODSMITH ADMIN E2E Crew Demo Throwdown 2026-07-11 to 2026-07-12 Competition e2e_competition Crew-only Yes Conversion Not requested Full setup 3/8 Full WODsmith conversion Convert without duplicating the event This operator assistant inventories what stays on the current competition and points missing full-platform setup to existing WODsmith organizer surfaces. Read-only No conversion mutation, checkout, registration launch, payout setup, deploy, import apply, or public activation happens here. Missing full WODsmith setup 3/8 ready, 3 blocked. Blocked Divisions No athlete divisions are configured. Blocked Uses the existing competition division model. No duplicate competition is required. Open divisions Registration window 2026-07-10 to 2026-08-09 Ready Opens: 2026-07-10 Closes: 2026-08-09 Open event settings Pricing Pricing is currently free or unconfirmed. Blocked Default fee: $0.00. 0/0 divisions have configured paid fees. Open pricing Scoring Scoring should be confirmed before launch. Needs attention The assistant checks for saved competition scoring configuration. Open scoring Public page Competition page is public. Ready Status: published. Visibility: public. Open public page Waivers No required athlete waivers are configured. Blocked Volunteer waivers stay separate from athlete waivers. Open waivers Payouts Payout setup can wait while registration remains free. Needs attention Stripe account status: not connected. Open payouts Athlete registration 8 active athlete registrations Ready Uses the existing WODsmith athlete registration flow. 8 active registrations on this competition. Open registration Crew data preserved 6/8 ready, 0 blocked. Needs attention Competition record Reuses e2e_competition. Ready Conversion is modeled on the existing competition row. No second competition is created by this assistant. Open Crew overview Volunteers 21 volunteers, 21 assignable Ready 21 active, 0 pending. Contact fields remain server-side and are not included here. Open volunteers Shifts 11/12 shift slots assigned Ready 7 shifts stay on the same event. Open shifts Heat schedule 6/6 heats scheduled Ready 6/6 heat schedules published. 3 workouts on this competition. Open schedule Judge assignments 23 judge heat assignments Ready 3 active published versions. Published assignment rows are preserved, not rewritten. Open judges Confirmations 5/11 assignments confirmed Ready 3 pending responses. 0 change requests. Open shifts Imports 0 applied Crew imports Needs attention 0/0 volunteer imports applied. 0/0 heat imports applied. Open imports Credits No conversion credit is recorded. Needs attention Crew billing state: comped. No Crew event plan is recorded. Open billing",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/crew/events/e2e_competition/convert",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 3,
+      "text": "Convert without duplicating the event"
+    },
+    {
+      "level": 3,
+      "text": "Missing full WODsmith setup"
+    },
+    {
+      "level": 3,
+      "text": "Divisions"
+    },
+    {
+      "level": 3,
+      "text": "Registration window"
+    },
+    {
+      "level": 3,
+      "text": "Pricing"
+    },
+    {
+      "level": 3,
+      "text": "Scoring"
+    },
+    {
+      "level": 3,
+      "text": "Public page"
+    },
+    {
+      "level": 3,
+      "text": "Waivers"
+    },
+    {
+      "level": 3,
+      "text": "Payouts"
+    },
+    {
+      "level": 3,
+      "text": "Athlete registration"
+    },
+    {
+      "level": 3,
+      "text": "Crew data preserved"
+    },
+    {
+      "level": 3,
+      "text": "Competition record"
+    },
+    {
+      "level": 3,
+      "text": "Volunteers"
+    },
+    {
+      "level": 3,
+      "text": "Shifts"
+    },
+    {
+      "level": 3,
+      "text": "Heat schedule"
+    },
+    {
+      "level": 3,
+      "text": "Judge assignments"
+    },
+    {
+      "level": 3,
+      "text": "Confirmations"
+    },
+    {
+      "level": 3,
+      "text": "Imports"
+    },
+    {
+      "level": 3,
+      "text": "Credits"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 2409,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

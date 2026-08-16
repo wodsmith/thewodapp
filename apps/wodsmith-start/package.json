@@ -5,6 +5,14 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
+    "storybook": "storybook dev --port 6006 --no-open",
+    "build-storybook": "storybook build --output-dir storybook-static --disable-telemetry",
+    "test:storybook-contrast": "storybook build --output-dir storybook-static --disable-telemetry && playwright test --config storybook-contrast.playwright.config.ts",
+    "ui:inventory": "node scripts/generate-ui-library-inventory.mjs",
+    "check:ui-inventory": "node scripts/generate-ui-library-inventory.mjs --check",
+    "page-coverage:scaffold": "node scripts/generate-page-coverage-ledger.mjs --scaffold",
+    "page-coverage:generate": "node scripts/generate-page-coverage-ledger.mjs",
+    "check:page-coverage": "node scripts/generate-page-coverage-ledger.mjs --check",
     "serve": "vite preview",
     "test": "vitest run",
     "preview": "pnpm run build && vite preview",
@@ -77,6 +85,7 @@
     "@react-email/components": "0.0.32",
     "@react-email/render": "1.0.4",
     "@react-pdf/renderer": "^4.3.1",
+    "@repo/ui": "workspace:*",
     "@repo/wodsmith-db": "workspace:*",
     "@sentry/cloudflare": "^10.39.0",
     "@sentry/react": "^10.39.0",
@@ -133,10 +142,14 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@biomejs/biome": "2.0.6",
     "@cloudflare/workers-types": "^4.20250508.0",
     "@playwright/test": "^1.60.0",
     "@repo/test-utils": "workspace:*",
+    "@storybook/addon-a11y": "^10.5.0",
+    "@storybook/addon-docs": "^10.5.0",
+    "@storybook/react-vite": "^10.5.0",
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -152,12 +165,14 @@
     "@vitest/coverage-v8": "3.2.3",
     "jsdom": "^27.0.0",
     "playwright": "^1.60.0",
+    "storybook": "^10.5.0",
     "tsx": "^4.20.3",
     "typescript": "^5.7.2",
     "vite": "^7.3.0",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0",
-    "wrangler": "^4.56.0"
+    "wrangler": "^4.56.0",
+    "yaml": "^2.8.2"
   }
 }

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start"
 import { format } from "date-fns"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,10 +38,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { toast } from "sonner"
 import {
-  deleteDemoCompetitionFn,
   type DemoCompetitionSummary,
+  deleteDemoCompetitionFn,
   generateDemoCompetitionFn,
   getOrganizingTeamsFn,
   listDemoCompetitionsFn,
@@ -170,7 +169,9 @@ function DemoCompetitionsPage() {
         {/* Existing Demo Competitions */}
         <Card>
           <CardHeader>
-            <CardTitle>Existing Demo Competitions</CardTitle>
+            <h2 className="text-2xl font-semibold leading-none tracking-tight">
+              Existing Demo Competitions
+            </h2>
             <CardDescription>
               Demo competitions that have been generated. Delete when no longer
               needed.
@@ -231,10 +232,10 @@ function DemoCompetitionsPage() {
         {/* Generate New Demo Competition */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight">
               <Plus className="h-5 w-5" />
               Generate New Demo Competition
-            </CardTitle>
+            </h2>
             <CardDescription>
               Creates a complete competition with 4 divisions, 3 workouts, 40
               athletes, heats, scores, and volunteers.
@@ -322,18 +323,20 @@ function DemoCompetitionsPage() {
 
             {/* What gets created */}
             <div className="mt-6 border-t pt-4">
-              <h4 className="text-sm font-medium mb-2">What gets created:</h4>
+              <h3 className="text-sm font-medium mb-2">What gets created:</h3>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>
                   4 Divisions: Rx Male/Female Individual ($150), Rx Male/Female
                   Team of 2 ($200)
                 </li>
-                <li>3 Workouts with smart timing:</li>
-                <ul className="ml-4 list-disc">
-                  <li>Event 1: Completed (in the past with scores)</li>
-                  <li>Event 2: Starting 30 min after demo time</li>
-                  <li>Event 3: Upcoming (no heats yet)</li>
-                </ul>
+                <li>
+                  3 Workouts with smart timing:
+                  <ul className="ml-4 list-disc">
+                    <li>Event 1: Completed (in the past with scores)</li>
+                    <li>Event 2: Starting 30 min after demo time</li>
+                    <li>Event 3: Upcoming (no heats yet)</li>
+                  </ul>
+                </li>
                 <li>~28 Fake athletes with registrations</li>
                 <li>Heats for Event 1 with results, Event 2 ready to go</li>
                 <li>Volunteer judges assigned to heats</li>

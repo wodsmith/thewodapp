@@ -1,0 +1,2711 @@
+{
+  "version": 1,
+  "captures": [
+    {
+      "id": "docs-category-concepts-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:category/concepts",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/category/concepts",
+      "finalUrl": "https://docs.wodsmith.com/category/concepts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:45:53.341Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-concepts-desktop-light.a11y.txt",
+          "sha256": "7b21b9a98f6b6bea9caba08881289c4b4b59bfab0fbe336d063035f68505ca85"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-concepts-desktop-light.dom.json",
+          "sha256": "c3fec7ae9fa3119e7a65bd8e9c9bee1d8ddd9f616df9043239f4b797eb4de69b"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-concepts-desktop-light.png",
+          "sha256": "d7915b1b014062b073dd250450df0e0d4b948788b301a3748fd89ee891117dc3"
+        }
+      ]
+    },
+    {
+      "id": "docs-category-how-to-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:category/how-to",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/category/how-to-guides",
+      "finalUrl": "https://docs.wodsmith.com/category/how-to-guides/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:45:56.101Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-how-to-desktop-light.a11y.txt",
+          "sha256": "6acf713795f0d73b938642daa1e8a25db753b5d5d2375be168ebe945fd57ec2a"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-how-to-desktop-light.dom.json",
+          "sha256": "9e8d4ec095873d5883567ea290e7956b51402bc6f2c8bb58eff702445ede139c"
+        }
+      ]
+    },
+    {
+      "id": "docs-category-reference-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:category/reference",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/category/reference",
+      "finalUrl": "https://docs.wodsmith.com/category/reference/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:45:58.486Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-reference-desktop-light.a11y.txt",
+          "sha256": "ecfc70f35f98d9a3ae1693bd3809823698f72bd04dd9d7702e75996fc2d4d129"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-reference-desktop-light.dom.json",
+          "sha256": "d2854675b963ddbea2d944372f5ebbbe13e73a842bce0ffd80fdd60f81391ff8"
+        }
+      ]
+    },
+    {
+      "id": "docs-category-tutorials-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:category/tutorials",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/category/tutorials",
+      "finalUrl": "https://docs.wodsmith.com/category/tutorials/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:01.164Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-tutorials-desktop-light.a11y.txt",
+          "sha256": "f92ddf9b2d1831420de1eb0bec3530c22358b0abc0cf925804649c133fe3d73a"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-tutorials-desktop-light.dom.json",
+          "sha256": "5d6ba94318ad3bb08ecebf3ecb6d45bacf2e18e5a603bdd502b243437cc1909d"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-competition-flow-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:concepts/competition-flow",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/competition-flow",
+      "finalUrl": "https://docs.wodsmith.com/concepts/competition-flow/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:03.939Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-competition-flow-desktop-light.a11y.txt",
+          "sha256": "1a390ff80b349dbb66926a8732ebe2f3f097e98eb2e77bfd7eacc1bf5532cd51"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-competition-flow-desktop-light.dom.json",
+          "sha256": "b5e7845331fdf899f4439d62278ceef117b8ca9ff57bd9210bb00b360bfd47d6"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-division-system-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:concepts/division-system",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/division-system",
+      "finalUrl": "https://docs.wodsmith.com/concepts/division-system/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:06.675Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-division-system-desktop-light.a11y.txt",
+          "sha256": "1dc09f9ce30126057c1ef16b7090e8bb23df8196452e13807b72c971655829cc"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-division-system-desktop-light.dom.json",
+          "sha256": "ac163da80de446bab703a40a201706a821358d62024ae6b18ba06495e07a3c1b"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-heat-scheduling-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:concepts/heat-scheduling",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/heat-scheduling",
+      "finalUrl": "https://docs.wodsmith.com/concepts/heat-scheduling/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:09.455Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-heat-scheduling-desktop-light.a11y.txt",
+          "sha256": "a5bac1bdc7bd5a257c58b5157d1fd80da47c7e6e7a8313c21b44b218347025ec"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-heat-scheduling-desktop-light.dom.json",
+          "sha256": "826bec4adb7cb296648c80bf98b4db90f88a0feed9237506fdf0398d148f0505"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-overview-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:concepts/overview",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/overview",
+      "finalUrl": "https://docs.wodsmith.com/concepts/overview/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:12.361Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-overview-desktop-light.a11y.txt",
+          "sha256": "40a86425b836d3744da70a9916e6d1bb0ec3f75e134b34d2ce7980841b35a82c"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-overview-desktop-light.dom.json",
+          "sha256": "e07577ca982c8df1c3232da3b9c9f4ed56b22e67cb7c19127b564ff538a356e9"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-overview-desktop-light.png",
+          "sha256": "e533b297c120775575deb3b9e7890369aafcc998d1e284c980b270e4ffd3197e"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-perspectives-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:concepts/perspectives",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/perspectives",
+      "finalUrl": "https://docs.wodsmith.com/concepts/perspectives/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:15.262Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-perspectives-desktop-light.a11y.txt",
+          "sha256": "f82ff3761121505fc0caabd9447bae585bccbd3af30290e08d0f73790ffc8d5b"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-perspectives-desktop-light.dom.json",
+          "sha256": "6cbe3dbf91cb980ebb50619bf10b48f3fd6e43db7058b9a9d75250f9eb629bfd"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-athletes-check-standings-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/athletes/check-standings",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/athletes/check-standings",
+      "finalUrl": "https://docs.wodsmith.com/how-to/athletes/check-standings/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:17.894Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-check-standings-desktop-light.a11y.txt",
+          "sha256": "b05b908157bb2ba1a9195fb85b7476f8c4bd95eadd10b2874833234c9ffa0ad5"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-check-standings-desktop-light.dom.json",
+          "sha256": "66320b15f8fa6d4c5bf7b8b83aea7c8746d38cd6891d86a7922c6d44d9163d63"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-athletes-view-broadcasts-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/athletes/view-broadcasts",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/athletes/view-broadcasts",
+      "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-broadcasts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:20.535Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-broadcasts-desktop-light.a11y.txt",
+          "sha256": "b4acf9d9681b25a64405e78dec4d258034c7be0ed3b634372a0f6b766239902f"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-broadcasts-desktop-light.dom.json",
+          "sha256": "69d50a02c09e3c1e2215757a19e1ea74169b24753ffffcdabcfa77a5d01be8f8"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-athletes-view-schedule-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/athletes/view-schedule",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/athletes/view-schedule",
+      "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-schedule/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:23.267Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-schedule-desktop-light.a11y.txt",
+          "sha256": "96c8c1931f93098c202255ef77d516867f03a092033aaf020a8b38bb91aff1ee"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-schedule-desktop-light.dom.json",
+          "sha256": "7f5a1be3f4c6abbcf8d608245db664a6a86c80f9d3f0d3cee66a8c84e63813df"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-athletes-view-workouts-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/athletes/view-workouts",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/athletes/view-workouts",
+      "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-workouts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:26.116Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-workouts-desktop-light.a11y.txt",
+          "sha256": "a7104c20a81e05f7818e2a0c43d753fe0b5893031ee4c930c8c860bb96d9a5fc"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-workouts-desktop-light.dom.json",
+          "sha256": "338564d94e315a29660bf31f3cd91db5393ee5e942a8eb85858ea9aa07de30b9"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-judges-apply-penalty-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/judges/apply-penalty",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/judges/apply-penalty",
+      "finalUrl": "https://docs.wodsmith.com/how-to/judges/apply-penalty/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:28.705Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-apply-penalty-desktop-light.a11y.txt",
+          "sha256": "4cc11f344b00c73f0a6eea969bd6032be0be923c5a00437542360609ac30a655"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-apply-penalty-desktop-light.dom.json",
+          "sha256": "7728d41fb8c8cf815f64cbf9a48290dc32ca92b35fdd20191644dd0fce5621c0"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-judges-review-submissions-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/judges/review-submissions",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/judges/review-submissions",
+      "finalUrl": "https://docs.wodsmith.com/how-to/judges/review-submissions/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:31.569Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-review-submissions-desktop-light.a11y.txt",
+          "sha256": "bb55333716d73683e432ef94a613d10ea7ea55219cb925d7d77f9a3f8abe82ad"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-review-submissions-desktop-light.dom.json",
+          "sha256": "f6a59f4e0713dd21ed6cdbf219702b2d1ac39963f010452ed54c41d2fe20b328"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-judges-score-in-person-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/judges/score-in-person",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/judges/score-in-person",
+      "finalUrl": "https://docs.wodsmith.com/how-to/judges/score-in-person/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:34.222Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-score-in-person-desktop-light.a11y.txt",
+          "sha256": "fbc5f8730a064620c1efc1cffce82bb9a5ca71f571cf25d329c2ba4d29dda7ae"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-score-in-person-desktop-light.dom.json",
+          "sha256": "28a2b468313689acd410cfcd989ca4a23493ab9732ee115e7310f2ab39252fc1"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-judges-sign-up-as-volunteer-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/judges/sign-up-as-volunteer",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/judges/sign-up-as-volunteer",
+      "finalUrl": "https://docs.wodsmith.com/how-to/judges/sign-up-as-volunteer/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:36.823Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-sign-up-as-volunteer-desktop-light.a11y.txt",
+          "sha256": "12a4d6fd24bf9e37049f865a273133b60c5b68dfc500a8117c5da34fd877d209"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-sign-up-as-volunteer-desktop-light.dom.json",
+          "sha256": "3c4cd30589298bf3dfb9ccac7c185b32066192174505b43605378243f3a34913"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-edit-competition-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/edit-competition",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/edit-competition",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/edit-competition/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:40.339Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-edit-competition-desktop-light.a11y.txt",
+          "sha256": "c497188055efbe100df120e69d2803360e00f1704a4aa9083d59bd910779e004"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-edit-competition-desktop-light.dom.json",
+          "sha256": "accd15c1491c2476fa8bee263eabd92feb9e03d648547d412f7cb13ac4ddfa7b"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-event-day-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/event-day",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/event-day",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/event-day/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:43.412Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-event-day-desktop-light.a11y.txt",
+          "sha256": "42b8662f8a5d98b6837dd7abaf11946d2d0fdc9b87bbce04a9152327b9634de0"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-event-day-desktop-light.dom.json",
+          "sha256": "bd89f5b7bd57a3a6b4c5adb341c1644dc77d3ba33afd5d2b81e298c7ef5da9c6"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-event-day-desktop-light.png",
+          "sha256": "e16af18b946e3fc6c525675b7590c70aab830bb5eb9393a6ae4b372be4ee3ef4"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-manage-registrations-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/manage-registrations",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/manage-registrations",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/manage-registrations/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:46.331Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-manage-registrations-desktop-light.a11y.txt",
+          "sha256": "ec33e55fbddceb75e88ea1cddaf25482f505472a8894c1d22593ae307bcaff34"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-manage-registrations-desktop-light.dom.json",
+          "sha256": "95d0aaca6b594f87f15659fab0142a311f722e0070442fa67bb4eebb2e95797a"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-multi-workout-events-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/multi-workout-events",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/multi-workout-events",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/multi-workout-events/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:48.940Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-multi-workout-events-desktop-light.a11y.txt",
+          "sha256": "cf823659961f5756bcb3ac3318f4fbd95248dec984800757dd8a262bd1fdd74e"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-multi-workout-events-desktop-light.dom.json",
+          "sha256": "7dd14472df4e98048577b84e6789e4a649e60fbab18a95305dba740d1fb482b5"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-registration-questions-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/registration-questions",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/registration-questions",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/registration-questions/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:55.153Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-registration-questions-desktop-light.a11y.txt",
+          "sha256": "179c998ec858c85bc68a9b77df1de94bc90f3d0d844aa626aa5f3c95d9c8a311"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-registration-questions-desktop-light.dom.json",
+          "sha256": "98f15a0c013cc72871ace11609e2081d295a17d1ff68a2804b6a11b07e3d4782"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-schedule-heats-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/schedule-heats",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/schedule-heats",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/schedule-heats/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:46:58.295Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-schedule-heats-desktop-light.a11y.txt",
+          "sha256": "2623884714374e9d949d5a9c08e7d5d595c908ac4c97691d59974c0b372c533a"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-schedule-heats-desktop-light.dom.json",
+          "sha256": "18de49c14b9a64f2ca2544f85d5a1e50744a05e2d68083b6e332a6a31a887fbb"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-send-broadcasts-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/send-broadcasts",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/send-broadcasts",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/send-broadcasts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:00.956Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-send-broadcasts-desktop-light.a11y.txt",
+          "sha256": "c31f5b4f6b00dc9040f8f2da39e2284821395c7911c5a45c286def375fcb61b2"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-send-broadcasts-desktop-light.dom.json",
+          "sha256": "794cadb7f58ffa195f3daa790f60249dbbb4abaa8458484a4fed11539953c562"
+        }
+      ]
+    },
+    {
+      "id": "docs-intro-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:intro",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/",
+      "finalUrl": "https://docs.wodsmith.com/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:03.727Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-intro-desktop-light.a11y.txt",
+          "sha256": "e86248f4f10f9443445afa91d4e4f519b7fa556349cd573493068b07e84fdde9"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-intro-desktop-light.dom.json",
+          "sha256": "4efabb6b46b29c1430a23978356912ca4a34eaa3ce88a9c2656ab8b9c5da7067"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-intro-desktop-light.png",
+          "sha256": "433fa9fd7fd6d5e57d64094c56974d9de20aaed5ba37ca501d61bb0146633411"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-broadcasts-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:reference/broadcasts",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/broadcasts",
+      "finalUrl": "https://docs.wodsmith.com/reference/broadcasts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:06.568Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-broadcasts-desktop-light.a11y.txt",
+          "sha256": "d5b82f166983846559cd5c9a0309bf53e40dd0b4b003c61a7772db43dede68de"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-broadcasts-desktop-light.dom.json",
+          "sha256": "f3d3fa8a9b4f1805716e163a511ed31ee9ec428a5bd20b8a689e4fc6e23107d6"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-competition-settings-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:reference/competition-settings",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/competition-settings",
+      "finalUrl": "https://docs.wodsmith.com/reference/competition-settings/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:09.269Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-competition-settings-desktop-light.a11y.txt",
+          "sha256": "a6279bb54f6154b69d3ad603c6fa11fd9c5302673ecaa8df025460a447e6230e"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-competition-settings-desktop-light.dom.json",
+          "sha256": "994e135c5946801a0c9e8aaa345abb304c96cc01b0535a65c770f83cfbd1655f"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-divisions-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:reference/divisions",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/divisions",
+      "finalUrl": "https://docs.wodsmith.com/reference/divisions/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:11.867Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-divisions-desktop-light.a11y.txt",
+          "sha256": "53e54003b7ffc01d11de0dc7306fd8bc4677a8230274420980b512c4c134687c"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-divisions-desktop-light.dom.json",
+          "sha256": "1804b5c640cf50717b5e22d0ac0f8fc60a4bb52935ddbbd8fc735911e50d6ee2"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-scoring-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:reference/scoring",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/scoring",
+      "finalUrl": "https://docs.wodsmith.com/reference/scoring/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:15.509Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-scoring-desktop-light.a11y.txt",
+          "sha256": "5f501df699770a3589d736b7f09dbac5bda477e17959e87d0fc825c2a4545fea"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-scoring-desktop-light.dom.json",
+          "sha256": "2dd1343cad27e111aa56502bd30db9ee6cf98e232e4d2d0c8a884b5117329946"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-scoring-desktop-light.png",
+          "sha256": "7409ed788e63936ebdd0ce207136ae71e631f90d4f22dfd44c7052ca5ebb2a7a"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-team-roles-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:reference/team-roles",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/team-roles",
+      "finalUrl": "https://docs.wodsmith.com/reference/team-roles/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:18.622Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-team-roles-desktop-light.a11y.txt",
+          "sha256": "9a43d5896f030db8b751b1df15a4f7829a057ec6445d3a1ccfc07884eebf0357"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-team-roles-desktop-light.dom.json",
+          "sha256": "46b941f0d53b6fae1550259ae873d92329416ec098f3c480af3318174fc9373a"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-workout-types-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:reference/workout-types",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/workout-types",
+      "finalUrl": "https://docs.wodsmith.com/reference/workout-types/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:21.200Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-workout-types-desktop-light.a11y.txt",
+          "sha256": "e06651c623e75c2c305c9ec2ce517b7473ea0f2b1e499be67da0ac760f61d7d4"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-workout-types-desktop-light.dom.json",
+          "sha256": "3988897d8e54096228d853453abd76bd965c51f935bd25a48679702fcbaaa94c"
+        }
+      ]
+    },
+    {
+      "id": "docs-tutorials-athletes-first-competition-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:tutorials/athletes/first-competition",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/tutorials/athletes/first-competition",
+      "finalUrl": "https://docs.wodsmith.com/tutorials/athletes/first-competition/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:24.092Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-athletes-first-competition-desktop-light.a11y.txt",
+          "sha256": "0efc582f11b642ba9a6754ac0a40469344e071a9f98e8358ffa44bcac9bd80b2"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-athletes-first-competition-desktop-light.dom.json",
+          "sha256": "294b5d2957299d9400a29ff273b847a162f87aeed237561653a31a3190428713"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-athletes-first-competition-desktop-light.png",
+          "sha256": "f120f7a188bea2906905047f0cef1677a26352c2aed3495cb1e94d2927076160"
+        }
+      ]
+    },
+    {
+      "id": "docs-tutorials-judges-first-judging-shift-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:tutorials/judges/first-judging-shift",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/tutorials/judges/first-judging-shift",
+      "finalUrl": "https://docs.wodsmith.com/tutorials/judges/first-judging-shift/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:27.157Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-judges-first-judging-shift-desktop-light.a11y.txt",
+          "sha256": "bac25a6930f008db411600b9682c799d268d31f4545b17c145e90823565d1442"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-judges-first-judging-shift-desktop-light.dom.json",
+          "sha256": "c1666acfea5d3d5fd50cc45ef1efc0e370ae9ed320a5b427a12843be74d4489e"
+        }
+      ]
+    },
+    {
+      "id": "docs-tutorials-organizers-first-competition-desktop-light",
+      "routeId": "docusaurus:wodsmith-docs:tutorials/organizers/first-competition",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/tutorials/organizers/first-competition",
+      "finalUrl": "https://docs.wodsmith.com/tutorials/organizers/first-competition/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:29.779Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-organizers-first-competition-desktop-light.a11y.txt",
+          "sha256": "0f908a1d0f4f3034e683fc35291d6d080130593e303e4cccaa86784b50124ae0"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-organizers-first-competition-desktop-light.dom.json",
+          "sha256": "668faf284554aa59f4dd52d92544120792a880e4bb06ef1ae710fce7b4e62eb5"
+        }
+      ]
+    },
+    {
+      "id": "docs-category-concepts-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:category/concepts",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/category/concepts",
+      "finalUrl": "https://docs.wodsmith.com/category/concepts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:33.708Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-concepts-mobile-dark.a11y.txt",
+          "sha256": "c96aef86e2a3d59ca4dea81573d3df139f764202be2bdeb6496a7bf9525b5fc3"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-concepts-mobile-dark.dom.json",
+          "sha256": "7998b79b809c27e066d016d7a4e14b5dd0717b5fdfddf9a48d3ab0f9361995c0"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-concepts-mobile-dark.png",
+          "sha256": "2b3e654559295e7640d7613c04f659adb9603cc674245eb683e32cbc23b6e6cf"
+        }
+      ]
+    },
+    {
+      "id": "docs-category-how-to-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:category/how-to",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/category/how-to-guides",
+      "finalUrl": "https://docs.wodsmith.com/category/how-to-guides/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:36.091Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-how-to-mobile-dark.a11y.txt",
+          "sha256": "07ae7d18cf04c11386a2ae220131bcb61234ac6a1d15419d8d6c58a4cede27a3"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-how-to-mobile-dark.dom.json",
+          "sha256": "0761bf6937ec9d981733e4b11c6d5dc1f63962553ef464499d0b88c4297ee64e"
+        }
+      ]
+    },
+    {
+      "id": "docs-category-reference-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:category/reference",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/category/reference",
+      "finalUrl": "https://docs.wodsmith.com/category/reference/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:38.417Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-reference-mobile-dark.a11y.txt",
+          "sha256": "64b28a7dc4ba0cb91a7d6d760b725f1b586bf2ac9e2bf380f7fcfdd15ae5bf3e"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-reference-mobile-dark.dom.json",
+          "sha256": "61cb1642098cff5ade26458ce265b106b7c073cd99f7bdd32f6b6f4e40cbef67"
+        }
+      ]
+    },
+    {
+      "id": "docs-category-tutorials-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:category/tutorials",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/category/tutorials",
+      "finalUrl": "https://docs.wodsmith.com/category/tutorials/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:40.857Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-tutorials-mobile-dark.a11y.txt",
+          "sha256": "6718b99a2ac10af97ae54fd940ae6f0c96e4274482c294983fb026b1cf1ed310"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-category-tutorials-mobile-dark.dom.json",
+          "sha256": "c96d91d269373cb1c5f5c78e4b180791132cb723e00967c6bd8f3c1ba6a58569"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-competition-flow-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:concepts/competition-flow",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/competition-flow",
+      "finalUrl": "https://docs.wodsmith.com/concepts/competition-flow/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:43.183Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-competition-flow-mobile-dark.a11y.txt",
+          "sha256": "2b7b6ba7b840340868744a64a72badda697017e25e9d9ab60730e59fbcfa6b22"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-competition-flow-mobile-dark.dom.json",
+          "sha256": "3db974454ec9db287283eb9fd69d3ae4c29640e13738fcab1df7b59c0f99e499"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-division-system-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:concepts/division-system",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/division-system",
+      "finalUrl": "https://docs.wodsmith.com/concepts/division-system/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:45.596Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-division-system-mobile-dark.a11y.txt",
+          "sha256": "7bc61f54533e9a3bd2b7a1e7719fb3bd086195cc8f9bb4b5643f62ddb6077e51"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-division-system-mobile-dark.dom.json",
+          "sha256": "77728907eb32ddaeae98ffe39a4f689c4d8de71acc5eb688d7e39f1f11cbb1e8"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-heat-scheduling-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:concepts/heat-scheduling",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/heat-scheduling",
+      "finalUrl": "https://docs.wodsmith.com/concepts/heat-scheduling/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:48.071Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-heat-scheduling-mobile-dark.a11y.txt",
+          "sha256": "bde891c90964f76a6be56a16ad111af0a8fd7083c3df84d16e41e8e107ddae80"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-heat-scheduling-mobile-dark.dom.json",
+          "sha256": "7247de5a36b8e7b8b38e9b7d24db79bd38808f23c86eb73f39589b8a28884b87"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-overview-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:concepts/overview",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/overview",
+      "finalUrl": "https://docs.wodsmith.com/concepts/overview/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:50.845Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-overview-mobile-dark.a11y.txt",
+          "sha256": "35dab2c01bd2607a284dab3b0dec7098a74ef5fadd5bad9c5b3527fdc3505e71"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-overview-mobile-dark.dom.json",
+          "sha256": "14104f6a197026205aefb8ce29940cefc67d3988b39d792277608b9646c28df0"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-overview-mobile-dark.png",
+          "sha256": "00c059638cf6d086b0a5f2f247e08228d0845c0a40b5ee2b275aa4149d454b77"
+        }
+      ]
+    },
+    {
+      "id": "docs-concepts-perspectives-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:concepts/perspectives",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/concepts/perspectives",
+      "finalUrl": "https://docs.wodsmith.com/concepts/perspectives/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:53.625Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-perspectives-mobile-dark.a11y.txt",
+          "sha256": "d1b7ef02618e0047d239f615001b55e28d218375f18d396b294aafa84d7630fb"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-concepts-perspectives-mobile-dark.dom.json",
+          "sha256": "2bec134966265f7d877f5e4329edd3af49e6a94e2b3233ff3e9af083003fd72a"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-athletes-check-standings-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/athletes/check-standings",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/athletes/check-standings",
+      "finalUrl": "https://docs.wodsmith.com/how-to/athletes/check-standings/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:56.095Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-check-standings-mobile-dark.a11y.txt",
+          "sha256": "048de7a8ee1898d0ed169e022ae27c6b3d9be372e72b092752512237d3fd8648"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-check-standings-mobile-dark.dom.json",
+          "sha256": "841c5892612db53276508c29282ae1330a2d401c9280b2b8172e22f0b225774e"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-athletes-view-broadcasts-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/athletes/view-broadcasts",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/athletes/view-broadcasts",
+      "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-broadcasts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:47:58.511Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-broadcasts-mobile-dark.a11y.txt",
+          "sha256": "d3c3debce8f14245d7cf21ff7396c2f2a041d011b984e7720828e456e4872c66"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-broadcasts-mobile-dark.dom.json",
+          "sha256": "c94174e74f46dc928e5711f3591ad8bf7e14188b6e2ecd09c52041ea9c1a6d56"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-athletes-view-schedule-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/athletes/view-schedule",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/athletes/view-schedule",
+      "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-schedule/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:00.950Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-schedule-mobile-dark.a11y.txt",
+          "sha256": "86323817a47242f616c74391d8793112c2799643deea9940434c8ecb5e11e66d"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-schedule-mobile-dark.dom.json",
+          "sha256": "5f991f98224a15b71d9fa2d9d7e2bc9292f61d3b9cc3ad7fdcc055a4499aad8a"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-athletes-view-workouts-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/athletes/view-workouts",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/athletes/view-workouts",
+      "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-workouts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:03.362Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-workouts-mobile-dark.a11y.txt",
+          "sha256": "7d9e0b2f33171f3dd523c8b62ec1829cb61688f804637c89a097fd38ac7a23ad"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-athletes-view-workouts-mobile-dark.dom.json",
+          "sha256": "9d8c12acda038e2a489c832575c82f506b6b1ad748b6c8ee88610a819e828190"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-judges-apply-penalty-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/judges/apply-penalty",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/judges/apply-penalty",
+      "finalUrl": "https://docs.wodsmith.com/how-to/judges/apply-penalty/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:05.862Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-apply-penalty-mobile-dark.a11y.txt",
+          "sha256": "7af93cd13808541876a7eccfa56385181c48b7313601ee05126ff86d519237bd"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-apply-penalty-mobile-dark.dom.json",
+          "sha256": "3e0ba9d2b7a3dc0d73d865de398dbb6845fe7ccad28324bb919385dd3857499b"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-judges-review-submissions-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/judges/review-submissions",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/judges/review-submissions",
+      "finalUrl": "https://docs.wodsmith.com/how-to/judges/review-submissions/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:08.252Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-review-submissions-mobile-dark.a11y.txt",
+          "sha256": "2a9aead58dfe1c9f400e1e7a5e84792de6af7021e884b299d91a351f22fe66f6"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-review-submissions-mobile-dark.dom.json",
+          "sha256": "d0a7d1227c25e942a65f69717e1d8820c2a0f7a2ee23b4d65b4ab9ef89eb2715"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-judges-score-in-person-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/judges/score-in-person",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/judges/score-in-person",
+      "finalUrl": "https://docs.wodsmith.com/how-to/judges/score-in-person/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:10.799Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-score-in-person-mobile-dark.a11y.txt",
+          "sha256": "d5a5de750e8b023e6e3678e78c97056b453a3aff9ae6e0c577375eb93a6ac3d7"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-score-in-person-mobile-dark.dom.json",
+          "sha256": "70123c4401e9deb1eb65c819b2a8bdfc4926d51cc34069461b1a98c6b436bc4f"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-judges-sign-up-as-volunteer-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/judges/sign-up-as-volunteer",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/judges/sign-up-as-volunteer",
+      "finalUrl": "https://docs.wodsmith.com/how-to/judges/sign-up-as-volunteer/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:13.281Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-sign-up-as-volunteer-mobile-dark.a11y.txt",
+          "sha256": "7598ca41cb1b05ae4ebb9ed7e6c3d028ee68655c2b327b5d2db31dbc93736910"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-judges-sign-up-as-volunteer-mobile-dark.dom.json",
+          "sha256": "c31177c98ef6009328928d04a84461bea443adc5712d8392fe916d83c2265eb7"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-edit-competition-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/edit-competition",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/edit-competition",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/edit-competition/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:15.811Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-edit-competition-mobile-dark.a11y.txt",
+          "sha256": "aac3d118904361d053db774ec5a95d05008570f3185858acc994d112284d1b77"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-edit-competition-mobile-dark.dom.json",
+          "sha256": "ec25c842ca60253c9cbee85dc9898ecf852c486ef9fdab8db77e2db167869379"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-event-day-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/event-day",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/event-day",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/event-day/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:18.664Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-event-day-mobile-dark.a11y.txt",
+          "sha256": "8d151555194bcbddfb32d16436056032dc625c58a27cb1ad8b83006520426146"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-event-day-mobile-dark.dom.json",
+          "sha256": "835b56a8b9b770f8efa66130c6bc697ed0f32b1657cb82b5b8700710184bfd24"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-event-day-mobile-dark.png",
+          "sha256": "1a766a8c52743b47d4fc5eb3bbbcdba1cda75bdc21f4a3cca63744fa6461856e"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-manage-registrations-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/manage-registrations",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/manage-registrations",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/manage-registrations/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:21.330Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-manage-registrations-mobile-dark.a11y.txt",
+          "sha256": "726107714c184fc0235f073c0f2323d10912584ae7a463e3c082af9c9c850b43"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-manage-registrations-mobile-dark.dom.json",
+          "sha256": "e28313413c0c5914bb716e045afa7e3e6cec086d8714785eb6503803f435bd66"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-multi-workout-events-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/multi-workout-events",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/multi-workout-events",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/multi-workout-events/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:23.763Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-multi-workout-events-mobile-dark.a11y.txt",
+          "sha256": "edb9cdd9fc2858767e81d95f96193d7216574fa5e8b1e4a8da5627fa33783304"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-multi-workout-events-mobile-dark.dom.json",
+          "sha256": "e939db21d77d2c6d1c850c27e705e3da8d66e3a8d37c65d916da59186c265f23"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-registration-questions-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/registration-questions",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/registration-questions",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/registration-questions/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:29.539Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-registration-questions-mobile-dark.a11y.txt",
+          "sha256": "d26212c7f163235d1a5e77b5d966a18ebb0d43067d95641b87af95b9d0795862"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-registration-questions-mobile-dark.dom.json",
+          "sha256": "c7a052d61cb51f9354299702d6bbe34f7aa18d7cfdb1391e96cbec3b1a955fd7"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-schedule-heats-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/schedule-heats",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/schedule-heats",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/schedule-heats/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:32.941Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-schedule-heats-mobile-dark.a11y.txt",
+          "sha256": "962b84d39684123f15ff3f3c83323cdfc72b72fba046ebc4674dd434a44b5a18"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-schedule-heats-mobile-dark.dom.json",
+          "sha256": "d39cc97947e2181343d4d3fe54c6e2d40d2c24748b0492737e8e92d26fd2b0bc"
+        }
+      ]
+    },
+    {
+      "id": "docs-how-to-organizers-send-broadcasts-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:how-to/organizers/send-broadcasts",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/how-to/organizers/send-broadcasts",
+      "finalUrl": "https://docs.wodsmith.com/how-to/organizers/send-broadcasts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:35.444Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-send-broadcasts-mobile-dark.a11y.txt",
+          "sha256": "1d272d45fff92d8b58f29b44d4ad37600d3a5f38cd0b5f6992c2057e12422dc7"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-how-to-organizers-send-broadcasts-mobile-dark.dom.json",
+          "sha256": "20d6946078006d37d6959f52eb53ff1d18addd6ba1d1c9e3ad2ae2a498f2038a"
+        }
+      ]
+    },
+    {
+      "id": "docs-intro-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:intro",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/",
+      "finalUrl": "https://docs.wodsmith.com/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:38.100Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-intro-mobile-dark.a11y.txt",
+          "sha256": "256d7c3b6d3150a54c2a3edf3fc53816ac348e30886203502ef71d43d04ddd22"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-intro-mobile-dark.dom.json",
+          "sha256": "fb8115bf83a9d1d514d656cd5f6e51da9ef4cac9fbeb7af2f891bfdb78f2ffd2"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-intro-mobile-dark.png",
+          "sha256": "d95fea7bcc9f3a49e36649d697116dcf8afb55e6c0bfac335dd1b573bae52079"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-broadcasts-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:reference/broadcasts",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/broadcasts",
+      "finalUrl": "https://docs.wodsmith.com/reference/broadcasts/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:40.513Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-broadcasts-mobile-dark.a11y.txt",
+          "sha256": "da77bd712b0443f5b6855d33317767984a059abab6a95a2485a4976da3599df4"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-broadcasts-mobile-dark.dom.json",
+          "sha256": "5cd44bee5057dc769c1f576f6b171b67fb2a0e145f5f7689e9ac848ff569d42f"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-competition-settings-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:reference/competition-settings",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/competition-settings",
+      "finalUrl": "https://docs.wodsmith.com/reference/competition-settings/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:43.181Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-competition-settings-mobile-dark.a11y.txt",
+          "sha256": "3d928392afdff5a94076d1b42304c9270ad90bf85039545ad96fd8f87776c08c"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-competition-settings-mobile-dark.dom.json",
+          "sha256": "7f3d6505010a9d32562357a026f3076443ff66659c33762008f885d1e76db718"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-divisions-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:reference/divisions",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/divisions",
+      "finalUrl": "https://docs.wodsmith.com/reference/divisions/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:45.998Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-divisions-mobile-dark.a11y.txt",
+          "sha256": "5c5bbb5904042e8c08b59c5c77cfb9deb74426a0e6ab57f711ea505f24ff4eee"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-divisions-mobile-dark.dom.json",
+          "sha256": "13cc10416c6c81d21293e66eff01e7f90b9dd87a6a78c3cb0077d5fbee930142"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-scoring-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:reference/scoring",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/scoring",
+      "finalUrl": "https://docs.wodsmith.com/reference/scoring/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:49.188Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-scoring-mobile-dark.a11y.txt",
+          "sha256": "0dadde6a0f3d0796af63cdccfdf12b7b7089d90128685c9683a2933b962c2011"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-scoring-mobile-dark.dom.json",
+          "sha256": "94e9f9a9c288936bede6910a700c19ca6f0a80c0892ff8d2ca489a71cc150cf7"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-scoring-mobile-dark.png",
+          "sha256": "819aec0dad746e8b18bbfbc1501e5749dbbec5342ad95988f3a0df1f30291d90"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-team-roles-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:reference/team-roles",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/team-roles",
+      "finalUrl": "https://docs.wodsmith.com/reference/team-roles/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:51.762Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-team-roles-mobile-dark.a11y.txt",
+          "sha256": "0ac6f77c7bdca5778c2cf56a897fc7ce6265f56904b977f9591c87d24fb47630"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-team-roles-mobile-dark.dom.json",
+          "sha256": "6e24d0352ad00cf265e79bfb59f0053886e818dd480669bbdc2f1f13cb538753"
+        }
+      ]
+    },
+    {
+      "id": "docs-reference-workout-types-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:reference/workout-types",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/reference/workout-types",
+      "finalUrl": "https://docs.wodsmith.com/reference/workout-types/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:54.099Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-workout-types-mobile-dark.a11y.txt",
+          "sha256": "fcbb421568997e8749602b9f15164d5932215e01bc536739597c32c019586cd5"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-reference-workout-types-mobile-dark.dom.json",
+          "sha256": "ad636448db66404fadb5ad3c65cd62ff2bb922cc808b58b613722979eae8e36c"
+        }
+      ]
+    },
+    {
+      "id": "docs-tutorials-athletes-first-competition-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:tutorials/athletes/first-competition",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/tutorials/athletes/first-competition",
+      "finalUrl": "https://docs.wodsmith.com/tutorials/athletes/first-competition/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:56.852Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-athletes-first-competition-mobile-dark.a11y.txt",
+          "sha256": "bf0a7258afcb669aa811d86d41ed87b75881a02a8799a1e7d1df303845e15215"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-athletes-first-competition-mobile-dark.dom.json",
+          "sha256": "dda9d36c7481c0b4dc02ccf4ccb5f50d2bc803289efba0b2ce72fe256fd10cec"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-athletes-first-competition-mobile-dark.png",
+          "sha256": "1a2286449d6c057e38d9a4191732654e371ded1d7b668c360bab623a140aef11"
+        }
+      ]
+    },
+    {
+      "id": "docs-tutorials-judges-first-judging-shift-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:tutorials/judges/first-judging-shift",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/tutorials/judges/first-judging-shift",
+      "finalUrl": "https://docs.wodsmith.com/tutorials/judges/first-judging-shift/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:48:59.197Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-judges-first-judging-shift-mobile-dark.a11y.txt",
+          "sha256": "cc92d4be5300da5ce16a3e0424414849002c5f0854bb07641fc6c48202ca7028"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-judges-first-judging-shift-mobile-dark.dom.json",
+          "sha256": "beafcf18f5704e80f62d661c9db0287075779cac65829a29460d73dc3e0c0582"
+        }
+      ]
+    },
+    {
+      "id": "docs-tutorials-organizers-first-competition-mobile-dark",
+      "routeId": "docusaurus:wodsmith-docs:tutorials/organizers/first-competition",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://docs.wodsmith.com/tutorials/organizers/first-competition",
+      "finalUrl": "https://docs.wodsmith.com/tutorials/organizers/first-competition/",
+      "host": "docs.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:02.109Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-organizers-first-competition-mobile-dark.a11y.txt",
+          "sha256": "900c488aa4973b0c271f486f7295fa5d880f30d7cc13c2593c94418f26dbbd8b"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/docs-tutorials-organizers-first-competition-mobile-dark.dom.json",
+          "sha256": "c6feb6ddeda97cc1a5983a100a8905bb4898ca37dde427d1d91c6de03ffe7b00"
+        }
+      ]
+    },
+    {
+      "id": "crm-login-desktop-dark",
+      "routeId": "tanstack:crm:/_index",
+      "scenarioId": "anonymous-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:06.365Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-desktop-dark.a11y.txt",
+          "sha256": "e84dc26ef914fb68f5e413656f39e53f54d88a4b8ad95ad85b9d023c8ca58353"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-desktop-dark.dom.json",
+          "sha256": "b16919d5c6a83448d4445415cbb84e27a6449c160054286ff2345ab7857143bd"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-desktop-dark.png",
+          "sha256": "ca264712c854699633ee64239b2b1c9e3a9fff95e0a0dcd7287ce8fc7e9232dd"
+        }
+      ]
+    },
+    {
+      "id": "crm-login-mobile-dark",
+      "routeId": "tanstack:crm:/_index",
+      "scenarioId": "anonymous-dark-mobile",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:10.096Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-mobile-dark.a11y.txt",
+          "sha256": "e84dc26ef914fb68f5e413656f39e53f54d88a4b8ad95ad85b9d023c8ca58353"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-mobile-dark.dom.json",
+          "sha256": "21469e710ad99ecae5b3ef60d3f08940f5c389bdab871b604284d6d62116b21d"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-mobile-dark.png",
+          "sha256": "46d9f8e16149ec18103fd9c523b851adb00ea9dc85ea35822f93841f11cd54c7"
+        }
+      ]
+    },
+    {
+      "id": "crm-login-desktop-light",
+      "routeId": "tanstack:crm:/_index",
+      "scenarioId": "anonymous-requested-light",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:14.526Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-desktop-light.a11y.txt",
+          "sha256": "e84dc26ef914fb68f5e413656f39e53f54d88a4b8ad95ad85b9d023c8ca58353"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-desktop-light.dom.json",
+          "sha256": "b16919d5c6a83448d4445415cbb84e27a6449c160054286ff2345ab7857143bd"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-desktop-light.png",
+          "sha256": "ca264712c854699633ee64239b2b1c9e3a9fff95e0a0dcd7287ce8fc7e9232dd"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-login-desktop-light.console.json",
+          "sha256": "f141c0f49223d0e83456b28fcf2bb523d80a22c263508f63a6e41245457cd142"
+        }
+      ]
+    },
+    {
+      "id": "ledger-login-desktop-dark",
+      "routeId": "tanstack:ledger:/_index",
+      "scenarioId": "anonymous-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://ledger.wodsmith.com/",
+      "finalUrl": "https://ledger.wodsmith.com/",
+      "host": "ledger.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:18.627Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-desktop-dark.a11y.txt",
+          "sha256": "cd702edca02168cab2b766d6e86267f34e3d03783216af21ee0c36c13b8a1a2f"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-desktop-dark.dom.json",
+          "sha256": "ee558cf9fe6982f56bc9cf65bcd962de0f6ce816a34b9a9bb20f00631a0a356c"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-desktop-dark.png",
+          "sha256": "830a5b6e8ceb5221a3faaf6a057b775f4a21024c594a3529fb9a1526d877d7eb"
+        }
+      ]
+    },
+    {
+      "id": "ledger-login-mobile-dark",
+      "routeId": "tanstack:ledger:/_index",
+      "scenarioId": "anonymous-dark-mobile",
+      "environment": "production",
+      "requestedUrl": "https://ledger.wodsmith.com/",
+      "finalUrl": "https://ledger.wodsmith.com/",
+      "host": "ledger.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:22.820Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-mobile-dark.a11y.txt",
+          "sha256": "cd702edca02168cab2b766d6e86267f34e3d03783216af21ee0c36c13b8a1a2f"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-mobile-dark.dom.json",
+          "sha256": "d15f095ff5d9011c0317e04e25e61cba78a633c6536329c3aabfe705702591d3"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-mobile-dark.png",
+          "sha256": "6ad381a2538ca06edebac23eaffb6865f6a20ab13eea92a7e938474ee45cefda"
+        }
+      ]
+    },
+    {
+      "id": "ledger-login-desktop-light",
+      "routeId": "tanstack:ledger:/_index",
+      "scenarioId": "anonymous-requested-light",
+      "environment": "production",
+      "requestedUrl": "https://ledger.wodsmith.com/",
+      "finalUrl": "https://ledger.wodsmith.com/",
+      "host": "ledger.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:27.762Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-desktop-light.a11y.txt",
+          "sha256": "cd702edca02168cab2b766d6e86267f34e3d03783216af21ee0c36c13b8a1a2f"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-desktop-light.dom.json",
+          "sha256": "ee558cf9fe6982f56bc9cf65bcd962de0f6ce816a34b9a9bb20f00631a0a356c"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-desktop-light.png",
+          "sha256": "830a5b6e8ceb5221a3faaf6a057b775f4a21024c594a3529fb9a1526d877d7eb"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-login-desktop-light.console.json",
+          "sha256": "f141c0f49223d0e83456b28fcf2bb523d80a22c263508f63a6e41245457cd142"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-campaigns-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/campaigns",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/campaigns",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:31.891Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-campaigns-anonymous-redirect.redirect.json",
+          "sha256": "c60795f17b235eebf5765d68a7685665a79d474f139b6df98d936abbf49d036c"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-campaigns-campaignId-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/campaigns/$campaignId",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/campaigns/__fixture_required_campaignId__",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:33.752Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-campaigns-campaignId-anonymous-redirect.redirect.json",
+          "sha256": "466ae7c9459f69734ccd6455dd83182bce60094a579c844407f32b00ddd79f38"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-campaigns-campaignId-audience-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/campaigns/$campaignId/audience",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/campaigns/__fixture_required_campaignId__/audience",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:35.596Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-campaigns-campaignId-audience-anonymous-redirect.redirect.json",
+          "sha256": "ed52d13a565c595fc622672938e5a36d463c545a4e50b70da933a6a178e23a62"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-contacts-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/contacts",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/contacts",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:37.431Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-contacts-anonymous-redirect.redirect.json",
+          "sha256": "40b61be1508fec9ae14d4ce74ce078ff9eb48dad25a70d3b1efff694ce95736d"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-contacts-contactId-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/contacts/$contactId",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/contacts/__fixture_required_contactId__",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:39.288Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-contacts-contactId-anonymous-redirect.redirect.json",
+          "sha256": "8e1789e10ed4344d067a529b6605496759079dbd0bb268ffcb3634ea3e0a33f9"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-dashboard-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/dashboard",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/dashboard",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:41.096Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-dashboard-anonymous-redirect.redirect.json",
+          "sha256": "f38f48677a8d61b3a7db2692a61506a05434605825a9c5eea883515e23f78b7a"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-gyms-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/gyms",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/gyms",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:42.904Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-gyms-anonymous-redirect.redirect.json",
+          "sha256": "afe90e605caff4288c79711c151d9c5f2530a9348aa22b000d851823b60ab6e9"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-gyms-gymId-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/gyms/$gymId",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/gyms/__fixture_required_gymId__",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:44.679Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-gyms-gymId-anonymous-redirect.redirect.json",
+          "sha256": "42802ebf6e1002fadc2673dec93718462dee791be920fc0dd3c07db1131918b1"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-interactions-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/interactions",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/interactions",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:46.490Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-interactions-anonymous-redirect.redirect.json",
+          "sha256": "04f5db0ea91ec31cae35a849e46571785e8a6cc8228ac41a00eeedd610d7a22a"
+        }
+      ]
+    },
+    {
+      "id": "crm-authenticated-interactions-interactionId-anonymous-redirect",
+      "routeId": "tanstack:crm:/_authenticated/interactions/$interactionId",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://crm.wodsmith.com/interactions/__fixture_required_interactionId__",
+      "finalUrl": "https://crm.wodsmith.com/",
+      "host": "crm.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:48.312Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/crm-authenticated-interactions-interactionId-anonymous-redirect.redirect.json",
+          "sha256": "ca9294c5de84ccb8de588230e419cde5fa0f6f8316d238357e5c49988f5fc526"
+        }
+      ]
+    },
+    {
+      "id": "ledger-authenticated-documents-anonymous-redirect",
+      "routeId": "tanstack:ledger:/_authenticated/documents",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://ledger.wodsmith.com/documents",
+      "finalUrl": "https://ledger.wodsmith.com/",
+      "host": "ledger.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:51.481Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-authenticated-documents-anonymous-redirect.redirect.json",
+          "sha256": "77def1ea3eb2049079afe3ddd75dd663b02fde1db8d62e24378c12d7df9c70cf"
+        }
+      ]
+    },
+    {
+      "id": "ledger-authenticated-platform-transactions-anonymous-redirect",
+      "routeId": "tanstack:ledger:/_authenticated/platform-transactions",
+      "scenarioId": "anonymous-redirect-dark-desktop",
+      "environment": "production",
+      "requestedUrl": "https://ledger.wodsmith.com/platform-transactions",
+      "finalUrl": "https://ledger.wodsmith.com/",
+      "host": "ledger.wodsmith.com",
+      "capturedAt": "2026-07-10T20:49:53.312Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/docs-aux/2026-07-10/ledger-authenticated-platform-transactions-anonymous-redirect.redirect.json",
+          "sha256": "d2bb817ff7967445aa4b91462d7475c5cd2be89e6ccfd0a3cfbaedab556303e3"
+        }
+      ]
+    }
+  ]
+}

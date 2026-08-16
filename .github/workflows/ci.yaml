@@ -111,6 +111,8 @@ jobs:
           path: .turbo
           key: turbo-${{ github.sha }}-${{ matrix.app }}
       - run: pnpm install --frozen-lockfile
+      - name: Check page coverage contract
+        run: pnpm check:page-coverage
       - run: pnpm turbo test --filter=${{ matrix.app }}
         env:
           NODE_ENV: test

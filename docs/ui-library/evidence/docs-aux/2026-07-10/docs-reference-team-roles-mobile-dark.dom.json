@@ -1,0 +1,166 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/reference/team-roles/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Team Roles Reference"
+    },
+    {
+      "level": 2,
+      "text": "Role Hierarchy​"
+    },
+    {
+      "level": 2,
+      "text": "Available Roles​"
+    },
+    {
+      "level": 2,
+      "text": "Permission Matrix​"
+    },
+    {
+      "level": 3,
+      "text": "Content Permissions​"
+    },
+    {
+      "level": 3,
+      "text": "Programming Permissions​"
+    },
+    {
+      "level": 3,
+      "text": "Team Management Permissions​"
+    },
+    {
+      "level": 3,
+      "text": "Administrative Permissions​"
+    },
+    {
+      "level": 2,
+      "text": "Role Descriptions​"
+    },
+    {
+      "level": 3,
+      "text": "Owner​"
+    },
+    {
+      "level": 3,
+      "text": "Admin​"
+    },
+    {
+      "level": 3,
+      "text": "Member​"
+    },
+    {
+      "level": 3,
+      "text": "Guest​"
+    },
+    {
+      "level": 2,
+      "text": "Role Assignment Rules​"
+    },
+    {
+      "level": 2,
+      "text": "Competition Organizer Access​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Role",
+        "Description"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Permission",
+        "Owner",
+        "Admin",
+        "Member",
+        "Guest"
+      ],
+      "rowCount": 7
+    },
+    {
+      "headers": [
+        "Permission",
+        "Owner",
+        "Admin",
+        "Member",
+        "Guest"
+      ],
+      "rowCount": 5
+    },
+    {
+      "headers": [
+        "Permission",
+        "Owner",
+        "Admin",
+        "Member",
+        "Guest"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Permission",
+        "Owner",
+        "Admin",
+        "Member",
+        "Guest"
+      ],
+      "rowCount": 5
+    },
+    {
+      "headers": [
+        "Permission",
+        "Organizer"
+      ],
+      "rowCount": 6
+    }
+  ],
+  "title": "Team Roles Reference | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 6508,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

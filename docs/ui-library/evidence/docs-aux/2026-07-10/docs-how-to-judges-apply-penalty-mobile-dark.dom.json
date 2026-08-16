@@ -1,0 +1,96 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/how-to/judges/apply-penalty/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Apply a Penalty"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "When to Penalize vs Adjust vs Invalidate​"
+    },
+    {
+      "level": 2,
+      "text": "Applying a Percentage Penalty​"
+    },
+    {
+      "level": 2,
+      "text": "Adjusting a Single Round​"
+    },
+    {
+      "level": 2,
+      "text": "Direct Score Override​"
+    },
+    {
+      "level": 2,
+      "text": "Invalidating a Submission​"
+    },
+    {
+      "level": 2,
+      "text": "Reversing a Penalty​"
+    },
+    {
+      "level": 2,
+      "text": "Penalty Audit Trail​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Action",
+        "Use when",
+        "Effect"
+      ],
+      "rowCount": 3
+    }
+  ],
+  "title": "How to Apply a Penalty | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 5014,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

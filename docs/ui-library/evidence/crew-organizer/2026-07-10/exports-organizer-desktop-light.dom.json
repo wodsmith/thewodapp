@@ -1,0 +1,55 @@
+{
+  "bodyText": "WODsmith Crew Home Workflow Setup Heats Staffing Plan Volunteers Operations Volunteer Shifts Judge Assignments Confirmations Event Day Print Packet Toggle Sidebar ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Print packet Jul 10, 6:05 PM / America/Denver Master CSV Print Master Schedule (13) Judges (6) Shifts (7) Jul 10, 2026 TIME BLOCK LOCATION ROLE COVERAGE PEOPLE Jul 10, 4:48 PM - Jul 10, 6:48 PM Athlete Check-In Lobby Check-In 2/2 Ivy Chen; Tara Brooks Jul 10, 5:28 PM - Jul 10, 7:28 PM North Floor Crew North Floor Floor Manager 2/2 Jules Patel; Rosa King Jul 10, 5:33 PM - Jul 10, 5:51 PM Fran - Heat 1 North Floor Judge lanes 4/4 Grace Martinez; Lena Nguyen; Miles Olsen; Nora Diaz Jul 10, 5:33 PM - Jul 10, 9:03 PM Medical Station Medical Tent Medical 1/1 Frank Garcia Jul 10, 5:38 PM - Jul 10, 8:08 PM Score Table Scoring Desk Scorekeeper 2/2 Hank Brown; Uma Miller Jul 10, 5:41 PM - Jul 10, 5:59 PM Fran - Heat 2 South Floor Judge lanes 4/4 Lena Nguyen; Miles Olsen; Nora Diaz; Owen Reed Jul 10, 6:08 PM - Jul 10, 7:18 PM North Lane 2 Judge North Floor / Lane 2 Judge 1/1 Grace Martinez Jul 10, 6:28 PM - Jul 10, 6:46 PM Murph - Heat 1 North Floor Judge lanes 4/4 Miles Olsen; Nora Diaz; Owen Reed; Priya Shah Jul 10, 6:33 PM - Jul 10, 8:48 PM Equipment Reset Equipment Staging Equipment 2/3 (1 open) Kai Robinson; Sam Lee Jul 10, 6:36 PM - Jul 10, 6:54 PM Murph - Heat 2 South Floor Judge lanes 4/4 Nora Diaz; Owen Reed; Priya Shah; Quinn Stone Jul 10, 7:23 PM - Jul 10, 7:41 PM Cindy - Heat 1 North Floor Judge lanes 4/4 Owen Reed; Priya Shah; Quinn Stone; Wren Clark Jul 10, 7:31 PM - Jul 10, 7:49 PM Cindy - Heat 2 South Floor Judge lanes 3/4 (1 open) Priya Shah; Quinn Stone; Wren Clark Jul 10, 7:48 PM - Jul 10, 9:18 PM Media Runner Awards Backdrop Media 1/1 Vince Adams",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/events/e2e_competition/exports?tab=schedule",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Print packet"
+    },
+    {
+      "level": 3,
+      "text": "Jul 10, 2026"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "layout": {
+    "logout": null,
+    "scheduleScroller": {
+      "clientWidth": 1136,
+      "horizontalOverflow": false,
+      "scrollWidth": 1136
+    }
+  },
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

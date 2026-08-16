@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Field } from "@/components/ui/field"
 import {
   Form,
   FormControl,
@@ -145,16 +146,16 @@ function ProfileSettingsPage() {
               />
             </div>
 
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
+            <Field.Root
+              id="profile-email"
+              description="This is the email you use to sign in."
+            >
+              <Field.Label>Email</Field.Label>
+              <Field.Control>
                 <Input type="email" disabled value={user.email ?? ""} />
-              </FormControl>
-              <FormDescription>
-                This is the email you use to sign in.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+              </Field.Control>
+              <Field.Description />
+            </Field.Root>
 
             <FormField
               control={form.control}

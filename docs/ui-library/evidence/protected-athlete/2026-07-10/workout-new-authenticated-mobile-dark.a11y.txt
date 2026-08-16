@@ -1,0 +1,72 @@
+- generic
+  - banner
+    - generic
+      - link "wodsmith WODsmith" [ref=e4]
+        - heading "WODsmith" [level=1, ref=e14]
+      - button "Toggle navigation menu" [expanded=false, ref=e5]
+  - main
+    - button [ref=e2]
+    - heading "CREATE WORKOUT" [level=1, ref=e3]
+    - generic
+      - LabelText
+      - textbox "WORKOUT NAME" [required, ref=e6]
+      - LabelText
+      - textbox "DESCRIPTION" [required, ref=e7]
+      - LabelText
+      - textbox "Search movements..." [ref=e15]
+      - combobox [expanded=false, ref=e8]: All Types
+        - generic [ref=e16] clickable [onclick]
+      - button "air squat GYMNASTIC" [ref=e17]
+      - button "assault bike MONOSTRUCTURAL" [ref=e18]
+      - button "back squat WEIGHTLIFTING" [ref=e19]
+      - button "bench press WEIGHTLIFTING" [ref=e20]
+      - button "bike MONOSTRUCTURAL" [ref=e21]
+      - button "box jump GYMNASTIC" [ref=e22]
+      - button "burpee GYMNASTIC" [ref=e23]
+      - button "clean WEIGHTLIFTING" [ref=e24]
+      - button "clean and jerk WEIGHTLIFTING" [ref=e25]
+      - button "chest to bar pull up GYMNASTIC" [ref=e26]
+      - button "dumbbell snatch WEIGHTLIFTING" [ref=e27]
+      - button "deadlift WEIGHTLIFTING" [ref=e28]
+      - button "double under MONOSTRUCTURAL" [ref=e29]
+      - button "front squat WEIGHTLIFTING" [ref=e30]
+      - button "handstand walk GYMNASTIC" [ref=e31]
+      - button "handstand push up GYMNASTIC" [ref=e32]
+      - button "jerk WEIGHTLIFTING" [ref=e33]
+      - button "jumping jack GYMNASTIC" [ref=e34]
+      - button "kettlebell swing WEIGHTLIFTING" [ref=e35]
+      - button "knees to elbows GYMNASTIC" [ref=e36]
+      - button "lunge GYMNASTIC" [ref=e37]
+      - button "muscle up GYMNASTIC" [ref=e38]
+      - button "overhead squat WEIGHTLIFTING" [ref=e39]
+      - button "pistol GYMNASTIC" [ref=e40]
+      - button "power clean WEIGHTLIFTING" [ref=e41]
+      - button "power snatch WEIGHTLIFTING" [ref=e42]
+      - button "press WEIGHTLIFTING" [ref=e43]
+      - button "pull up GYMNASTIC" [ref=e44]
+      - button "push jerk WEIGHTLIFTING" [ref=e45]
+      - button "push press WEIGHTLIFTING" [ref=e46]
+      - button "push up GYMNASTIC" [ref=e47]
+      - button "ring dip GYMNASTIC" [ref=e48]
+      - button "ring muscle up GYMNASTIC" [ref=e49]
+      - button "rope climb GYMNASTIC" [ref=e50]
+      - button "row MONOSTRUCTURAL" [ref=e51]
+      - button "run MONOSTRUCTURAL" [ref=e52]
+      - button "sumo deadlift high pull WEIGHTLIFTING" [ref=e53]
+      - button "single under MONOSTRUCTURAL" [ref=e54]
+      - button "sit up GYMNASTIC" [ref=e55]
+      - button "ski erg MONOSTRUCTURAL" [ref=e56]
+      - button "snatch WEIGHTLIFTING" [ref=e57]
+      - button "split jerk WEIGHTLIFTING" [ref=e58]
+      - button "thruster WEIGHTLIFTING" [ref=e59]
+      - button "toes to bar GYMNASTIC" [ref=e60]
+      - button "wall ball WEIGHTLIFTING" [ref=e61]
+      - LabelText
+      - combobox [expanded=false, ref=e9]: Select a scheme
+      - LabelText
+      - combobox [expanded=false, ref=e10]: Private
+        - generic [ref=e62] clickable [onclick]
+      - spinbutton "ROUNDS TO SCORE" [ref=e11]
+      - button "Cancel" [ref=e12]
+      - button "Create workout" [ref=e13]
+  - region "Notifications alt+T" [ref=e1]

@@ -1,0 +1,95 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/how-to/organizers/manage-registrations/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Manage Registrations"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Viewing Registrations​"
+    },
+    {
+      "level": 2,
+      "text": "Filtering by Division​"
+    },
+    {
+      "level": 2,
+      "text": "Athlete Detail Page​"
+    },
+    {
+      "level": 2,
+      "text": "Adding a Manual Registration​"
+    },
+    {
+      "level": 2,
+      "text": "Transferring a Registration​"
+    },
+    {
+      "level": 2,
+      "text": "Removing a Registration​"
+    },
+    {
+      "level": 2,
+      "text": "Exporting​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Column",
+        "What's there"
+      ],
+      "rowCount": 8
+    }
+  ],
+  "title": "How to Manage Registrations | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 5287,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

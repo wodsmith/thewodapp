@@ -128,7 +128,7 @@ Co-host dashboard for users invited to help manage a competition. Accessible at 
 
 ### admin
 
-Platform-level admin routes for WODsmith operators. Manages teams, competitions, entitlements, and demo data.
+Platform-level admin routes for WODsmith operators. Their shared [[admin-navigation#Admin Navigation|navigation shell]] manages SSR-safe active states across teams, competitions, entitlements, and demo data.
 
 ### api
 

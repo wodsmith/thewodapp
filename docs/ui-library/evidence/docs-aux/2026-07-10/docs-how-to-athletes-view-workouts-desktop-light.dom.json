@@ -1,0 +1,99 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-workouts/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to View Workout Standards"
+    },
+    {
+      "level": 2,
+      "text": "Steps​"
+    },
+    {
+      "level": 2,
+      "text": "Division-Scoped Standards​"
+    },
+    {
+      "level": 2,
+      "text": "What to Read Before Event Day​"
+    },
+    {
+      "level": 2,
+      "text": "Sub-Events​"
+    },
+    {
+      "level": 2,
+      "text": "RX vs Scaled at a Glance​"
+    },
+    {
+      "level": 2,
+      "text": "Online Competitions​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Section",
+        "What's there"
+      ],
+      "rowCount": 6
+    },
+    {
+      "headers": [
+        "Element",
+        "RX",
+        "Scaled"
+      ],
+      "rowCount": 3
+    }
+  ],
+  "title": "How to View Workout Standards | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 3096,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

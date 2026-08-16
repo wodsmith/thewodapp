@@ -1,0 +1,55 @@
+{
+  "bodyText": "Toggle Sidebar WODsmith Crew ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Heats 6 heats scheduled across 3 workouts. Import from CSV or Excel Fran 2 heats Add heats Heat 1 7/10/26, 4:50 PM North Floor · 4 lanes Published Remove Heat 2 7/10/26, 4:58 PM South Floor · 4 lanes Published Remove Murph 2 heats Add heats Heat 1 7/10/26, 5:45 PM North Floor · 4 lanes Published Remove Heat 2 7/10/26, 5:53 PM South Floor · 4 lanes Published Remove Cindy 2 heats Add heats Heat 1 7/10/26, 6:40 PM North Floor · 4 lanes Published Remove Heat 2 7/10/26, 6:48 PM South Floor · 4 lanes Published Remove",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/events/e2e_competition/heats",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Heats"
+    },
+    {
+      "level": 3,
+      "text": "Fran"
+    },
+    {
+      "level": 3,
+      "text": "Murph"
+    },
+    {
+      "level": 3,
+      "text": "Cindy"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1193,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

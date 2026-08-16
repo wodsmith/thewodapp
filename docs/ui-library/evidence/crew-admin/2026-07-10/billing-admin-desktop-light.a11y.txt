@@ -1,0 +1,53 @@
+- link "wodsmith crew WODsmithAdmin" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Overview" [ref=e8]
+- generic
+  - StaticText "Operator"
+  - list
+    - listitem [level=1]
+      - link "Readiness" [ref=e9]
+    - listitem [level=1]
+      - link "Billing" [ref=e10]
+    - listitem [level=1]
+      - link "Conversion" [ref=e11]
+- generic
+  - StaticText "Views"
+  - list
+    - listitem [level=1]
+      - link "Organizer view" [ref=e12]
+    - listitem [level=1]
+      - link "Event list" [ref=e13]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e5]
+- main
+  - sectionheader
+    - paragraph
+      - StaticText "WODSMITH ADMIN"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-11 to 2026-07-12"
+  - generic
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - heading "Event billing" [level=3, ref=e6]
+      - DescriptionList
+      - generic
+        - heading "OPERATOR ACTIONS" [level=3, ref=e14]
+        - button "Payment Link unavailable" [disabled, ref=e15]
+    - generic
+      - heading "Billing audit" [level=3, ref=e7]
+- region "Notifications alt+T" [ref=e1]

@@ -484,6 +484,30 @@ Crew volunteer self-service is a no-session, no-password token surface scoped to
 
 [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] renders the token volunteer's own schedule, response entry point, print-friendly schedule view, calendar links, and contact metadata form. [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] keeps route imports thin while [[apps/crew/src/server/crew-confirmation.server.ts]] validates the event slug, token hash, Crew-only event state, assignment row, and volunteer membership before returning or mutating data.
 
+## Crew Accessibility Regressions
+
+Focused regression coverage keeps deterministic Crew fixtures and public route landmarks aligned with their rendered semantics.
+
+### Demo Event Dates Use Event Timezone
+
+The demo event window derives calendar dates in the event timezone so token schedule assignments cannot appear outside the seeded event solely because UTC is on another date.
+
+#### Uses Event Local Date At UTC Boundary
+
+The event start date follows the event timezone even when the same instant falls on the next UTC calendar date.
+
+#### Advances One Local Calendar Day Across Fall Back
+
+The event end date advances one local calendar day rather than 24 elapsed hours so daylight-saving fall-back cannot collapse the two-day window onto one date.
+
+### Global And Series Navigation Landmarks Are Named
+
+The global Crew navigation and series-local navigation expose distinct names so assistive technology users can tell the two landmarks apart.
+
+### Volunteer Signup Title Is An H1
+
+The public volunteer signup card exposes its visible event-specific title as the page-level heading without changing the shared card title element.
+
 [[apps/crew/src/lib/crew/volunteer-self-service.ts]] owns deterministic schedule shaping, metadata-only contact updates, and calendar snippet helpers. Contact updates write only volunteer roster metadata on `team_memberships`; they do not mutate user account email, assignment rows, confirmation response state, reminder counts, or sent timestamps.
 
 ## Assignment Confirmation Responses
@@ -539,6 +563,8 @@ The event-day packet renders [[crew#Pilot Exports]] as three printable tabs at [
 The tabs are **Master Schedule** (shifts and heats combined, day-sectioned, with a Master CSV download), **Judges** (per event/workout, a clear heat × lane × judge table), and **Shifts** (each shift as its own section listing who is on and when).
 
 Print output hides all app chrome (sidebar, mobile top bar, and the event hero header get `print:hidden` in [[apps/crew/src/components/crew-event-sidebar.tsx]] and the sidebar UI primitive) and instead shows a compact WODsmith Crew brand header — logo, event name, packet name, generated time — repeated on every printed page via a `thead` set to `print:table-header-group` wrapping the packet content.
+
+On screen, the outer print table uses fixed layout so its nested packet table owns horizontal scrolling without widening the page. Print media restores automatic table layout to preserve the repeating header and operator-ready column sizing.
 
 The packet is full local-operator-only through [[apps/crew/src/server/crew-pilot-exports.server.ts]] and [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]]. It deliberately omits station/floor cards, role sheets, the response/decline list, the packet index, and metric panels, and does not add PDF runtime infrastructure, schema, queue/email work, public tokens, department-lead subset export access, or assignment/judge-version mutations.
 

@@ -1,0 +1,48 @@
+{
+  "bodyText": "C WODsmith Crew Calculator Events New event <email> Admin WODSMITH ADMIN Crew control room Internal operator surface for pilots, diagnostics, billing, and conversion handoff. Overview Events Crew events 1 Needs setup 1 Unpaid 0 Open event admin Inspect pilot status, source context, billing state, readiness diagnostics, and conversion readiness.",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/crew",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Crew control room"
+    },
+    {
+      "level": 2,
+      "text": "Open event admin"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

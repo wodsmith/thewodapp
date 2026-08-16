@@ -1,0 +1,19 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e5]
+      - heading "WODsmith" [level=1, ref=e7]
+    - navigation
+      - link "WORKOUTS" [ref=e8]
+      - link "LOG" [ref=e9]
+      - link "TEAM" [ref=e10]
+      - link "COMPETE" [ref=e11]
+      - button "Test's Team (personal)" [expanded=false, ref=e12]
+      - link [ref=e13]
+      - button "Switch to dark mode" [ref=e14]
+      - button "Log out" [ref=e15]
+- main
+  - link [ref=e2]
+  - heading "MY SUBSCRIPTIONS" [level=1, ref=e3]
+  - textbox "Search subscriptions..." [ref=e6]
+  - link "Browse Programming Tracks" [ref=e4]
+- region "Notifications alt+T" [ref=e1]

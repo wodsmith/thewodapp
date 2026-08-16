@@ -1,0 +1,51 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme WORKOUTS Create workout Scheduled Workouts Today This Week No workouts scheduled for today Check back tomorrow or switch to the weekly view to see upcoming workouts. Filters Fran Time Log result Murph Time Log result Cindy Rounds/Reps Log result Nicole pull up run benchmark girl Reps Log result Nancy overhead squat run benchmark girl Time Log result Megan burpee double under kettlebell swing benchmark girl Time Log result Mary handstand push up pistol pull up amrap benchmark girl Rounds/Reps Log result Marguerita burpee handstand push up jumping jack +2 more benchmark girl Time Log result Maggie handstand push up pistol pull up benchmark girl Time Log result Lynne bench press pull up benchmark girl Reps Log result Linda bench press clean deadlift benchmark girl Time Log result Kelly box jump run wall ball benchmark girl Time Log result Karen wall ball benchmark girl Time Log result Jackie pull up row thruster benchmark chipper girl Time Log result Isabel snatch benchmark girl Time Log result Hope box jump burpee chest to bar pull up +2 more benchmark girl Points Log result Helen kettlebell swing pull up run benchmark girl Time Log result Gwen clean and jerk benchmark girl Load Log result Grace clean and jerk benchmark girl Time Log result Fran pull up thruster benchmark girl Time Log result Eva kettlebell swing pull up run benchmark girl Time Log result Elizabeth clean benchmark girl Time Log result Diane deadlift handstand push up benchmark girl Time Log result Cindy pull up push up air squat amrap benchmark girl Rounds/Reps Log result Chelsea pull up push up air squat benchmark emom girl EMOM Log result Candy pull up push up air squat benchmark girl Time Log result Barbara pull up push up sit up +1 more benchmark girl Time Log result Annie double under sit up benchmark girl Time Log result Angie pull up push up sit up +1 more benchmark girl Time Log result Amanda muscle up snatch benchmark girl Time Log result",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "disabled": false,
+      "placeholder": "Search workouts...",
+      "required": false,
+      "tag": "input"
+    }
+  ],
+  "finalUrl": "http://127.0.0.1:3317/workouts?view=row&q=",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "WORKOUTS"
+    },
+    {
+      "level": 2,
+      "text": "Scheduled Workouts"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 2550,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

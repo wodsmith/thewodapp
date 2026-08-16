@@ -1,0 +1,112 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/how-to/judges/score-in-person/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Score In-Person Events"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Where to Score​"
+    },
+    {
+      "level": 2,
+      "text": "Score Entry Formats​"
+    },
+    {
+      "level": 2,
+      "text": "Multi-Round Workouts​"
+    },
+    {
+      "level": 2,
+      "text": "Tiebreakers​"
+    },
+    {
+      "level": 2,
+      "text": "Status Overrides​"
+    },
+    {
+      "level": 2,
+      "text": "Saving and Confirming​"
+    },
+    {
+      "level": 2,
+      "text": "Common Mistakes​"
+    },
+    {
+      "level": 2,
+      "text": "After the Heat​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Workout Type",
+        "Format",
+        "Examples",
+        "Notes"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Status",
+        "Meaning"
+      ],
+      "rowCount": 6
+    }
+  ],
+  "title": "How to Score In-Person Events | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 3793,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

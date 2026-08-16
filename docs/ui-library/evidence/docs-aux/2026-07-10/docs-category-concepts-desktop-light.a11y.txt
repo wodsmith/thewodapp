@@ -1,0 +1,138 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e34]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e36]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e38]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Collapse sidebar category 'Concepts'" [expanded=true, ref=e40]
+          - list
+            - listitem [level=2]
+              - link "WODsmith Core Concepts"
+                - StaticText "WODsmith Core Concepts"
+            - listitem [level=2]
+              - link "The Competition Day Flow"
+                - StaticText "The Competition Day Flow"
+            - listitem [level=2]
+              - link "Heat Scheduling Strategy"
+                - StaticText "Heat Scheduling Strategy"
+            - listitem [level=2]
+              - link "The Division System"
+                - StaticText "The Division System"
+            - listitem [level=2]
+              - link "Three Perspectives: Athlete, Organizer, Judge"
+                - StaticText "Three Perspectives: Athlete, Organizer, Judge"
+  - main
+    - navigation "Breadcrumbs"
+      - list
+        - listitem [level=1]
+          - link "Home page"
+            - image
+          - StaticText "  "
+        - listitem [level=1]
+          - StaticText "Concepts"
+    - sectionheader
+      - heading "Concepts" [level=1, ref=e11]
+      - paragraph
+        - StaticText "Understanding-oriented explanations of how WODsmith works and why. Read these to deepen your understanding."
+    - article
+      - generic
+        - article
+          - link "📄️WODsmith Core Concepts This page explains the fundamental ideas behind WODsmith and how its components work together."
+            - heading "📄️WODsmith Core Concepts" [level=2, ref=e28]
+              - StaticText "📄️WODsmith Core Concepts"
+            - paragraph
+              - StaticText "This page explains the fundamental ideas behind WODsmith and how its components work together."
+        - article
+          - link "📄️The Competition Day Flow Understanding how a WODsmith competition unfolds from setup through final results."
+            - heading "📄️The Competition Day Flow" [level=2, ref=e29]
+              - StaticText "📄️The Competition Day Flow"
+            - paragraph
+              - StaticText "Understanding how a WODsmith competition unfolds from setup through final results."
+        - article
+          - link "📄️Heat Scheduling Strategy The art and logic of organizing athletes into heats for competition events."
+            - heading "📄️Heat Scheduling Strategy" [level=2, ref=e30]
+              - StaticText "📄️Heat Scheduling Strategy"
+            - paragraph
+              - StaticText "The art and logic of organizing athletes into heats for competition events."
+        - article
+          - link "📄️The Division System How WODsmith organizes athletes into fair competitive groups."
+            - heading "📄️The Division System" [level=2, ref=e31]
+              - StaticText "📄️The Division System"
+            - paragraph
+              - StaticText "How WODsmith organizes athletes into fair competitive groups."
+        - article
+          - link "📄️Three Perspectives: Athlete, Organizer, Judge Every WODsmith competition is the same event seen from three angles. Understanding which perspective you're in — and what the platform shows each perspective — saves time and confusion."
+            - heading "📄️Three Perspectives: Athlete, Organizer, Judge" [level=2, ref=e32]
+              - StaticText "📄️Three Perspectives: Athlete, Organizer, Judge"
+            - paragraph
+              - StaticText "Every WODsmith competition is the same event seen from three angles. Understanding which perspective you're in — and what the platform shows each perspective — saves time and confusion."
+    - sectionfooter
+      - navigation "Docs pages"
+        - link "Previous « Broadcasts"
+          - StaticText "Previous"
+          - generic
+            - StaticText "« "
+            - StaticText "Broadcasts"
+        - link "Next WODsmith Core Concepts »"
+          - StaticText "Next"
+          - generic
+            - StaticText "WODsmith Core Concepts"
+            - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

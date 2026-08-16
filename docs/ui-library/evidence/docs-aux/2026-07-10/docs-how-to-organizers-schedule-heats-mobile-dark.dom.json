@@ -1,0 +1,99 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/how-to/organizers/schedule-heats/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Schedule Heats"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Accessing the Schedule​"
+    },
+    {
+      "level": 2,
+      "text": "Creating Venues​"
+    },
+    {
+      "level": 2,
+      "text": "Creating Heats​"
+    },
+    {
+      "level": 2,
+      "text": "Assigning Athletes to Heats​"
+    },
+    {
+      "level": 3,
+      "text": "Filtering Athletes​"
+    },
+    {
+      "level": 2,
+      "text": "Heat Configuration​"
+    },
+    {
+      "level": 2,
+      "text": "Publishing the Schedule​"
+    },
+    {
+      "level": 2,
+      "text": "Schedule Overview​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Element",
+        "Description"
+      ],
+      "rowCount": 5
+    }
+  ],
+  "title": "How to Schedule Heats | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 5800,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

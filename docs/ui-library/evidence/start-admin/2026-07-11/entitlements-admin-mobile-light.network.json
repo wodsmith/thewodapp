@@ -1,0 +1,3719 @@
+[
+  {
+    "method": "GET",
+    "path": "/admin/entitlements",
+    "status": 200,
+    "resourceType": "Document",
+    "mimeType": "text/html"
+  },
+  {
+    "method": "GET",
+    "path": "/src/styles.css",
+    "status": 304,
+    "resourceType": "Stylesheet",
+    "mimeType": "text/css"
+  },
+  {
+    "method": "GET",
+    "path": "/@react-refresh",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@vite/client",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/vite@7.3.0_@types+node@22.19.3_jiti@2.6.1_lightningcss@1.30.2_terser@5.44.1_tsx@4.20.3_yaml@2.8.2/node_modules/vite/dist/client/env.mjs",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@id/virtual:tanstack-start-client-entry",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/react_jsx-dev-runtime.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/react.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/react-dom_client.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/client.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-ODNUH3UV.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-PLDDJCW6.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-MQ7CY7ZX.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/StartClient.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/renderRSC.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/hydrateStart.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/react_jsx-runtime.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/tiny-invariant@1.3.3/node_modules/tiny-invariant/dist/esm/tiny-invariant.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-MOLJ3T3I.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+history@1.141.0/node_modules/@tanstack/history/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/awaited.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/CatchBoundary.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ClientOnly.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/fileRoute.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/lazyRouteComponent.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/link.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Matches.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/matchContext.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Match.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useMatch.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLoaderDeps.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLoaderData.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/route.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/router.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/RouterProvider.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ScrollRestoration.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useBlocker.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useNavigate.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useParams.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useSearch.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/routerContext.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouteContext.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouter.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouterState.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLocation.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useCanGoBack.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/utils.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/not-found.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ScriptOnce.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Asset.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/HeadContent.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Scripts.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/hydrateStart.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/defer.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/link.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/load-matches.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/Matches.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/path.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/qss.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/root.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/route.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/router.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/config.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/searchMiddleware.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/searchParams.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/utils.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/redirect.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/not-found.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/scroll-restoration.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/transformer.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/seroval-plugins.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/RawStream.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/rewrite.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/tiny-warning@1.0.3/node_modules/tiny-warning/dist/tiny-warning.esm.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/react-dom.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Transitioner.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/SafeFragment.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/renderRouteNotFound.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/scroll-restoration.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@tanstack_react-router___@tanstack_react-store.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/client.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/ServerFunctionSerializationAdapter.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/router.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/plugin/default-entry/start.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/new-process-route-tree.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/lru-cache.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/seroval@1.4.2/node_modules/seroval/dist/esm/development/index.mjs",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/constants.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/seroval-plugins@1.4.2_seroval@1.4.2/node_modules/seroval-plugins/dist/esm/development/web.mjs",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/ShallowErrorPlugin.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/headers.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/json.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/ssr-client.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/constants.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/createClientRpc.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/derived.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/effect.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/store.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/types.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/scheduler.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/cookie-es@2.0.0/node_modules/cookie-es/dist/index.mjs",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/serverFnFetcher.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getDefaultSerovalPlugins.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/frame-decoder.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/posthog/utils.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/sentry/client.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routeTree.gen.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartOptions.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/posthog/client.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@sentry_react.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/__root.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/terms.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/privacy.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/maintenance.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_auth.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/transfer/$transferId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost-invite.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/dashboard.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_auth/verify-email.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_auth/team-invite.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_auth/sign-up.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_auth/sign-in.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_auth/reset-password.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_auth/forgot-password.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/demo/start.server-funcs.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/demo/start.api-request.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/athlete/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/series/$groupId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/invite/$token.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/_dashboard.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost-invite/$token.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/volunteer.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/scores.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/schedule.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/review.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/registered.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/register.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/my-schedule.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/leaderboard.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/judges-schedule.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/invite-pending.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/check-in.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/broadcasts.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/announcements.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/organizer-requests/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/entitlements/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/docs/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/demo-competitions/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/competitions/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/schedule.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/$teamId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/docs/new.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/docs/$docId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/workouts/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/team/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/programming/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/movements/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/log/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/calculator/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/demo/start.ssr.index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/demo/start.ssr.spa-mode.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/demo/start.ssr.full-ssr.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/demo/start.ssr.data-only.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/series/$groupId/leaderboard.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/onboard/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/onboard/pending.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/_dashboard/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/_dashboard/new.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/waivers.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/submission-windows.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/sponsors.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/settings.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/scoring.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/schedule.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/revenue.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/results.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/pricing.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/locations.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/leaderboard-preview.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/judges-ai.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/event-divisions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/edit.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/divisions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/danger-zone.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/coupons.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/co-hosts.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/check-in.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/broadcasts.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/announcements.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/waivers.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/volunteers.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/submission-windows.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/sponsors.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/scoring.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/schedule.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/revenue.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/results.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/pricing.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/locations.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/leaderboard-preview.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/divisions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/coupons.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/athletes.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/workouts/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/workouts/$eventId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/claim/$token.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/register/success.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/schedule/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/schedule/schedule-week.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/schedule/schedule-templates.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/schedule/gym-setup.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/schedule/generate.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/schedule/coaches.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/schedule/classes.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/$teamId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/$teamId/scheduling.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/workouts/new/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/workouts/$workoutId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/programming/subscriptions/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/programming/$trackId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/movements/new/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/movements/$id/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/log/new/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/calculator/spreadsheet/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/teams/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/sponsors/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/sessions/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/programming/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/profile/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/overview/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/billing/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/athlete/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/appearance/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/billing/$purchaseId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/registration-questions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/publish-workouts.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/leaderboard.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/events.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/event-mappings.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/edit.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/divisions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/_dashboard/series/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/_dashboard/series/new.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/volunteers/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/invites/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/events/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/athletes/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/volunteers/signup-questions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/volunteers/shifts.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/volunteers/judges.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/events/$eventId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/athletes/form-questions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/athletes/$registrationId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/events/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/events/$eventId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/teams/$registrationId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/claim/$token/decline.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/review/$eventId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/$slug/review/$eventId/$submissionId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/$teamId/gym-setup/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/teams/$teamId/coaches/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/workouts/$workoutId/schedule/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/workouts/$workoutId/edit/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/log/$id/edit/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/admin/teams/scaling/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/admin/teams/programming/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/teams/create/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/teams/$teamSlug/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/settings/programming/$trackId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/events/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/series/$groupId/events/$eventId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/invites/sources/$sourceId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/events/$eventId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/events/$eventId/submissions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/events/$eventId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/events/$eventId/submissions.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/_protected/admin/teams/programming/$trackId/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/_dashboard/settings/payouts/$teamSlug/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/events/$eventId/submissions/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/events/$eventId/submissions/index.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/compete/cohost/$competitionId/events/$eventId/submissions/$submissionId.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-3VUEZFAQ.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/posthog-js.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@tanstack_react-devtools.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/sonner.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/nav/main-nav.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/posthog/provider.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/session-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/styles.css",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/client-rpc.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/middleware/auth.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/auth-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/organizer-onboarding-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/purchase-transfer-accept-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/registration-questions-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/waiver-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/zod.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-page-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/utils/timezone-utils.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/date-fns.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/workout-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-JM6SRYIN.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/TanStackRouterDevtools.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/TanStackRouterDevtoolsPanel.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/useServerFn.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-G3R4YCNP.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-SYMW35FC.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/invite-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/constants.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createServerFn.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createMiddleware.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createStart.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getRouterInstance.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getGlobalStartContext.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/safeObjectMerge.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/competition-header.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/competition-sidebar.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/organizer-breadcrumb.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/pending-organizer-banner.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/competitions/capabilities.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-detail-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/index-Bjd63dIw.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/config/features.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-competition-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/entitlements.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/createIsomorphicFn.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/envOnly.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartContextServerOnly.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-heats-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-workouts-page-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-score-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/volunteer-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/competitions/scheduling-check-in-gates.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-event-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-workouts-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/video-submission-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/registration-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-divisions-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/utils/date-utils.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/volunteer-schedule-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/leaderboard-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/judge-scheduling-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/broadcast-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/admin-team-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/organizer-admin-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/admin-entitlement-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/route-docs-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/demo-competition-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/admin-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/db/schemas/workouts.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/programming-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/movement-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/log-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/data/demo.punk-songs.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/team-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/team-settings-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/series-division-mapping-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/series-event-template-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/commerce-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/division-results-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/sponsor-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/stripe-connect-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/judge-scheduler-ai-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/env.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/coupon-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-event-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-results-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-revenue-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-schedule-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-workout-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-waiver-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-volunteer-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/judge-assignment-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-sponsor-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-division-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-location-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-scoring-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-submission-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-coupon-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-registration-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/purchase-transfer-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-event-page-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server/competition-invites/identity.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-invite-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/athlete-profile-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/workout-remix-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/skeleton.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/profile-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/series-cohost-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/organizer/invites/sent-invites-by-division.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/event-division-mapping-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/volunteer-shift-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/event-resources-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/judging-sheet-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-event-resources-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/organizer-athlete-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/drizzle-orm.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/submission-verification-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/review-note-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/video-vote-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/admin-gym-setup-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-3QWOZ4HA.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-QSYG64V6.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/scaling-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-review-note-fns.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/lucide-react.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/nav/dark-mode-toggle.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/nav/logout-button.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/nav/mobile-nav.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/nav/nav-team-switcher.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/schemas/auth.schema.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/date-fns-tz.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/badge.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/button.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/sidebar.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/competitions/venue-volunteer-gates.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/utils/cn.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/breadcrumb.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/db/schemas/volunteers.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/utils/competition-settings.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/workouts.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/db/schemas/programming.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/db/schemas/competition-invites.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/db/schemas/users.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/skeleton.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/card.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/input.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/table.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/server-only-stub.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/sheet.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/dropdown-menu.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/badge.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/button.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-slot.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/class-variance-authority.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/separator.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/tooltip.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/hooks/use-mobile.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-UXVPRMV4.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-SIU35MPB.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/volunteers.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/utils/cn.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/breadcrumb.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/competition-invites.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/users.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/drizzle-orm_mysql-core.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/common.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/teams.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/programming.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-BVIY765V.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/card.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/input.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/table.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/sheet.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/dropdown-menu.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/separator.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/tooltip.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/competitions.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/clsx.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/tailwind-merge.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/ulid.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/sponsors.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-dialog.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-FDDXCPHG.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-THVSU5G4.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-S2YK7V2V.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-QDY5HKX2.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-LQZFANR4.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-NNKKMRJ2.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-B2T3A5EZ.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-ALRV46YX.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-HRGJVYIY.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-DLTBYMZY.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-RMHUKLGK.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-MCE6LYZ5.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-UOC3YUFK.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-separator.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-tooltip.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-4AAM6DEZ.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-YEIMZ5P5.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-R74WZDL6.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-QRGXNZWU.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-WBNRJ5UY.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-ZE6RQ5HS.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/addresses.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/wodsmith-db/src/schemas/scaling.ts",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-H5PFKWBW.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-WBOB6P5N.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-2VL6GAXZ.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-NSZD7KEK.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/routes/admin/entitlements/index.tsx",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/components/ui/select.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs<repo>/packages/ui/src/components/select.tsx",
+    "status": 304,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-select.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-DD4MGIBK.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-JXIYIGHM.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  }
+]

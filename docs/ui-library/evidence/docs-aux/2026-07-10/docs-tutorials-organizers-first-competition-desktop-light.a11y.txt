@@ -1,0 +1,521 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Collapse sidebar category 'Tutorials'" [expanded=true, ref=e60]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=false, ref=e69]
+                - StaticText "For Athletes"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=false, ref=e70]
+                - StaticText "For Judges & Volunteers"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=true, ref=e71]
+                - StaticText "For Organizers"
+              - list
+                - listitem [level=3]
+                  - link "Create Your First Competition"
+                    - StaticText "Create Your First Competition"
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e62]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e64]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e66]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Tutorials"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Organizers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Create Your First Competition"
+      - sectionheader
+        - heading "Create Your First Competition" [level=1, ref=e31]
+      - paragraph
+        - StaticText "In this tutorial, we will create a complete competition on WODsmith. By the end, you will have a live competition page with divisions configured, events added, and registration open to athletes."
+      - heading "What We'll Accomplish Direct link to What We'll Accomplish" [level=2, ref=e12]
+        - StaticText "What We'll Accomplish"
+        - link "Direct link to What We'll Accomplish"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Create a competition"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Configure divisions"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Add workout events"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Set up pricing"
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Publish and share"
+      - paragraph
+        - StaticText "This process takes about 15-20 minutes. Let's begin!"
+      - heading "Step 1: Create the Competition Direct link to Step 1: Create the Competition" [level=2, ref=e13]
+        - StaticText "Step 1: Create the Competition"
+        - link "Direct link to Step 1: Create the Competition"
+          - StaticText "#"
+      - paragraph
+        - StaticText "First, we'll create the competition and set the basic details."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "COMPETE"
+          - StaticText " in the top navigation"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "ORGANIZE"
+          - StaticText " to access your organizer dashboard"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Create Competition"
+      - paragraph
+        - image "Organizer Dashboard"
+      - list
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Fill in the competition details:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Organizing Team"
+              - StaticText ": Select your team from the dropdown"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Competition Name"
+              - StaticText ": Enter a name (e.g., \"Spring Throwdown 2025\")"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Slug"
+              - StaticText ": A URL-friendly identifier will be auto-generated, or customize it"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Start Date"
+              - StaticText " and "
+              - strong
+                - StaticText "End Date"
+              - StaticText ": Set your competition dates"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Registration Opens/Closes"
+              - StaticText " (Optional): Set when athletes can register"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Description"
+              - StaticText " (Optional): Add details about your competition"
+      - paragraph
+        - image "Create Competition Form"
+      - list
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Create Competition"
+      - paragraph
+        - strong
+          - StaticText "You should see"
+        - StaticText " your competition dashboard. This is your control center for managing the event."
+      - paragraph
+        - image "Competition Dashboard"
+      - heading "Step 2: Configure Divisions Direct link to Step 2: Configure Divisions" [level=2, ref=e14]
+        - StaticText "Step 2: Configure Divisions"
+        - link "Direct link to Step 2: Configure Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Now we'll set up the divisions athletes can register for."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Divisions"
+          - StaticText " in the left sidebar"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Division"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Enter \"RX\" as the division name"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Optionally expand the division to add a description"
+      - paragraph
+        - image "Divisions Page"
+      - paragraph
+        - strong
+          - StaticText "Notice"
+        - StaticText " the division appears in your list with a count of registered athletes."
+      - heading "Add More Divisions Direct link to Add More Divisions" [level=3, ref=e15]
+        - StaticText "Add More Divisions"
+        - link "Direct link to Add More Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Let's add the remaining standard divisions:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Division"
+          - StaticText " again"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Create divisions for your competition:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "RX"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Scaled"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Masters 40+"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Teens 14-17"
+      - paragraph
+        - StaticText "You can drag divisions to reorder them. The first division will appear first in registration dropdowns."
+      - heading "Step 3: Add Competition Events Direct link to Step 3: Add Competition Events" [level=2, ref=e16]
+        - StaticText "Step 3: Add Competition Events"
+        - link "Direct link to Step 3: Add Competition Events"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Now we'll add the workouts athletes will compete in."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Events"
+          - StaticText " in the left sidebar"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Create Event"
+          - StaticText " (or "
+          - strong
+            - StaticText "Add Existing"
+          - StaticText " to use a workout from your library)"
+      - paragraph
+        - image "Events List"
+      - list
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "In the Create Event dialog:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Enter the "
+              - strong
+                - StaticText "Event Name"
+              - StaticText " (e.g., \"Event 1 - Fran\")"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Select the "
+              - strong
+                - StaticText "Scheme"
+              - StaticText " (For Time, AMRAP, etc.)"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Choose the "
+              - strong
+                - StaticText "Score Type"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Optionally add "
+              - strong
+                - StaticText "Movements"
+              - StaticText " from the available list"
+      - paragraph
+        - image "Create Event Dialog"
+      - list
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Create Event"
+      - paragraph
+        - strong
+          - StaticText "You should see"
+        - StaticText " the event appear in your events list."
+      - heading "Add More Events Direct link to Add More Events" [level=3, ref=e17]
+        - StaticText "Add More Events"
+        - link "Direct link to Add More Events"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Repeat the process to add additional events. You can:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Drag events to reorder them"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Set event status (Draft, Published)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Add scoring multipliers for specific events"
+      - heading "Step 4: Set Up Pricing Direct link to Step 4: Set Up Pricing" [level=2, ref=e18]
+        - StaticText "Step 4: Set Up Pricing"
+        - link "Direct link to Step 4: Set Up Pricing"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Configure registration fees for your competition."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Pricing"
+          - StaticText " in the left sidebar under \"Business\""
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "If you haven't connected Stripe, you'll see a prompt to set up payouts"
+      - paragraph
+        - image "Pricing Page"
+      - list
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Set Up Payouts"
+          - StaticText " to connect your Stripe account"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Once connected, you can set registration fees per division"
+      - paragraph
+        - strong
+          - StaticText "Note"
+        - StaticText ": Free registrations ($0) work without a Stripe connection."
+      - heading "Step 5: Publish Your Competition Direct link to Step 5: Publish Your Competition" [level=2, ref=e19]
+        - StaticText "Step 5: Publish Your Competition"
+        - link "Direct link to Step 5: Publish Your Competition"
+          - StaticText "#"
+      - paragraph
+        - StaticText "We're ready to make the competition visible to athletes!"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Edit"
+          - StaticText " in the competition header (or navigate to the Edit page)"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Scroll down to find the "
+          - strong
+            - StaticText "Status"
+          - StaticText " dropdown"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Change Status from \"Draft\" to \"Published\""
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Set "
+          - strong
+            - StaticText "Visibility"
+          - StaticText " to \"Public\" if you want the competition listed on the public events page"
+      - paragraph
+        - image "Edit Settings"
+      - list
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Save Changes"
+      - paragraph
+        - strong
+          - StaticText "You should see"
+        - StaticText " the status badges update in the header."
+      - heading "Step 6: Share Your Competition Direct link to Step 6: Share Your Competition" [level=2, ref=e20]
+        - StaticText "Step 6: Share Your Competition"
+        - link "Direct link to Step 6: Share Your Competition"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Your competition is now live! Let's get the registration link."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "View Public Page"
+          - StaticText " in the competition header"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "On the public page, click "
+          - strong
+            - StaticText "Share"
+          - StaticText " to copy the link"
+      - paragraph
+        - image "Public Competition Page"
+      - paragraph
+        - strong
+          - StaticText "Notice"
+        - StaticText " the URL format: "
+        - code
+          - StaticText "yourdomain.com/compete/your-competition-slug"
+      - paragraph
+        - StaticText "This is the link you'll share with athletes to register."
+      - heading "You've Done It! Direct link to You've Done It!" [level=2, ref=e21]
+        - StaticText "You've Done It!"
+        - link "Direct link to You've Done It!"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Congratulations! You have successfully created a competition with:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Divisions configured for different skill levels"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Workout events ready for competition day"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Registration open for athletes"
+      - heading "What's Next Direct link to What's Next" [level=2, ref=e22]
+        - StaticText "What's Next"
+        - link "Direct link to What's Next"
+          - StaticText "#"
+      - paragraph
+        - StaticText "As registrations come in:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Manage registrations"
+          - StaticText " - View and manage athlete signups"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Schedule heats"
+          - StaticText " - Organize athlete heat times"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Run event day"
+          - StaticText " - Scoring, leaderboards, results"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "Need to modify your competition? Click "
+          - strong
+            - StaticText "Edit"
+          - StaticText " from your competition dashboard to update any settings."
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Sign Up and Complete Your First Judging Shift"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Sign Up and Complete Your First Judging Shift"
+      - link "Next How-to Guides »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How-to Guides"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "What We'll Accomplish"
+      - listitem [level=1]
+        - link "Step 1: Create the Competition"
+      - listitem [level=1]
+        - link "Step 2: Configure Divisions"
+        - list
+          - listitem [level=2]
+            - link "Add More Divisions"
+      - listitem [level=1]
+        - link "Step 3: Add Competition Events"
+        - list
+          - listitem [level=2]
+            - link "Add More Events"
+      - listitem [level=1]
+        - link "Step 4: Set Up Pricing"
+      - listitem [level=1]
+        - link "Step 5: Publish Your Competition"
+      - listitem [level=1]
+        - link "Step 6: Share Your Competition"
+      - listitem [level=1]
+        - link "You've Done It!"
+      - listitem [level=1]
+        - link "What's Next"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

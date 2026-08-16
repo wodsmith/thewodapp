@@ -1,0 +1,87 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/how-to/athletes/view-schedule/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to View Your Heat Schedule"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Steps​"
+    },
+    {
+      "level": 2,
+      "text": "Reading the Schedule​"
+    },
+    {
+      "level": 2,
+      "text": "Check-In Reminder​"
+    },
+    {
+      "level": 2,
+      "text": "Schedule Changes​"
+    },
+    {
+      "level": 2,
+      "text": "My Heats Section​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Field",
+        "Description"
+      ],
+      "rowCount": 4
+    }
+  ],
+  "title": "How to View Your Heat Schedule | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 3569,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

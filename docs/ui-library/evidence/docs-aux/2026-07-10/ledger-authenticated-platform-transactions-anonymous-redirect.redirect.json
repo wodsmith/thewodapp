@@ -1,0 +1,5 @@
+{
+  "sourceGate": "anonymous authenticated-layout guard",
+  "requestedUrl": "https://ledger.wodsmith.com/platform-transactions",
+  "finalUrl": "https://ledger.wodsmith.com/"
+}

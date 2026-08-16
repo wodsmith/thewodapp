@@ -1,0 +1,127 @@
+{
+  "title": "WODsmith Crew",
+  "finalUrl": "/series/cgrp_coverage_series/crew",
+  "language": "en",
+  "effectiveTheme": "light",
+  "bodyText": "C WODsmith Crew Calculator Events New event cgrp_coverage_series E2E Crew Coverage Series Series crew pool Events Pool 18 Placements 18 Selected 18 History 0 Credentials 0 Selected competitions E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 - 18 rostered Frank Garcia 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Judge Medical Morning Roster Shifts Grace Martinez 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Judge All day Roster Shifts Hank Brown 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Scorekeeper Morning Roster Shifts Ivy Chen 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Check-In Morning Roster Shifts Jules Patel 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Floor Manager Morning Roster Shifts Kai Robinson 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Equipment Morning Roster Shifts Lena Nguyen 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Judge Morning Roster Shifts Miles Olsen 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Judge Morning Roster Shifts Nora Diaz 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Judge Morning Roster Shifts Owen Reed 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Judge Morning Roster Shifts Priya Shah 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Judge Morning Roster Shifts Quinn Stone 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Judge Morning Roster Shifts Rosa King 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Athlete Control Morning Roster Shifts Sam Lee 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Equipment Team Morning Roster Shifts Tara Brooks 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Staff Morning Roster Shifts Uma Miller 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Emcee Morning Roster Shifts Vince Adams 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Media Morning Roster Shifts Wren Clark 1 roster placement - 0 prior series events E2E Crew Demo Throwdown Selected Head Judge Judge Morning Roster Shifts",
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Coverage Series"
+    },
+    {
+      "level": 2,
+      "text": "Selected competitions"
+    },
+    {
+      "level": 3,
+      "text": "Frank Garcia"
+    },
+    {
+      "level": 3,
+      "text": "Grace Martinez"
+    },
+    {
+      "level": 3,
+      "text": "Hank Brown"
+    },
+    {
+      "level": 3,
+      "text": "Ivy Chen"
+    },
+    {
+      "level": 3,
+      "text": "Jules Patel"
+    },
+    {
+      "level": 3,
+      "text": "Kai Robinson"
+    },
+    {
+      "level": 3,
+      "text": "Lena Nguyen"
+    },
+    {
+      "level": 3,
+      "text": "Miles Olsen"
+    },
+    {
+      "level": 3,
+      "text": "Nora Diaz"
+    },
+    {
+      "level": 3,
+      "text": "Owen Reed"
+    },
+    {
+      "level": 3,
+      "text": "Priya Shah"
+    },
+    {
+      "level": 3,
+      "text": "Quinn Stone"
+    },
+    {
+      "level": 3,
+      "text": "Rosa King"
+    },
+    {
+      "level": 3,
+      "text": "Sam Lee"
+    },
+    {
+      "level": 3,
+      "text": "Tara Brooks"
+    },
+    {
+      "level": 3,
+      "text": "Uma Miller"
+    },
+    {
+      "level": 3,
+      "text": "Vince Adams"
+    },
+    {
+      "level": 3,
+      "text": "Wren Clark"
+    }
+  ],
+  "landmarks": [
+    {
+      "tag": "header",
+      "role": null,
+      "label": ""
+    },
+    {
+      "tag": "nav",
+      "role": null,
+      "label": "Primary navigation"
+    },
+    {
+      "tag": "main",
+      "role": null,
+      "label": ""
+    },
+    {
+      "tag": "nav",
+      "role": null,
+      "label": "Series navigation"
+    }
+  ],
+  "forms": [],
+  "fields": [
+    {
+      "type": "checkbox",
+      "name": "",
+      "label": "",
+      "required": false
+    }
+  ],
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollHeight": 5204,
+    "horizontalOverflow": false
+  }
+}

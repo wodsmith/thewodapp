@@ -1,0 +1,30 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e5]
+      - heading "WODsmith" [level=1, ref=e7]
+    - navigation
+      - link "WORKOUTS" [ref=e8]
+      - link "LOG" [ref=e9]
+      - link "TEAM" [ref=e10]
+      - link "COMPETE" [ref=e11]
+      - button "Test's Team (personal)" [expanded=false, ref=e12]
+      - link [ref=e13]
+      - button "Switch to dark mode" [ref=e14]
+      - button "Log out" [ref=e15]
+- main
+  - sectionheader
+    - heading "Settings" [level=1, ref=e6]
+  - complementary
+    - navigation
+      - link "Overview" [ref=e16]
+      - link "Profile" [ref=e17]
+      - link "Appearance" [ref=e18]
+      - link "Athlete profile" [ref=e19]
+      - link "Teams" [ref=e20]
+      - link "Sessions" [ref=e21]
+      - link "Billing" [ref=e22]
+      - button "Sign out" [expanded=false, ref=e23]
+  - heading "Appearance" [level=1, ref=e2]
+  - button "Light" [ref=e3]
+  - button "Dark" [ref=e4]
+- region "Notifications alt+T" [ref=e1]

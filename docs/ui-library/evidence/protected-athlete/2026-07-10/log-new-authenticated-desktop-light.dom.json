@@ -1,0 +1,70 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme LOG RESULT Selected Workout Fran 21-15-9 Thrusters (95/65 lb) and Pull-ups TIME Choose different workout Log result for Fran Date Scaling Level Rx+ Rx Scaled Score Enter time as seconds (90) or MM:SS format (1:30) Notes (optional) Cancel Save result",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "disabled": false,
+      "required": true,
+      "tag": "input",
+      "type": "date"
+    },
+    {
+      "disabled": false,
+      "placeholder": "90 (secs) or 1:30",
+      "required": true,
+      "tag": "input",
+      "type": "text"
+    },
+    {
+      "disabled": false,
+      "placeholder": "How did it feel? Any modifications?",
+      "required": false,
+      "tag": "textarea"
+    }
+  ],
+  "finalUrl": "http://127.0.0.1:3317/log/new?workoutId=e2e_workout_fran",
+  "forms": [
+    {
+      "actionPath": "/log/new",
+      "fieldCount": 3,
+      "method": "get"
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "LOG RESULT"
+    },
+    {
+      "level": 3,
+      "text": "Fran"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 974,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

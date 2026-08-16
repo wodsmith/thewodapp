@@ -1,0 +1,67 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/category/how-to-guides/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How-to Guides"
+    },
+    {
+      "level": 2,
+      "text": "🗃️ For Athletes"
+    },
+    {
+      "level": 2,
+      "text": "🗃️ For Judges & Volunteers"
+    },
+    {
+      "level": 2,
+      "text": "🗃️ For Organizers"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "How-to Guides | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1514,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

@@ -1,0 +1,9 @@
+- image "WODsmith"
+- heading "WODsmith CRM" [level=1, ref=e1]
+- paragraph
+  - StaticText "Enter your password to access CRM"
+- generic
+  - LabelText
+    - StaticText "Password"
+  - textbox "Password" [required, ref=e2]
+  - button "Sign in"

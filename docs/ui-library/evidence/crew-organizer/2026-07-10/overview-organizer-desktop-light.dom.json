@@ -1,0 +1,51 @@
+{
+  "bodyText": "WODsmith Crew Home Workflow Setup Heats Staffing Plan Volunteers Operations Volunteer Shifts Judge Assignments Confirmations Event Day Print Packet Toggle Sidebar ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Next step Finish event setup Confirm the event basics, floor layout, and staffing assumptions. Finish setup Current snapshot Assigned 11 Sent 11 Confirmed 5 Also useful Import volunteers Import heat schedule",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/events/e2e_competition",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Finish event setup"
+    },
+    {
+      "level": 2,
+      "text": "Current snapshot"
+    },
+    {
+      "level": 2,
+      "text": "Also useful"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

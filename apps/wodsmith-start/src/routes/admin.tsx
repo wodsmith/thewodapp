@@ -16,7 +16,6 @@ import { DarkModeToggle } from "@/components/nav/dark-mode-toggle"
 import LogoutButton from "@/components/nav/logout-button"
 import { ROLES_ENUM } from "@/db/schema"
 import { getSessionFromCookie } from "@/utils/auth"
-import { cn } from "@/utils/cn"
 
 // Server function to validate admin session
 const validateAdminSessionFn = createServerFn({ method: "GET" }).handler(
@@ -92,19 +91,6 @@ const platformNavItems = [
 ]
 
 function AdminSidebar() {
-  // Get current path from window.location for active state
-  const currentPath =
-    typeof window !== "undefined" ? window.location.pathname : ""
-
-  const isActive = (href: string) => {
-    // Exact match for dashboard
-    if (href === "/admin") {
-      return currentPath === "/admin"
-    }
-    // Prefix match for other routes
-    return currentPath.startsWith(href)
-  }
-
   return (
     <div className="space-y-4">
       {/* Platform Section */}
@@ -113,24 +99,21 @@ function AdminSidebar() {
           Platform
         </p>
         <nav className="space-y-1">
-          {platformNavItems.map((item) => {
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-accent",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.title}
-              </Link>
-            )
-          })}
+          {platformNavItems.map((item) => (
+            <Link
+              key={item.href}
+              to={item.href}
+              activeOptions={{ exact: item.href === "/admin" }}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors"
+              inactiveProps={{ className: "hover:bg-accent" }}
+              activeProps={{
+                className: "bg-primary text-primary-foreground",
+              }}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.title}
+            </Link>
+          ))}
         </nav>
       </div>
     </div>

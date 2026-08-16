@@ -1,0 +1,528 @@
+- link "wodsmith crew WODsmithCrew" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Home" [ref=e43]
+- generic
+  - StaticText "Workflow"
+  - list
+    - listitem [level=1]
+      - link "Setup" [ref=e44]
+    - listitem [level=1]
+      - link "Heats" [ref=e45]
+    - listitem [level=1]
+      - link "Staffing Plan" [ref=e46]
+    - listitem [level=1]
+      - link "Volunteers" [ref=e47]
+- generic
+  - StaticText "Operations"
+  - list
+    - listitem [level=1]
+      - link "Volunteer Shifts" [ref=e48]
+    - listitem [level=1]
+      - link "Judge Assignments" [ref=e49]
+    - listitem [level=1]
+      - link "Confirmations" [ref=e50]
+    - listitem [level=1]
+      - link "Event Day" [ref=e51]
+    - listitem [level=1]
+      - link "Print Packet" [ref=e52]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e9]
+- main
+  - sectionheader
+    - paragraph
+      - StaticText "ORGANIZER CREW"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-10 to 2026-07-11"
+  - generic
+    - heading "Day-of operations" [level=2, ref=e5]
+    - paragraph
+      - StaticText "Updated 5:34 PM / America/Denver"
+    - link "Shifts" [ref=e6]
+    - link "Judges" [ref=e7]
+    - link "Staffing" [ref=e8]
+    - generic
+      - generic
+        - paragraph
+          - StaticText "Open roles"
+        - paragraph
+          - StaticText "2"
+      - generic
+        - paragraph
+          - StaticText "Responses due"
+        - paragraph
+          - StaticText "18"
+      - generic
+        - paragraph
+          - StaticText "Declines / changes"
+        - paragraph
+          - StaticText "1"
+      - generic
+        - paragraph
+          - StaticText "No-show / replaced"
+        - paragraph
+          - StaticText "1"
+      - generic
+        - paragraph
+          - StaticText "Judge lanes open"
+        - paragraph
+          - StaticText "1"
+    - generic
+      - heading "Now" [level=3, ref=e10]
+      - paragraph
+        - StaticText "5 current /1 next"
+      - article
+        - heading "Athlete Check-In" [level=4, ref=e53]
+        - StaticText "current"
+        - paragraph
+          - StaticText "Fri 4:05 PM to 6:05 PM"
+        - paragraph
+          - StaticText "2/2"
+        - paragraph
+          - StaticText "Open"
+        - paragraph
+          - StaticText "0"
+        - paragraph
+          - StaticText "Responses"
+        - paragraph
+          - StaticText "1"
+        - paragraph
+          - StaticText "Decisions"
+        - paragraph
+          - StaticText "0"
+        - StaticText "Check-In"
+        - StaticText ": "
+        - StaticText "2"
+        - StaticText "/"
+        - StaticText "2"
+      - article
+        - heading "North Floor Crew" [level=4, ref=e54]
+        - StaticText "current"
+        - paragraph
+          - StaticText "Fri 4:45 PM to 6:45 PM"
+        - paragraph
+          - StaticText "2/2"
+        - paragraph
+          - StaticText "Open"
+        - paragraph
+          - StaticText "0"
+        - paragraph
+          - StaticText "Responses"
+        - paragraph
+          - StaticText "0"
+        - paragraph
+          - StaticText "Decisions"
+        - paragraph
+          - StaticText "0"
+        - StaticText "Floor Manager"
+        - StaticText ": "
+        - StaticText "2"
+        - StaticText "/"
+        - StaticText "2"
+      - article
+        - heading "Medical Station" [level=4, ref=e55]
+        - StaticText "current"
+        - paragraph
+          - StaticText "Fri 4:50 PM to 8:20 PM"
+        - paragraph
+          - StaticText "1/1"
+        - paragraph
+          - StaticText "Open"
+        - paragraph
+          - StaticText "0"
+        - paragraph
+          - StaticText "Responses"
+        - paragraph
+          - StaticText "0"
+        - paragraph
+          - StaticText "Decisions"
+        - paragraph
+          - StaticText "0"
+        - StaticText "Medical"
+        - StaticText ": "
+        - StaticText "1"
+        - StaticText "/"
+        - StaticText "1"
+      - article
+        - heading "Score Table" [level=4, ref=e56]
+        - StaticText "current"
+        - paragraph
+          - StaticText "Fri 4:55 PM to 7:25 PM"
+        - paragraph
+          - StaticText "2/2"
+        - paragraph
+          - StaticText "Open"
+        - paragraph
+          - StaticText "0"
+        - paragraph
+          - StaticText "Responses"
+        - paragraph
+          - StaticText "0"
+        - paragraph
+          - StaticText "Decisions"
+        - paragraph
+          - StaticText "1"
+        - StaticText "Scorekeeper"
+        - StaticText ": "
+        - StaticText "2"
+        - StaticText "/"
+        - StaticText "2"
+      - article
+        - heading "North Lane 2 Judge" [level=4, ref=e57]
+        - StaticText "current"
+        - paragraph
+          - StaticText "Fri 5:25 PM to 6:35 PM"
+        - paragraph
+          - StaticText "1/1"
+        - paragraph
+          - StaticText "Open"
+        - paragraph
+          - StaticText "0"
+        - paragraph
+          - StaticText "Responses"
+        - paragraph
+          - StaticText "1"
+        - paragraph
+          - StaticText "Decisions"
+        - paragraph
+          - StaticText "0"
+        - StaticText "Judge"
+        - StaticText ": "
+        - StaticText "1"
+        - StaticText "/"
+        - StaticText "1"
+    - generic
+      - heading "State tracking" [level=3, ref=e11]
+      - paragraph
+        - StaticText "1 checked in"
+      - DescriptionList
+        - term "No-shows"
+        - definition
+          - StaticText "1"
+        - term "Replaced"
+        - definition
+          - StaticText "0"
+        - term "Active judge versions"
+        - definition
+          - StaticText "3"
+        - term "Shift assignments"
+        - definition
+          - StaticText "11"
+    - generic
+      - heading "Assignment actions" [level=3, ref=e12]
+      - paragraph
+        - StaticText "26 current or upcoming assignments"
+      - StaticText "1"
+      - StaticText " checked in"
+      - paragraph
+        - StaticText "Ivy Chen"
+      - StaticText "Confirmed"
+      - paragraph
+        - StaticText "Check-In / Athlete Check-In /Fri 4:05 PM to 6:05 PM"
+      - button "Check in" [ref=e13]
+      - button "No-show" [ref=e14]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Ivy Chen"
+        - combobox "Replacement for Ivy Chen" [expanded=false, disabled, ref=e58]: Replacement
+          - MenuListPopup
+            - option "Replacement" [disabled, ref=e93]
+        - button "Save" [disabled, ref=e59]
+      - paragraph
+        - StaticText "Tara Brooks"
+      - StaticText "Sent"
+      - paragraph
+        - StaticText "Check-In / Athlete Check-In /Fri 4:05 PM to 6:05 PM"
+      - button "Check in" [ref=e15]
+      - button "No-show" [ref=e16]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Tara Brooks"
+        - combobox "Replacement for Tara Brooks" [expanded=false, ref=e60]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e94]
+            - option "Ivy Chen" [ref=e95]
+        - button "Save" [ref=e61]
+      - paragraph
+        - StaticText "Jules Patel"
+      - StaticText "Checked in"
+      - paragraph
+        - StaticText "Floor Manager / North Floor Crew /Fri 4:45 PM to 6:45 PM"
+      - button "Check in" [disabled, ref=e17]
+      - button "No-show" [ref=e18]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Jules Patel"
+        - combobox "Replacement for Jules Patel" [expanded=false, disabled, ref=e62]: Replacement
+          - MenuListPopup
+            - option "Replacement" [disabled, ref=e96]
+        - button "Save" [disabled, ref=e63]
+      - paragraph
+        - StaticText "Rosa King"
+      - StaticText "Confirmed"
+      - paragraph
+        - StaticText "Floor Manager / North Floor Crew /Fri 4:45 PM to 6:45 PM"
+      - button "Check in" [ref=e19]
+      - button "No-show" [ref=e20]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Rosa King"
+        - combobox "Replacement for Rosa King" [expanded=false, ref=e64]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e97]
+            - option "Jules Patel" [ref=e98]
+        - button "Save" [ref=e65]
+      - paragraph
+        - StaticText "Frank Garcia"
+      - StaticText "No-show"
+      - paragraph
+        - StaticText "Medical / Medical Station /Fri 4:50 PM to 8:20 PM"
+      - button "Check in" [ref=e21]
+      - button "No-show" [disabled, ref=e22]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Frank Garcia"
+        - combobox "Replacement for Frank Garcia" [expanded=false, ref=e66]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e99]
+            - option "Frank Garcia" [ref=e100]
+        - button "Save" [ref=e67]
+      - paragraph
+        - StaticText "Hank Brown"
+      - StaticText "Declined"
+      - paragraph
+        - StaticText "Scorekeeper / Score Table /Fri 4:55 PM to 7:25 PM"
+      - button "Check in" [ref=e23]
+      - button "No-show" [ref=e24]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Hank Brown"
+        - combobox "Replacement for Hank Brown" [expanded=false, ref=e68]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e101]
+            - option "Hank Brown" [ref=e102]
+        - button "Save" [ref=e69]
+      - paragraph
+        - StaticText "Uma Miller"
+      - StaticText "Confirmed"
+      - paragraph
+        - StaticText "Scorekeeper / Score Table /Fri 4:55 PM to 7:25 PM"
+      - button "Check in" [ref=e25]
+      - button "No-show" [ref=e26]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Uma Miller"
+        - combobox "Replacement for Uma Miller" [expanded=false, ref=e70]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e103]
+            - option "Hank Brown" [ref=e104]
+            - option "Hank Brown" [ref=e105]
+        - button "Save" [ref=e71]
+      - paragraph
+        - StaticText "Grace Martinez"
+      - StaticText "Sent"
+      - paragraph
+        - StaticText "Judge / North Lane 2 Judge /Fri 5:25 PM to 6:35 PM"
+      - button "Check in" [ref=e27]
+      - button "No-show" [ref=e28]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Grace Martinez"
+        - combobox "Replacement for Grace Martinez" [expanded=false, ref=e72]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e106]
+            - option "Frank Garcia" [ref=e107]
+            - option "Frank Garcia" [ref=e108]
+            - option "Grace Martinez" [ref=e109]
+            - option "Lena Nguyen" [ref=e110]
+            - option "Miles Olsen" [ref=e111]
+            - option "Nora Diaz" [ref=e112]
+            - option "Owen Reed" [ref=e113]
+            - option "Priya Shah" [ref=e114]
+            - option "Quinn Stone" [ref=e115]
+            - option "Wren Clark" [ref=e116]
+        - button "Save" [ref=e73]
+      - paragraph
+        - StaticText "Miles Olsen"
+      - StaticText "Sent"
+      - paragraph
+        - StaticText "Judge / Murph - Heat 1 - North Floor /Fri 5:45 PM to 6:03 PM"
+      - button "Check in" [ref=e29]
+      - button "No-show" [ref=e30]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Miles Olsen"
+        - combobox "Replacement for Miles Olsen" [expanded=false, ref=e74]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e117]
+            - option "Frank Garcia" [ref=e118]
+            - option "Frank Garcia" [ref=e119]
+            - option "Grace Martinez" [ref=e120]
+            - option "Grace Martinez" [ref=e121]
+            - option "Lena Nguyen" [ref=e122]
+            - option "Nora Diaz" [ref=e123]
+            - option "Owen Reed" [ref=e124]
+            - option "Priya Shah" [ref=e125]
+            - option "Quinn Stone" [ref=e126]
+            - option "Wren Clark" [ref=e127]
+        - button "Save" [ref=e75]
+      - paragraph
+        - StaticText "Nora Diaz"
+      - StaticText "Sent"
+      - paragraph
+        - StaticText "Judge / Murph - Heat 1 - North Floor /Fri 5:45 PM to 6:03 PM"
+      - button "Check in" [ref=e31]
+      - button "No-show" [ref=e32]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Nora Diaz"
+        - combobox "Replacement for Nora Diaz" [expanded=false, ref=e76]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e128]
+            - option "Frank Garcia" [ref=e129]
+            - option "Frank Garcia" [ref=e130]
+            - option "Grace Martinez" [ref=e131]
+            - option "Grace Martinez" [ref=e132]
+            - option "Lena Nguyen" [ref=e133]
+            - option "Miles Olsen" [ref=e134]
+            - option "Owen Reed" [ref=e135]
+            - option "Priya Shah" [ref=e136]
+            - option "Quinn Stone" [ref=e137]
+            - option "Wren Clark" [ref=e138]
+        - button "Save" [ref=e77]
+      - paragraph
+        - StaticText "Owen Reed"
+      - StaticText "Sent"
+      - paragraph
+        - StaticText "Judge / Murph - Heat 1 - North Floor /Fri 5:45 PM to 6:03 PM"
+      - button "Check in" [ref=e33]
+      - button "No-show" [ref=e34]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Owen Reed"
+        - combobox "Replacement for Owen Reed" [expanded=false, ref=e78]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e139]
+            - option "Frank Garcia" [ref=e140]
+            - option "Frank Garcia" [ref=e141]
+            - option "Grace Martinez" [ref=e142]
+            - option "Grace Martinez" [ref=e143]
+            - option "Lena Nguyen" [ref=e144]
+            - option "Miles Olsen" [ref=e145]
+            - option "Nora Diaz" [ref=e146]
+            - option "Priya Shah" [ref=e147]
+            - option "Quinn Stone" [ref=e148]
+            - option "Wren Clark" [ref=e149]
+        - button "Save" [ref=e79]
+      - paragraph
+        - StaticText "Priya Shah"
+      - StaticText "Sent"
+      - paragraph
+        - StaticText "Judge / Murph - Heat 1 - North Floor /Fri 5:45 PM to 6:03 PM"
+      - button "Check in" [ref=e35]
+      - button "No-show" [ref=e36]
+      - generic
+        - LabelText
+          - StaticText "Replacement for Priya Shah"
+        - combobox "Replacement for Priya Shah" [expanded=false, ref=e80]: Replacement
+          - MenuListPopup
+            - option "Replacement" [selected, ref=e150]
+            - option "Frank Garcia" [ref=e151]
+            - option "Frank Garcia" [ref=e152]
+            - option "Grace Martinez" [ref=e153]
+            - option "Grace Martinez" [ref=e154]
+            - option "Lena Nguyen" [ref=e155]
+            - option "Miles Olsen" [ref=e156]
+            - option "Nora Diaz" [ref=e157]
+            - option "Owen Reed" [ref=e158]
+            - option "Quinn Stone" [ref=e159]
+            - option "Wren Clark" [ref=e160]
+        - button "Save" [ref=e81]
+    - generic
+      - heading "Critical unfilled roles" [level=3, ref=e37]
+      - StaticText "2"
+      - paragraph
+      - paragraph
+      - StaticText "2"
+      - StaticText "/"
+      - StaticText "3"
+      - StaticText "1"
+      - StaticText " open"
+      - paragraph
+      - paragraph
+      - StaticText "3"
+      - StaticText "/"
+      - StaticText "4"
+      - StaticText "1"
+      - StaticText " open"
+    - generic
+      - heading "No-responses due in 48h" [level=3, ref=e38]
+      - StaticText "18"
+      - paragraph
+      - paragraph
+      - StaticText "no response"
+      - paragraph
+      - paragraph
+      - StaticText "no response"
+      - paragraph
+      - paragraph
+      - StaticText "no response"
+      - paragraph
+      - paragraph
+      - StaticText "no response"
+      - paragraph
+      - paragraph
+      - StaticText "no response"
+      - paragraph
+      - paragraph
+      - StaticText "no response"
+      - paragraph
+      - paragraph
+      - StaticText "no response"
+      - paragraph
+      - paragraph
+      - StaticText "no response"
+    - generic
+      - heading "Declines and change requests" [level=3, ref=e39]
+      - StaticText "1"
+      - paragraph
+      - paragraph
+      - StaticText "declined"
+    - generic
+      - heading "No-shows and replacements" [level=3, ref=e40]
+      - StaticText "1"
+      - paragraph
+      - paragraph
+      - StaticText "no show"
+    - generic
+      - heading "Floor and time blocks" [level=3, ref=e41]
+      - paragraph
+      - StaticText "e2e-throwdown"
+      - article
+        - heading "Athlete Check-In" [level=4, ref=e82]
+      - article
+        - heading "North Floor Crew" [level=4, ref=e83]
+      - article
+        - heading "Medical Station" [level=4, ref=e84]
+      - article
+        - heading "Score Table" [level=4, ref=e85]
+      - article
+        - heading "North Lane 2 Judge" [level=4, ref=e86]
+      - article
+        - heading "Murph - Heat 1 - North Floor" [level=4, ref=e87]
+      - article
+        - heading "Equipment Reset" [level=4, ref=e88]
+      - article
+        - heading "Murph - Heat 2 - South Floor" [level=4, ref=e89]
+      - article
+        - heading "Cindy - Heat 1 - North Floor" [level=4, ref=e90]
+      - article
+        - heading "Cindy - Heat 2 - South Floor" [level=4, ref=e91]
+      - article
+        - heading "Media Runner" [level=4, ref=e92]
+    - generic
+      - heading "Active judge coverage" [level=3, ref=e42]
+- region "Notifications alt+T" [ref=e1]

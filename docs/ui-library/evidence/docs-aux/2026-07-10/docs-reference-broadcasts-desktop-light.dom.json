@@ -1,0 +1,95 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/reference/broadcasts/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Broadcasts"
+    },
+    {
+      "level": 2,
+      "text": "Audience Filters​"
+    },
+    {
+      "level": 3,
+      "text": "Volunteer Roles​"
+    },
+    {
+      "level": 2,
+      "text": "Delivery​"
+    },
+    {
+      "level": 3,
+      "text": "Email Delivery Statuses​"
+    },
+    {
+      "level": 2,
+      "text": "Permissions​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Filter Type",
+        "Description",
+        "Additional Parameter"
+      ],
+      "rowCount": 5
+    },
+    {
+      "headers": [
+        "Status",
+        "Meaning"
+      ],
+      "rowCount": 4
+    }
+  ],
+  "title": "Broadcasts | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 2487,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

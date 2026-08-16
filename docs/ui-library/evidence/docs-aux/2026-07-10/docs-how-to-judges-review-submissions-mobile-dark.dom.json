@@ -1,0 +1,95 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/how-to/judges/review-submissions/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Review Video Submissions"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Find Your Review Queue​"
+    },
+    {
+      "level": 2,
+      "text": "The Per-Event Submission List​"
+    },
+    {
+      "level": 3,
+      "text": "Filters​"
+    },
+    {
+      "level": 2,
+      "text": "Reviewing a Single Submission​"
+    },
+    {
+      "level": 2,
+      "text": "Marking a Submission Reviewed​"
+    },
+    {
+      "level": 2,
+      "text": "Multi-Round Submissions​"
+    },
+    {
+      "level": 2,
+      "text": "What Athletes See​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Column",
+        "Meaning"
+      ],
+      "rowCount": 9
+    }
+  ],
+  "title": "How to Review Video Submissions | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 6045,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

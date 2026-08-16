@@ -1,0 +1,95 @@
+{
+  "bodyText": "WODsmith Admin Home Toggle theme PLATFORM Dashboard Teams Competitions Organizer Requests Entitlements Demo Competitions Documentation Admin / Demo Competitions Demo Competitions Generate fully-populated demo competitions for client presentations Existing Demo Competitions Demo competitions that have been generated. Delete when no longer needed. No demo competitions found. Create one below. Generate New Demo Competition Creates a complete competition with 4 divisions, 3 workouts, 40 athletes, heats, scores, and volunteers. Competition Name * Organizing Team (optional) Create demo team automatically CrossFit CrossFit Box One E2E Test Gym Home Gym Heroes Leave empty to create a new demo organizing team Competition date * Demo start time * Event 2 will start 30 min after this time Generate Demo Competition What gets created: 4 Divisions: Rx Male/Female Individual ($150), Rx Male/Female Team of 2 ($200) 3 Workouts with smart timing: Event 1: Completed (in the past with scores) Event 2: Starting 30 min after demo time Event 3: Upcoming (no heats yet) ~28 Fake athletes with registrations Heats for Event 1 with results, Event 2 ready to go Volunteer judges assigned to heats 1 Liability waiver, 3 Sponsors",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "tag": "input",
+      "type": null,
+      "name": null,
+      "label": "Competition Name *",
+      "required": false
+    },
+    {
+      "tag": "select",
+      "type": null,
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "date",
+      "name": null,
+      "label": "Competition date *",
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "time",
+      "name": null,
+      "label": "Demo start time *",
+      "required": false
+    }
+  ],
+  "finalUrl": "/admin/demo-competitions",
+  "forms": [
+    {
+      "method": "get",
+      "action": "/admin/demo-competitions"
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Demo Competitions"
+    },
+    {
+      "level": 2,
+      "text": "Existing Demo Competitions"
+    },
+    {
+      "level": 2,
+      "text": "Generate New Demo Competition"
+    },
+    {
+      "level": 3,
+      "text": "What gets created:"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1651,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

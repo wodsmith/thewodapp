@@ -15,6 +15,7 @@ import {
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { EmptyState } from "@repo/ui/empty-state"
 import { useServerFn } from "@tanstack/react-start"
 import {
   CheckCircle2,
@@ -30,7 +31,6 @@ import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +59,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { FieldGroup } from "@/components/ui/field"
 import {
   Form,
   FormControl,
@@ -69,6 +70,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -102,6 +104,21 @@ const questionFormSchema = z.object({
 })
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>
+
+function getOptionsErrorMessage(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined
+  if ("message" in error && typeof error.message === "string") {
+    return error.message
+  }
+  if (Array.isArray(error)) {
+    for (const item of error) {
+      const message = getOptionsErrorMessage(item)
+      if (message) return message
+    }
+  }
+  if ("root" in error) return getOptionsErrorMessage(error.root)
+  return undefined
+}
 
 /**
  * Optional overrides so cohost routes can inject cohost-authed server fns
@@ -412,7 +429,10 @@ function QuestionFormDialog({
 }: QuestionFormDialogProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [optionInput, setOptionInput] = useState("")
+  const [optionsError, setOptionsError] = useState<string>()
   const isEditing = !!question
+  const optionsFieldId = `${entityType}-${entityId}-${questionTarget}-question-options`
+  const optionInputId = `${optionsFieldId}-input`
 
   const defaultCreateCompetitionQuestion = useServerFn(createQuestionFn)
   const createSeriesQuestion = useServerFn(createSeriesQuestionFn)
@@ -457,6 +477,7 @@ function QuestionFormDialog({
         })
       }
       setOptionInput("")
+      setOptionsError(undefined)
     }
   }, [open, question, form])
 
@@ -471,6 +492,7 @@ function QuestionFormDialog({
     }
     form.setValue("options", [...options, optionInput.trim()])
     setOptionInput("")
+    setOptionsError(undefined)
   }
 
   const removeOption = (index: number) => {
@@ -485,7 +507,9 @@ function QuestionFormDialog({
       values.type === "select" &&
       (!values.options || values.options.length === 0)
     ) {
-      toast.error("Select questions must have at least one option")
+      const message = "Select questions must have at least one option"
+      setOptionsError(message)
+      toast.error(message)
       return
     }
 
@@ -551,6 +575,9 @@ function QuestionFormDialog({
     }
   }
 
+  const optionsErrorMessage =
+    optionsError ?? getOptionsErrorMessage(form.formState.errors.options)
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
@@ -576,7 +603,10 @@ function QuestionFormDialog({
                 <FormItem>
                   <FormLabel>Question type</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => {
+                      field.onChange(value)
+                      if (value !== "select") setOptionsError(undefined)
+                    }}
                     defaultValue={field.value}
                   >
                     <FormControl>
@@ -634,10 +664,23 @@ function QuestionFormDialog({
             />
 
             {selectedType === "select" && (
-              <div className="space-y-2">
-                <FormLabel>Options</FormLabel>
+              <FieldGroup.Root
+                id={optionsFieldId}
+                description={
+                  options.length === 0
+                    ? "No options added yet. Add at least one option."
+                    : undefined
+                }
+                error={optionsErrorMessage}
+                className="space-y-2"
+              >
+                <FieldGroup.Legend>Options</FieldGroup.Legend>
                 <div className="flex gap-2">
+                  <Label htmlFor={optionInputId} className="sr-only">
+                    New option
+                  </Label>
                   <Input
+                    id={optionInputId}
                     value={optionInput}
                     onChange={(e) => setOptionInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -648,7 +691,11 @@ function QuestionFormDialog({
                     }}
                     placeholder="Enter an option"
                   />
-                  <Button type="button" onClick={addOption}>
+                  <Button
+                    type="button"
+                    aria-label="Add option"
+                    onClick={addOption}
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -664,6 +711,7 @@ function QuestionFormDialog({
                           type="button"
                           size="sm"
                           variant="ghost"
+                          aria-label={`Remove option ${option}`}
                           onClick={() => removeOption(index)}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -672,12 +720,9 @@ function QuestionFormDialog({
                     ))}
                   </div>
                 )}
-                {options.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No options added yet. Add at least one option.
-                  </p>
-                )}
-              </div>
+                {options.length === 0 && <FieldGroup.Description />}
+                <FieldGroup.Error />
+              </FieldGroup.Root>
             )}
 
             <FormField
@@ -876,23 +921,29 @@ export function RegistrationQuestionsEditor({
         </CardHeader>
         <CardContent>
           {questions.length === 0 ? (
-            <OrganizerEmptyState
-              variant="plain"
-              icon={HelpCircle}
-              title={
-                questionTarget === "volunteer"
-                  ? "No volunteer signup questions yet"
-                  : "No registration questions yet"
-              }
-              description={
-                questionTarget === "volunteer"
+            <EmptyState.Root className="gap-0 px-6 py-12">
+              <EmptyState.Icon className="mb-4 rounded-lg">
+                <HelpCircle className="h-6 w-6 text-muted-foreground" />
+              </EmptyState.Icon>
+              <EmptyState.Title className="break-normal text-wrap text-lg font-semibold tracking-normal">
+                <h3>
+                  {questionTarget === "volunteer"
+                    ? "No volunteer signup questions yet"
+                    : "No registration questions yet"}
+                </h3>
+              </EmptyState.Title>
+              <EmptyState.Description className="mt-2 max-w-md break-normal text-wrap">
+                {questionTarget === "volunteer"
                   ? "Ask volunteers about availability, certifications, shirt size, or preferred roles."
-                  : "Ask athletes about shirt size, experience level, teammate details, or other registration needs."
-              }
-              actionLabel="Add Question"
-              actionIcon={<Plus className="mr-2 h-4 w-4" />}
-              onAction={handleAddNew}
-            />
+                  : "Ask athletes about shirt size, experience level, teammate details, or other registration needs."}
+              </EmptyState.Description>
+              <EmptyState.Actions className="mt-5 flex-col flex-nowrap items-stretch justify-start sm:flex-row sm:items-center">
+                <Button onClick={handleAddNew}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Question
+                </Button>
+              </EmptyState.Actions>
+            </EmptyState.Root>
           ) : (
             <div className="space-y-2">
               {questions.map((question, index) => (

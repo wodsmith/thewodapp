@@ -1,0 +1,22 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e3]
+      - heading "WODsmith" [level=1, ref=e9]
+    - button "Toggle navigation menu" [expanded=false, ref=e4]
+- main
+  - complementary
+    - navigation
+      - link "Overview" [ref=e10]
+      - link "Profile" [ref=e11]
+      - link "Appearance" [ref=e12]
+      - link "Athlete profile" [ref=e13]
+      - link "Teams" [ref=e14]
+      - link "Sessions" [ref=e15]
+      - link "Billing" [ref=e16]
+      - button "Sign out" [expanded=false, ref=e17]
+  - heading "SESSIONS" [level=1, ref=e2]
+  - button "Delete session" [expanded=false, ref=e5]
+  - button "Delete session" [expanded=false, ref=e6]
+  - button "Delete session" [expanded=false, ref=e7]
+  - button "Delete session" [expanded=false, ref=e8]
+- region "Notifications alt+T" [ref=e1]

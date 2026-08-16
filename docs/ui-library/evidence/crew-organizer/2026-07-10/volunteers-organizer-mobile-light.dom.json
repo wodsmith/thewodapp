@@ -1,0 +1,154 @@
+{
+  "bodyText": "Toggle Sidebar WODsmith Crew ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Roster 21 volunteers, 21 assignable Paste emails Import volunteers Add volunteer Manage shifts Pending 0 Accepted 0 Active 21 Shift coverage 11/12 Confirmed 5 Volunteer Status Roles Availability Source Actions Frank Garcia <email> 555-2001 active Judge Medical EMT certified Morning team membership Frank Garcia <email> active Judge Medical Not set team membership Grace Martinez <email> 555-2002 active Judge L1 judge course complete All day Available all day on both competition floors. team membership Grace Martinez <email> active Judge Not set team membership Hank Brown <email> 555-2003 active Scorekeeper Morning team membership Hank Brown <email> active Scorekeeper Not set team membership Ivy Chen <email> 555-2004 active Check-In Morning team membership Jules Patel <email> 555-2005 active Floor Manager Morning team membership Kai Robinson <email> 555-2006 active Equipment Morning team membership Lena Nguyen <email> 555-2007 active Judge L1 judge course complete Morning team membership Miles Olsen <email> 555-2008 active Judge L1 judge course complete Morning team membership Nora Diaz <email> 555-2009 active Judge L1 judge course complete Morning team membership Owen Reed <email> 555-2010 active Judge L1 judge course complete Morning team membership Priya Shah <email> 555-2011 active Judge L1 judge course complete Morning team membership Quinn Stone <email> 555-2012 active Judge L1 judge course complete Morning team membership Rosa King <email> 555-2013 active Athlete Control Morning team membership Sam Lee <email> 555-2014 active Equipment Team Morning team membership Tara Brooks <email> 555-2015 active Staff Morning team membership Uma Miller <email> 555-2016 active Emcee Morning team membership Vince Adams <email> 555-2017 active Media Morning team membership Wren Clark <email> 555-2018 active Head Judge Judge L1 judge course complete Morning team membership",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "label": "Select all volunteers",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Frank Garcia",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Frank Garcia",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Grace Martinez",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Grace Martinez",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Hank Brown",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Hank Brown",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Ivy Chen",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Jules Patel",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Kai Robinson",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Lena Nguyen",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Miles Olsen",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Nora Diaz",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Owen Reed",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Priya Shah",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Quinn Stone",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Rosa King",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Sam Lee",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Tara Brooks",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Uma Miller",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Vince Adams",
+      "name": "",
+      "type": "checkbox"
+    },
+    {
+      "label": "Select Wren Clark",
+      "name": "",
+      "type": "checkbox"
+    }
+  ],
+  "finalUrl": "/events/e2e_competition/volunteers",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Roster"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 3043,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

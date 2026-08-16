@@ -25,7 +25,9 @@ function AdminDashboardPage() {
         {/* Welcome Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl">Admin Dashboard</CardTitle>
+            <h1 className="font-semibold tracking-tight text-3xl">
+              Admin Dashboard
+            </h1>
             <CardDescription>
               Welcome to the admin panel. Manage your platform from here.
             </CardDescription>
@@ -57,7 +59,9 @@ function AdminDashboardPage() {
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <h2 className="text-2xl font-semibold leading-none tracking-tight">
+              Quick Actions
+            </h2>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
@@ -92,7 +96,9 @@ function AdminDashboardPage() {
         {/* Recent Activity Placeholder */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <h2 className="text-2xl font-semibold leading-none tracking-tight">
+              Recent Activity
+            </h2>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

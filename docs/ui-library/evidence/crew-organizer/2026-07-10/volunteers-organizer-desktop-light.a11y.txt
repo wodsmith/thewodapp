@@ -1,0 +1,294 @@
+- link "wodsmith crew WODsmithCrew" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Home" [ref=e11]
+- generic
+  - StaticText "Workflow"
+  - list
+    - listitem [level=1]
+      - link "Setup" [ref=e12]
+    - listitem [level=1]
+      - link "Heats" [ref=e13]
+    - listitem [level=1]
+      - link "Staffing Plan" [ref=e14]
+    - listitem [level=1]
+      - link "Volunteers" [ref=e15]
+- generic
+  - StaticText "Operations"
+  - list
+    - listitem [level=1]
+      - link "Volunteer Shifts" [ref=e16]
+    - listitem [level=1]
+      - link "Judge Assignments" [ref=e17]
+    - listitem [level=1]
+      - link "Confirmations" [ref=e18]
+    - listitem [level=1]
+      - link "Event Day" [ref=e19]
+    - listitem [level=1]
+      - link "Print Packet" [ref=e20]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e10]
+- main
+  - sectionheader
+    - paragraph
+      - StaticText "ORGANIZER CREW"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-10 to 2026-07-11"
+  - generic
+    - heading "Roster" [level=2, ref=e5]
+    - paragraph
+      - StaticText "21 volunteers, 21 assignable"
+    - button "Paste emails" [ref=e6]
+    - button "Import volunteers" [ref=e7]
+    - button "Add volunteer" [ref=e8]
+    - link "Manage shifts" [ref=e9]
+    - generic
+      - paragraph
+        - StaticText "Pending"
+      - paragraph
+        - StaticText "0"
+    - generic
+      - paragraph
+        - StaticText "Accepted"
+      - paragraph
+        - StaticText "0"
+    - generic
+      - paragraph
+        - StaticText "Active"
+      - paragraph
+        - StaticText "21"
+    - generic
+      - paragraph
+        - StaticText "Shift coverage"
+      - paragraph
+        - StaticText "11/12"
+    - generic
+      - paragraph
+        - StaticText "Confirmed"
+      - paragraph
+        - StaticText "5"
+    - table
+      - rowgroup
+        - row
+          - columnheader "Select all volunteers" [ref=e168]
+            - checkbox "Select all volunteers" [checked=false, ref=e217]
+          - columnheader "Volunteer" [ref=e169]
+          - columnheader "Status" [ref=e170]
+          - columnheader "Roles" [ref=e171]
+          - columnheader "Availability" [ref=e172]
+          - columnheader "Source" [ref=e173]
+          - columnheader "Actions" [ref=e174]
+      - row
+        - cell "Select Frank Garcia" [ref=e21]
+          - checkbox "Select Frank Garcia" [checked=false, ref=e175]
+        - cell "Frank Garcia <email> 555-2001" [ref=e22]
+        - cell "active" [ref=e23]
+        - cell "Judge Medical EMT certified" [ref=e24]
+        - cell "Morning" [ref=e25]
+        - cell "team membership" [ref=e26]
+        - cell "Edit Frank Garcia" [ref=e27]
+          - button "Edit Frank Garcia" [ref=e176]
+      - row
+        - cell "Select Frank Garcia" [ref=e28]
+          - checkbox "Select Frank Garcia" [checked=false, ref=e177]
+        - cell "Frank Garcia <email>" [ref=e29]
+        - cell "active" [ref=e30]
+        - cell "Judge Medical" [ref=e31]
+        - cell "Not set" [ref=e32]
+        - cell "team membership" [ref=e33]
+        - cell "Edit Frank Garcia" [ref=e34]
+          - button "Edit Frank Garcia" [ref=e178]
+      - row
+        - cell "Select Grace Martinez" [ref=e35]
+          - checkbox "Select Grace Martinez" [checked=false, ref=e179]
+        - cell "Grace Martinez <email> 555-2002" [ref=e36]
+        - cell "active" [ref=e37]
+        - cell "Judge L1 judge course complete" [ref=e38]
+        - cell "All day Available all day on both competition floors." [ref=e39]
+        - cell "team membership" [ref=e40]
+        - cell "Edit Grace Martinez" [ref=e41]
+          - button "Edit Grace Martinez" [ref=e180]
+      - row
+        - cell "Select Grace Martinez" [ref=e42]
+          - checkbox "Select Grace Martinez" [checked=false, ref=e181]
+        - cell "Grace Martinez <email>" [ref=e43]
+        - cell "active" [ref=e44]
+        - cell "Judge" [ref=e45]
+        - cell "Not set" [ref=e46]
+        - cell "team membership" [ref=e47]
+        - cell "Edit Grace Martinez" [ref=e48]
+          - button "Edit Grace Martinez" [ref=e182]
+      - row
+        - cell "Select Hank Brown" [ref=e49]
+          - checkbox "Select Hank Brown" [checked=false, ref=e183]
+        - cell "Hank Brown <email> 555-2003" [ref=e50]
+        - cell "active" [ref=e51]
+        - cell "Scorekeeper" [ref=e52]
+        - cell "Morning" [ref=e53]
+        - cell "team membership" [ref=e54]
+        - cell "Edit Hank Brown" [ref=e55]
+          - button "Edit Hank Brown" [ref=e184]
+      - row
+        - cell "Select Hank Brown" [ref=e56]
+          - checkbox "Select Hank Brown" [checked=false, ref=e185]
+        - cell "Hank Brown <email>" [ref=e57]
+        - cell "active" [ref=e58]
+        - cell "Scorekeeper" [ref=e59]
+        - cell "Not set" [ref=e60]
+        - cell "team membership" [ref=e61]
+        - cell "Edit Hank Brown" [ref=e62]
+          - button "Edit Hank Brown" [ref=e186]
+      - row
+        - cell "Select Ivy Chen" [ref=e63]
+          - checkbox "Select Ivy Chen" [checked=false, ref=e187]
+        - cell "Ivy Chen <email> 555-2004" [ref=e64]
+        - cell "active" [ref=e65]
+        - cell "Check-In" [ref=e66]
+        - cell "Morning" [ref=e67]
+        - cell "team membership" [ref=e68]
+        - cell "Edit Ivy Chen" [ref=e69]
+          - button "Edit Ivy Chen" [ref=e188]
+      - row
+        - cell "Select Jules Patel" [ref=e70]
+          - checkbox "Select Jules Patel" [checked=false, ref=e189]
+        - cell "Jules Patel <email> 555-2005" [ref=e71]
+        - cell "active" [ref=e72]
+        - cell "Floor Manager" [ref=e73]
+        - cell "Morning" [ref=e74]
+        - cell "team membership" [ref=e75]
+        - cell "Edit Jules Patel" [ref=e76]
+          - button "Edit Jules Patel" [ref=e190]
+      - row
+        - cell "Select Kai Robinson" [ref=e77]
+          - checkbox "Select Kai Robinson" [checked=false, ref=e191]
+        - cell "Kai Robinson <email> 555-2006" [ref=e78]
+        - cell "active" [ref=e79]
+        - cell "Equipment" [ref=e80]
+        - cell "Morning" [ref=e81]
+        - cell "team membership" [ref=e82]
+        - cell "Edit Kai Robinson" [ref=e83]
+          - button "Edit Kai Robinson" [ref=e192]
+      - row
+        - cell "Select Lena Nguyen" [ref=e84]
+          - checkbox "Select Lena Nguyen" [checked=false, ref=e193]
+        - cell "Lena Nguyen <email> 555-2007" [ref=e85]
+        - cell "active" [ref=e86]
+        - cell "Judge L1 judge course complete" [ref=e87]
+        - cell "Morning" [ref=e88]
+        - cell "team membership" [ref=e89]
+        - cell "Edit Lena Nguyen" [ref=e90]
+          - button "Edit Lena Nguyen" [ref=e194]
+      - row
+        - cell "Select Miles Olsen" [ref=e91]
+          - checkbox "Select Miles Olsen" [checked=false, ref=e195]
+        - cell "Miles Olsen <email> 555-2008" [ref=e92]
+        - cell "active" [ref=e93]
+        - cell "Judge L1 judge course complete" [ref=e94]
+        - cell "Morning" [ref=e95]
+        - cell "team membership" [ref=e96]
+        - cell "Edit Miles Olsen" [ref=e97]
+          - button "Edit Miles Olsen" [ref=e196]
+      - row
+        - cell "Select Nora Diaz" [ref=e98]
+          - checkbox "Select Nora Diaz" [checked=false, ref=e197]
+        - cell "Nora Diaz <email> 555-2009" [ref=e99]
+        - cell "active" [ref=e100]
+        - cell "Judge L1 judge course complete" [ref=e101]
+        - cell "Morning" [ref=e102]
+        - cell "team membership" [ref=e103]
+        - cell "Edit Nora Diaz" [ref=e104]
+          - button "Edit Nora Diaz" [ref=e198]
+      - row
+        - cell "Select Owen Reed" [ref=e105]
+          - checkbox "Select Owen Reed" [checked=false, ref=e199]
+        - cell "Owen Reed <email> 555-2010" [ref=e106]
+        - cell "active" [ref=e107]
+        - cell "Judge L1 judge course complete" [ref=e108]
+        - cell "Morning" [ref=e109]
+        - cell "team membership" [ref=e110]
+        - cell "Edit Owen Reed" [ref=e111]
+          - button "Edit Owen Reed" [ref=e200]
+      - row
+        - cell "Select Priya Shah" [ref=e112]
+          - checkbox "Select Priya Shah" [checked=false, ref=e201]
+        - cell "Priya Shah <email> 555-2011" [ref=e113]
+        - cell "active" [ref=e114]
+        - cell "Judge L1 judge course complete" [ref=e115]
+        - cell "Morning" [ref=e116]
+        - cell "team membership" [ref=e117]
+        - cell "Edit Priya Shah" [ref=e118]
+          - button "Edit Priya Shah" [ref=e202]
+      - row
+        - cell "Select Quinn Stone" [ref=e119]
+          - checkbox "Select Quinn Stone" [checked=false, ref=e203]
+        - cell "Quinn Stone <email> 555-2012" [ref=e120]
+        - cell "active" [ref=e121]
+        - cell "Judge L1 judge course complete" [ref=e122]
+        - cell "Morning" [ref=e123]
+        - cell "team membership" [ref=e124]
+        - cell "Edit Quinn Stone" [ref=e125]
+          - button "Edit Quinn Stone" [ref=e204]
+      - row
+        - cell "Select Rosa King" [ref=e126]
+          - checkbox "Select Rosa King" [checked=false, ref=e205]
+        - cell "Rosa King <email> 555-2013" [ref=e127]
+        - cell "active" [ref=e128]
+        - cell "Athlete Control" [ref=e129]
+        - cell "Morning" [ref=e130]
+        - cell "team membership" [ref=e131]
+        - cell "Edit Rosa King" [ref=e132]
+          - button "Edit Rosa King" [ref=e206]
+      - row
+        - cell "Select Sam Lee" [ref=e133]
+          - checkbox "Select Sam Lee" [checked=false, ref=e207]
+        - cell "Sam Lee <email> 555-2014" [ref=e134]
+        - cell "active" [ref=e135]
+        - cell "Equipment Team" [ref=e136]
+        - cell "Morning" [ref=e137]
+        - cell "team membership" [ref=e138]
+        - cell "Edit Sam Lee" [ref=e139]
+          - button "Edit Sam Lee" [ref=e208]
+      - row
+        - cell "Select Tara Brooks" [ref=e140]
+          - checkbox "Select Tara Brooks" [checked=false, ref=e209]
+        - cell "Tara Brooks <email> 555-2015" [ref=e141]
+        - cell "active" [ref=e142]
+        - cell "Staff" [ref=e143]
+        - cell "Morning" [ref=e144]
+        - cell "team membership" [ref=e145]
+        - cell "Edit Tara Brooks" [ref=e146]
+          - button "Edit Tara Brooks" [ref=e210]
+      - row
+        - cell "Select Uma Miller" [ref=e147]
+          - checkbox "Select Uma Miller" [checked=false, ref=e211]
+        - cell "Uma Miller <email> 555-2016" [ref=e148]
+        - cell "active" [ref=e149]
+        - cell "Emcee" [ref=e150]
+        - cell "Morning" [ref=e151]
+        - cell "team membership" [ref=e152]
+        - cell "Edit Uma Miller" [ref=e153]
+          - button "Edit Uma Miller" [ref=e212]
+      - row
+        - cell "Select Vince Adams" [ref=e154]
+          - checkbox "Select Vince Adams" [checked=false, ref=e213]
+        - cell "Vince Adams <email> 555-2017" [ref=e155]
+        - cell "active" [ref=e156]
+        - cell "Media" [ref=e157]
+        - cell "Morning" [ref=e158]
+        - cell "team membership" [ref=e159]
+        - cell "Edit Vince Adams" [ref=e160]
+          - button "Edit Vince Adams" [ref=e214]
+      - row
+        - cell "Select Wren Clark" [ref=e161]
+          - checkbox "Select Wren Clark" [checked=false, ref=e215]
+        - cell "Wren Clark <email> 555-2018" [ref=e162]
+        - cell "active" [ref=e163]
+        - cell "Head Judge Judge L1 judge course complete" [ref=e164]
+        - cell "Morning" [ref=e165]
+        - cell "team membership" [ref=e166]
+        - cell "Edit Wren Clark" [ref=e167]
+          - button "Edit Wren Clark" [ref=e216]
+- region "Notifications alt+T" [ref=e1]
