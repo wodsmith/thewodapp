@@ -10,6 +10,10 @@
 
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import {
+  type BenchmarkViewerScores,
+  getBenchmarkViewerScores,
+} from "@/server-fns/athlete-score-fns"
 import { getBatchVenuesForTrackWorkoutsFn } from "@/server-fns/competition-heats-fns"
 import {
   type DivisionDescription,
@@ -49,6 +53,7 @@ const getPublicWorkoutsPageDataInputSchema = z.object({
   divisionIds: z.array(z.string()),
   includeVenues: z.boolean().optional().default(false),
   includeSubmissionStatuses: z.boolean().optional().default(false),
+  includeBenchmarkViewerScores: z.boolean().optional().default(false),
 })
 
 // ============================================================================
@@ -60,10 +65,9 @@ const getPublicWorkoutsPageDataInputSchema = z.object({
  *
  * Wave 1 (parallel): published workouts with details + event-division
  * mappings. Wave 2 (parallel, needs workout IDs from wave 1): division
- * descriptions + venues (only when `includeVenues` is set) + the viewer's
- * submission statuses (only when `includeSubmissionStatuses` is set — the
- * routes set it for registered athletes on online competitions, keeping the
- * default path fully public with no session work).
+ * descriptions, venues, submission statuses, and the optional authenticated
+ * viewer score map. Opt-in branches keep the default path fully public with
+ * no session work.
  */
 export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
@@ -75,6 +79,7 @@ export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
       divisionIds,
       includeVenues,
       includeSubmissionStatuses,
+      includeBenchmarkViewerScores,
     } = data
 
     // Wave 1: workouts and event-division mappings are independent.
@@ -92,39 +97,43 @@ export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
     const workoutIds = workouts.map((w) => w.workoutId)
     const trackWorkoutIds = workouts.map((w) => w.id)
 
-    // Wave 2: division descriptions, venues, and submission statuses all
-    // need the workout IDs from wave 1, so they run as one parallel batch.
-    const [descriptionsResult, batchVenuesResult, submissionStatusResult] =
-      await Promise.all([
-        divisionIds.length > 0 && workoutIds.length > 0
-          ? getBatchWorkoutDivisionDescriptionsFn({
-              data: { workoutIds, divisionIds },
-            })
-          : Promise.resolve({
-              descriptionsByWorkout: {} as Record<
-                string,
-                DivisionDescription[]
-              >,
-            }),
-        includeVenues && trackWorkoutIds.length > 0
-          ? getBatchVenuesForTrackWorkoutsFn({
-              data: { trackWorkoutIds },
-            })
-          : Promise.resolve({
-              venues: {} as Awaited<
-                ReturnType<typeof getBatchVenuesForTrackWorkoutsFn>
-              >["venues"],
-            }),
-        includeSubmissionStatuses && trackWorkoutIds.length > 0
-          ? getBatchSubmissionStatusFn({
-              data: { competitionId, trackWorkoutIds },
-            })
-          : Promise.resolve({
-              statuses: {} as Awaited<
-                ReturnType<typeof getBatchSubmissionStatusFn>
-              >["statuses"],
-            }),
-      ])
+    // Wave 2 branches all need the workout IDs from wave 1, so they run as
+    // one parallel batch.
+    const [
+      descriptionsResult,
+      batchVenuesResult,
+      submissionStatusResult,
+      benchmarkViewerScores,
+    ] = await Promise.all([
+      divisionIds.length > 0 && workoutIds.length > 0
+        ? getBatchWorkoutDivisionDescriptionsFn({
+            data: { workoutIds, divisionIds },
+          })
+        : Promise.resolve({
+            descriptionsByWorkout: {} as Record<string, DivisionDescription[]>,
+          }),
+      includeVenues && trackWorkoutIds.length > 0
+        ? getBatchVenuesForTrackWorkoutsFn({
+            data: { trackWorkoutIds },
+          })
+        : Promise.resolve({
+            venues: {} as Awaited<
+              ReturnType<typeof getBatchVenuesForTrackWorkoutsFn>
+            >["venues"],
+          }),
+      includeSubmissionStatuses && trackWorkoutIds.length > 0
+        ? getBatchSubmissionStatusFn({
+            data: { competitionId, trackWorkoutIds },
+          })
+        : Promise.resolve({
+            statuses: {} as Awaited<
+              ReturnType<typeof getBatchSubmissionStatusFn>
+            >["statuses"],
+          }),
+      includeBenchmarkViewerScores && trackWorkoutIds.length > 0
+        ? getBenchmarkViewerScores({ competitionId, trackWorkoutIds })
+        : Promise.resolve({} as BenchmarkViewerScores),
+    ])
 
     // Narrow raw venue rows to the shape the workout cards consume.
     const venuesMap: Record<string, PublicWorkoutVenueInfo | null> = {}
@@ -157,5 +166,6 @@ export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
       eventDivisionMappings,
       venuesMap,
       submissionStatuses: submissionStatusResult.statuses,
+      benchmarkViewerScores,
     }
   })

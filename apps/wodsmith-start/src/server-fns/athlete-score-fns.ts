@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull, ne, type SQL } from "drizzle-orm"
+import { and, eq, inArray, isNull, ne, type SQL } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -38,9 +38,12 @@ import {
 } from "@/lib/logging"
 import {
   computeSortKey,
+  decodeScore,
   encodeScore,
+  formatScore,
   getDefaultScoreType,
   parseScore,
+  type ScoreStatus,
   type ScoreType,
   STATUS_ORDER,
   sortKeyToString,
@@ -78,6 +81,13 @@ export interface AthleteEventScore {
   tiebreakValue: number | null
   submittedAt: Date | null
 }
+
+export interface BenchmarkViewerScore {
+  displayScore: string
+  status: string | null
+}
+
+export type BenchmarkViewerScores = Record<string, BenchmarkViewerScore>
 
 // ============================================================================
 // Input Schemas
@@ -309,6 +319,87 @@ const EMPTY_ATHLETE_EVENT_SCORE: AthleteEventScore = {
   submittedAt: null,
 }
 
+function decodeAthleteScoreForDisplay(
+  scoreValue: number | null,
+  scheme: string,
+): string | null {
+  if (scoreValue === null) return null
+  return decodeScore(scoreValue, scheme as WorkoutScheme, { compact: false })
+}
+
+/**
+ * Read the authenticated viewer's scores for a set of competition workouts.
+ *
+ * The registration lookup deliberately uses the same unique-division
+ * resolution as getAthleteEventScoreFn. The score lookup is one division-
+ * scoped query for every requested track workout.
+ */
+export async function getBenchmarkViewerScores({
+  competitionId,
+  trackWorkoutIds,
+}: {
+  competitionId: string
+  trackWorkoutIds: string[]
+}): Promise<BenchmarkViewerScores> {
+  if (trackWorkoutIds.length === 0) return {}
+
+  const session = await getSessionFromCookie()
+  if (!session?.userId) return {}
+
+  const resolved = await resolveAthleteDivisionId({
+    competitionId,
+    userId: session.userId,
+  })
+  const divisionPredicate = divisionScopePredicate(resolved)
+  if (!divisionPredicate) return {}
+
+  const db = getDb()
+  const scoreRows = await db
+    .select({
+      trackWorkoutId: scoresTable.competitionEventId,
+      scoreValue: scoresTable.scoreValue,
+      scoreType: scoresTable.scoreType,
+      secondaryValue: scoresTable.secondaryValue,
+      status: scoresTable.status,
+      scheme: scoresTable.scheme,
+      timeCapMs: scoresTable.timeCapMs,
+    })
+    .from(scoresTable)
+    .where(
+      and(
+        inArray(scoresTable.competitionEventId, trackWorkoutIds),
+        eq(scoresTable.userId, session.userId),
+        divisionPredicate,
+      ),
+    )
+
+  const viewerScores: BenchmarkViewerScores = {}
+  for (const score of scoreRows) {
+    if (!score.trackWorkoutId) continue
+    if (score.scoreValue === null && score.status === "scored") continue
+
+    const displayScore = formatScore({
+      scheme: score.scheme as WorkoutScheme,
+      scoreType: score.scoreType as ScoreType,
+      value: score.scoreValue,
+      status: score.status as ScoreStatus,
+      timeCap:
+        score.secondaryValue !== null
+          ? {
+              ms: score.timeCapMs ?? 0,
+              secondaryValue: score.secondaryValue,
+            }
+          : undefined,
+    })
+    viewerScores[score.trackWorkoutId] = {
+      displayScore,
+      status: score.status,
+    }
+  }
+
+  return viewerScores
+}
+
 // ============================================================================
 // Server Functions
 // ============================================================================
@@ -385,15 +476,10 @@ export const getAthleteEventScoreFn = createServerFn({ method: "GET" })
     if (!existingScore) return EMPTY_ATHLETE_EVENT_SCORE
 
     // Decode the score for display
-    const { decodeScore } = await import("@/lib/scoring")
-    let displayScore: string | null = null
-    if (existingScore.scoreValue !== null) {
-      displayScore = decodeScore(
-        existingScore.scoreValue,
-        existingScore.scheme as WorkoutScheme,
-        { compact: false },
-      )
-    }
+    const displayScore = decodeAthleteScoreForDisplay(
+      existingScore.scoreValue,
+      existingScore.scheme,
+    )
 
     return {
       scoreId: existingScore.id,

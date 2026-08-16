@@ -1,5 +1,6 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
+import { BenchmarkWorkoutDirectory } from "@/components/benchmark-workout-directory"
 import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/compete/$slug/")({
         workouts: [],
         divisionDescriptionsMap: {} as Record<string, DivisionDescription[]>,
         submissionStatusMap: {} as Record<string, SubmissionStatus>,
+        benchmarkViewerScores: {},
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
         }),
@@ -50,16 +52,17 @@ export const Route = createFileRoute("/compete/$slug/")({
     const divisionIds = divisions?.map((d) => d.id) ?? []
     const userRegistration = parentMatch.loaderData?.userRegistration
 
-    // Single consolidated call for workouts + division descriptions +
-    // event-division mappings + the viewer's submission statuses (fetched
-    // server-side in the same wave as the descriptions, only for registered
-    // athletes on online competitions).
+    // Single consolidated call for workouts, division descriptions,
+    // event-division mappings, and the viewer-only maps requested by this
+    // competition type.
     const pageData = await getPublicWorkoutsPageDataFn({
       data: {
         competitionId,
         divisionIds,
         includeSubmissionStatuses:
           competition.competitionType === "online" && !!userRegistration,
+        includeBenchmarkViewerScores:
+          competition.competitionType === "benchmark",
       },
     })
 
@@ -70,6 +73,7 @@ export const Route = createFileRoute("/compete/$slug/")({
       workouts: pageData.workouts,
       divisionDescriptionsMap: pageData.divisionDescriptionsMap,
       submissionStatusMap,
+      benchmarkViewerScores: pageData.benchmarkViewerScores,
       deferredSchedule,
       eventDivisionMappings: pageData.eventDivisionMappings,
     }
@@ -98,6 +102,7 @@ function CompetitionOverviewPage() {
     workouts,
     divisionDescriptionsMap,
     submissionStatusMap,
+    benchmarkViewerScores,
     deferredSchedule,
     eventDivisionMappings,
   } = Route.useLoaderData()
@@ -106,6 +111,10 @@ function CompetitionOverviewPage() {
   const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
   const timezone = competition.timezone ?? "America/Denver"
   const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
+  const benchmarkWorkouts = useMemo(
+    () => workouts.filter((workout) => !workout.parentEventId),
+    [workouts],
+  )
 
   // Build parent -> child events map
   const childEventsMap = new Map<string, ChildEvent[]>()
@@ -193,48 +202,56 @@ function CompetitionOverviewPage() {
             sponsors={sponsors}
             workoutsContent={
               workouts.length > 0 ? (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-semibold mb-4">Workouts</h2>
+                competition.competitionType === "benchmark" ? (
+                  <BenchmarkWorkoutDirectory
+                    slug={slug}
+                    workouts={benchmarkWorkouts}
+                    viewerScores={benchmarkViewerScores}
+                  />
+                ) : (
                   <div className="space-y-6">
-                    {workouts
-                      .filter((w) => !w.parentEventId)
-                      .map((event) => {
-                        const divisionDescriptionsResult =
-                          divisionDescriptionsMap[event.workoutId]
-                        return (
-                          <CompetitionWorkoutCard
-                            key={event.id}
-                            eventId={event.id}
-                            slug={slug}
-                            trackOrder={event.trackOrder}
-                            name={event.workout.name}
-                            scheme={event.workout.scheme}
-                            description={event.workout.description}
-                            roundsToScore={event.workout.roundsToScore}
-                            pointsMultiplier={event.pointsMultiplier}
-                            movements={event.workout.movements}
-                            tags={event.workout.tags}
-                            divisionDescriptions={
-                              divisionDescriptionsResult ?? []
-                            }
-                            sponsorName={event.sponsorName}
-                            sponsorLogoUrl={event.sponsorLogoUrl}
-                            selectedDivisionId="default"
-                            isRegistered={isRegistered}
-                            submissionStatus={
-                              submissionStatusMap[event.id] ?? null
-                            }
-                            timeCap={event.workout.timeCap}
-                            schedule={scheduleMap?.get(event.id) ?? null}
-                            childEvents={childEventsMap.get(event.id)}
-                            childDivisionDescriptionsMap={
-                              divisionDescriptionsMap
-                            }
-                          />
-                        )
-                      })}
+                    <h2 className="text-xl font-semibold mb-4">Workouts</h2>
+                    <div className="space-y-6">
+                      {workouts
+                        .filter((w) => !w.parentEventId)
+                        .map((event) => {
+                          const divisionDescriptionsResult =
+                            divisionDescriptionsMap[event.workoutId]
+                          return (
+                            <CompetitionWorkoutCard
+                              key={event.id}
+                              eventId={event.id}
+                              slug={slug}
+                              trackOrder={event.trackOrder}
+                              name={event.workout.name}
+                              scheme={event.workout.scheme}
+                              description={event.workout.description}
+                              roundsToScore={event.workout.roundsToScore}
+                              pointsMultiplier={event.pointsMultiplier}
+                              movements={event.workout.movements}
+                              tags={event.workout.tags}
+                              divisionDescriptions={
+                                divisionDescriptionsResult ?? []
+                              }
+                              sponsorName={event.sponsorName}
+                              sponsorLogoUrl={event.sponsorLogoUrl}
+                              selectedDivisionId="default"
+                              isRegistered={isRegistered}
+                              submissionStatus={
+                                submissionStatusMap[event.id] ?? null
+                              }
+                              timeCap={event.workout.timeCap}
+                              schedule={scheduleMap?.get(event.id) ?? null}
+                              childEvents={childEventsMap.get(event.id)}
+                              childDivisionDescriptionsMap={
+                                divisionDescriptionsMap
+                              }
+                            />
+                          )
+                        })}
+                    </div>
                   </div>
-                </div>
+                )
               ) : undefined
             }
           />
