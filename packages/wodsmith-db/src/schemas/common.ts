@@ -165,6 +165,9 @@ export const createCrewImportRowId = () => `cimpr_${ulid()}`
 // `@lat`: [[crew#crew_assignment_confirmations]]
 export const createCrewAssignmentConfirmationId = () => `caconf_${ulid()}`
 
+// Crew message template ID generators
+export const createMessageTemplateId = () => `msgtpl_${ulid()}`
+
 // Crew self-serve preset ID generators
 // @lat: [[crew#Self Serve Preset Schema]]
 export const createCrewTemplatePresetId = () => `ctpres_${ulid()}`

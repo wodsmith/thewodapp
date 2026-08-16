@@ -24,7 +24,7 @@ import {
 } from "@/db/schemas/competition-invites"
 import { crewAssignmentConfirmationsTable } from "@/db/schemas/crew-imports"
 import type { CrewAssignmentEmailQueueMessage } from "@/lib/crew/assignment-confirmations"
-import { getResendApiKey, getEmailFrom, getEmailFromName } from "@/lib/env"
+import { getEmailFrom, getEmailFromName, getResendApiKey } from "@/lib/env"
 import { logError, logInfo } from "@/lib/logging"
 
 /** Delay between individual email sends to stay under Resend rate limits (5 emails/s). */
@@ -77,6 +77,15 @@ export type QueueEmailMessage =
   | InviteEmailMessage
   | CrewAssignmentEmailQueueMessage
 
+function isCrewAssignmentEmailMessage(
+  body: QueueEmailMessage,
+): body is CrewAssignmentEmailQueueMessage {
+  return (
+    body.kind === "crew-assignment-confirmation" ||
+    body.kind === "crew-assignment-reminder"
+  )
+}
+
 /**
  * Queue consumer handler — called by the Workers runtime when messages arrive.
  *
@@ -107,10 +116,7 @@ export async function handleBroadcastEmailQueue(
       continue
     }
 
-    if (
-      body.kind === "crew-assignment-confirmation" ||
-      body.kind === "crew-assignment-reminder"
-    ) {
+    if (isCrewAssignmentEmailMessage(body)) {
       await handleCrewAssignmentEmailMessage({
         message,
         body,

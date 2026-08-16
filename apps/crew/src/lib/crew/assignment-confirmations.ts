@@ -519,7 +519,7 @@ export function normalizeConfirmationEmailForSend(
   return trimmed
 }
 
-function getCrewAssignmentReminderOperationKind(params: {
+export function getCrewAssignmentReminderOperationKind(params: {
   shiftStartTime: Date
   reminderCount: number
   now: Date

@@ -374,7 +374,7 @@ This slice is preview and history only. Applying volunteer invitations, voluntee
 
 ## Import Tabs Duplicate Panel Regression
 
-The import tab regression test verifies the organizer upload panel is mounted once while switching between volunteer-list and heat-schedule imports.
+The import tab regression test verifies one CSV-or-Excel upload panel is mounted while switching between volunteer-list and heat-schedule imports.
 
 ## Import Apply
 
@@ -511,6 +511,26 @@ Crew confirmation email operations use `crew_assignment_confirmations` as the so
 [[apps/crew/src/server/crew-confirmation.server.ts]] loads eligible volunteer shift confirmations, mints fresh raw tokens only for the queued payload, stores only the new token hash, and builds rendered Crew email messages from [[apps/crew/src/react-email/crew/assignment-confirmation.tsx]], [[apps/crew/src/react-email/crew/reminder-48-hour.tsx]], and [[apps/crew/src/react-email/crew/reminder-24-hour.tsx]]. If the shared email queue binding is unavailable, the operation only logs preview payloads and returns preview counts.
 
 [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] exposes the route-safe operation wrapper. [[apps/crew/src/routes/events/$eventId/shifts.tsx]] provides quiet operator actions for event-wide confirmation sends and reminder sends, then reports queued, previewed, and failed counts without sending live email during local validation.
+
+## Volunteer Messaging Composer
+
+The Messages page is a broadcast-style composer: operators pick a message type, edit its email template, filter and hand-pick recipients with live eligibility preview, and send explicitly — replacing the earlier one-click bulk send buttons.
+
+[[apps/crew/src/routes/events/$eventId/messages.tsx]] renders Compose, Responses, and History tabs driven by a `?tab=` search param. Compose pairs a template editor ([[apps/crew/src/routes/events/$eventId/-components/messages-template-editor.tsx]]) with a recipients panel ([[apps/crew/src/routes/events/$eventId/-components/messages-recipients-panel.tsx]]) orchestrated by [[apps/crew/src/routes/events/$eventId/-components/messages-compose-tab.tsx]]: debounced recipient preview on filter change, checkbox selection with select-all-eligible, dimmed ineligible rows with skip reasons, and a confirm dialog before queueing. Responses ([[apps/crew/src/routes/events/$eventId/-components/messages-responses-tab.tsx]]) preserves the prior confirmation bucket dashboard and CSV export unchanged; the seeded organizer E2E opens `?tab=responses` before asserting confirmation counts. History ([[apps/crew/src/routes/events/$eventId/-components/messages-history-tab.tsx]]) lists confirmation, reminder, and broadcast sends with delivery counts.
+
+### Message templates
+
+Four per-event editable templates — assignment confirmation, 48-hour reminder, 24-hour reminder, and custom broadcast — with code-defined defaults matching the original email copy and `{{variable}}` substitution.
+
+Overrides persist one row per `(competitionId, templateType)` in `competition_message_templates` ([[packages/wodsmith-db/src/schemas/message-templates.ts]]) — deliberately not crew-namespaced so Start can adopt the same record; deleting the row resets to the default. [[apps/crew/src/lib/crew/message-templates.ts]] owns template types, per-type variable lists, default copy, and the pure renderer that substitutes known variables (empty values render blank rather than leaking the raw token), leaves unknown ones literal, and splits the body into paragraphs on blank lines. Render call sites and the editor's variable plumbing are typed against the `CrewTemplateVariableKey` union rather than plain strings, so mistyped variable keys fail at compile time. All templated sends render through the shared [[apps/crew/src/react-email/crew/templated-message.tsx]] layout.
+
+### Filtered recipient selection
+
+Recipient previews expand assignment confirmations (or unique volunteers for custom broadcasts) against state, role, shift, search, and already-sent filters, returning per-row eligibility with skip reasons instead of silent exclusion.
+
+Skip summaries count every classified candidate, so hiding already-sent rows from the list still reports them in the totals. Reminder eligibility reuses [[apps/crew/src/lib/crew/assignment-confirmations.ts#getCrewAssignmentReminderOperationKind]] so preview and send windows cannot drift.
+
+[[apps/crew/src/server-fns/crew-message-fns.ts]] keeps route imports thin while [[apps/crew/src/server/crew-messages.server.ts]] resolves the composer payload (templates, filter options, history) and validates queue sends against an explicit recipient key list from the preview, re-checking eligibility server-side so stale selections are reported rather than sent. Confirmation and reminder sends go through [[apps/crew/src/server/crew-confirmation.server.ts#queueCrewTemplatedAssignmentEmails]], which keeps the eligibility plan, token-hash storage, and idempotency conventions from [[crew#Confirmation Emails And Reminders]] while rendering each recipient with the caller's template; custom broadcasts write `competition_broadcasts` rows as `draft` and only flip to `sent` (or `failed`) after enqueueing, so history shares delivery status with the broadcast queue consumer without recording sends that never dispatched. [[apps/crew/src/lib/crew/message-recipients.ts]] keeps the pure filter and eligibility logic testable outside the server layer.
 
 ## Day Of Operations Board
 
