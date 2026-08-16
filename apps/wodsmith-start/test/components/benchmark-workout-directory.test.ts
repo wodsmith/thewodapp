@@ -16,6 +16,7 @@ function benchmarkWorkout(
 }
 
 describe("getBenchmarkWorkoutDomain", () => {
+  // @lat: [[research#Benchmark Workout Directory Test#Domain Classification]]
   it.each([
     {
       domain: "Strength & barbell",
@@ -108,6 +109,7 @@ describe("getBenchmarkWorkoutDomain", () => {
     expect(getBenchmarkWorkoutDomain(workout)).toBe(domain)
   })
 
+  // @lat: [[research#Benchmark Workout Directory Test#Domain Fallback]]
   it("uses the stable fallback for an unrecognized benchmark", () => {
     const workout = benchmarkWorkout("unknown", {
       name: "Kettlebell Odyssey",
@@ -121,6 +123,7 @@ describe("getBenchmarkWorkoutDomain", () => {
 })
 
 describe("groupBenchmarkWorkouts", () => {
+  // @lat: [[research#Benchmark Workout Directory Test#Domain Ordering]]
   it("uses canonical domain order while preserving input order within each group", () => {
     const workouts = [
       benchmarkWorkout(
@@ -221,6 +224,7 @@ describe("filterBenchmarkWorkouts", () => {
     }),
   ]
 
+  // @lat: [[research#Benchmark Workout Directory Test#Directory Filtering]]
   it.each([
     ["  FRAN  ", ["classic"]],
     ["pull-up", ["classic"]],
@@ -231,12 +235,14 @@ describe("filterBenchmarkWorkouts", () => {
     expect(filterBenchmarkWorkouts(workouts, query).map(({ id }) => id)).toEqual(ids)
   })
 
+  // @lat: [[research#Benchmark Workout Directory Test#Directory Filtering]]
   it("returns every workout in input order for an empty query", () => {
     expect(filterBenchmarkWorkouts(workouts, "   ")).toEqual(workouts)
   })
 })
 
 describe("formatBenchmarkResult", () => {
+  // @lat: [[research#Benchmark Workout Directory Test#Result Labels]]
   it("labels points workouts explicitly", () => {
     expect(formatBenchmarkResult({ name: "Skill test", scheme: "points" })).toBe(
       "Points",

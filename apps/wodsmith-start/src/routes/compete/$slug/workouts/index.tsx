@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { BenchmarkViewerScores } from "@/server-fns/athlete-score-fns"
 import {
   getPublicScheduleDataFn,
   type PublicScheduleEvent,
@@ -56,7 +57,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
         venueMap: {} as Record<string, PublicWorkoutVenueInfo | null>,
         athleteRegisteredDivisionId: null as string | null,
         submissionStatusMap: {} as Record<string, SubmissionStatus>,
-        benchmarkViewerScores: {},
+        benchmarkViewerScores: {} as BenchmarkViewerScores,
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
         }),

@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
+import type { BenchmarkViewerScore } from "@/server-fns/athlete-score-fns"
 
 export const BENCHMARK_WORKOUT_DOMAINS = [
   "Strength & barbell",
@@ -35,11 +36,6 @@ export interface BenchmarkDirectoryWorkout {
     movements?: readonly { name: string }[]
     tags?: readonly { name: string }[]
   }
-}
-
-export interface BenchmarkViewerScore {
-  displayScore: string
-  status: string | null
 }
 
 export interface BenchmarkWorkoutGroup {
@@ -371,6 +367,7 @@ export function BenchmarkWorkoutDirectory({
   )
   const searchRef = useRef<HTMLInputElement>(null)
   const sectionRefs = useRef(new Map<BenchmarkWorkoutDomain, HTMLElement>())
+  const isMobileRef = useRef<boolean | null>(null)
 
   const filteredWorkouts = useMemo(
     () => filterBenchmarkWorkouts(workouts, query),
@@ -388,24 +385,31 @@ export function BenchmarkWorkoutDirectory({
     : (visibleGroups[0]?.domain ?? null)
 
   useEffect(() => {
-    setRailCollapsed(window.localStorage.getItem(RAIL_STORAGE_KEY) === "true")
+    try {
+      setRailCollapsed(window.localStorage.getItem(RAIL_STORAGE_KEY) === "true")
+    } catch {
+      // Storage can be unavailable in privacy-restricted browser contexts.
+    }
   }, [])
 
   useEffect(() => {
     const mobileQuery = window.matchMedia("(max-width: 720px)")
-    const setBreakpointDefaults = () => {
+    const setBreakpointDefaults = (matches: boolean) => {
+      if (isMobileRef.current === matches) return
+      isMobileRef.current = matches
       setExpandedDomains(
         new Set(
-          mobileQuery.matches
+          matches
             ? allGroups.slice(0, 1).map(({ domain }) => domain)
             : allGroups.map(({ domain }) => domain),
         ),
       )
     }
-    setBreakpointDefaults()
-    mobileQuery.addEventListener("change", setBreakpointDefaults)
-    return () =>
-      mobileQuery.removeEventListener("change", setBreakpointDefaults)
+    setBreakpointDefaults(mobileQuery.matches)
+    const handleChange = (event: MediaQueryListEvent) =>
+      setBreakpointDefaults(event.matches)
+    mobileQuery.addEventListener("change", handleChange)
+    return () => mobileQuery.removeEventListener("change", handleChange)
   }, [allGroups])
 
   useEffect(() => {
@@ -436,11 +440,13 @@ export function BenchmarkWorkoutDirectory({
   }, [visibleGroups])
 
   function toggleRail() {
-    setRailCollapsed((collapsed) => {
-      const next = !collapsed
+    const next = !railCollapsed
+    setRailCollapsed(next)
+    try {
       window.localStorage.setItem(RAIL_STORAGE_KEY, String(next))
-      return next
-    })
+    } catch {
+      // The UI state remains usable even when persistence is unavailable.
+    }
   }
 
   function clearSearch() {

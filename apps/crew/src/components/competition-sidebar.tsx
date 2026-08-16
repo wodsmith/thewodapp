@@ -152,7 +152,7 @@ const getNavigation = (
     {
       label: "Volunteers & judging",
       items: [
-        ...(competitionType === "in-person"
+        ...(competitionType !== "benchmark"
           ? [
               {
                 label: "Volunteer roster",
@@ -164,6 +164,10 @@ const getNavigation = (
                 href: `${basePath}/volunteers/shifts`,
                 icon: Calendar,
               },
+            ]
+          : []),
+        ...(competitionType === "in-person"
+          ? [
               {
                 label: "Judge assignments",
                 href: `${basePath}/volunteers/judges`,

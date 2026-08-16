@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import {
+	getResponseHeader,
+	setResponseHeader,
+} from "@tanstack/react-start/server"
 import { getBenchmarkViewerScores } from "@/server-fns/athlete-score-fns"
 import { getBatchVenuesForTrackWorkoutsFn } from "@/server-fns/competition-heats-fns"
 import {
@@ -17,6 +21,11 @@ vi.mock("@tanstack/react-start", () => ({
 					handler({ data: validator(context.data) }),
 		}),
 	}),
+}))
+
+vi.mock("@tanstack/react-start/server", () => ({
+	getResponseHeader: vi.fn(),
+	setResponseHeader: vi.fn(),
 }))
 
 vi.mock("@/server-fns/athlete-score-fns", () => ({
@@ -43,11 +52,17 @@ vi.mock("@/server-fns/video-submission-fns", () => ({
 const workouts = [
 	{ id: "track-workout-fran", workoutId: "workout-fran" },
 	{ id: "track-workout-grace", workoutId: "workout-grace" },
+	{
+		id: "track-workout-fran-tiebreak",
+		workoutId: "workout-fran-tiebreak",
+		parentEventId: "track-workout-fran",
+	},
 ]
 
 describe("getPublicWorkoutsPageDataFn benchmark viewer scores", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		vi.mocked(getResponseHeader).mockReturnValue(undefined)
 		vi.mocked(getPublishedCompetitionWorkoutsWithDetailsFn).mockResolvedValue({
 			workouts,
 		} as never)
@@ -69,7 +84,8 @@ describe("getPublicWorkoutsPageDataFn benchmark viewer scores", () => {
 		})
 	})
 
-	it("includes one batched viewer score map when opted in", async () => {
+	// @lat: [[research#Public Workouts Viewer Score Test#Opt-In Score Batch]]
+	it("includes one private batched viewer score map when opted in", async () => {
 		const result = await getPublicWorkoutsPageDataFn({
 			data: {
 				competitionId: "competition-benchmarks",
@@ -86,8 +102,14 @@ describe("getPublicWorkoutsPageDataFn benchmark viewer scores", () => {
 		expect(result.benchmarkViewerScores).toEqual({
 			"track-workout-fran": { displayScore: "5:00", status: "scored" },
 		})
+		expect(setResponseHeader).toHaveBeenCalledWith(
+			"Cache-Control",
+			"private, no-store",
+		)
+		expect(setResponseHeader).toHaveBeenCalledWith("Vary", "Cookie")
 	})
 
+	// @lat: [[research#Public Workouts Viewer Score Test#Default Public Path]]
 	it("keeps existing callers valid and avoids session work by default", async () => {
 		const result = await getPublicWorkoutsPageDataFn({
 			data: {
@@ -99,5 +121,6 @@ describe("getPublicWorkoutsPageDataFn benchmark viewer scores", () => {
 		expect(getBenchmarkViewerScores).not.toHaveBeenCalled()
 		expect(result.benchmarkViewerScores).toEqual({})
 		expect(result.submissionStatuses).toEqual({})
+		expect(setResponseHeader).not.toHaveBeenCalled()
 	})
 })

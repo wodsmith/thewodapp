@@ -9,6 +9,10 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import {
+  getResponseHeader,
+  setResponseHeader,
+} from "@tanstack/react-start/server"
 import { z } from "zod"
 import {
   type BenchmarkViewerScores,
@@ -81,6 +85,18 @@ export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
       includeSubmissionStatuses,
       includeBenchmarkViewerScores,
     } = data
+
+    if (includeBenchmarkViewerScores) {
+      setResponseHeader("Cache-Control", "private, no-store")
+      const vary = new Set(
+        (getResponseHeader("Vary") ?? "")
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
+      )
+      vary.add("Cookie")
+      setResponseHeader("Vary", [...vary].join(", "))
+    }
 
     // Wave 1: workouts and event-division mappings are independent.
     // Each in-process server fn call opens its own DB connection.

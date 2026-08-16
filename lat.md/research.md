@@ -31,3 +31,67 @@ Benchmark competitions use a dense domain directory while every other competitio
 [[apps/wodsmith-start/src/server-fns/athlete-score-fns.ts#getBenchmarkViewerScores]] reads the authenticated viewer's division-scoped scores in one batch. Missing sessions, ambiguous registrations, and missing scores return an empty map, so rows never expose another athlete's data.
 
 [[apps/wodsmith-start/src/server-fns/competition-workouts-page-fns.ts#getPublicWorkoutsPageDataFn]] includes viewer scores only when either public benchmark route opts in and queries only rendered top-level workouts. Focused tests cover classification, ordering, filtering, batching, authentication, and division isolation.
+
+## Benchmark Workout Directory Test
+
+These tests lock the benchmark directory's classification, ordering, filtering, and result-label behavior.
+
+### Domain Classification
+
+This test verifies normalized workout metadata maps known benchmark signals to the expected domain.
+
+### Domain Fallback
+
+This test verifies unrecognized workouts use the stable Other benchmarks fallback.
+
+### Domain Ordering
+
+This test verifies canonical domain order and stable workout order within each group.
+
+### Directory Filtering
+
+This test verifies search covers workout names, domains, result formats, tags, and movements while preserving empty-query order.
+
+### Result Labels
+
+This test verifies result schemes use explicit directory labels.
+
+## Benchmark Viewer Score Test
+
+These tests lock authenticated, division-scoped benchmark score lookup and safe display formatting.
+
+### Batched Score Mapping
+
+This test verifies one division-scoped score query maps displayable viewer scores by track workout.
+
+### Terminal Status Formatting
+
+This test verifies terminal score statuses use canonical display labels.
+
+### Unauthenticated Viewer
+
+This test verifies unauthenticated requests return no score data without querying scores.
+
+### Ambiguous Registration
+
+This test verifies missing or ambiguous registrations cannot expose score data.
+
+### Empty Score Map
+
+This test verifies registered viewers without scores receive an empty map.
+
+### Undisplayable Score Omission
+
+This test verifies scored rows without a value are omitted.
+
+## Public Workouts Viewer Score Test
+
+These tests lock route-level viewer-score opt-in, top-level filtering, and the unchanged public default path.
+
+### Opt-In Score Batch
+
+This test verifies benchmark routes opt into a private top-level-workout score batch.
+
+### Default Public Path
+
+This test verifies existing callers avoid session work when viewer scores are not requested.

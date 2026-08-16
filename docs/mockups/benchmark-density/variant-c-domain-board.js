@@ -104,7 +104,12 @@ domainOverview.addEventListener("click", (event) => {
   const zone = domainBoard.querySelector(`[data-domain="${CSS.escape(button.dataset.domain)}"]`)
   if (!zone) return
   zone.open = true
-  zone.scrollIntoView({ behavior: "smooth", block: "start" })
+  zone.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth",
+    block: "start",
+  })
 })
 
 boardSearch.addEventListener("input", applyBoardSearch)

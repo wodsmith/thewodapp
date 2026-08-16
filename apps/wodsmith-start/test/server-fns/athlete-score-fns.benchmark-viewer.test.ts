@@ -41,6 +41,7 @@ describe("getBenchmarkViewerScores", () => {
 		setSession(authenticatedSession)
 	})
 
+	// @lat: [[research#Benchmark Viewer Score Test#Batched Score Mapping]]
 	it("maps the viewer's division-scoped scores by track workout in one score query", async () => {
 		const chain = mockDb.getChainMock()
 		chain.limit.mockImplementationOnce(
@@ -65,11 +66,24 @@ describe("getBenchmarkViewerScores", () => {
 				scheme: "time-with-cap",
 				timeCapMs: 600000,
 			},
+			{
+				trackWorkoutId: "track-workout-cap-no-reps",
+				scoreValue: null,
+				scoreType: "min",
+				secondaryValue: null,
+				status: "cap",
+				scheme: "time-with-cap",
+				timeCapMs: 600000,
+			},
 		])
 
 		const result = await getBenchmarkViewerScores({
 			competitionId: "competition-benchmarks",
-			trackWorkoutIds: ["track-workout-fran", "track-workout-grace"],
+			trackWorkoutIds: [
+				"track-workout-fran",
+				"track-workout-grace",
+				"track-workout-cap-no-reps",
+			],
 		})
 
 		expect(result).toEqual({
@@ -78,12 +92,17 @@ describe("getBenchmarkViewerScores", () => {
 				displayScore: "CAP (45 reps)",
 				status: "cap",
 			},
+			"track-workout-cap-no-reps": {
+				displayScore: "CAP",
+				status: "cap",
+			},
 		})
 		expect(
 			chain.from.mock.calls.filter(([table]) => table === scoresTable),
 		).toHaveLength(1)
 	})
 
+	// @lat: [[research#Benchmark Viewer Score Test#Terminal Status Formatting]]
 	it("formats terminal score statuses instead of exposing numeric fallbacks", async () => {
 		const chain = mockDb.getChainMock()
 		chain.limit.mockImplementationOnce(
@@ -124,6 +143,7 @@ describe("getBenchmarkViewerScores", () => {
 		})
 	})
 
+	// @lat: [[research#Benchmark Viewer Score Test#Unauthenticated Viewer]]
 	it("returns an empty map without querying scores when unauthenticated", async () => {
 		setSession(null)
 
@@ -136,6 +156,7 @@ describe("getBenchmarkViewerScores", () => {
 		expect(mockDb.getChainMock().select).not.toHaveBeenCalled()
 	})
 
+	// @lat: [[research#Benchmark Viewer Score Test#Ambiguous Registration]]
 	it.each([
 		["unregistered", []],
 		[
@@ -157,6 +178,7 @@ describe("getBenchmarkViewerScores", () => {
 		).toHaveLength(0)
 	})
 
+	// @lat: [[research#Benchmark Viewer Score Test#Empty Score Map]]
 	it("returns an empty map when the registered viewer has no scores", async () => {
 		const chain = mockDb.getChainMock()
 		chain.limit.mockImplementationOnce(
@@ -171,6 +193,7 @@ describe("getBenchmarkViewerScores", () => {
 		).toEqual({})
 	})
 
+	// @lat: [[research#Benchmark Viewer Score Test#Undisplayable Score Omission]]
 	it("omits workouts without a displayable score", async () => {
 		const chain = mockDb.getChainMock()
 		chain.limit.mockImplementationOnce(

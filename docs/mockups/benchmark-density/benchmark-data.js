@@ -8,6 +8,7 @@ window.DOMAIN_META = {
   Running: { short: "Running", tone: "sand", description: "Short speed through long aerobic work", order: 5 },
   Rowing: { short: "Rowing", tone: "cyan", description: "Sprint, middle and long distance", order: 6 },
   "CrossFit benchmarks": { short: "Classics", tone: "rose", description: "Girls, heroes and Open tests", order: 7 },
+  // Mirrors the production fallback and stays hidden until this snapshot includes an uncategorized workout.
   "Other benchmarks": { short: "Other", tone: "rose", description: "Benchmarks outside the established domains", order: 8 },
 }
 

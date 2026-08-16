@@ -154,7 +154,7 @@ const getNavigation = (
               },
             ]
           : []),
-        ...(competitionType === "in-person" && permissions?.volunteers
+        ...(competitionType !== "benchmark" && permissions?.volunteers
           ? [
               {
                 label: "Volunteers",

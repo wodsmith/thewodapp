@@ -20,7 +20,7 @@ The `scoringAlgorithm === "online"` axis remains separate from `competitionType 
 
 The truth-table test pins capabilities, leaderboard variants, and create selectability for every registered competition type.
 
-[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies in-person, online, and benchmark behavior, registry metadata alignment, and the unknown-type fallback.
+[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts#EXPECTED]] verifies in-person, online, and benchmark behavior, registry metadata alignment, and the unknown-type fallback.
 
 Focused PR-2 server-function tests pin that in-person score saves pass the submission-window gate, online score saves still honor closed windows, and in-person video submissions still reject before writes. PR-3 adds [[apps/wodsmith-start/test/components/leaderboard-page-content.test.tsx]] coverage for standard versus online leaderboard table selection plus [[apps/wodsmith-start/test/server/competition-leaderboard-capability-gates.test.ts]] coverage for opt-in result publishing defaults and the leaderboard video-submission fetch gate. PR-4 adds [[apps/wodsmith-start/test/lib/competitions/scheduling-check-in-gates.test.ts]] coverage for the heat scheduling and day-of check-in gates used by the public schedule, judge rotations, check-in routes, and check-in server functions. PR-5 adds [[apps/wodsmith-start/test/lib/competitions/venue-volunteer-gates.test.ts]] and [[apps/wodsmith-start/test/components/competition-location-card.test.tsx]] coverage for physical venue display and volunteer schedule-tab gates.
 
@@ -105,3 +105,7 @@ This test verifies organizer results routes select organizer-entered or athlete-
 ### Cohost Results Route Mode
 
 This test verifies cohost results routes select organizer-entered or athlete-submitted modes through capability helpers.
+
+### Crew Benchmark Score Gate
+
+This test verifies the legacy Crew score-write path rejects benchmark competitions.

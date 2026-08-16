@@ -407,6 +407,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
   })
 
   describe('saveCompetitionScoreFn', () => {
+    // @lat: [[competition-type-capabilities#Results Entry and Sidebar Gates Test#Crew Benchmark Score Gate]]
     it('rejects Crew score entry for benchmark competitions', async () => {
       mockDbInstance = createDbMock({
         withSubmissionWindowCheck: true,
