@@ -188,6 +188,28 @@ export function hasDateStartedInTimezone(
   return new Date() >= startOfDay
 }
 
+export interface RegistrationWindowStatus {
+  registrationOpen: boolean
+  registrationClosed: boolean
+  registrationNotYetOpen: boolean
+}
+
+// @lat: [[registration#Registration Flow#Athlete Self-Registration#Open-ended registration windows]]
+export function getRegistrationWindowStatus(
+  registrationOpensAt: string | null | undefined,
+  registrationClosesAt: string | null | undefined,
+  timezone: string,
+): RegistrationWindowStatus {
+  const hasOpened = hasDateStartedInTimezone(registrationOpensAt, timezone)
+  const hasClosed = isDeadlinePassedInTimezone(registrationClosesAt, timezone)
+
+  return {
+    registrationOpen: hasOpened && !hasClosed,
+    registrationClosed: hasClosed,
+    registrationNotYetOpen: !hasOpened,
+  }
+}
+
 /**
  * Format a timestamp for display in a specific timezone.
  *

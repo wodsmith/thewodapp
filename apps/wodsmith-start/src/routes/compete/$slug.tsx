@@ -19,8 +19,7 @@ import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
 import { clearCouponSession, setCouponSession } from "@/utils/coupon-cookie"
 import {
   DEFAULT_TIMEZONE,
-  hasDateStartedInTimezone,
-  isDeadlinePassedInTimezone,
+  getRegistrationWindowStatus,
 } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/compete/$slug")({
@@ -48,22 +47,13 @@ export const Route = createFileRoute("/compete/$slug")({
 
     const session = context.session ?? null
 
-    // Compute registration status inline (no DB query needed)
+    // Compute registration status without another DB query.
     const timezone = competition.timezone || DEFAULT_TIMEZONE
-    const regOpensAt = competition.registrationOpensAt
-    const regClosesAt = competition.registrationClosesAt
-    const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
-    const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
-    const registrationStatus = {
-      registrationOpen: !!(
-        regOpensAt &&
-        regClosesAt &&
-        hasOpened &&
-        !hasClosed
-      ),
-      registrationClosed: hasClosed,
-      registrationNotYetOpen: !!(regOpensAt && !hasOpened),
-    }
+    const registrationStatus = getRegistrationWindowStatus(
+      competition.registrationOpensAt,
+      competition.registrationClosesAt,
+      timezone,
+    )
 
     // Compute canManage from session (no DB query needed)
     const canManage = session

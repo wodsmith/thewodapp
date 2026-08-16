@@ -52,8 +52,7 @@ import {
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import {
   DEFAULT_TIMEZONE,
-  hasDateStartedInTimezone,
-  isDeadlinePassedInTimezone,
+  getRegistrationWindowStatus,
 } from "@/utils/timezone-utils"
 
 // ============================================================================
@@ -532,28 +531,11 @@ export const getRegistrationStatusFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const timezone = data.timezone || DEFAULT_TIMEZONE
-    const regOpensAt = data.registrationOpensAt
-    const regClosesAt = data.registrationClosesAt
-
-    // Use timezone-aware comparisons
-    const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
-    const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
-
-    const registrationOpen = !!(
-      regOpensAt &&
-      regClosesAt &&
-      hasOpened &&
-      !hasClosed
+    return getRegistrationWindowStatus(
+      data.registrationOpensAt,
+      data.registrationClosesAt,
+      data.timezone || DEFAULT_TIMEZONE,
     )
-    const registrationClosed = hasClosed
-    const registrationNotYetOpen = !!(regOpensAt && !hasOpened)
-
-    return {
-      registrationOpen,
-      registrationClosed,
-      registrationNotYetOpen,
-    }
   })
 
 // ============================================================================
