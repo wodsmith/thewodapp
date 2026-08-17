@@ -114,7 +114,7 @@ Included products are registration entitlements, never client-selectable zero-do
 
 Every file request re-derives access from current registration and purchase records instead of trusting a library-page link.
 
-[[apps/wodsmith-start/src/server-fns/downloadable-product-fns.ts#canUserAccessCompetitionProduct]] grants included files to active individual registrants and active members of a registered athlete team. Optional files require a completed `ADDON` purchase for that catalog product.
+[[apps/wodsmith-start/src/server/downloadable-products.ts#canUserAccessCompetitionProduct]] grants included files to active individual registrants and active members of a registered athlete team. Optional files require a completed `ADDON` purchase for that catalog product.
 
 ### Private file delivery
 
@@ -130,7 +130,7 @@ Products with completed sales cannot switch between pickup and download delivery
 
 Athletes find all entitled digital products in one account-level library after registration or checkout completes.
 
-[[apps/wodsmith-start/src/server-fns/downloadable-product-fns.ts#getMyDownloadsFn]] powers `/settings/downloads`, grouping files by competition and labeling whether access came from registration or an optional purchase. The registration form advertises included downloads before checkout without exposing storage keys.
+[[apps/wodsmith-start/src/server-fns/downloadable-product-fns.ts#getMyDownloadsFn]] powers `/settings/downloads`, grouping files by competition and labeling whether access came from registration or an optional purchase. Its client-safe RPC wrapper loads database-backed logic only inside the server handler. The registration form advertises included downloads before checkout without exposing storage keys.
 
 ## Purchase Transfers
 

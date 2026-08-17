@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers"
 import { createFileRoute } from "@tanstack/react-router"
-import { getAuthorizedDownloadFile } from "@/server-fns/downloadable-product-fns"
+import { getAuthorizedDownloadFile } from "@/server/downloadable-products"
 import { getSessionFromCookie } from "@/utils/auth"
 
 function encodeRfc5987Value(value: string): string {

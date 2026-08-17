@@ -8,7 +8,7 @@ vi.mock("@/utils/auth", () => ({
   getSessionFromCookie: () => mockGetSessionFromCookie(),
 }))
 
-vi.mock("@/server-fns/downloadable-product-fns", () => ({
+vi.mock("@/server/downloadable-products", () => ({
   getAuthorizedDownloadFile: (...args: unknown[]) =>
     mockGetAuthorizedDownloadFile(...args),
 }))
