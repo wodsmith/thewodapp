@@ -204,6 +204,15 @@ function MerchPage() {
   const [draft, setDraft] = useState<AddonDraft>(emptyDraft)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const editingAddon = editingId
+    ? addons.find((addon) => addon.id === editingId)
+    : undefined
+  const deliveryLocked = Boolean(
+    editingAddon &&
+      (editingAddon.unitsSold > 0 ||
+        editingAddon.access ===
+          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION),
+  )
 
   const createAddon = useServerFn(createCompetitionAddonFn)
   const updateAddon = useServerFn(updateCompetitionAddonFn)
@@ -286,8 +295,12 @@ function MerchPage() {
   }
 
   function handleDialogOpenChange(open: boolean) {
-    if (!open && isUploading) {
-      toast.error("Wait for the PDF upload to finish before closing")
+    if (!open && (isUploading || isSaving)) {
+      toast.error(
+        isUploading
+          ? "Wait for the PDF upload to finish before closing"
+          : "Wait for the product to finish saving before closing",
+      )
       return
     }
     if (!open) void cleanupPendingFiles(draft.files)
@@ -295,6 +308,19 @@ function MerchPage() {
   }
 
   function handleDeliveryChange(value: string) {
+    if (isUploading) {
+      toast.error("Wait for the PDF upload to finish before changing delivery")
+      return
+    }
+    if (deliveryLocked) {
+      toast.error(
+        editingAddon?.access ===
+          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+          ? "Delivery cannot be changed while this product is included with registration"
+          : "Delivery cannot be changed after a product has sales",
+      )
+      return
+    }
     if (value === COMPETITION_PRODUCT_DELIVERY.PICKUP) {
       void cleanupPendingFiles(draft.files)
     }
@@ -307,12 +333,10 @@ function MerchPage() {
           : current.access,
       priceDollars:
         value === COMPETITION_PRODUCT_DELIVERY.PICKUP &&
-        current.access ===
-          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+        current.access === COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
           ? ""
           : current.priceDollars,
-      files:
-        value === COMPETITION_PRODUCT_DELIVERY.PICKUP ? [] : current.files,
+      files: value === COMPETITION_PRODUCT_DELIVERY.PICKUP ? [] : current.files,
     }))
   }
 
@@ -348,15 +372,17 @@ function MerchPage() {
       toast.error("Give every PDF a display title")
       return
     }
-    const existingAddon = editingId
-      ? addons.find((addon) => addon.id === editingId)
-      : undefined
     if (
-      existingAddon &&
-      existingAddon.delivery !== draft.delivery &&
-      existingAddon.unitsSold > 0
+      editingAddon &&
+      editingAddon.delivery !== draft.delivery &&
+      deliveryLocked
     ) {
-      toast.error("Delivery cannot be changed after a product has sales")
+      toast.error(
+        editingAddon.access ===
+          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+          ? "Delivery cannot be changed while this product is included with registration"
+          : "Delivery cannot be changed after a product has sales",
+      )
       return
     }
     // Number() (not parseInt) so decimal input like "2.5" is rejected
@@ -784,6 +810,7 @@ function MerchPage() {
                 <Label htmlFor="addon-delivery">Delivery</Label>
                 <Select
                   value={draft.delivery}
+                  disabled={isUploading || deliveryLocked}
                   onValueChange={handleDeliveryChange}
                 >
                   <SelectTrigger id="addon-delivery">

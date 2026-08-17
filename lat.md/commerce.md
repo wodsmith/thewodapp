@@ -100,7 +100,7 @@ Competition products can deliver PDFs either as optional registration add-ons or
 
 ### Product configuration
 
-Delivery and access are separate catalog concerns so physical pickup stays compatible while digital products can be sold or included.
+Delivery and access are separate catalog concerns; fulfillment cannot change after checkout starts or while a product is included with registration.
 
 [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductsTable]] stores `delivery` (`PICKUP` or `DOWNLOAD`) and `access` (`OPTIONAL_PURCHASE` or `INCLUDED_WITH_REGISTRATION`). [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFilesTable]] stores one or more PDF records for a downloadable product. Included products have a zero price; optional products retain the normal add-on checkout path.
 
@@ -120,11 +120,11 @@ Every file request re-derives access from current registration and purchase reco
 
 Download files live in a private R2 bucket and are streamed only through an authenticated application endpoint.
 
-The `competition-download` upload purpose requires an owned competition id, accepts PDFs up to 20 MB, and writes through `R2_DOWNLOADS_BUCKET`, which has no public domain. Detached objects are deleted after catalog updates, and unsaved uploads are removed when the organizer closes the editor.
+The `competition-download` upload purpose requires an owned competition id, accepts PDFs up to 20 MB, and writes through `R2_DOWNLOADS_BUCKET`, which has no public domain. Cleanup rejects attached keys, and catalog removal deletes an object only when no file row still references its key.
 
 [[apps/wodsmith-start/src/routes/api/downloads/$fileId.ts#Route]] returns the private R2 object only after entitlement validation and applies private, no-store response headers. Hidden or archived included products stop granting registration access, while completed purchases retain paid access.
 
-Products with completed sales cannot switch between pickup and download delivery because doing so would change how an existing purchase is fulfilled.
+Products with pending or completed purchases cannot switch between pickup and download. Checkout and catalog updates share a row lock and revalidate fulfillment, preventing an in-flight checkout from settling under changed delivery rules.
 
 ### Athlete download library
 

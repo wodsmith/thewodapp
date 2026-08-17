@@ -99,7 +99,12 @@ async function getPurchasedDownloadProductIds(
 
 export async function canUserAccessCompetitionProduct(
   userId: string,
-  product: { id: string; competitionId: string; access: string },
+  product: {
+    id: string
+    competitionId: string
+    access: string
+    status: string
+  },
 ): Promise<boolean> {
   const needsRegistration =
     product.access === COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION

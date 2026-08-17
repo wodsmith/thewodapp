@@ -5,6 +5,17 @@ const mockPrivateR2Put = vi.hoisted(() => vi.fn())
 const mockPrivateR2Delete = vi.hoisted(() => vi.fn())
 const mockGetSessionFromCookie = vi.hoisted(() => vi.fn())
 const mockCheckUploadAuthorization = vi.hoisted(() => vi.fn())
+const mockFindAttachedFile = vi.hoisted(() => vi.fn())
+
+vi.mock("@/db", () => ({
+  getDb: () => ({
+    query: {
+      competitionProductFilesTable: {
+        findFirst: (...args: unknown[]) => mockFindAttachedFile(...args),
+      },
+    },
+  }),
+}))
 
 vi.mock("cloudflare:workers", () => ({
   env: {
@@ -116,6 +127,7 @@ describe("upload API route", () => {
     mockPublicR2Put.mockResolvedValue(undefined)
     mockPrivateR2Put.mockResolvedValue(undefined)
     mockPrivateR2Delete.mockResolvedValue(undefined)
+    mockFindAttachedFile.mockResolvedValue(null)
   })
 
   it("streams docs-video uploads to R2 without a second arrayBuffer copy", async () => {
@@ -230,6 +242,43 @@ describe("upload API route", () => {
       "user-admin",
     )
     expect(mockPrivateR2Delete).toHaveBeenCalledWith(key)
+  })
+
+  it("rejects non-string cleanup fields without touching R2", async () => {
+    const response = await routeConfig.server.handlers.DELETE({
+      request: new Request("https://wodsmith.test/api/upload", {
+        method: "DELETE",
+        body: JSON.stringify({
+          purpose: "competition-download",
+          entityId: "competition-1",
+          key: { unexpected: true },
+        }),
+      }),
+    })
+
+    expect(response.status).toBe(400)
+    expect(mockCheckUploadAuthorization).not.toHaveBeenCalled()
+    expect(mockPrivateR2Delete).not.toHaveBeenCalled()
+  })
+
+  it("does not delete a competition download that is attached to a product", async () => {
+    const key =
+      "competitions/product-downloads/competition-1/00000000-0000-4000-8000-000000000000.pdf"
+    mockFindAttachedFile.mockResolvedValue({ id: "file-1" })
+
+    const response = await routeConfig.server.handlers.DELETE({
+      request: new Request("https://wodsmith.test/api/upload", {
+        method: "DELETE",
+        body: JSON.stringify({
+          purpose: "competition-download",
+          entityId: "competition-1",
+          key,
+        }),
+      }),
+    })
+
+    expect(response.status).toBe(409)
+    expect(mockPrivateR2Delete).not.toHaveBeenCalled()
   })
 
   it("rejects docs-video uploads above the demo-safe cap before R2 writes", async () => {

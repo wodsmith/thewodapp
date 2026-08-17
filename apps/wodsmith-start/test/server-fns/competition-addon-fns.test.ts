@@ -1,6 +1,8 @@
 import { FakeDrizzleDb } from "@repo/test-utils"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+const mockR2Delete = vi.hoisted(() => vi.fn())
+
 // Mock database
 const mockDb = new FakeDrizzleDb()
 vi.mock("@/db", () => ({
@@ -40,7 +42,9 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("cloudflare:workers", () => ({
   env: {
     APP_URL: "https://test.wodsmith.com",
-    R2_DOWNLOADS_BUCKET: { delete: vi.fn() },
+    R2_DOWNLOADS_BUCKET: {
+      delete: (...args: unknown[]) => mockR2Delete(...args),
+    },
   },
 }))
 
@@ -113,6 +117,7 @@ describe("competition-addon-fns", () => {
     registerTables()
     mockRequireVerifiedEmail.mockResolvedValue(adminSession)
     mockHasFeature.mockResolvedValue(true)
+    mockR2Delete.mockResolvedValue(undefined)
   })
 
   describe("createCompetitionAddonFn entitlement gate", () => {
@@ -230,13 +235,7 @@ describe("competition-addon-fns", () => {
         [],
       )
       mockDb.setMockReturnValue([
-        {
-          addonProductId: activeProduct.id,
-          variantId: null,
-          units: 1,
-          revenueCents: 2500,
-          purchases: 1,
-        },
+        { status: "COMPLETED" },
       ])
 
       await expect(
@@ -257,7 +256,119 @@ describe("competition-addon-fns", () => {
             variants: [],
           },
         }),
-      ).rejects.toThrow("Delivery cannot be changed after a product has sales")
+      ).rejects.toThrow("Delivery cannot be changed after checkout has started")
+    })
+
+    it("prevents delivery changes while checkout is pending", async () => {
+      mockDb.queueMockSingleValues([activeProduct, competition])
+      mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([])
+      mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
+        [],
+      )
+      mockDb.setMockReturnValue([{ status: "PENDING" }])
+
+      await expect(
+        updateAddon({
+          data: {
+            productId: activeProduct.id,
+            teamId: "team-1",
+            delivery: "DOWNLOAD",
+            files: [
+              {
+                title: "Standards",
+                r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+                originalFilename: "standards.pdf",
+                fileSize: 2048,
+                mimeType: "application/pdf",
+              },
+            ],
+            variants: [],
+          },
+        }),
+      ).rejects.toThrow("Delivery cannot be changed after checkout has started")
+    })
+
+    it("prevents included products from switching delivery", async () => {
+      const includedProduct = {
+        ...activeProduct,
+        name: "Standards",
+        priceCents: 0,
+        delivery: "DOWNLOAD",
+        access: "INCLUDED_WITH_REGISTRATION",
+      }
+      mockDb.queueMockSingleValues([includedProduct, competition])
+      mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([
+        {
+          id: "file-1",
+          productId: includedProduct.id,
+          title: "Standards",
+          r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+          originalFilename: "standards.pdf",
+          fileSize: 2048,
+          mimeType: "application/pdf",
+          sortOrder: 0,
+        },
+      ])
+      mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
+        [],
+      )
+      mockDb.setMockReturnValue([])
+
+      await expect(
+        updateAddon({
+          data: {
+            productId: includedProduct.id,
+            teamId: "team-1",
+            delivery: "PICKUP",
+            access: "OPTIONAL_PURCHASE",
+            priceCents: 2500,
+            files: [],
+            variants: [],
+          },
+        }),
+      ).rejects.toThrow(
+        "Delivery cannot be changed while a product is included with registration",
+      )
+    })
+
+    it("keeps an R2 object while another file row still references its key", async () => {
+      const downloadProduct = {
+        ...activeProduct,
+        delivery: "DOWNLOAD",
+      }
+      const sharedKey =
+        "competitions/product-downloads/comp-1/shared-standards.pdf"
+      mockDb.queueMockSingleValues([downloadProduct, competition])
+      mockDb.query.competitionProductFilesTable.findMany
+        .mockResolvedValueOnce([
+          {
+            id: "file-1",
+            productId: downloadProduct.id,
+            title: "Standards",
+            r2Key: sharedKey,
+            originalFilename: "standards.pdf",
+            fileSize: 2048,
+            mimeType: "application/pdf",
+            sortOrder: 0,
+          },
+        ])
+        .mockResolvedValueOnce([{ r2Key: sharedKey }])
+      mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
+        [],
+      )
+      mockDb.setMockReturnValue([])
+
+      await updateAddon({
+        data: {
+          productId: downloadProduct.id,
+          teamId: "team-1",
+          delivery: "PICKUP",
+          files: [],
+          variants: [],
+        },
+      })
+
+      expect(mockR2Delete).not.toHaveBeenCalled()
     })
   })
 

@@ -228,6 +228,9 @@ function assertProductFileOwnership(
   if (files.some((file) => !file.r2Key.startsWith(expectedPrefix))) {
     throw new Error("A download file was not uploaded for this competition")
   }
+  if (new Set(files.map((file) => file.r2Key)).size !== files.length) {
+    throw new Error("Each download file must use a unique upload")
+  }
 }
 
 /**
@@ -539,15 +542,6 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
       })
     const nextVariants = input.variants ?? existingVariants
     const nextPriceCents = input.priceCents ?? product.priceCents
-    if (input.delivery !== undefined && input.delivery !== product.delivery) {
-      const sales = await getAddonSalesAggregates(product.competitionId)
-      const unitsSold = sales
-        .filter((sale) => sale.addonProductId === product.id)
-        .reduce((sum, sale) => sum + sale.units, 0)
-      if (unitsSold > 0) {
-        throw new Error("Delivery cannot be changed after a product has sales")
-      }
-    }
     assertValidProductConfiguration({
       priceCents: nextPriceCents,
       delivery: nextDelivery,
@@ -567,6 +561,49 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
     // validation error (e.g. removing a variant with sales) must not leave
     // half-applied product changes behind.
     await db.transaction(async (tx) => {
+      // Checkout locks the same catalog row before inserting PENDING purchase
+      // rows. Sharing that lock closes the race between starting checkout and
+      // changing how an existing product is fulfilled.
+      await tx
+        .select({ id: competitionProductsTable.id })
+        .from(competitionProductsTable)
+        .where(eq(competitionProductsTable.id, product.id))
+        .for("update")
+
+      if (input.delivery !== undefined && input.delivery !== product.delivery) {
+        if (
+          product.access ===
+          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+        ) {
+          throw new Error(
+            "Delivery cannot be changed while a product is included with registration",
+          )
+        }
+        const [purchase] = await tx
+          .select({ status: commercePurchaseTable.status })
+          .from(commercePurchaseTable)
+          .innerJoin(
+            commerceProductTable,
+            eq(commercePurchaseTable.productId, commerceProductTable.id),
+          )
+          .where(
+            and(
+              eq(commerceProductTable.type, COMMERCE_PRODUCT_TYPE.ADDON),
+              eq(commerceProductTable.resourceId, product.id),
+              inArray(commercePurchaseTable.status, [
+                COMMERCE_PURCHASE_STATUS.PENDING,
+                COMMERCE_PURCHASE_STATUS.COMPLETED,
+              ]),
+            ),
+          )
+          .limit(1)
+        if (purchase) {
+          throw new Error(
+            "Delivery cannot be changed after checkout has started for a product",
+          )
+        }
+      }
+
       await tx
         .update(competitionProductsTable)
         .set({
@@ -673,6 +710,9 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
             )
             if (!current)
               throw new Error("Download file not found on this product")
+            if (current.r2Key !== file.r2Key) {
+              throw new Error("An attached download file cannot be replaced")
+            }
             await tx
               .update(competitionProductFilesTable)
               .set({
@@ -701,18 +741,30 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
       }
     })
 
-    if (removedFiles.length > 0) {
+    const removedKeys = [...new Set(removedFiles.map((file) => file.r2Key))]
+    if (removedKeys.length > 0) {
       try {
-        const { env } = await import("cloudflare:workers")
-        await env.R2_DOWNLOADS_BUCKET.delete(
-          removedFiles.map((file) => file.r2Key),
+        const remainingReferences =
+          await db.query.competitionProductFilesTable.findMany({
+            where: inArray(competitionProductFilesTable.r2Key, removedKeys),
+            columns: { r2Key: true },
+          })
+        const referencedKeys = new Set(
+          remainingReferences.map((file) => file.r2Key),
         )
+        const detachedKeys = removedKeys.filter(
+          (key) => !referencedKeys.has(key),
+        )
+        if (detachedKeys.length > 0) {
+          const { env } = await import("cloudflare:workers")
+          await env.R2_DOWNLOADS_BUCKET.delete(detachedKeys)
+        }
       } catch (error) {
         logWarning({
           message: "[Addons] Failed to delete detached download objects",
           attributes: {
             productId: product.id,
-            fileCount: removedFiles.length,
+            fileCount: removedKeys.length,
             error: error instanceof Error ? error.message : String(error),
           },
         })

@@ -1119,6 +1119,26 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           .orderBy(competitionProductsTable.id)
           .for("update")
 
+        const lockedAddonProducts =
+          await tx.query.competitionProductsTable.findMany({
+            where: inArray(competitionProductsTable.id, addonProductIds),
+          })
+        for (const addon of validatedAddons) {
+          const current = lockedAddonProducts.find(
+            (product) => product.id === addon.product.id,
+          )
+          if (
+            !current ||
+            !isAddonPurchasable(current, competitionTimezone) ||
+            current.delivery !== addon.product.delivery ||
+            current.priceCents !== addon.product.priceCents
+          ) {
+            throw new Error(
+              `${addon.product.name} changed while checkout was starting. Please review your add-ons and try again.`,
+            )
+          }
+        }
+
         const cutoff = new Date(
           Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000,
         )
@@ -1160,9 +1180,9 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           )
         }
         for (const [addonProductId, requested] of quantityByProduct) {
-          const addonProduct = validatedAddons.find(
-            (addon) => addon.product.id === addonProductId,
-          )?.product
+          const addonProduct = lockedAddonProducts.find(
+            (product) => product.id === addonProductId,
+          )
           if (
             addonProduct?.maxPerAthlete != null &&
             (existingByProduct.get(addonProductId) ?? 0) + requested >

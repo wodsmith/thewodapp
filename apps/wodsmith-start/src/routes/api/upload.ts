@@ -22,6 +22,9 @@
 import { env } from "cloudflare:workers"
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { eq } from "drizzle-orm"
+import { getDb } from "@/db"
+import { competitionProductFilesTable } from "@/db/schema"
 import {
   addRequestContextAttribute,
   logError,
@@ -106,25 +109,27 @@ export const Route = createFileRoute("/api/upload")({
         const session = await getSessionFromCookie()
         if (!session) return json({ error: "Unauthorized" }, { status: 401 })
 
-        const body = (await request.json().catch(() => null)) as {
-          purpose?: string
-          entityId?: string
-          key?: string
-        } | null
+        const body = (await request.json().catch(() => null)) as Record<
+          string,
+          unknown
+        > | null
+        const purpose =
+          typeof body?.purpose === "string" ? body.purpose : undefined
+        const entityId =
+          typeof body?.entityId === "string" ? body.entityId : undefined
+        const key = typeof body?.key === "string" ? body.key : undefined
         if (
-          body?.purpose !== "competition-download" ||
-          !body.entityId ||
-          !body.key ||
-          !body.key.startsWith(
-            `competitions/product-downloads/${body.entityId}/`,
-          )
+          purpose !== "competition-download" ||
+          !entityId ||
+          !key ||
+          !key.startsWith(`competitions/product-downloads/${entityId}/`)
         ) {
           return json({ error: "Invalid cleanup request" }, { status: 400 })
         }
 
         const authCheck = await checkUploadAuthorization(
-          body.purpose,
-          body.entityId,
+          purpose,
+          entityId,
           session.user.id,
         )
         if (!authCheck.authorized) {
@@ -134,18 +139,30 @@ export const Route = createFileRoute("/api/upload")({
           )
         }
 
+        const attachedFile =
+          await getDb().query.competitionProductFilesTable.findFirst({
+            where: eq(competitionProductFilesTable.r2Key, key),
+            columns: { id: true },
+          })
+        if (attachedFile) {
+          return json(
+            { error: "Attached product files cannot be deleted" },
+            { status: 409 },
+          )
+        }
+
         try {
-          await env.R2_DOWNLOADS_BUCKET.delete(body.key)
+          await env.R2_DOWNLOADS_BUCKET.delete(key)
           logInfo({
             message: "[Upload] Detached competition download removed",
-            attributes: { entityId: body.entityId, key: body.key },
+            attributes: { entityId, key },
           })
           return json({ success: true })
         } catch (error) {
           logError({
             message: "[Upload] Competition download cleanup failed",
             error,
-            attributes: { entityId: body.entityId, key: body.key },
+            attributes: { entityId, key },
           })
           return json({ error: "Cleanup failed" }, { status: 500 })
         }
