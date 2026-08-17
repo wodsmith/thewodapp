@@ -184,6 +184,13 @@ async function isWithinSubmissionWindow(
     return { allowed: false, reason: "Competition not found" }
   }
 
+  if (competition.competitionType === "benchmark") {
+    return {
+      allowed: false,
+      reason: "Crew score entry is not available for benchmark competitions",
+    }
+  }
+
   // Only check submission windows for online competitions
   if (competition.competitionType !== "online") {
     return { allowed: true }

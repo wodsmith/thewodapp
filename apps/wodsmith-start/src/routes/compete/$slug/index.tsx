@@ -1,5 +1,6 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
+import { BenchmarkWorkoutDirectory } from "@/components/benchmark-workout-directory"
 import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
@@ -11,6 +12,7 @@ import {
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
 import { competitionCan } from "@/lib/competitions/capabilities"
+import type { BenchmarkViewerScores } from "@/server-fns/athlete-score-fns"
 import {
   getPublicScheduleDataFn,
   type PublicScheduleEvent,
@@ -34,6 +36,7 @@ export const Route = createFileRoute("/compete/$slug/")({
         workouts: [],
         divisionDescriptionsMap: {} as Record<string, DivisionDescription[]>,
         submissionStatusMap: {} as Record<string, SubmissionStatus>,
+        benchmarkViewerScores: {} as BenchmarkViewerScores,
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
         }),
@@ -51,10 +54,9 @@ export const Route = createFileRoute("/compete/$slug/")({
     const divisionIds = divisions?.map((d) => d.id) ?? []
     const userRegistration = parentMatch.loaderData?.userRegistration
 
-    // Single consolidated call for workouts + division descriptions +
-    // event-division mappings + the viewer's submission statuses (fetched
-    // server-side in the same wave as the descriptions, only for registered
-    // athletes on competitions that support video submissions).
+    // Single consolidated call for workouts, division descriptions,
+    // event-division mappings, and the viewer-only maps requested by this
+    // competition type.
     const pageData = await getPublicWorkoutsPageDataFn({
       data: {
         competitionId,
@@ -62,6 +64,8 @@ export const Route = createFileRoute("/compete/$slug/")({
         includeSubmissionStatuses:
           competitionCan(competition.competitionType, "videoSubmissions") &&
           !!userRegistration,
+        includeBenchmarkViewerScores:
+          competition.competitionType === "benchmark",
       },
     })
 
@@ -72,6 +76,7 @@ export const Route = createFileRoute("/compete/$slug/")({
       workouts: pageData.workouts,
       divisionDescriptionsMap: pageData.divisionDescriptionsMap,
       submissionStatusMap,
+      benchmarkViewerScores: pageData.benchmarkViewerScores,
       deferredSchedule,
       eventDivisionMappings: pageData.eventDivisionMappings,
     }
@@ -100,6 +105,7 @@ function CompetitionOverviewPage() {
     workouts,
     divisionDescriptionsMap,
     submissionStatusMap,
+    benchmarkViewerScores,
     deferredSchedule,
     eventDivisionMappings,
   } = Route.useLoaderData()
@@ -108,6 +114,10 @@ function CompetitionOverviewPage() {
   const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
   const timezone = competition.timezone ?? "America/Denver"
   const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
+  const topLevelWorkouts = useMemo(
+    () => workouts.filter((workout) => !workout.parentEventId),
+    [workouts],
+  )
 
   // Build parent -> child events map
   const childEventsMap = new Map<string, ChildEvent[]>()
@@ -201,12 +211,17 @@ function CompetitionOverviewPage() {
             sponsors={sponsors}
             workoutsContent={
               workouts.length > 0 ? (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-semibold mb-4">Workouts</h2>
+                competition.competitionType === "benchmark" ? (
+                  <BenchmarkWorkoutDirectory
+                    slug={slug}
+                    workouts={topLevelWorkouts}
+                    viewerScores={benchmarkViewerScores}
+                  />
+                ) : (
                   <div className="space-y-6">
-                    {workouts
-                      .filter((w) => !w.parentEventId)
-                      .map((event) => {
+                    <h2 className="text-xl font-semibold mb-4">Workouts</h2>
+                    <div className="space-y-6">
+                      {topLevelWorkouts.map((event) => {
                         const divisionDescriptionsResult =
                           divisionDescriptionsMap[event.workoutId]
                         return (
@@ -241,8 +256,9 @@ function CompetitionOverviewPage() {
                           />
                         )
                       })}
+                    </div>
                   </div>
-                </div>
+                )
               ) : undefined
             }
           />

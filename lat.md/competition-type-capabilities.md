@@ -238,6 +238,8 @@ PR-6 tests pin that result-entry labels and sidebar tabs come from capabilities 
 
 [[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] covers the result-entry mode and Results/Submissions label helper. [[apps/wodsmith-start/test/components/competition-sidebar-capability-gates.test.ts]] covers organizer and cohost sidebar labels plus capability-gated schedule, check-in, venue, and submission-window tabs while preserving online Volunteers links for non-scheduling volunteer workflows; it also pins that benchmark hides the Co-Hosts and Volunteer shifts links while keeping the Volunteer roster and Registration questions. [[apps/wodsmith-start/test/routes/compete/results-route-capability-branching.test.ts]] covers the organizer and cohost results route branch selectors for organizer-entered versus athlete-submitted modes. [[apps/wodsmith-start/test/components/registration-sidebar.test.tsx]] pins the public volunteer-signup card to the `publicVolunteerSignup` capability, and [[apps/wodsmith-start/test/components/scoring-config-form.test.tsx]] pins the locked-online scoring form for benchmark boards (hidden algorithm picker, editable tiebreakers, online points preview).
 
+The legacy Crew surface treats benchmark as a fail-closed type: it omits venue, heat, judge, check-in, and results navigation, and its score-write gate rejects benchmark competitions. Benchmark results remain available through the capability-aware wodsmith-start organizer and cohost routes.
+
 ### Registry Results Mode Labels
 
 This test verifies result-entry mode and Results/Submissions labels are derived from the organizer-entered-results capability.
@@ -249,3 +251,7 @@ This test verifies organizer results routes select organizer-entered or athlete-
 ### Cohost Results Route Mode
 
 This test verifies cohost results routes select organizer-entered or athlete-submitted modes through capability helpers.
+
+### Crew Benchmark Score Gate
+
+This test verifies the legacy Crew score-write path rejects benchmark competitions.
