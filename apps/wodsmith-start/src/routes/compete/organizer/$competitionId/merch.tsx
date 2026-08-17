@@ -210,6 +210,7 @@ function MerchPage() {
   const deliveryLocked = Boolean(
     editingAddon &&
       (editingAddon.unitsSold > 0 ||
+        editingAddon.hasPendingCheckout ||
         editingAddon.access ===
           COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION),
   )

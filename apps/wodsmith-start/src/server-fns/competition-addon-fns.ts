@@ -8,7 +8,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm"
 import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
@@ -17,11 +17,13 @@ import {
   COMMERCE_PURCHASE_STATUS,
   COMPETITION_PRODUCT_ACCESS,
   COMPETITION_PRODUCT_DELIVERY,
+  COMPETITION_PRODUCT_FILE_CLAIM_STATUS,
   COMPETITION_PRODUCT_STATUS,
   type CompetitionProductAccess,
   type CompetitionProductDelivery,
   commerceProductTable,
   commercePurchaseTable,
+  competitionProductFileClaimsTable,
   competitionProductFilesTable,
   competitionProductsTable,
   competitionProductVariantsTable,
@@ -43,6 +45,7 @@ import {
   isVariantSoldOut,
 } from "@/utils/addon-availability"
 import { requireVerifiedEmail } from "@/utils/auth"
+import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/utils/competition-settings"
 import { DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
 // ============================================================================
@@ -233,6 +236,26 @@ function assertProductFileOwnership(
   }
 }
 
+function assertProductFileClaims(
+  competitionId: string,
+  r2Keys: string[],
+  claims: Array<{ competitionId: string; r2Key: string; status: string }>,
+) {
+  const claimByKey = new Map(claims.map((claim) => [claim.r2Key, claim]))
+  if (
+    r2Keys.some(
+      (r2Key) =>
+        claimByKey.get(r2Key)?.competitionId !== competitionId ||
+        claimByKey.get(r2Key)?.status !==
+          COMPETITION_PRODUCT_FILE_CLAIM_STATUS.UPLOADED,
+    )
+  ) {
+    throw new Error(
+      "A download upload expired or is already attached. Upload the PDF again.",
+    )
+  }
+}
+
 /**
  * COMPLETED add-on sales for a competition, aggregated per
  * (catalog product, variant). Joins purchases through the lazily created
@@ -269,6 +292,29 @@ async function getAddonSalesAggregates(competitionId: string) {
     revenueCents: Number(r.revenueCents ?? 0),
     purchases: Number(r.purchases ?? 0),
   }))
+}
+
+async function getPendingAddonProductIds(competitionId: string) {
+  const db = getDb()
+  const cutoff = new Date(
+    Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000,
+  )
+  const rows = await db
+    .select({ productId: commerceProductTable.resourceId })
+    .from(commercePurchaseTable)
+    .innerJoin(
+      commerceProductTable,
+      eq(commercePurchaseTable.productId, commerceProductTable.id),
+    )
+    .where(
+      and(
+        eq(commercePurchaseTable.competitionId, competitionId),
+        eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+        gt(commercePurchaseTable.createdAt, cutoff),
+        eq(commerceProductTable.type, COMMERCE_PRODUCT_TYPE.ADDON),
+      ),
+    )
+  return new Set(rows.map((row) => row.productId))
 }
 
 async function loadProductsWithVariants(competitionId: string) {
@@ -368,6 +414,7 @@ export interface OrganizerAddon {
   }>
   unitsSold: number
   revenueCents: number
+  hasPendingCheckout: boolean
 }
 
 /**
@@ -381,10 +428,11 @@ export const listCompetitionAddonsFn = createServerFn({ method: "GET" })
     assertTeamManageAccess(session, input.teamId)
     await getOwnedCompetition(input.competitionId, input.teamId)
 
-    const [entitled, products, sales] = await Promise.all([
+    const [entitled, products, sales, pendingProductIds] = await Promise.all([
       hasFeature(input.teamId, FEATURES.REGISTRATION_ADDONS),
       loadProductsWithVariants(input.competitionId),
       getAddonSalesAggregates(input.competitionId),
+      getPendingAddonProductIds(input.competitionId),
     ])
 
     const addons: OrganizerAddon[] = products.map((product) => {
@@ -410,6 +458,7 @@ export const listCompetitionAddonsFn = createServerFn({ method: "GET" })
         files: product.files,
         unitsSold: productSales.reduce((sum, s) => sum + s.units, 0),
         revenueCents: productSales.reduce((sum, s) => sum + s.revenueCents, 0),
+        hasPendingCheckout: pendingProductIds.has(product.id),
       }
     })
 
@@ -448,6 +497,21 @@ export const createCompetitionAddonFn = createServerFn({ method: "POST" })
     })
     assertProductFileOwnership(input.competitionId, files)
     await db.transaction(async (tx) => {
+      const fileKeys = files.map((file) => file.r2Key).sort()
+      if (fileKeys.length > 0) {
+        await tx
+          .select({ r2Key: competitionProductFileClaimsTable.r2Key })
+          .from(competitionProductFileClaimsTable)
+          .where(inArray(competitionProductFileClaimsTable.r2Key, fileKeys))
+          .orderBy(competitionProductFileClaimsTable.r2Key)
+          .for("update")
+        const claims =
+          await tx.query.competitionProductFileClaimsTable.findMany({
+            where: inArray(competitionProductFileClaimsTable.r2Key, fileKeys),
+          })
+        assertProductFileClaims(input.competitionId, fileKeys, claims)
+      }
+
       await tx.insert(competitionProductsTable).values({
         id: productId,
         competitionId: input.competitionId,
@@ -492,6 +556,12 @@ export const createCompetitionAddonFn = createServerFn({ method: "POST" })
             mimeType: file.mimeType,
             sortOrder: index,
           })),
+        )
+        await tx.delete(competitionProductFileClaimsTable).where(
+          inArray(
+            competitionProductFileClaimsTable.r2Key,
+            files.map((file) => file.r2Key),
+          ),
         )
       }
     })
@@ -570,9 +640,18 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
         .where(eq(competitionProductsTable.id, product.id))
         .for("update")
 
-      if (input.delivery !== undefined && input.delivery !== product.delivery) {
+      const lockedProduct = await tx.query.competitionProductsTable.findFirst({
+        where: eq(competitionProductsTable.id, product.id),
+      })
+      if (!lockedProduct) throw new Error("Add-on not found")
+      const lockedNextDelivery = input.delivery ?? lockedProduct.delivery
+
+      if (
+        input.delivery !== undefined &&
+        input.delivery !== lockedProduct.delivery
+      ) {
         if (
-          product.access ===
+          lockedProduct.access ===
           COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
         ) {
           throw new Error(
@@ -590,10 +669,24 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
             and(
               eq(commerceProductTable.type, COMMERCE_PRODUCT_TYPE.ADDON),
               eq(commerceProductTable.resourceId, product.id),
-              inArray(commercePurchaseTable.status, [
-                COMMERCE_PURCHASE_STATUS.PENDING,
-                COMMERCE_PURCHASE_STATUS.COMPLETED,
-              ]),
+              or(
+                eq(
+                  commercePurchaseTable.status,
+                  COMMERCE_PURCHASE_STATUS.COMPLETED,
+                ),
+                and(
+                  eq(
+                    commercePurchaseTable.status,
+                    COMMERCE_PURCHASE_STATUS.PENDING,
+                  ),
+                  gt(
+                    commercePurchaseTable.createdAt,
+                    new Date(
+                      Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000,
+                    ),
+                  ),
+                ),
+              ),
             ),
           )
           .limit(1)
@@ -602,6 +695,25 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
             "Delivery cannot be changed after checkout has started for a product",
           )
         }
+      }
+
+      const newFiles = input.files?.filter((file) => !file.id) ?? []
+      const newFileKeys = newFiles.map((file) => file.r2Key).sort()
+      if (newFileKeys.length > 0) {
+        await tx
+          .select({ r2Key: competitionProductFileClaimsTable.r2Key })
+          .from(competitionProductFileClaimsTable)
+          .where(inArray(competitionProductFileClaimsTable.r2Key, newFileKeys))
+          .orderBy(competitionProductFileClaimsTable.r2Key)
+          .for("update")
+        const claims =
+          await tx.query.competitionProductFileClaimsTable.findMany({
+            where: inArray(
+              competitionProductFileClaimsTable.r2Key,
+              newFileKeys,
+            ),
+          })
+        assertProductFileClaims(product.competitionId, newFileKeys, claims)
       }
 
       await tx
@@ -622,17 +734,17 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
           ...(input.maxPerAthlete !== undefined || input.delivery !== undefined
             ? {
                 maxPerAthlete:
-                  nextDelivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+                  lockedNextDelivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
                     ? 1
-                    : (input.maxPerAthlete ?? product.maxPerAthlete),
+                    : (input.maxPerAthlete ?? lockedProduct.maxPerAthlete),
               }
             : {}),
           ...(input.availableUntil !== undefined || input.delivery !== undefined
             ? {
                 availableUntil:
-                  nextDelivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+                  lockedNextDelivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
                     ? null
-                    : (input.availableUntil ?? product.availableUntil),
+                    : (input.availableUntil ?? lockedProduct.availableUntil),
               }
             : {}),
           ...(input.status !== undefined ? { status: input.status } : {}),
@@ -737,6 +849,13 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
               sortOrder: index,
             })
           }
+        }
+        if (newFileKeys.length > 0) {
+          await tx
+            .delete(competitionProductFileClaimsTable)
+            .where(
+              inArray(competitionProductFileClaimsTable.r2Key, newFileKeys),
+            )
         }
       }
     })

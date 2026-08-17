@@ -24,7 +24,11 @@ import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
-import { competitionProductFilesTable } from "@/db/schema"
+import {
+  COMPETITION_PRODUCT_FILE_CLAIM_STATUS,
+  competitionProductFileClaimsTable,
+  competitionProductFilesTable,
+} from "@/db/schema"
 import {
   addRequestContextAttribute,
   logError,
@@ -139,20 +143,47 @@ export const Route = createFileRoute("/api/upload")({
           )
         }
 
-        const attachedFile =
-          await getDb().query.competitionProductFilesTable.findFirst({
-            where: eq(competitionProductFilesTable.r2Key, key),
-            columns: { id: true },
-          })
-        if (attachedFile) {
+        const db = getDb()
+        const claimedForCleanup = await db.transaction(async (tx) => {
+          await tx
+            .select({ r2Key: competitionProductFileClaimsTable.r2Key })
+            .from(competitionProductFileClaimsTable)
+            .where(eq(competitionProductFileClaimsTable.r2Key, key))
+            .for("update")
+          const claim =
+            await tx.query.competitionProductFileClaimsTable.findFirst({
+              where: eq(competitionProductFileClaimsTable.r2Key, key),
+            })
+          if (!claim || claim.competitionId !== entityId) return false
+
+          const attachedFile =
+            await tx.query.competitionProductFilesTable.findFirst({
+              where: eq(competitionProductFilesTable.r2Key, key),
+              columns: { id: true },
+            })
+          if (attachedFile) return false
+
+          await tx
+            .update(competitionProductFileClaimsTable)
+            .set({
+              status: COMPETITION_PRODUCT_FILE_CLAIM_STATUS.CLEANING,
+              updatedAt: new Date(),
+            })
+            .where(eq(competitionProductFileClaimsTable.r2Key, key))
+          return true
+        })
+        if (!claimedForCleanup) {
           return json(
-            { error: "Attached product files cannot be deleted" },
+            { error: "Attached or unknown product files cannot be deleted" },
             { status: 409 },
           )
         }
 
         try {
           await env.R2_DOWNLOADS_BUCKET.delete(key)
+          await db
+            .delete(competitionProductFileClaimsTable)
+            .where(eq(competitionProductFileClaimsTable.r2Key, key))
           logInfo({
             message: "[Upload] Detached competition download removed",
             attributes: { entityId, key },
@@ -296,6 +327,7 @@ export const Route = createFileRoute("/api/upload")({
             ? env.R2_DOWNLOADS_BUCKET
             : env.R2_BUCKET
 
+        let privateObjectStored = false
         try {
           await bucket.put(key, await getR2UploadBody(file, purpose), {
             httpMetadata: {
@@ -307,6 +339,16 @@ export const Route = createFileRoute("/api/upload")({
               originalFilename: file.name,
             },
           })
+          privateObjectStored = purpose === "competition-download"
+
+          if (purpose === "competition-download" && entityId) {
+            await getDb().insert(competitionProductFileClaimsTable).values({
+              r2Key: key,
+              competitionId: entityId,
+              uploadedByUserId: session.user.id,
+              status: COMPETITION_PRODUCT_FILE_CLAIM_STATUS.UPLOADED,
+            })
+          }
 
           const publicUrl =
             purpose === "competition-download"
@@ -336,6 +378,17 @@ export const Route = createFileRoute("/api/upload")({
             mimeType: file.type,
           })
         } catch (err) {
+          if (privateObjectStored) {
+            try {
+              await env.R2_DOWNLOADS_BUCKET.delete(key)
+            } catch (cleanupError) {
+              logError({
+                message: "[Upload] Failed to remove unclaimed private upload",
+                error: cleanupError,
+                attributes: { entityId, key },
+              })
+            }
+          }
           logError({
             message: "[Upload] R2 upload failed",
             error: err,

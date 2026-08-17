@@ -106,6 +106,7 @@ function registerTables() {
   mockDb.registerTable("competitionsTable")
   mockDb.registerTable("competitionProductsTable")
   mockDb.registerTable("competitionProductVariantsTable")
+  mockDb.registerTable("competitionProductFileClaimsTable")
   mockDb.registerTable("competitionProductFilesTable")
   mockDb.registerTable("teamTable")
 }
@@ -181,6 +182,14 @@ describe("competition-addon-fns", () => {
     // @lat: [[commerce#Downloadable Competition Products#Product configuration]]
     it("creates a PDF included with registration at no extra charge", async () => {
       mockDb.queueMockSingleValues([competition])
+      mockDb.query.competitionProductFileClaimsTable.findMany.mockResolvedValue([
+        {
+          r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+          competitionId: "comp-1",
+          uploadedByUserId: "user-admin",
+          status: "UPLOADED",
+        },
+      ])
 
       const result = await createAddon({
         data: {
@@ -215,6 +224,36 @@ describe("competition-addon-fns", () => {
         ],
       )
     })
+
+    it("rejects a download whose upload claim was already consumed", async () => {
+      mockDb.queueMockSingleValues([competition])
+      mockDb.query.competitionProductFileClaimsTable.findMany.mockResolvedValue(
+        [],
+      )
+
+      await expect(
+        createAddon({
+          data: {
+            competitionId: "comp-1",
+            teamId: "team-1",
+            name: "Benchmark standards",
+            priceCents: 0,
+            delivery: "DOWNLOAD",
+            access: "INCLUDED_WITH_REGISTRATION",
+            files: [
+              {
+                title: "Competition standards",
+                r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+                originalFilename: "standards.pdf",
+                fileSize: 2048,
+                mimeType: "application/pdf",
+              },
+            ],
+          },
+        }),
+      ).rejects.toThrow("upload expired or is already attached")
+      expect(mockDb.insert).not.toHaveBeenCalled()
+    })
   })
 
   describe("updateCompetitionAddonFn entitlement gate", () => {
@@ -229,7 +268,7 @@ describe("competition-addon-fns", () => {
     })
 
     it("prevents delivery changes after completed sales", async () => {
-      mockDb.queueMockSingleValues([activeProduct, competition])
+      mockDb.queueMockSingleValues([activeProduct, competition, activeProduct])
       mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([])
       mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
         [],
@@ -260,7 +299,7 @@ describe("competition-addon-fns", () => {
     })
 
     it("prevents delivery changes while checkout is pending", async () => {
-      mockDb.queueMockSingleValues([activeProduct, competition])
+      mockDb.queueMockSingleValues([activeProduct, competition, activeProduct])
       mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([])
       mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
         [],
@@ -296,7 +335,11 @@ describe("competition-addon-fns", () => {
         delivery: "DOWNLOAD",
         access: "INCLUDED_WITH_REGISTRATION",
       }
-      mockDb.queueMockSingleValues([includedProduct, competition])
+      mockDb.queueMockSingleValues([
+        includedProduct,
+        competition,
+        includedProduct,
+      ])
       mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([
         {
           id: "file-1",
@@ -338,7 +381,11 @@ describe("competition-addon-fns", () => {
       }
       const sharedKey =
         "competitions/product-downloads/comp-1/shared-standards.pdf"
-      mockDb.queueMockSingleValues([downloadProduct, competition])
+      mockDb.queueMockSingleValues([
+        downloadProduct,
+        competition,
+        downloadProduct,
+      ])
       mockDb.query.competitionProductFilesTable.findMany
         .mockResolvedValueOnce([
           {
@@ -403,6 +450,33 @@ describe("competition-addon-fns", () => {
       expect(result.entitled).toBe(false)
       expect(result.addons).toHaveLength(1)
       expect(result.addons[0].name).toBe("Event Tee")
+    })
+
+    it("reports a recent pending checkout so delivery can be locked", async () => {
+      mockDb.queueMockSingleValues([competition])
+      mockDb.query.competitionProductsTable.findMany.mockResolvedValue([
+        activeProduct,
+      ])
+      mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
+        [],
+      )
+      mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([])
+      mockDb.setMockReturnValue([
+        {
+          addonProductId: activeProduct.id,
+          variantId: null,
+          units: 0,
+          revenueCents: 0,
+          purchases: 0,
+          productId: activeProduct.id,
+        },
+      ])
+
+      const result = await listAddons({
+        data: { competitionId: "comp-1", teamId: "team-1" },
+      })
+
+      expect(result.addons[0].hasPendingCheckout).toBe(true)
     })
   })
 

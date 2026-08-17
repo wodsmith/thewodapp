@@ -1123,15 +1123,35 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           await tx.query.competitionProductsTable.findMany({
             where: inArray(competitionProductsTable.id, addonProductIds),
           })
+        const lockedAddonVariants =
+          await tx.query.competitionProductVariantsTable.findMany({
+            where: inArray(
+              competitionProductVariantsTable.productId,
+              addonProductIds,
+            ),
+          })
         for (const addon of validatedAddons) {
           const current = lockedAddonProducts.find(
             (product) => product.id === addon.product.id,
           )
+          const currentVariants = lockedAddonVariants.filter(
+            (variant) => variant.productId === addon.product.id,
+          )
+          const currentVariant = addon.variant
+            ? currentVariants.find(
+                (variant) => variant.id === addon.variant?.id,
+              )
+            : null
           if (
             !current ||
             !isAddonPurchasable(current, competitionTimezone) ||
             current.delivery !== addon.product.delivery ||
-            current.priceCents !== addon.product.priceCents
+            current.priceCents !== addon.product.priceCents ||
+            (addon.variant
+              ? !currentVariant ||
+                currentVariant.label !== addon.variant.label ||
+                !canFulfillQuantity(currentVariant, addon.quantity)
+              : currentVariants.length > 0)
           ) {
             throw new Error(
               `${addon.product.name} changed while checkout was starting. Please review your add-ons and try again.`,

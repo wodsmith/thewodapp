@@ -1062,6 +1062,69 @@ describe('registration-fns', () => {
 
         expect(mockStripeCheckoutCreate).not.toHaveBeenCalled()
       })
+
+      it('rejects checkout when a selected variant is removed under the product lock', async () => {
+        setupPaidMocks()
+        mockHasFeature.mockResolvedValue(true)
+        mockDb.query.competitionProductsTable = {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: 'addon-1',
+              competitionId: testCompetitionId,
+              name: 'Event tee',
+              priceCents: 2500,
+              delivery: 'PICKUP',
+              access: 'OPTIONAL_PURCHASE',
+              maxPerAthlete: 2,
+              availableUntil: null,
+              status: 'ACTIVE',
+            },
+          ]),
+          findFirst: vi.fn().mockResolvedValue(null),
+        }
+        mockDb.query.competitionProductVariantsTable = {
+          findMany: vi
+            .fn()
+            .mockResolvedValueOnce([
+              {
+                id: 'variant-medium',
+                productId: 'addon-1',
+                label: 'Medium',
+                stockQty: 10,
+                soldQty: 0,
+              },
+            ])
+            .mockResolvedValueOnce([]),
+          findFirst: vi.fn().mockResolvedValue(null),
+        }
+        mockDb.query.commerceProductTable = {
+          findFirst: vi
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({id: 'prod-registration'})
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({id: 'prod-addon'}),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          initiatePayment({
+            data: {
+              competitionId: testCompetitionId,
+              items: [{divisionId: 'div-rx'}],
+              addOns: [
+                {
+                  productId: 'addon-1',
+                  variantId: 'variant-medium',
+                  quantity: 1,
+                },
+              ],
+            },
+          }),
+        ).rejects.toThrow('changed while checkout was starting')
+
+        expect(mockStripeCheckoutCreate).not.toHaveBeenCalled()
+      })
     })
 
     describe('mixed free and paid divisions', () => {

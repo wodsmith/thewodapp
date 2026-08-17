@@ -1,3 +1,4 @@
+import { FakeDrizzleDb } from "@repo/test-utils"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mockPublicR2Put = vi.hoisted(() => vi.fn())
@@ -5,16 +6,10 @@ const mockPrivateR2Put = vi.hoisted(() => vi.fn())
 const mockPrivateR2Delete = vi.hoisted(() => vi.fn())
 const mockGetSessionFromCookie = vi.hoisted(() => vi.fn())
 const mockCheckUploadAuthorization = vi.hoisted(() => vi.fn())
-const mockFindAttachedFile = vi.hoisted(() => vi.fn())
+const mockDb = new FakeDrizzleDb()
 
 vi.mock("@/db", () => ({
-  getDb: () => ({
-    query: {
-      competitionProductFilesTable: {
-        findFirst: (...args: unknown[]) => mockFindAttachedFile(...args),
-      },
-    },
-  }),
+  getDb: () => mockDb,
 }))
 
 vi.mock("cloudflare:workers", () => ({
@@ -120,6 +115,17 @@ function createFileLike({
 describe("upload API route", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockDb.reset()
+    mockDb.registerTable("competitionProductFileClaimsTable")
+    mockDb.registerTable("competitionProductFilesTable")
+    mockDb.query.competitionProductFileClaimsTable.findFirst.mockResolvedValue({
+      r2Key:
+        "competitions/product-downloads/competition-1/00000000-0000-4000-8000-000000000000.pdf",
+      competitionId: "competition-1",
+      uploadedByUserId: "user-admin",
+      status: "UPLOADED",
+    })
+    mockDb.query.competitionProductFilesTable.findFirst.mockResolvedValue(null)
     mockGetSessionFromCookie.mockResolvedValue({
       user: { id: "user-admin", role: "admin" },
     })
@@ -127,7 +133,6 @@ describe("upload API route", () => {
     mockPublicR2Put.mockResolvedValue(undefined)
     mockPrivateR2Put.mockResolvedValue(undefined)
     mockPrivateR2Delete.mockResolvedValue(undefined)
-    mockFindAttachedFile.mockResolvedValue(null)
   })
 
   it("streams docs-video uploads to R2 without a second arrayBuffer copy", async () => {
@@ -201,6 +206,7 @@ describe("upload API route", () => {
     )
     expect(mockPublicR2Put).not.toHaveBeenCalled()
     expect(data.url).toBeUndefined()
+    expect(mockDb.insert).toHaveBeenCalledTimes(1)
   })
 
   it("requires a competition ID for gated download uploads", async () => {
@@ -241,7 +247,10 @@ describe("upload API route", () => {
       "competition-1",
       "user-admin",
     )
+    expect(mockDb.getChainMock().for).toHaveBeenCalledWith("update")
+    expect(mockDb.update).toHaveBeenCalledTimes(1)
     expect(mockPrivateR2Delete).toHaveBeenCalledWith(key)
+    expect(mockDb.delete).toHaveBeenCalledTimes(1)
   })
 
   it("rejects non-string cleanup fields without touching R2", async () => {
@@ -264,7 +273,31 @@ describe("upload API route", () => {
   it("does not delete a competition download that is attached to a product", async () => {
     const key =
       "competitions/product-downloads/competition-1/00000000-0000-4000-8000-000000000000.pdf"
-    mockFindAttachedFile.mockResolvedValue({ id: "file-1" })
+    mockDb.query.competitionProductFilesTable.findFirst.mockResolvedValue({
+      id: "file-1",
+    })
+
+    const response = await routeConfig.server.handlers.DELETE({
+      request: new Request("https://wodsmith.test/api/upload", {
+        method: "DELETE",
+        body: JSON.stringify({
+          purpose: "competition-download",
+          entityId: "competition-1",
+          key,
+        }),
+      }),
+    })
+
+    expect(response.status).toBe(409)
+    expect(mockPrivateR2Delete).not.toHaveBeenCalled()
+  })
+
+  it("does not delete a private object without an upload claim", async () => {
+    const key =
+      "competitions/product-downloads/competition-1/00000000-0000-4000-8000-000000000000.pdf"
+    mockDb.query.competitionProductFileClaimsTable.findFirst.mockResolvedValue(
+      null,
+    )
 
     const response = await routeConfig.server.handlers.DELETE({
       request: new Request("https://wodsmith.test/api/upload", {

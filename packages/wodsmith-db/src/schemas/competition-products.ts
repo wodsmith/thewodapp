@@ -34,6 +34,14 @@ export const COMPETITION_PRODUCT_ACCESS = {
 export type CompetitionProductAccess =
   (typeof COMPETITION_PRODUCT_ACCESS)[keyof typeof COMPETITION_PRODUCT_ACCESS]
 
+export const COMPETITION_PRODUCT_FILE_CLAIM_STATUS = {
+  UPLOADED: "UPLOADED",
+  CLEANING: "CLEANING",
+} as const
+
+export type CompetitionProductFileClaimStatus =
+  (typeof COMPETITION_PRODUCT_FILE_CLAIM_STATUS)[keyof typeof COMPETITION_PRODUCT_FILE_CLAIM_STATUS]
+
 /** Organizer-defined products sold during competition registration. */
 export const competitionProductsTable = mysqlTable(
   "competition_products",
@@ -91,6 +99,26 @@ export const competitionProductFilesTable = mysqlTable(
   ],
 )
 
+/** Pending private uploads that may be attached to a competition product. */
+export const competitionProductFileClaimsTable = mysqlTable(
+  "competition_product_file_claims",
+  {
+    ...commonColumns,
+    r2Key: varchar({ length: 600 }).primaryKey().notNull(),
+    competitionId: varchar({ length: 255 }).notNull(),
+    uploadedByUserId: varchar({ length: 255 }).notNull(),
+    status: varchar({ length: 20 })
+      .$type<CompetitionProductFileClaimStatus>()
+      .notNull()
+      .default(COMPETITION_PRODUCT_FILE_CLAIM_STATUS.UPLOADED),
+  },
+  (table) => [
+    index("competition_product_file_claims_competition_idx").on(
+      table.competitionId,
+    ),
+  ],
+)
+
 /** Optional catalog variants with inventory claimed at payment completion. */
 export const competitionProductVariantsTable = mysqlTable(
   "competition_product_variants",
@@ -119,6 +147,9 @@ export type CompetitionProductVariant = InferSelectModel<
 >
 export type CompetitionProductFile = InferSelectModel<
   typeof competitionProductFilesTable
+>
+export type CompetitionProductFileClaim = InferSelectModel<
+  typeof competitionProductFileClaimsTable
 >
 
 export const competitionProductsRelations = relations(

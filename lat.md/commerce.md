@@ -120,11 +120,11 @@ Every file request re-derives access from current registration and purchase reco
 
 Download files live in a private R2 bucket and are streamed only through an authenticated application endpoint.
 
-The `competition-download` upload purpose requires an owned competition id, accepts PDFs up to 20 MB, and writes through `R2_DOWNLOADS_BUCKET`, which has no public domain. Cleanup rejects attached keys, and catalog removal deletes an object only when no file row still references its key.
+The `competition-download` upload purpose requires an owned competition id, accepts PDFs up to 20 MB, and writes through `R2_DOWNLOADS_BUCKET`, which has no public domain. [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFileClaimsTable]] is locked and consumed by attachment or cleanup, so cleanup cannot race a product save.
 
 [[apps/wodsmith-start/src/routes/api/downloads/$fileId.ts#Route]] returns the private R2 object only after entitlement validation and applies private, no-store response headers. Hidden or archived included products stop granting registration access, while completed purchases retain paid access.
 
-Products with pending or completed purchases cannot switch between pickup and download. Checkout and catalog updates share a row lock and revalidate fulfillment, preventing an in-flight checkout from settling under changed delivery rules.
+Products with recent pending or completed purchases cannot switch delivery; abandoned pending rows expire after the checkout lifetime. Checkout and catalog updates share a row lock, then revalidate product and variant fulfillment before purchases are inserted.
 
 ### Athlete download library
 
