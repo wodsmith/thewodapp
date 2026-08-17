@@ -1,5 +1,7 @@
 import posthog from "posthog-js"
 
+import { filterPostHogEvent } from "./event-filter"
+
 const POSTHOG_KEY =
   import.meta.env.VITE_POSTHOG_KEY ||
   "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK"
@@ -41,6 +43,7 @@ export function initPostHog(): void {
     ui_host: "https://us.posthog.com",
     // Match Next.js app settings
     defaults: "2025-05-24",
+    before_send: filterPostHogEvent,
     capture_exceptions: true,
     debug: false,
     // We'll handle pageviews manually with router integration

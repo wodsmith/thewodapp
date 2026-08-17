@@ -15,6 +15,12 @@ TanStack Start (React + Vite) deployed to Cloudflare Workers, with PlanetScale (
 - **Deployment**: Alchemy IaC to Cloudflare Workers, Vite build pipeline
 - **Testing**: Vitest (unit/integration), Playwright (E2E), Testing Library (components)
 
+## Client Error Filtering
+
+Client error capture excludes known browser-injected failures while preserving application exceptions and analytics events.
+
+[[apps/wodsmith-start/src/lib/posthog/event-filter.ts#filterPostHogEvent]] drops only PostHog `$exception` events containing `window.webkit.messageHandlers`. Instagram's iOS in-app browser injects this broken native bridge; the string does not occur in WODsmith application source. Other exceptions and non-exception events pass through unchanged.
+
 ## Monorepo Structure
 
 The monorepo uses Turborepo with pnpm workspaces. The main app lives in `apps/wodsmith-start/`.
