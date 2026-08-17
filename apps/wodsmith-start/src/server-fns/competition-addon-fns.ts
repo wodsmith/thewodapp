@@ -27,10 +27,12 @@ import {
   competitionProductFilesTable,
   competitionProductsTable,
   competitionProductVariantsTable,
+  competitionRegistrationsTable,
   competitionsTable,
   createCompetitionProductFileId,
   createCompetitionProductId,
   createCompetitionProductVariantId,
+  REGISTRATION_STATUS,
   teamTable,
   userTable,
 } from "@/db/schema"
@@ -128,6 +130,9 @@ const listAddonsInputSchema = z.object({
 const publicAddonsInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
 })
+
+const ACTIVE_REGISTRATION_ENTITLEMENT_ERROR =
+  "Included downloads cannot be changed in a way that revokes access while the competition has active registrations"
 
 // ============================================================================
 // Helpers
@@ -620,7 +625,7 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
       variants: nextVariants,
     })
     assertProductFileOwnership(product.competitionId, nextFiles)
-    const removedFiles =
+    let removedFiles =
       input.files === undefined
         ? []
         : existingFiles.filter(
@@ -644,7 +649,48 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
         where: eq(competitionProductsTable.id, product.id),
       })
       if (!lockedProduct) throw new Error("Add-on not found")
+      const lockedFiles = await tx.query.competitionProductFilesTable.findMany({
+        where: eq(competitionProductFilesTable.productId, product.id),
+      })
+      if (input.files !== undefined) {
+        removedFiles = lockedFiles.filter(
+          (file) => !input.files?.some((incoming) => incoming.id === file.id),
+        )
+      }
       const lockedNextDelivery = input.delivery ?? lockedProduct.delivery
+
+      const revokesRegistrationEntitlement =
+        lockedProduct.access ===
+          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION &&
+        lockedProduct.status === COMPETITION_PRODUCT_STATUS.ACTIVE &&
+        ((input.access !== undefined &&
+          input.access !==
+            COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION) ||
+          (input.status !== undefined &&
+            input.status !== COMPETITION_PRODUCT_STATUS.ACTIVE) ||
+          removedFiles.length > 0)
+      if (revokesRegistrationEntitlement) {
+        const [activeRegistration] = await tx
+          .select({ id: competitionRegistrationsTable.id })
+          .from(competitionRegistrationsTable)
+          .where(
+            and(
+              eq(
+                competitionRegistrationsTable.eventId,
+                lockedProduct.competitionId,
+              ),
+              eq(
+                competitionRegistrationsTable.status,
+                REGISTRATION_STATUS.ACTIVE,
+              ),
+            ),
+          )
+          .limit(1)
+          .for("update")
+        if (activeRegistration) {
+          throw new Error(ACTIVE_REGISTRATION_ENTITLEMENT_ERROR)
+        }
+      }
 
       if (
         input.delivery !== undefined &&
@@ -817,7 +863,7 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
         }
         for (const [index, file] of input.files.entries()) {
           if (file.id) {
-            const current = existingFiles.find(
+            const current = lockedFiles.find(
               (existing) => existing.id === file.id,
             )
             if (!current)
@@ -918,13 +964,53 @@ export const archiveCompetitionAddonFn = createServerFn({ method: "POST" })
     const product = await getOwnedAddon(input.productId, input.teamId)
 
     const db = getDb()
-    await db
-      .update(competitionProductsTable)
-      .set({
-        status: COMPETITION_PRODUCT_STATUS.ARCHIVED,
-        updatedAt: new Date(),
+    await db.transaction(async (tx) => {
+      await tx
+        .select({ id: competitionProductsTable.id })
+        .from(competitionProductsTable)
+        .where(eq(competitionProductsTable.id, product.id))
+        .for("update")
+
+      const lockedProduct = await tx.query.competitionProductsTable.findFirst({
+        where: eq(competitionProductsTable.id, product.id),
       })
-      .where(eq(competitionProductsTable.id, product.id))
+      if (!lockedProduct) throw new Error("Add-on not found")
+
+      if (
+        lockedProduct.access ===
+          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION &&
+        lockedProduct.status === COMPETITION_PRODUCT_STATUS.ACTIVE
+      ) {
+        const [activeRegistration] = await tx
+          .select({ id: competitionRegistrationsTable.id })
+          .from(competitionRegistrationsTable)
+          .where(
+            and(
+              eq(
+                competitionRegistrationsTable.eventId,
+                lockedProduct.competitionId,
+              ),
+              eq(
+                competitionRegistrationsTable.status,
+                REGISTRATION_STATUS.ACTIVE,
+              ),
+            ),
+          )
+          .limit(1)
+          .for("update")
+        if (activeRegistration) {
+          throw new Error(ACTIVE_REGISTRATION_ENTITLEMENT_ERROR)
+        }
+      }
+
+      await tx
+        .update(competitionProductsTable)
+        .set({
+          status: COMPETITION_PRODUCT_STATUS.ARCHIVED,
+          updatedAt: new Date(),
+        })
+        .where(eq(competitionProductsTable.id, product.id))
+    })
 
     logInfo({
       message: "[Addons] Add-on archived",

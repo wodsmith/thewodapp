@@ -100,9 +100,9 @@ Competition products can deliver PDFs either as optional registration add-ons or
 
 ### Product configuration
 
-Delivery and access are separate catalog concerns; fulfillment cannot change after checkout starts or while a product is included with registration.
+Delivery and access are separate catalog concerns; fulfillment cannot change after checkout starts or when doing so would revoke an active registration entitlement.
 
-[[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductsTable]] stores `delivery` (`PICKUP` or `DOWNLOAD`) and `access` (`OPTIONAL_PURCHASE` or `INCLUDED_WITH_REGISTRATION`). [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFilesTable]] stores one or more PDF records for a downloadable product. Included products have a zero price; optional products retain the normal add-on checkout path.
+[[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductsTable]] stores `delivery` (`PICKUP` or `DOWNLOAD`) and `access` (`OPTIONAL_PURCHASE` or `INCLUDED_WITH_REGISTRATION`). [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFilesTable]] stores one or more PDF records for a downloadable product. Included products have a zero price; optional products retain the normal add-on checkout path. Once an active registration exists, an active included product cannot change access, hide, archive, or remove attached files.
 
 ### Checkout authority
 
@@ -122,7 +122,7 @@ Download files live in a private R2 bucket and are streamed only through an auth
 
 The `competition-download` upload purpose requires an owned competition id, accepts PDFs up to 20 MB, and writes through `R2_DOWNLOADS_BUCKET`, which has no public domain. [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFileClaimsTable]] is locked and consumed by attachment or cleanup, so cleanup cannot race a product save.
 
-[[apps/wodsmith-start/src/routes/api/downloads/$fileId.ts#Route]] returns the private R2 object only after entitlement validation and applies private, no-store response headers. Hidden or archived included products stop granting registration access, while completed purchases retain paid access.
+[[apps/wodsmith-start/src/routes/api/downloads/$fileId.ts#Route]] returns the private R2 object only after entitlement validation and applies private, no-store response headers. Included products may be hidden or archived before registrations exist; afterward, transactional catalog guards preserve registration access. Completed purchases retain paid access.
 
 Products with recent pending or completed purchases cannot switch delivery; abandoned pending rows expire after the checkout lifetime. Checkout and catalog updates share a row lock, then revalidate product and variant fulfillment before purchases are inserted.
 

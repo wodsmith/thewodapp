@@ -374,6 +374,158 @@ describe("competition-addon-fns", () => {
       )
     })
 
+    it("preserves included access after active registrations exist", async () => {
+      const includedProduct = {
+        ...activeProduct,
+        name: "Standards",
+        priceCents: 0,
+        delivery: "DOWNLOAD",
+        access: "INCLUDED_WITH_REGISTRATION",
+      }
+      const file = {
+        id: "file-1",
+        productId: includedProduct.id,
+        title: "Standards",
+        r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+        originalFilename: "standards.pdf",
+        fileSize: 2048,
+        mimeType: "application/pdf",
+        sortOrder: 0,
+      }
+      mockDb.queueMockSingleValues([
+        includedProduct,
+        competition,
+        includedProduct,
+      ])
+      mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([
+        file,
+      ])
+      mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
+        [],
+      )
+      mockDb.setMockReturnValue([{ id: "registration-1" }])
+
+      await expect(
+        updateAddon({
+          data: {
+            productId: includedProduct.id,
+            teamId: "team-1",
+            access: "OPTIONAL_PURCHASE",
+            priceCents: 2500,
+          },
+        }),
+      ).rejects.toThrow(
+        "Included downloads cannot be changed in a way that revokes access while the competition has active registrations",
+      )
+    })
+
+    it("preserves attached files after active registrations exist", async () => {
+      const includedProduct = {
+        ...activeProduct,
+        name: "Standards",
+        priceCents: 0,
+        delivery: "DOWNLOAD",
+        access: "INCLUDED_WITH_REGISTRATION",
+      }
+      const files = [
+        {
+          id: "file-1",
+          productId: includedProduct.id,
+          title: "Standards",
+          r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+          originalFilename: "standards.pdf",
+          fileSize: 2048,
+          mimeType: "application/pdf",
+          sortOrder: 0,
+        },
+        {
+          id: "file-2",
+          productId: includedProduct.id,
+          title: "Scorecard",
+          r2Key: "competitions/product-downloads/comp-1/scorecard.pdf",
+          originalFilename: "scorecard.pdf",
+          fileSize: 1024,
+          mimeType: "application/pdf",
+          sortOrder: 1,
+        },
+      ]
+      mockDb.queueMockSingleValues([
+        includedProduct,
+        competition,
+        includedProduct,
+      ])
+      mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue(
+        files,
+      )
+      mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
+        [],
+      )
+      mockDb.setMockReturnValue([{ id: "registration-1" }])
+
+      await expect(
+        updateAddon({
+          data: {
+            productId: includedProduct.id,
+            teamId: "team-1",
+            files: [
+              {
+                id: files[0].id,
+                title: files[0].title,
+                r2Key: files[0].r2Key,
+                originalFilename: files[0].originalFilename,
+                fileSize: files[0].fileSize,
+                mimeType: files[0].mimeType,
+              },
+            ],
+          },
+        }),
+      ).rejects.toThrow(
+        "Included downloads cannot be changed in a way that revokes access while the competition has active registrations",
+      )
+    })
+
+    it("allows included access to change before registrations exist", async () => {
+      const includedProduct = {
+        ...activeProduct,
+        name: "Standards",
+        priceCents: 0,
+        delivery: "DOWNLOAD",
+        access: "INCLUDED_WITH_REGISTRATION",
+      }
+      mockDb.queueMockSingleValues([
+        includedProduct,
+        competition,
+        includedProduct,
+      ])
+      mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([
+        {
+          id: "file-1",
+          productId: includedProduct.id,
+          title: "Standards",
+          r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+          originalFilename: "standards.pdf",
+          fileSize: 2048,
+          mimeType: "application/pdf",
+          sortOrder: 0,
+        },
+      ])
+      mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
+        [],
+      )
+      mockDb.setMockReturnValue([])
+
+      await expect(
+        updateAddon({
+          data: {
+            productId: includedProduct.id,
+            teamId: "team-1",
+            access: "OPTIONAL_PURCHASE",
+            priceCents: 2500,
+          },
+        }),
+      ).resolves.toEqual({ success: true })
+    })
+
     it("keeps an R2 object while another file row still references its key", async () => {
       const downloadProduct = {
         ...activeProduct,
@@ -387,6 +539,18 @@ describe("competition-addon-fns", () => {
         downloadProduct,
       ])
       mockDb.query.competitionProductFilesTable.findMany
+        .mockResolvedValueOnce([
+          {
+            id: "file-1",
+            productId: downloadProduct.id,
+            title: "Standards",
+            r2Key: sharedKey,
+            originalFilename: "standards.pdf",
+            fileSize: 2048,
+            mimeType: "application/pdf",
+            sortOrder: 0,
+          },
+        ])
         .mockResolvedValueOnce([
           {
             id: "file-1",
@@ -427,6 +591,29 @@ describe("competition-addon-fns", () => {
         archiveAddon({ data: { productId: "cmpprod-1", teamId: "team-1" } }),
       ).rejects.toThrow(/not enabled for your account/)
       expect(mockDb.update).not.toHaveBeenCalled()
+    })
+
+    it("does not archive an included download with active registrations", async () => {
+      const includedProduct = {
+        ...activeProduct,
+        priceCents: 0,
+        delivery: "DOWNLOAD",
+        access: "INCLUDED_WITH_REGISTRATION",
+      }
+      mockDb.queueMockSingleValues([
+        includedProduct,
+        competition,
+        includedProduct,
+      ])
+      mockDb.setMockReturnValue([{ id: "registration-1" }])
+
+      await expect(
+        archiveAddon({
+          data: { productId: includedProduct.id, teamId: "team-1" },
+        }),
+      ).rejects.toThrow(
+        "Included downloads cannot be changed in a way that revokes access while the competition has active registrations",
+      )
     })
   })
 
