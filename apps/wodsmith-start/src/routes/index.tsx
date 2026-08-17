@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { getSessionFn } from "@/server-fns/auth-fns"
 import {
   type CompetitionWithOrganizingTeam,
@@ -216,14 +217,16 @@ function CompetePage() {
     updateSearch({ q: value || undefined })
   }
 
-  // Derive statuses
+  // Derive statuses. Benchmarks (perpetual boards) live on /benchmarks.
   const competitionsWithStatus = useMemo(
     () =>
-      competitions.map((comp) => ({
-        ...comp,
-        _status: getCompetitionStatus(comp),
-        _location: getLocationLabel(comp),
-      })),
+      competitions
+        .filter((comp) => !competitionCan(comp.competitionType, "perpetual"))
+        .map((comp) => ({
+          ...comp,
+          _status: getCompetitionStatus(comp),
+          _location: getLocationLabel(comp),
+        })),
     [competitions],
   )
 

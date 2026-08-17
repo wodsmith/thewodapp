@@ -26,6 +26,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import { getBenchmarkEventTestOptionsFn } from "@/server-fns/benchmark-scoring-tier-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
   getBatchWorkoutDivisionDescriptionsFn,
@@ -57,6 +59,10 @@ export const Route = createFileRoute(
     const { competition } = parentMatch.loaderData!
 
     const shouldLoadMappingData = deps.tab === "advanced-settings"
+    const usesBenchmarkTiers = competitionCan(
+      competition.competitionType,
+      "benchmarkScoringTiers",
+    )
 
     // Parallel fetch events, divisions, movements, sponsors, and series mapping status
     const [
@@ -66,6 +72,7 @@ export const Route = createFileRoute(
       sponsorsResult,
       seriesMappingStatus,
       mappingData,
+      benchmarkTestOptionsResult,
     ] = await Promise.all([
       getCompetitionWorkoutsFn({
         data: {
@@ -91,7 +98,21 @@ export const Route = createFileRoute(
             data: { competitionId: params.competitionId },
           })
         : Promise.resolve(null),
+      usesBenchmarkTiers
+        ? getBenchmarkEventTestOptionsFn({
+            data: { competitionId: params.competitionId },
+          })
+        : Promise.resolve(null),
     ])
+
+    // Map event -> benchmark category label for row badges
+    const benchmarkCategoryByEventId: Record<string, string> = {}
+    for (const test of benchmarkTestOptionsResult?.options?.tests ?? []) {
+      if (test.linkedTrackWorkoutId) {
+        benchmarkCategoryByEventId[test.linkedTrackWorkoutId] =
+          test.categoryLabel
+      }
+    }
 
     // Flatten sponsors from groups and ungrouped
     const allSponsors = [
@@ -127,6 +148,7 @@ export const Route = createFileRoute(
       competition,
       seriesMappingStatus,
       mappingData,
+      benchmarkCategoryByEventId,
     }
   },
 })
@@ -140,6 +162,7 @@ function EventsPage() {
     divisionDescriptionsByWorkout,
     seriesMappingStatus,
     mappingData,
+    benchmarkCategoryByEventId,
   } = Route.useLoaderData()
   // Get competition from parent layout loader data (for consistency with other pages)
   const { competition } = parentRoute.useLoaderData()
@@ -188,6 +211,7 @@ function EventsPage() {
               : null
           }
           seriesEventMap={seriesEventMap}
+          benchmarkCategoryByEventId={benchmarkCategoryByEventId}
         />
       </TabsContent>
 

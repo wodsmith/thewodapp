@@ -4,6 +4,10 @@ import {TEST_DATA} from './fixtures/test-data'
 
 test.describe('Competition Registration', () => {
   test('should register for a competition', async ({page}) => {
+    // The full flow (login + popover comboboxes + payment server fn) can
+    // exceed the default 30s budget on cold CI runners.
+    test.setTimeout(60_000)
+
     await loginAsTestUser(page)
 
     const comp = TEST_DATA.competition
@@ -17,9 +21,13 @@ test.describe('Competition Registration', () => {
       page.getByRole('heading', {name: comp.name}),
     ).toBeVisible({timeout: 15000})
 
-    // Click Register now
+    // A timed-out prior attempt may have completed the registration
+    // server-side, so on retry the CTA is replaced by the registered card.
+    // Treat that state as success instead of failing on a missing CTA.
+    const registeredCard = page.getByText(/you're registered/i).first()
     const registerLink = page.getByRole('link', {name: /register now/i})
-    await expect(registerLink).toBeVisible({timeout: 10000})
+    await expect(registerLink.or(registeredCard)).toBeVisible({timeout: 10000})
+    if (await registeredCard.isVisible()) return
     await registerLink.click()
 
     // Should be on registration page

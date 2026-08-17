@@ -18,6 +18,7 @@ import {
   ClipboardSignature,
   Clock,
   DollarSign,
+  Gauge,
   Handshake,
   Home,
   Layers,
@@ -103,6 +104,17 @@ const getNavigation = (
             href: `${basePath}/edit`,
             icon: Settings,
           },
+          // Benchmark scoring is the core setup surface for benchmark boards,
+          // so it sits directly under Competition details.
+          ...(competitionCan(type, "benchmarkScoringTiers")
+            ? [
+                {
+                  label: "Benchmark scoring",
+                  href: `${basePath}/scoring/tiers`,
+                  icon: Gauge,
+                },
+              ]
+            : []),
           {
             label: "Divisions & capacity",
             href: `${basePath}/divisions`,
@@ -168,11 +180,15 @@ const getNavigation = (
             href: `${basePath}/volunteers`,
             icon: UserCheck,
           },
-          {
-            label: "Volunteer shifts",
-            href: `${basePath}/volunteers/shifts`,
-            icon: Calendar,
-          },
+          ...(competitionCan(type, "volunteerShifts")
+            ? [
+                {
+                  label: "Volunteer shifts",
+                  href: `${basePath}/volunteers/shifts`,
+                  icon: Calendar,
+                },
+              ]
+            : []),
           ...(canUseHeatScheduling(type)
             ? [
                 {
@@ -226,11 +242,15 @@ const getNavigation = (
           { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
           { label: "Merch", href: `${basePath}/merch`, icon: ShoppingBag },
           { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
-          {
-            label: "Co-Hosts",
-            href: `${basePath}/co-hosts`,
-            icon: Handshake,
-          },
+          ...(competitionCan(type, "cohosts")
+            ? [
+                {
+                  label: "Co-Hosts",
+                  href: `${basePath}/co-hosts`,
+                  icon: Handshake,
+                },
+              ]
+            : []),
         ],
       },
       {

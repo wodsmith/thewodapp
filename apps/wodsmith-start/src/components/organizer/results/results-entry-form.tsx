@@ -137,9 +137,7 @@ export function ResultsEntryForm({
               .filter((a) => a.existingResult)
               .map((a) => getStateKey(a.registrationId, sub.event.id)),
           )
-        : athletes
-            .filter((a) => a.existingResult)
-            .map((a) => a.registrationId),
+        : athletes.filter((a) => a.existingResult).map((a) => a.registrationId),
     ),
   )
   const [focusedIndex, setFocusedIndex] = useState(0)
@@ -277,13 +275,7 @@ export function ResultsEntryForm({
         })
         .catch(() => {})
     },
-    [
-      competitionId,
-      organizingTeamId,
-      event,
-      saveScore,
-      getStateKey,
-    ],
+    [competitionId, organizingTeamId, event, saveScore, getStateKey],
   )
 
   // Handle tab to next athlete (uses allAthletesInOrder for consistent navigation)
@@ -327,7 +319,11 @@ export function ResultsEntryForm({
   const totalCount = isSubEventMode
     ? athletes.reduce((count, athlete) => {
         for (const sub of subEventScoreData!) {
-          if (sub.athletes.some((a) => a.registrationId === athlete.registrationId)) {
+          if (
+            sub.athletes.some(
+              (a) => a.registrationId === athlete.registrationId,
+            )
+          ) {
             count++
           }
         }
@@ -433,7 +429,9 @@ export function ResultsEntryForm({
               ) : (
                 <p className="text-sm text-muted-foreground mt-1">
                   {event.workout.scheme.replace("-", " ").toUpperCase()}
-                  {isTimeCapped && timeCap && ` • Cap: ${formatTimeCap(timeCap)}`}
+                  {isTimeCapped &&
+                    timeCap &&
+                    ` • Cap: ${formatTimeCap(timeCap)}`}
                   {event.workout.tiebreakScheme &&
                     ` • Tie-break: ${event.workout.tiebreakScheme}`}
                 </p>
@@ -488,69 +486,70 @@ export function ResultsEntryForm({
       </Card>
 
       {/* Help Callout (hidden for sub-event mode since schemes vary) */}
-      {!isSubEventMode && (<Collapsible>
-        <Alert className="bg-muted/50">
-          <HelpCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-start justify-between">
-            <div className="flex-1">
-              <span className="font-medium">Format:</span>{" "}
-              <span className="text-muted-foreground">
-                {scoreExamples.format} (e.g.,{" "}
-                {scoreExamples.examples.join(", ")})
-              </span>
-              {isTimeCapped && (
-                <>
-                  <span className="mx-2 text-muted-foreground">•</span>
-                  <span className="text-muted-foreground">
-                    Type <strong>CAP</strong> for{" "}
-                    {timeCap ? formatTimeCap(timeCap) : "time cap"}
-                  </span>
-                </>
-              )}
-              <span className="mx-2 text-muted-foreground">•</span>
-              <span className="text-muted-foreground">Results auto-save</span>
-            </div>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto py-0 px-2 text-xs"
-              >
-                More info
-              </Button>
-            </CollapsibleTrigger>
-          </AlertDescription>
-          <CollapsibleContent className="mt-3 pt-3 border-t">
-            <div className="text-sm">
-              <p className="font-medium mb-1">Entering Scores</p>
-              <ul className="text-muted-foreground space-y-1 text-xs">
-                <li>
-                  • Type the score and press{" "}
-                  <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">
-                    Tab
-                  </kbd>{" "}
-                  or{" "}
-                  <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">
-                    Enter
-                  </kbd>{" "}
-                  to move to the next athlete
-                </li>
-                <li>
-                  • Results auto-save when you move to the next field or click
-                  away
-                </li>
-                <li>• Time formats: 3:45, 12:30, or 1:05:30 for hours</li>
+      {!isSubEventMode && (
+        <Collapsible>
+          <Alert className="bg-muted/50">
+            <HelpCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-start justify-between">
+              <div className="flex-1">
+                <span className="font-medium">Format:</span>{" "}
+                <span className="text-muted-foreground">
+                  {scoreExamples.format} (e.g.,{" "}
+                  {scoreExamples.examples.join(", ")})
+                </span>
                 {isTimeCapped && (
-                  <li>
-                    • Type <strong>CAP</strong> if the athlete hit the{" "}
-                    {timeCap ? formatTimeCap(timeCap) : "time"} cap
-                  </li>
+                  <>
+                    <span className="mx-2 text-muted-foreground">•</span>
+                    <span className="text-muted-foreground">
+                      Type <strong>CAP</strong> for{" "}
+                      {timeCap ? formatTimeCap(timeCap) : "time cap"}
+                    </span>
+                  </>
                 )}
-              </ul>
-            </div>
-          </CollapsibleContent>
-        </Alert>
-      </Collapsible>
+                <span className="mx-2 text-muted-foreground">•</span>
+                <span className="text-muted-foreground">Results auto-save</span>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto py-0 px-2 text-xs"
+                >
+                  More info
+                </Button>
+              </CollapsibleTrigger>
+            </AlertDescription>
+            <CollapsibleContent className="mt-3 pt-3 border-t">
+              <div className="text-sm">
+                <p className="font-medium mb-1">Entering Scores</p>
+                <ul className="text-muted-foreground space-y-1 text-xs">
+                  <li>
+                    • Type the score and press{" "}
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">
+                      Tab
+                    </kbd>{" "}
+                    or{" "}
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">
+                      Enter
+                    </kbd>{" "}
+                    to move to the next athlete
+                  </li>
+                  <li>
+                    • Results auto-save when you move to the next field or click
+                    away
+                  </li>
+                  <li>• Time formats: 3:45, 12:30, or 1:05:30 for hours</li>
+                  {isTimeCapped && (
+                    <li>
+                      • Type <strong>CAP</strong> if the athlete hit the{" "}
+                      {timeCap ? formatTimeCap(timeCap) : "time"} cap
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </CollapsibleContent>
+          </Alert>
+        </Collapsible>
       )}
 
       {/* Score Entry Table */}
@@ -602,17 +601,16 @@ export function ResultsEntryForm({
                         {athlete.teamName ||
                           `${athlete.lastName}, ${athlete.firstName}`}
                       </div>
-                      {athlete.teamName &&
-                        athlete.teamMembers.length > 0 && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {athlete.teamMembers.map((m, i) => (
-                              <span key={m.userId}>
-                                {i > 0 && ", "}
-                                {m.firstName} {m.lastName}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                      {athlete.teamName && athlete.teamMembers.length > 0 && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {athlete.teamMembers.map((m, i) => (
+                            <span key={m.userId}>
+                              {i > 0 && ", "}
+                              {m.firstName} {m.lastName}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <Badge variant="outline" className="text-xs shrink-0">
                       {athlete.divisionLabel}
@@ -621,8 +619,7 @@ export function ResultsEntryForm({
                   {/* Sub-event score rows */}
                   {subEventScoreData?.map((sub, subIndex) => {
                     const subAthlete = sub.athletes.find(
-                      (a) =>
-                        a.registrationId === athlete.registrationId,
+                      (a) => a.registrationId === athlete.registrationId,
                     )
                     if (!subAthlete) return null
                     const stateKey = getStateKey(
@@ -648,13 +645,9 @@ export function ResultsEntryForm({
                         workoutScheme={sub.event.workout.scheme}
                         tiebreakScheme={sub.event.workout.tiebreakScheme}
                         timeCap={sub.event.workout.timeCap ?? undefined}
-                        roundsToScore={
-                          sub.event.workout.roundsToScore ?? 1
-                        }
+                        roundsToScore={sub.event.workout.roundsToScore ?? 1}
                         scoreType={sub.event.workout.scoreType}
-                        showTiebreak={
-                          !!sub.event.workout.tiebreakScheme
-                        }
+                        showTiebreak={!!sub.event.workout.tiebreakScheme}
                         value={scores[stateKey]}
                         isSaving={savingIds.has(stateKey)}
                         isSaved={savedIds.has(stateKey)}
@@ -669,11 +662,7 @@ export function ResultsEntryForm({
                             : undefined
                         }
                         onChange={(data) =>
-                          handleScoreChange(
-                            subAthlete,
-                            data,
-                            sub.event,
-                          )
+                          handleScoreChange(subAthlete, data, sub.event)
                         }
                         onTabNext={() => {
                           // Navigate to next sub-event row for same athlete, or first sub-event of next athlete
@@ -681,7 +670,10 @@ export function ResultsEntryForm({
                           if (nextSubIndex < subEventScoreData?.length) {
                             // Next sub-event for same athlete
                             const nextSub = subEventScoreData?.[nextSubIndex]
-                            const nextKey = getStateKey(athlete.registrationId, nextSub.event.id)
+                            const nextKey = getStateKey(
+                              athlete.registrationId,
+                              nextSub.event.id,
+                            )
                             rowRefs.current.get(nextKey)?.focusPrimary()
                           } else {
                             // First sub-event of next athlete
@@ -689,7 +681,10 @@ export function ResultsEntryForm({
                             if (nextAthleteIndex < athletes.length) {
                               const nextAthlete = athletes[nextAthleteIndex]
                               const firstSub = subEventScoreData?.[0]
-                              const nextKey = getStateKey(nextAthlete.registrationId, firstSub.event.id)
+                              const nextKey = getStateKey(
+                                nextAthlete.registrationId,
+                                firstSub.event.id,
+                              )
                               rowRefs.current.get(nextKey)?.focusPrimary()
                             }
                           }

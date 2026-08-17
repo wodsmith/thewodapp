@@ -9,15 +9,16 @@ import { and, count, eq, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
+import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import {
   competitionRegistrationsTable,
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import { teamMembershipTable } from "@/db/schemas/teams"
-import { getCohostPermissions } from "@/server/cohost"
-import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import { getCohostPermissions } from "@/server/cohost"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
   requireCohostCompetitionOwnership,
@@ -250,7 +251,10 @@ export const cohostGetRegistrationCountFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId)
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     const result = await db
@@ -270,12 +274,13 @@ export const cohostGetRegistrationCountFn = createServerFn({ method: "GET" })
  * Get registrations for cohost organizer view with full user and division details
  */
 export const cohostGetRegistrationsFn = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) =>
-    cohostRegistrationsInputSchema.parse(data),
-  )
+  .inputValidator((data: unknown) => cohostRegistrationsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId)
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     const whereConditions = [
@@ -378,9 +383,7 @@ export const cohostUpdateRotationSettingsFn = createServerFn({
  * Update competition scoring configuration (cohost — requires scoring)
  */
 export const cohostUpdateScoringConfigFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    cohostScoringConfigInputSchema.parse(data),
-  )
+  .inputValidator((data: unknown) => cohostScoringConfigInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoringConfig")
     const db = getDb()
@@ -402,9 +405,22 @@ export const cohostUpdateScoringConfigFn = createServerFn({ method: "POST" })
       }
     }
 
+    // Benchmark boards always rank with the online algorithm; force it here
+    // so no client can persist a different one.
+    const scoringConfig = competitionCan(
+      competition.competitionType,
+      "benchmarkScoringTiers",
+    )
+      ? {
+          ...data.scoringConfig,
+          algorithm: "online" as const,
+          customTable: undefined,
+        }
+      : data.scoringConfig
+
     const newSettings = {
       ...existingSettings,
-      scoringConfig: data.scoringConfig,
+      scoringConfig,
     }
 
     await db

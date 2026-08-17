@@ -170,7 +170,9 @@ function createInitialData(overrides?: Partial<{
 		repsPerRound: number | null
 		roundsToScore: number | null
 	} | null
-	existingScore: null
+		existingScore: null
+		isBenchmarkOpenJoin: boolean
+		videoRequired: boolean
 }>) {
 	return {
 		submissions: [],
@@ -179,6 +181,8 @@ function createInitialData(overrides?: Partial<{
 		canSubmit: true,
 		reason: undefined,
 		isRegistered: true,
+		isBenchmarkOpenJoin: false,
+		videoRequired: true,
 		submissionWindow: null,
 		workout: null,
 		existingScore: null,
@@ -275,7 +279,10 @@ describe("VideoSubmissionForm", () => {
 				<VideoSubmissionForm
 					trackWorkoutId="tw-1"
 					competitionId="comp-1"
-					initialData={createInitialData({ isRegistered: false })}
+					initialData={createInitialData({
+						isRegistered: false,
+						isBenchmarkOpenJoin: true,
+					})}
 				/>,
 			)
 

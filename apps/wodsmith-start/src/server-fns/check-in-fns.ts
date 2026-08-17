@@ -106,7 +106,9 @@ async function requireCheckInAccess(competitionId: string): Promise<{
     return { competition, userId: session.userId }
   }
 
-  throw new Error("FORBIDDEN: You don't have check-in access for this competition")
+  throw new Error(
+    "FORBIDDEN: You don't have check-in access for this competition",
+  )
 }
 
 // ============================================================================
@@ -135,7 +137,11 @@ export interface CheckInRegistration {
   checkedInBy: string | null
   registeredAt: string
   members: CheckInTeammate[]
-  pendingTeammates: Array<{ email: string; firstName?: string; lastName?: string }>
+  pendingTeammates: Array<{
+    email: string
+    firstName?: string
+    lastName?: string
+  }>
 }
 
 export interface CheckInWaiver {
@@ -160,12 +166,12 @@ const searchInputSchema = z.object({
  * substring match against team name, member name, member email, or pending
  * teammate email. Empty/short query returns all registrations.
  */
-export const searchCompetitionRegistrationsFn = createServerFn({ method: "GET" })
+export const searchCompetitionRegistrationsFn = createServerFn({
+  method: "GET",
+})
   .inputValidator((data: unknown) => searchInputSchema.parse(data))
   .handler(
-    async ({
-      data,
-    }): Promise<{ registrations: CheckInRegistration[] }> => {
+    async ({ data }): Promise<{ registrations: CheckInRegistration[] }> => {
       const { competition } = await requireCheckInAccess(data.competitionId)
 
       const db = getDb()
@@ -176,7 +182,10 @@ export const searchCompetitionRegistrationsFn = createServerFn({ method: "GET" }
         await db.query.competitionRegistrationsTable.findMany({
           where: and(
             eq(competitionRegistrationsTable.eventId, competition.id),
-            eq(competitionRegistrationsTable.status, REGISTRATION_STATUS.ACTIVE),
+            eq(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.ACTIVE,
+            ),
           ),
           with: {
             division: { columns: { id: true, label: true } },
@@ -268,7 +277,8 @@ export const searchCompetitionRegistrationsFn = createServerFn({ method: "GET" }
               lastName: m.user.lastName,
               email: m.user.email,
               avatar: m.user.avatar,
-              isCaptain: m.userId === reg.captainUserId || m.userId === reg.userId,
+              isCaptain:
+                m.userId === reg.captainUserId || m.userId === reg.userId,
               signedWaivers: Object.fromEntries(
                 Array.from(sigMap.entries()).map(([wid, d]) => [
                   wid,
@@ -299,7 +309,9 @@ export const searchCompetitionRegistrationsFn = createServerFn({ method: "GET" }
         let pendingTeammates: CheckInRegistration["pendingTeammates"] = []
         if (reg.pendingTeammates) {
           try {
-            pendingTeammates = JSON.parse(reg.pendingTeammates) as CheckInRegistration["pendingTeammates"]
+            pendingTeammates = JSON.parse(
+              reg.pendingTeammates,
+            ) as CheckInRegistration["pendingTeammates"]
           } catch {
             pendingTeammates = []
           }
@@ -393,15 +405,14 @@ export const checkInRegistrationFn = createServerFn({ method: "POST" })
         where: and(
           eq(competitionRegistrationsTable.id, data.registrationId),
           eq(competitionRegistrationsTable.eventId, competition.id),
-          eq(
-            competitionRegistrationsTable.status,
-            REGISTRATION_STATUS.ACTIVE,
-          ),
+          eq(competitionRegistrationsTable.status, REGISTRATION_STATUS.ACTIVE),
         ),
         columns: { id: true },
       })
       if (!reg) {
-        throw new Error("NOT_FOUND: Registration not found for this competition")
+        throw new Error(
+          "NOT_FOUND: Registration not found for this competition",
+        )
       }
 
       const now = new Date()
@@ -452,91 +463,83 @@ const signAtCheckInInputSchema = z.object({
  */
 export const signWaiverAtCheckInFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => signAtCheckInInputSchema.parse(data))
-  .handler(
-    async ({
-      data,
-    }): Promise<{ success: true; signedAt: string }> => {
-      const { competition } = await requireCheckInAccess(data.competitionId)
+  .handler(async ({ data }): Promise<{ success: true; signedAt: string }> => {
+    const { competition } = await requireCheckInAccess(data.competitionId)
 
-      const db = getDb()
+    const db = getDb()
 
-      // Validate the waiver belongs to this competition.
-      const waiver = await db.query.waiversTable.findFirst({
+    // Validate the waiver belongs to this competition.
+    const waiver = await db.query.waiversTable.findFirst({
+      where: and(
+        eq(waiversTable.id, data.waiverId),
+        eq(waiversTable.competitionId, competition.id),
+      ),
+      columns: { id: true },
+    })
+    if (!waiver) {
+      throw new Error("NOT_FOUND: Waiver not found for this competition")
+    }
+
+    // Validate the athlete is part of this registration (captain, team
+    // member, or solo registrant).
+    const registration = await db.query.competitionRegistrationsTable.findFirst(
+      {
         where: and(
-          eq(waiversTable.id, data.waiverId),
-          eq(waiversTable.competitionId, competition.id),
+          eq(competitionRegistrationsTable.id, data.registrationId),
+          eq(competitionRegistrationsTable.eventId, competition.id),
+          eq(competitionRegistrationsTable.status, REGISTRATION_STATUS.ACTIVE),
         ),
-        columns: { id: true },
-      })
-      if (!waiver) {
-        throw new Error("NOT_FOUND: Waiver not found for this competition")
-      }
-
-      // Validate the athlete is part of this registration (captain, team
-      // member, or solo registrant).
-      const registration =
-        await db.query.competitionRegistrationsTable.findFirst({
-          where: and(
-            eq(competitionRegistrationsTable.id, data.registrationId),
-            eq(competitionRegistrationsTable.eventId, competition.id),
-            eq(
-              competitionRegistrationsTable.status,
-              REGISTRATION_STATUS.ACTIVE,
-            ),
-          ),
-          with: {
-            athleteTeam: {
-              with: {
-                memberships: {
-                  columns: { userId: true, isActive: true },
-                },
+        with: {
+          athleteTeam: {
+            with: {
+              memberships: {
+                columns: { userId: true, isActive: true },
               },
             },
           },
-        })
-      if (!registration) {
-        throw new Error("NOT_FOUND: Registration not found for this competition")
-      }
+        },
+      },
+    )
+    if (!registration) {
+      throw new Error("NOT_FOUND: Registration not found for this competition")
+    }
 
-      const memberUserIds = new Set<string>()
-      if (registration.userId) memberUserIds.add(registration.userId)
-      if (registration.captainUserId)
-        memberUserIds.add(registration.captainUserId)
-      for (const m of registration.athleteTeam?.memberships ?? []) {
-        if (m.isActive && m.userId) memberUserIds.add(m.userId)
-      }
-      if (!memberUserIds.has(data.athleteUserId)) {
-        throw new Error(
-          "FORBIDDEN: Athlete is not a member of this registration",
-        )
-      }
+    const memberUserIds = new Set<string>()
+    if (registration.userId) memberUserIds.add(registration.userId)
+    if (registration.captainUserId)
+      memberUserIds.add(registration.captainUserId)
+    for (const m of registration.athleteTeam?.memberships ?? []) {
+      if (m.isActive && m.userId) memberUserIds.add(m.userId)
+    }
+    if (!memberUserIds.has(data.athleteUserId)) {
+      throw new Error("FORBIDDEN: Athlete is not a member of this registration")
+    }
 
-      // Atomic upsert backed by the unique index on (waiverId, userId).
-      // Two concurrent requests cannot both create a row — the second one
-      // hits the no-op SET, then we re-read to return the canonical signedAt.
-      const now = new Date()
-      await db
-        .insert(waiverSignaturesTable)
-        .values({
-          id: createWaiverSignatureId(),
-          waiverId: data.waiverId,
-          userId: data.athleteUserId,
-          registrationId: data.registrationId,
-          signedAt: now,
-        })
-        .onDuplicateKeyUpdate({ set: { signedAt: sql`signed_at` } })
-
-      const sig = await db.query.waiverSignaturesTable.findFirst({
-        where: and(
-          eq(waiverSignaturesTable.waiverId, data.waiverId),
-          eq(waiverSignaturesTable.userId, data.athleteUserId),
-        ),
-        columns: { signedAt: true },
+    // Atomic upsert backed by the unique index on (waiverId, userId).
+    // Two concurrent requests cannot both create a row — the second one
+    // hits the no-op SET, then we re-read to return the canonical signedAt.
+    const now = new Date()
+    await db
+      .insert(waiverSignaturesTable)
+      .values({
+        id: createWaiverSignatureId(),
+        waiverId: data.waiverId,
+        userId: data.athleteUserId,
+        registrationId: data.registrationId,
+        signedAt: now,
       })
-      if (!sig) {
-        throw new Error("Failed to record waiver signature")
-      }
+      .onDuplicateKeyUpdate({ set: { signedAt: sql`signed_at` } })
 
-      return { success: true, signedAt: sig.signedAt.toISOString() }
-    },
-  )
+    const sig = await db.query.waiverSignaturesTable.findFirst({
+      where: and(
+        eq(waiverSignaturesTable.waiverId, data.waiverId),
+        eq(waiverSignaturesTable.userId, data.athleteUserId),
+      ),
+      columns: { signedAt: true },
+    })
+    if (!sig) {
+      throw new Error("Failed to record waiver signature")
+    }
+
+    return { success: true, signedAt: sig.signedAt.toISOString() }
+  })

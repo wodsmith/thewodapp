@@ -28,6 +28,7 @@ import { scoresTable } from "@/db/schemas/scores"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
+import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
 import {
   addRequestContextAttribute,
   logEntityUpdated,
@@ -49,7 +50,9 @@ import {
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
 import { getSessionFromCookie } from "@/utils/auth"
+import { AppError } from "@/utils/errors"
 
 // ============================================================================
 // Types
@@ -145,6 +148,8 @@ async function checkSubmissionWindow(
   const [competition] = await db
     .select({
       competitionType: competitionsTable.competitionType,
+      startDate: competitionsTable.startDate,
+      endDate: competitionsTable.endDate,
     })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
@@ -156,6 +161,22 @@ async function checkSubmissionWindow(
       opensAt: null,
       closesAt: null,
       reason: "Competition not found",
+    }
+  }
+
+  if (competitionCan(competition.competitionType, "perpetual")) {
+    if (perpetualSubmissionsClosed(competition)) {
+      return {
+        isOpen: false,
+        opensAt: null,
+        closesAt: null,
+        reason: "Submissions have closed for this competition",
+      }
+    }
+    return {
+      isOpen: true,
+      opensAt: null,
+      closesAt: null,
     }
   }
 
@@ -515,6 +536,13 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
           },
         })
         throw new Error("Not authenticated")
+      }
+
+      if (await isBenchmarkCompetition(data.competitionId)) {
+        throw new AppError(
+          "UNPROCESSABLE_CONTENT",
+          "Benchmark scores must be submitted through the benchmark submission flow",
+        )
       }
 
       const db = getDb()

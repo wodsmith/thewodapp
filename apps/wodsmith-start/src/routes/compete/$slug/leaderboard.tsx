@@ -6,11 +6,14 @@ import { getCompetitionLeaderboardFn } from "@/server-fns/leaderboard-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
 
-// Search params schema for division, event, and affiliate selection
+// Search params schema for division, event, affiliate, and benchmark
+// category/gender selection
 const leaderboardSearchSchema = z.object({
   division: z.string().optional(),
   event: z.string().optional(),
   affiliate: z.string().optional(),
+  category: z.string().optional(),
+  gender: z.string().optional(),
 })
 
 export const Route = createFileRoute("/compete/$slug/leaderboard")({
@@ -106,7 +109,10 @@ function CompetitionLeaderboardPage() {
   return (
     <div className="space-y-4">
       <div className="sticky top-4 z-10">
-        <CompetitionTabs slug={competition.slug} />
+        <CompetitionTabs
+          slug={competition.slug}
+          competitionType={competition.competitionType}
+        />
       </div>
       <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
         <LeaderboardPageContent

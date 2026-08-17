@@ -1,9 +1,25 @@
-import { useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import { usePostHog } from "./provider"
 
 // Re-export the core hook for convenience
 export { usePostHog } from "./provider"
+
+export function useFeatureFlagEnabled(flagKey: string): boolean {
+  const { posthog } = usePostHog()
+  const [enabled, setEnabled] = useState(
+    () => posthog.isFeatureEnabled(flagKey) === true,
+  )
+
+  useEffect(() => {
+    setEnabled(posthog.isFeatureEnabled(flagKey) === true)
+    return posthog.onFeatureFlags(() => {
+      setEnabled(posthog.isFeatureEnabled(flagKey) === true)
+    })
+  }, [flagKey, posthog])
+
+  return enabled
+}
 
 /**
  * Hook for tracking custom events in PostHog.

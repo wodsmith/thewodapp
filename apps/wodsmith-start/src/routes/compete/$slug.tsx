@@ -10,6 +10,7 @@ import { z } from "zod"
 import { CompetitionHero } from "@/components/competition-hero"
 import { CouponBanner } from "@/components/coupon-banner"
 import { JsonLd } from "@/components/json-ld"
+import { isOpenEnded } from "@/lib/competitions/perpetual-dates"
 import { trackEvent } from "@/lib/posthog"
 import {
   getPublicCompetitionPageDataFn,
@@ -17,10 +18,7 @@ import {
 } from "@/server-fns/competition-page-fns"
 import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
 import { clearCouponSession, setCouponSession } from "@/utils/coupon-cookie"
-import {
-  DEFAULT_TIMEZONE,
-  getRegistrationWindowStatus,
-} from "@/utils/timezone-utils"
+import { getRegistrationWindowStatus } from "@/utils/registration-window"
 
 export const Route = createFileRoute("/compete/$slug")({
   component: CompetitionDetailLayout,
@@ -47,13 +45,11 @@ export const Route = createFileRoute("/compete/$slug")({
 
     const session = context.session ?? null
 
-    // Compute registration status without another DB query.
-    const timezone = competition.timezone || DEFAULT_TIMEZONE
-    const registrationStatus = getRegistrationWindowStatus(
-      competition.registrationOpensAt,
-      competition.registrationClosesAt,
-      timezone,
-    )
+    const registrationStatus = getRegistrationWindowStatus({
+      opensAt: competition.registrationOpensAt,
+      closesAt: competition.registrationClosesAt,
+      timezone: competition.timezone,
+    })
 
     // Compute canManage from session (no DB query needed)
     const canManage = session
@@ -212,6 +208,7 @@ function CompetitionDetailLayout() {
   }, [couponCode, competition.slug, navigate])
 
   const appUrl = loaderData.appUrl || "https://wodsmith.com"
+  const isPerpetual = isOpenEnded(competition)
 
   const sportsEventSchema = {
     "@context": "https://schema.org",
@@ -219,7 +216,7 @@ function CompetitionDetailLayout() {
     name: competition.name,
     description: competition.description || undefined,
     startDate: competition.startDate,
-    endDate: competition.endDate,
+    ...(isPerpetual ? {} : { endDate: competition.endDate }),
     url: `${appUrl}/compete/${competition.slug}`,
     eventStatus: "https://schema.org/EventScheduled",
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",

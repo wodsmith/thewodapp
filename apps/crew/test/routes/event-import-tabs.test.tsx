@@ -34,18 +34,18 @@ describe("EventImportTabs", () => {
       />,
     )
 
-    expectUploadPanel("Volunteer list CSV")
+    expectUploadPanel("Volunteer list file")
     expect(screen.queryByText("Role assumptions")).not.toBeInTheDocument()
     expect(screen.queryByText("No uploads yet.")).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: /Upload heat schedule/ }))
-    expectUploadPanel("Heat schedule CSV")
+    expectUploadPanel("Heat schedule file")
 
     fireEvent.click(screen.getByRole("button", { name: /Upload heat schedule/ }))
-    expectUploadPanel("Heat schedule CSV")
+    expectUploadPanel("Heat schedule file")
 
     fireEvent.click(screen.getByRole("button", { name: /Upload volunteer list/ }))
-    expectUploadPanel("Volunteer list CSV")
+    expectUploadPanel("Volunteer list file")
   })
 
   it("keeps reference and upload history behind advanced details", () => {
@@ -81,24 +81,24 @@ describe("EventImportTabs", () => {
       />,
     )
 
-    expectUploadPanel("Heat schedule CSV")
+    expectUploadPanel("Heat schedule file")
   })
 })
 
 function expectUploadPanel(
-  expectedTitle: "Volunteer list CSV" | "Heat schedule CSV",
+  expectedTitle: "Volunteer list file" | "Heat schedule file",
 ) {
   const otherTitle =
-    expectedTitle === "Volunteer list CSV"
-      ? "Heat schedule CSV"
-      : "Volunteer list CSV"
+    expectedTitle === "Volunteer list file"
+      ? "Heat schedule file"
+      : "Volunteer list file"
 
   expect(screen.getAllByText(expectedTitle)).toHaveLength(1)
   expect(screen.queryByText(otherTitle)).not.toBeInTheDocument()
   expect(
     screen.getAllByRole("button", {
       name:
-        expectedTitle === "Volunteer list CSV"
+        expectedTitle === "Volunteer list file"
           ? "Preview volunteer list"
           : "Preview heat schedule",
     }),

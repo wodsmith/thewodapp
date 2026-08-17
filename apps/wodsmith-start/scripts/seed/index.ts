@@ -37,6 +37,7 @@ import { seed as seedBroadcasts } from "./seeders/19-broadcasts"
 import { seed as seedCompetitionInvites } from "./seeders/20-competition-invites"
 import { seed as seedCohosts } from "./seeders/21-cohosts"
 import { seed as seedRouteDocs } from "./seeders/22-route-docs"
+import { seed as seedBenchmark } from "./seeders/23-benchmark"
 
 const seeders = [
 	{ name: "01-global-defaults", fn: seedGlobalDefaults },
@@ -62,6 +63,7 @@ const seeders = [
 	{ name: "20-competition-invites", fn: seedCompetitionInvites },
 	{ name: "21-cohosts", fn: seedCohosts },
 	{ name: "22-route-docs", fn: seedRouteDocs },
+	{ name: "23-benchmark", fn: seedBenchmark },
 ]
 
 async function main() {

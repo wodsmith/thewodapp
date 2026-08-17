@@ -8,6 +8,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
+import { getBenchmarkEventTestOptionsFn } from "@/server-fns/benchmark-scoring-tier-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {
@@ -34,6 +35,10 @@ export const Route = createFileRoute(
       competition.competitionType,
       "submissionWindows",
     )
+    const usesBenchmarkTiers = competitionCan(
+      competition.competitionType,
+      "benchmarkScoringTiers",
+    )
 
     // Parallel fetch event, divisions, movements, sponsors, resources, judging sheets, competition events, and mappings
     const [
@@ -45,6 +50,7 @@ export const Route = createFileRoute(
       judgingSheetsResult,
       competitionEventsResult,
       mappingsResult,
+      benchmarkTestOptionsResult,
     ] = await Promise.all([
       getCompetitionEventFn({
         data: {
@@ -79,6 +85,11 @@ export const Route = createFileRoute(
       getEventDivisionMappingsFn({
         data: { competitionId: params.competitionId },
       }),
+      usesBenchmarkTiers
+        ? getBenchmarkEventTestOptionsFn({
+            data: { competitionId: params.competitionId },
+          })
+        : Promise.resolve(null),
     ])
 
     if (!eventResult.event) {
@@ -183,6 +194,10 @@ export const Route = createFileRoute(
       childEvents,
       childDivisionDescriptions,
       eventDivisionMappings: mappingsResult,
+      benchmarkTests: usesBenchmarkTiers
+        ? (benchmarkTestOptionsResult?.options?.tests ?? [])
+        : undefined,
+      benchmarkBattery: benchmarkTestOptionsResult?.options?.battery ?? null,
     }
   },
 })

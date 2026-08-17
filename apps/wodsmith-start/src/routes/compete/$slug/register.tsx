@@ -31,10 +31,7 @@ import {
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
-import {
-  DEFAULT_TIMEZONE,
-  getRegistrationWindowStatus,
-} from "@/utils/timezone-utils"
+import { getRegistrationWindowStatus } from "@/utils/registration-window"
 
 // Search params validation
 const registerSearchSchema = z.object({
@@ -391,14 +388,15 @@ export const Route = createFileRoute("/compete/$slug/register")({
     // For public flow we deliberately do NOT redirect when registered —
     // allow registration for additional divisions.
 
-    // 4. Check registration window in the competition's timezone.
+    // 4. Check registration window (dates are now YYYY-MM-DD strings)
     const regOpensAt = competition.registrationOpensAt
     const regClosesAt = competition.registrationClosesAt
-    const { registrationOpen } = getRegistrationWindowStatus(
-      regOpensAt,
-      regClosesAt,
-      competition.timezone || DEFAULT_TIMEZONE,
-    )
+
+    const { registrationOpen } = getRegistrationWindowStatus({
+      opensAt: regOpensAt,
+      closesAt: regClosesAt,
+      timezone: competition.timezone,
+    })
 
     // 5. Get competition settings for divisions
     const settings = parseCompetitionSettings(competition.settings)

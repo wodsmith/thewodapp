@@ -11,193 +11,77 @@ function benchmarkWorkout(
   id: string,
   workout: BenchmarkDirectoryWorkout["workout"],
   trackOrder = 1,
+  benchmarkCategory: string | null = null,
 ): BenchmarkDirectoryWorkout {
-  return { id, trackOrder, workout }
+  return { id, trackOrder, benchmarkCategory, workout }
 }
 
 describe("getBenchmarkWorkoutDomain", () => {
-  // @lat: [[research#Benchmark Workout Directory Test#Domain Classification]]
+  // @lat: [[research#Benchmark Workout Directory Test#Category Mapping]]
   it.each([
     {
-      domain: "Strength & barbell",
-      workout: benchmarkWorkout("strength", {
-        name: "Heavy Day",
-        scheme: "load",
-        movements: [{ name: "Back Squat" }],
-        tags: [{ name: "STRENGTH" }],
-      }),
+      category: "Strength",
+      workout: benchmarkWorkout("strength", { name: "Fran", scheme: "time" }, 1, "strength"),
     },
     {
-      domain: "Gymnastics & skill",
-      workout: benchmarkWorkout("gymnastics", {
-        name: "Max Strict HSPU",
-        scheme: "reps",
-        movements: [{ name: "Handstand Push-Up" }],
-        tags: [{ name: "Gymnastics" }],
-      }),
+      category: "Gymnastics",
+      workout: benchmarkWorkout("gymnastics", { name: "Back Squat", scheme: "load" }, 1, "gymnastics"),
     },
     {
-      domain: "Machines & rope",
-      workout: benchmarkWorkout("machine", {
-        name: "Echo Bike 50 cal",
-        scheme: "time",
-        movements: [{ name: "Echo Bike" }],
-      }),
+      category: "Engine",
+      workout: benchmarkWorkout("engine", { name: "Strict HSPU", scheme: "reps" }, 1, "engine"),
     },
     {
-      domain: "Running",
-      workout: benchmarkWorkout("run", {
-        name: "5K Run",
-        scheme: "time",
-        movements: [{ name: "Running" }],
-      }),
+      category: "Benchmark Workouts",
+      workout: benchmarkWorkout("benchmark", { name: "2K Row", scheme: "time" }, 1, "benchmark_workout"),
     },
     {
-      domain: "Rowing",
-      workout: benchmarkWorkout("row", {
-        name: "2K Row",
-        scheme: "time",
-        movements: [{ name: "Rowing" }],
-      }),
+      category: "Custom Category",
+      workout: benchmarkWorkout("custom", { name: "Custom", scheme: "points" }, 1, "custom_category"),
     },
-    {
-      domain: "Mixed tests",
-      workout: benchmarkWorkout("mixed", {
-        name: "Acid Bath",
-        scheme: "time",
-        movements: [
-          { name: "Ski Erg" },
-          { name: "Rowing" },
-          { name: "Echo Bike" },
-        ],
-        tags: [{ name: "Mixed Modal" }],
-      }),
-    },
-    {
-      domain: "CrossFit benchmarks",
-      workout: benchmarkWorkout("classic", {
-        name: "Fran",
-        scheme: "time",
-        movements: [{ name: "Thruster" }, { name: "Pull-Up" }],
-        tags: [{ name: "Girl Benchmark" }],
-      }),
-    },
-    {
-      domain: "CrossFit benchmarks",
-      workout: benchmarkWorkout("classic-name", {
-        name: "Karen",
-        scheme: "points",
-      }),
-    },
-    {
-      domain: "CrossFit benchmarks",
-      workout: benchmarkWorkout("hero-tag", {
-        name: "DT",
-        scheme: "time",
-        tags: [{ name: "Hero" }],
-      }),
-    },
-    {
-      domain: "Other benchmarks",
-      workout: benchmarkWorkout("heroic-tag", {
-        name: "Novel test",
-        scheme: "time",
-        tags: [{ name: "Heroic" }],
-      }),
-    },
-  ])("classifies $domain from normalized workout signals", ({ domain, workout }) => {
-    expect(getBenchmarkWorkoutDomain(workout)).toBe(domain)
+  ])("maps the persisted category key to $category", ({ category, workout }) => {
+    expect(getBenchmarkWorkoutDomain(workout)).toBe(category)
   })
 
-  // @lat: [[research#Benchmark Workout Directory Test#Domain Fallback]]
-  it("uses the stable fallback for an unrecognized benchmark", () => {
+  // @lat: [[research#Benchmark Workout Directory Test#Category Fallback]]
+  it("uses the stable fallback when category data is missing", () => {
     const workout = benchmarkWorkout("unknown", {
       name: "Kettlebell Odyssey",
       scheme: "time",
-      movements: [{ name: "Sandbag Carry" }],
-      tags: [{ name: "Benchmark" }],
     })
 
-    expect(getBenchmarkWorkoutDomain(workout)).toBe("Other benchmarks")
+    expect(getBenchmarkWorkoutDomain(workout)).toBe("Uncategorized")
   })
 })
 
 describe("groupBenchmarkWorkouts", () => {
-  // @lat: [[research#Benchmark Workout Directory Test#Domain Ordering]]
-  it("uses canonical domain order while preserving input order within each group", () => {
+  // @lat: [[research#Benchmark Workout Directory Test#Category Ordering]]
+  it("uses benchmark category order while preserving input order within each group", () => {
     const workouts = [
-      benchmarkWorkout(
-        "other-first",
-        { name: "Unknown One", scheme: "time" },
-        6,
-      ),
-      benchmarkWorkout("classic", {
-        name: "Fran",
-        scheme: "time",
-        tags: [{ name: "Girl Benchmark" }],
-      }),
-      benchmarkWorkout(
-        "row-first",
-        { name: "5K Row", scheme: "time" },
-        5,
-      ),
-      benchmarkWorkout("running", { name: "1 Mile Run", scheme: "time" }),
-      benchmarkWorkout("mixed", {
-        name: "Acid Bath",
-        scheme: "time",
-        tags: [{ name: "Mixed Modal" }],
-      }),
-      benchmarkWorkout("machine", {
-        name: "Echo Bike 50 cal",
-        scheme: "time",
-      }),
-      benchmarkWorkout("gymnastics", {
-        name: "Max Strict HSPU",
-        scheme: "reps",
-      }),
-      benchmarkWorkout(
-        "strength-first",
-        { name: "Deadlift", scheme: "load" },
-        99,
-      ),
-      benchmarkWorkout(
-        "row-second",
-        { name: "500m Row", scheme: "time" },
-        1,
-      ),
-      benchmarkWorkout(
-        "strength-second",
-        { name: "Strict Press", scheme: "load" },
-        2,
-      ),
-      benchmarkWorkout(
-        "other-second",
-        { name: "Unknown Two", scheme: "reps" },
-        3,
-      ),
+      benchmarkWorkout("uncategorized", { name: "Unknown", scheme: "time" }),
+      benchmarkWorkout("benchmark", { name: "Fran", scheme: "time" }, 1, "benchmark_workout"),
+      benchmarkWorkout("engine-first", { name: "5K Row", scheme: "time" }, 5, "engine"),
+      benchmarkWorkout("gymnastics", { name: "Strict HSPU", scheme: "reps" }, 1, "gymnastics"),
+      benchmarkWorkout("strength-first", { name: "Deadlift", scheme: "load" }, 99, "strength"),
+      benchmarkWorkout("engine-second", { name: "1 Mile Run", scheme: "time" }, 1, "engine"),
+      benchmarkWorkout("strength-second", { name: "Strict Press", scheme: "load" }, 2, "strength"),
     ]
 
     const groups = groupBenchmarkWorkouts(workouts)
 
     expect(groups.map(({ domain }) => domain)).toEqual([
-      "Strength & barbell",
-      "Gymnastics & skill",
-      "Machines & rope",
-      "Mixed tests",
-      "Running",
-      "Rowing",
-      "CrossFit benchmarks",
-      "Other benchmarks",
+      "Strength",
+      "Gymnastics",
+      "Engine",
+      "Benchmark Workouts",
+      "Uncategorized",
     ])
     expect(groups.map(({ workouts: group }) => group.map(({ id }) => id))).toEqual([
       ["strength-first", "strength-second"],
       ["gymnastics"],
-      ["machine"],
-      ["mixed"],
-      ["running"],
-      ["row-first", "row-second"],
-      ["classic"],
-      ["other-first", "other-second"],
+      ["engine-first", "engine-second"],
+      ["benchmark"],
+      ["uncategorized"],
     ])
   })
 })
@@ -221,7 +105,7 @@ describe("filterBenchmarkWorkouts", () => {
       scheme: "load",
       scoreType: "weight",
       movements: [{ name: "Back Squat" }],
-    }),
+    }, 1, "strength"),
   ]
 
   // @lat: [[research#Benchmark Workout Directory Test#Directory Filtering]]
@@ -231,6 +115,7 @@ describe("filterBenchmarkWorkouts", () => {
     ["repetitions", ["skill"]],
     ["reps", ["skill"]],
     ["weight", ["strength"]],
+    ["strength", ["strength"]],
   ])("filters by normalized name, movement, or result format: %s", (query, ids) => {
     expect(filterBenchmarkWorkouts(workouts, query).map(({ id }) => id)).toEqual(ids)
   })

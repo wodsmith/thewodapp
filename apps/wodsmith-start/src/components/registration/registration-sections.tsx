@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Competition, ScalingLevel, Team, Waiver } from "@/db/schema"
+import { isOpenEnded } from "@/lib/competitions/perpetual-dates"
 import type { FeeConfiguration } from "@/server/commerce/fee-calculator"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
@@ -218,14 +219,17 @@ export function ClosedRegistrationBanner({
   registrationClosesAt: string | null
 }) {
   const message = (() => {
-    if (!registrationOpensAt || !registrationClosesAt) {
+    if (!registrationOpensAt && !registrationClosesAt) {
       return "Registration dates have not been set yet."
     }
     const todayStr = new Date().toISOString().slice(0, 10)
-    if (todayStr < registrationOpensAt) {
-      return `Registration opens ${formatRegistrationDate(registrationOpensAt)} and closes ${formatRegistrationDate(registrationClosesAt)}`
+    if (registrationOpensAt && todayStr < registrationOpensAt) {
+      const closeText = registrationClosesAt
+        ? ` and closes ${formatRegistrationDate(registrationClosesAt)}`
+        : ""
+      return `Registration opens ${formatRegistrationDate(registrationOpensAt)}${closeText}`
     }
-    if (todayStr > registrationClosesAt) {
+    if (registrationClosesAt && todayStr > registrationClosesAt) {
       return `Registration was open from ${formatRegistrationDate(registrationOpensAt)} to ${formatRegistrationDate(registrationClosesAt)}`
     }
     return null
@@ -257,6 +261,21 @@ export function CompetitionDetailsCard({
    */
   hideRegistrationWindow?: boolean
 }) {
+  const isPerpetual = isOpenEnded(competition)
+  const competitionDateLabel = isPerpetual
+    ? "Competition start"
+    : isSameDateString(competition.startDate, competition.endDate)
+      ? "Competition date"
+      : "Competition dates"
+  const competitionDateText = isPerpetual
+    ? formatRegistrationDate(competition.startDate)
+    : isSameDateString(competition.startDate, competition.endDate)
+      ? formatRegistrationDate(competition.startDate)
+      : `${formatRegistrationDate(competition.startDate)} - ${formatRegistrationDate(competition.endDate)}`
+  const registrationWindowText = registrationClosesAt
+    ? `${formatRegistrationDate(registrationOpensAt)} - ${formatRegistrationDate(registrationClosesAt)}`
+    : `Opens ${formatRegistrationDate(registrationOpensAt)}`
+
   return (
     <Card>
       <CardHeader>
@@ -265,23 +284,14 @@ export function CompetitionDetailsCard({
       <CardContent className="space-y-2">
         <div>
           <p className="text-muted-foreground text-sm">
-            {isSameDateString(competition.startDate, competition.endDate)
-              ? "Competition date"
-              : "Competition dates"}
+            {competitionDateLabel}
           </p>
-          <p className="font-medium">
-            {isSameDateString(competition.startDate, competition.endDate)
-              ? formatRegistrationDate(competition.startDate)
-              : `${formatRegistrationDate(competition.startDate)} - ${formatRegistrationDate(competition.endDate)}`}
-          </p>
+          <p className="font-medium">{competitionDateText}</p>
         </div>
         {!hideRegistrationWindow && (
           <div>
             <p className="text-muted-foreground text-sm">Registration Window</p>
-            <p className="font-medium">
-              {formatRegistrationDate(registrationOpensAt)} -{" "}
-              {formatRegistrationDate(registrationClosesAt)}
-            </p>
+            <p className="font-medium">{registrationWindowText}</p>
           </div>
         )}
         <div>

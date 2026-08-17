@@ -4,7 +4,6 @@ import {
 	getStartOfDayInTimezone,
 	isDeadlinePassedInTimezone,
 	hasDateStartedInTimezone,
-	getRegistrationWindowStatus,
 	formatTimeInTimezone,
 	formatDateTimeInTimezone,
 	getTimezoneAbbreviation,
@@ -241,59 +240,6 @@ describe("timezone-utils", () => {
 			expect(hasDateStartedInTimezone("2024-01-15", "America/Denver")).toBe(
 				true,
 			)
-		})
-	})
-
-	describe("getRegistrationWindowStatus", () => {
-		beforeEach(() => {
-			vi.useFakeTimers()
-			vi.setSystemTime(new Date(Date.UTC(2026, 7, 16, 12, 0, 0)))
-		})
-
-		afterEach(() => {
-			vi.useRealTimers()
-		})
-
-		it("keeps an open-ended benchmark window open indefinitely", () => {
-			expect(
-				getRegistrationWindowStatus(
-					"2026-01-01",
-					null,
-					"America/Denver",
-				),
-			).toEqual({
-				registrationOpen: true,
-				registrationClosed: false,
-				registrationNotYetOpen: false,
-			})
-		})
-
-		it("keeps a future open-ended window closed until its opening date", () => {
-			expect(
-				getRegistrationWindowStatus(
-					"2027-01-01",
-					null,
-					"America/Denver",
-				),
-			).toEqual({
-				registrationOpen: false,
-				registrationClosed: false,
-				registrationNotYetOpen: true,
-			})
-		})
-
-		it("closes a bounded window after its closing date", () => {
-			expect(
-				getRegistrationWindowStatus(
-					"2026-01-01",
-					"2026-07-31",
-					"America/Denver",
-				),
-			).toEqual({
-				registrationOpen: false,
-				registrationClosed: true,
-				registrationNotYetOpen: false,
-			})
 		})
 	})
 

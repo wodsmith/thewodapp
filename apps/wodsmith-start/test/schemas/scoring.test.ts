@@ -382,8 +382,8 @@ describe("ScoringConfig Schema", () => {
 
 describe("Type inference", () => {
 	it("infers correct type for ScoringAlgorithm", () => {
-		const algo: ScoringAlgorithm = "traditional"
-		expect(["traditional", "p_score", "custom"]).toContain(algo)
+		const algo: ScoringAlgorithm = "online"
+		expect(["traditional", "p_score", "custom", "online"]).toContain(algo)
 	})
 
 	it("infers correct type for TiebreakerMethod", () => {

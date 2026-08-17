@@ -76,7 +76,9 @@ function RootComponent() {
     currentPath === "/" ||
     (isNavigating && targetPath === "/") ||
     currentPath.startsWith("/compete") ||
-    (isNavigating && targetPath.startsWith("/compete"))
+    (isNavigating && targetPath.startsWith("/compete")) ||
+    currentPath.startsWith("/benchmarks") ||
+    (isNavigating && targetPath.startsWith("/benchmarks"))
   const isAdminRoute =
     currentPath.startsWith("/admin") ||
     (isNavigating && targetPath.startsWith("/admin"))
@@ -156,6 +158,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <TanStackDevtools
             config={{
               position: "bottom-right",
+            }}
+            eventBusConfig={{
+              port: Number(import.meta.env.VITE_DEVTOOLS_BUS_PORT) || 42069,
             }}
             plugins={[
               {

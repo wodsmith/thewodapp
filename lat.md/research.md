@@ -26,7 +26,7 @@ The Domain Rail is now selected for production benchmark competitions; Benchmark
 
 Benchmark competitions use a dense domain directory while every other competition type retains the existing workout-card presentation.
 
-[[apps/wodsmith-start/src/components/benchmark-workout-directory.tsx#BenchmarkWorkoutDirectory]] groups all top-level workouts into stable domains, preserves input order, filters by workout metadata, and links every row to its workout detail route. Desktop rail collapse persists locally; mobile uses a horizontal domain strip.
+[[apps/wodsmith-start/src/components/benchmark-workout-directory.tsx#BenchmarkWorkoutDirectory]] groups top-level workouts by their persisted benchmark category, preserves benchmark category order and input order, filters by workout metadata, and links every row to its detail route. Desktop rail collapse persists locally; mobile uses a horizontal category strip.
 
 [[apps/wodsmith-start/src/server-fns/athlete-score-fns.ts#getBenchmarkViewerScores]] reads the authenticated viewer's division-scoped scores in one batch. Missing sessions, ambiguous registrations, and missing scores return an empty map, so rows never expose another athlete's data.
 
@@ -34,19 +34,19 @@ Benchmark competitions use a dense domain directory while every other competitio
 
 ## Benchmark Workout Directory Test
 
-These tests lock the benchmark directory's classification, ordering, filtering, and result-label behavior.
+These tests lock the benchmark directory's category mapping, ordering, filtering, and result-label behavior.
 
-### Domain Classification
+### Category Mapping
 
-This test verifies normalized workout metadata maps known benchmark signals to the expected domain.
+This test verifies persisted benchmark category keys map to the same category labels used by benchmark scoring.
 
-### Domain Fallback
+### Category Fallback
 
-This test verifies unrecognized workouts use the stable Other benchmarks fallback.
+This test verifies workouts missing benchmark category data use the stable Uncategorized fallback.
 
-### Domain Ordering
+### Category Ordering
 
-This test verifies canonical domain order and stable workout order within each group.
+This test verifies canonical benchmark category order and stable workout order within each category.
 
 ### Directory Filtering
 
