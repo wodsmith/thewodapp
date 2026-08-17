@@ -396,6 +396,18 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 })
 
 /**
+ * Private R2 bucket for entitlement-gated competition product downloads.
+ *
+ * Unlike the general upload bucket, this bucket intentionally has no r2.dev
+ * development domain or production custom domain. Objects are available only
+ * through the Worker binding after application-level authorization.
+ */
+const privateDownloadsBucket = await R2Bucket("wodsmith-private-downloads", {
+  adopt: true,
+  dev: { remote: true },
+})
+
+/**
  * Validate required Stripe environment variables when Stripe webhook is needed.
  * Fails fast with a clear error message if any required variables are missing.
  */
@@ -648,6 +660,8 @@ const website = await TanStackStart("app", {
     KV_SESSION: kvSession,
     /** R2 bucket binding for file uploads */
     R2_BUCKET: r2Bucket,
+    /** Private R2 bucket for entitlement-gated product downloads */
+    R2_DOWNLOADS_BUCKET: privateDownloadsBucket,
     /** Hyperdrive binding for pooled PlanetScale connections */
     HYPERDRIVE: hyperdrive,
     /** Workflow for async Stripe checkout processing */

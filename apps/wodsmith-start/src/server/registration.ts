@@ -23,13 +23,13 @@ import {
   teamMembershipTable,
   teamTable,
   userTable,
-  waiversTable,
   waiverSignaturesTable,
+  waiversTable,
 } from "@/db/schema"
 import {
+  createCompetitionRegistrationId,
   createTeamId,
   createTeamMembershipId,
-  createCompetitionRegistrationId,
 } from "@/db/schemas/common"
 import { getSiteUrl } from "@/lib/env"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
@@ -780,19 +780,30 @@ export async function registerForCompetition(
 
   // 14. Create competition_registration record
   const registrationId = createCompetitionRegistrationId()
-  await db.insert(competitionRegistrationsTable).values({
-    id: registrationId,
-    eventId: params.competitionId,
-    userId: params.userId,
-    teamMemberId: teamMemberId,
-    divisionId: params.divisionId,
-    registeredAt: new Date(),
-    // Team fields
-    teamName: isTeamDivision ? params.teamName : null,
-    captainUserId: params.userId,
-    athleteTeamId,
-    pendingTeammates: pendingTeammatesJson,
-    metadata: metadataJson,
+  await db.transaction(async (tx) => {
+    // Included-download lifecycle changes lock the same durable row. This
+    // makes registration creation and entitlement-revoking catalog edits
+    // linearizable even when the competition has no registrations yet.
+    await tx
+      .select({ id: competitionsTable.id })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, params.competitionId))
+      .for("update")
+
+    await tx.insert(competitionRegistrationsTable).values({
+      id: registrationId,
+      eventId: params.competitionId,
+      userId: params.userId,
+      teamMemberId: teamMemberId,
+      divisionId: params.divisionId,
+      registeredAt: new Date(),
+      // Team fields
+      teamName: isTeamDivision ? params.teamName : null,
+      captainUserId: params.userId,
+      athleteTeamId,
+      pendingTeammates: pendingTeammatesJson,
+      metadata: metadataJson,
+    })
   })
 
   const registration = await db.query.competitionRegistrationsTable.findFirst({

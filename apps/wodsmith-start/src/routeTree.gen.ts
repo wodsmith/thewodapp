@@ -77,11 +77,13 @@ import { Route as CompeteSlugAnnouncementsRouteImport } from './routes/compete/$
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiUploadDocsVideoRouteImport } from './routes/api/upload/docs-video'
+import { Route as ApiDownloadsFileIdRouteImport } from './routes/api/downloads/$fileId'
 import { Route as ApiAuthTokenRouteImport } from './routes/api/auth/token'
 import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
 import { Route as AdminDocsNewRouteImport } from './routes/admin/docs/new'
 import { Route as AdminDocsDocIdRouteImport } from './routes/admin/docs/$docId'
+import { Route as ProtectedSettingsDownloadsRouteImport } from './routes/_protected/settings/downloads'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as CompeteOrganizerOnboardIndexRouteImport } from './routes/compete/organizer/onboard/index'
 import { Route as CompeteOrganizerDashboardIndexRouteImport } from './routes/compete/organizer/_dashboard/index'
@@ -574,6 +576,11 @@ const ApiUploadDocsVideoRoute = ApiUploadDocsVideoRouteImport.update({
   path: '/docs-video',
   getParentRoute: () => ApiUploadRoute,
 } as any)
+const ApiDownloadsFileIdRoute = ApiDownloadsFileIdRouteImport.update({
+  id: '/api/downloads/$fileId',
+  path: '/api/downloads/$fileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthTokenRoute = ApiAuthTokenRouteImport.update({
   id: '/api/auth/token',
   path: '/api/auth/token',
@@ -599,6 +606,12 @@ const AdminDocsDocIdRoute = AdminDocsDocIdRouteImport.update({
   path: '/docs/$docId',
   getParentRoute: () => AdminRoute,
 } as any)
+const ProtectedSettingsDownloadsRoute =
+  ProtectedSettingsDownloadsRouteImport.update({
+    id: '/downloads',
+    path: '/downloads',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
 const DemoStartSsrIndexRoute = DemoStartSsrIndexRouteImport.update({
   id: '/demo/start/ssr/',
   path: '/demo/start/ssr/',
@@ -1479,11 +1492,13 @@ export interface FileRoutesByFullPath {
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
+  '/settings/downloads': typeof ProtectedSettingsDownloadsRoute
   '/admin/docs/$docId': typeof AdminDocsDocIdRoute
   '/admin/docs/new': typeof AdminDocsNewRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/downloads/$fileId': typeof ApiDownloadsFileIdRoute
   '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
@@ -1690,9 +1705,11 @@ export interface FileRoutesByTo {
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
+  '/settings/downloads': typeof ProtectedSettingsDownloadsRoute
   '/admin/docs/$docId': typeof AdminDocsDocIdRoute
   '/admin/docs/new': typeof AdminDocsNewRoute
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/downloads/$fileId': typeof ApiDownloadsFileIdRoute
   '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
@@ -1896,11 +1913,13 @@ export interface FileRoutesById {
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
+  '/_protected/settings/downloads': typeof ProtectedSettingsDownloadsRoute
   '/admin/docs/$docId': typeof AdminDocsDocIdRoute
   '/admin/docs/new': typeof AdminDocsNewRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/downloads/$fileId': typeof ApiDownloadsFileIdRoute
   '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
@@ -2114,11 +2133,13 @@ export interface FileRouteTypes {
     | '/transfer/$transferId'
     | '/admin/'
     | '/compete/'
+    | '/settings/downloads'
     | '/admin/docs/$docId'
     | '/admin/docs/new'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/auth/token'
+    | '/api/downloads/$fileId'
     | '/api/upload/docs-video'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
@@ -2325,9 +2346,11 @@ export interface FileRouteTypes {
     | '/transfer/$transferId'
     | '/admin'
     | '/compete'
+    | '/settings/downloads'
     | '/admin/docs/$docId'
     | '/admin/docs/new'
     | '/api/auth/token'
+    | '/api/downloads/$fileId'
     | '/api/upload/docs-video'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
@@ -2530,11 +2553,13 @@ export interface FileRouteTypes {
     | '/transfer/$transferId'
     | '/admin/'
     | '/compete/'
+    | '/_protected/settings/downloads'
     | '/admin/docs/$docId'
     | '/admin/docs/new'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/auth/token'
+    | '/api/downloads/$fileId'
     | '/api/upload/docs-video'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
@@ -2736,6 +2761,7 @@ export interface RootRouteChildren {
   ApiUploadRoute: typeof ApiUploadRouteWithChildren
   TransferTransferIdRoute: typeof TransferTransferIdRoute
   ApiAuthTokenRoute: typeof ApiAuthTokenRouteWithChildren
+  ApiDownloadsFileIdRoute: typeof ApiDownloadsFileIdRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
@@ -3237,6 +3263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUploadDocsVideoRouteImport
       parentRoute: typeof ApiUploadRoute
     }
+    '/api/downloads/$fileId': {
+      id: '/api/downloads/$fileId'
+      path: '/api/downloads/$fileId'
+      fullPath: '/api/downloads/$fileId'
+      preLoaderRoute: typeof ApiDownloadsFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/token': {
       id: '/api/auth/token'
       path: '/api/auth/token'
@@ -3271,6 +3304,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/docs/$docId'
       preLoaderRoute: typeof AdminDocsDocIdRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/_protected/settings/downloads': {
+      id: '/_protected/settings/downloads'
+      path: '/downloads'
+      fullPath: '/settings/downloads'
+      preLoaderRoute: typeof ProtectedSettingsDownloadsRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
     }
     '/demo/start/ssr/': {
       id: '/demo/start/ssr/'
@@ -4297,6 +4337,7 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface ProtectedSettingsRouteChildren {
+  ProtectedSettingsDownloadsRoute: typeof ProtectedSettingsDownloadsRoute
   ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
   ProtectedSettingsBillingPurchaseIdRoute: typeof ProtectedSettingsBillingPurchaseIdRoute
   ProtectedSettingsAppearanceIndexRoute: typeof ProtectedSettingsAppearanceIndexRoute
@@ -4314,6 +4355,7 @@ interface ProtectedSettingsRouteChildren {
 }
 
 const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
+  ProtectedSettingsDownloadsRoute: ProtectedSettingsDownloadsRoute,
   ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
   ProtectedSettingsBillingPurchaseIdRoute:
     ProtectedSettingsBillingPurchaseIdRoute,
@@ -5020,6 +5062,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUploadRoute: ApiUploadRouteWithChildren,
   TransferTransferIdRoute: TransferTransferIdRoute,
   ApiAuthTokenRoute: ApiAuthTokenRouteWithChildren,
+  ApiDownloadsFileIdRoute: ApiDownloadsFileIdRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
