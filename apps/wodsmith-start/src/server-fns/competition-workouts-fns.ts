@@ -5,9 +5,13 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db"
+import { type Database, getDb } from "@/db"
+import {
+  benchmarkBatteriesTable,
+  benchmarkTestsTable,
+} from "@/db/schemas/benchmarks"
 import {
   createProgrammingTrackId,
   createTagId,
@@ -51,6 +55,8 @@ import { getSessionFromCookie } from "@/utils/auth"
 // Types
 // ============================================================================
 
+type DbTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
+
 export interface DivisionDescription {
   divisionId: string
   divisionLabel: string
@@ -69,6 +75,7 @@ export interface CompetitionWorkout {
   heatStatus: TrackWorkout["heatStatus"]
   eventStatus: TrackWorkout["eventStatus"]
   sponsorId: string | null
+  benchmarkTestId?: string | null
   createdAt: Date
   updatedAt: Date
   workout: {
@@ -203,6 +210,9 @@ const saveCompetitionEventInputSchema = z.object({
   pointsMultiplier: z.number().int().min(1).optional(),
   notes: z.string().max(1000).nullable().optional(),
   sponsorId: z.string().nullable().optional(),
+  // Benchmark test link (benchmark competitions only). Omitted = unchanged,
+  // null = unlink, string = link to that test.
+  benchmarkTestId: z.string().min(1).nullable().optional(),
   // Division descriptions
   divisionDescriptions: z
     .array(
@@ -264,6 +274,88 @@ async function getCompetitionTrack(competitionId: string) {
 }
 
 /**
+ * Validate a benchmark test link for a competition event: the test must belong
+ * to the battery of the competition owning the event, and no other event in
+ * the competition may already be linked to it (the leaderboard requires a
+ * one-to-one test-event mapping). Must run inside the transaction that writes
+ * the link: the conflict check is a locking read (FOR UPDATE) so concurrent
+ * link attempts serialize instead of both passing the check.
+ */
+async function resolveBenchmarkTestLink({
+  db,
+  trackWorkoutId,
+  benchmarkTestId,
+}: {
+  db: DbTransaction
+  trackWorkoutId: string
+  benchmarkTestId: string
+}): Promise<{ id: string; categoryKey: string }> {
+  const [trackRow] = await db
+    .select({
+      competitionId: programmingTracksTable.competitionId,
+    })
+    .from(trackWorkoutsTable)
+    .innerJoin(
+      programmingTracksTable,
+      eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+    )
+    .where(eq(trackWorkoutsTable.id, trackWorkoutId))
+    .limit(1)
+
+  if (!trackRow?.competitionId) {
+    throw new Error("Event is not part of a competition")
+  }
+
+  const [test] = await db
+    .select({
+      id: benchmarkTestsTable.id,
+      categoryKey: benchmarkTestsTable.categoryKey,
+    })
+    .from(benchmarkTestsTable)
+    .innerJoin(
+      benchmarkBatteriesTable,
+      eq(benchmarkTestsTable.batteryId, benchmarkBatteriesTable.id),
+    )
+    .where(
+      and(
+        eq(benchmarkTestsTable.id, benchmarkTestId),
+        eq(benchmarkBatteriesTable.competitionId, trackRow.competitionId),
+      ),
+    )
+    .limit(1)
+    .for("update")
+
+  if (!test) {
+    throw new Error("Benchmark test not found for this competition")
+  }
+
+  const [conflict] = await db
+    .select({ id: trackWorkoutsTable.id })
+    .from(trackWorkoutsTable)
+    .innerJoin(
+      programmingTracksTable,
+      eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+    )
+    .where(
+      and(
+        eq(programmingTracksTable.competitionId, trackRow.competitionId),
+        eq(trackWorkoutsTable.benchmarkTestId, benchmarkTestId),
+        ne(trackWorkoutsTable.id, trackWorkoutId),
+      ),
+    )
+    .limit(1)
+    .for("update")
+
+  if (conflict) {
+    throw new Error(
+      "This benchmark test is already linked to another event. Unlink it there first.",
+    )
+  }
+
+  return test
+}
+
+/**
  * Get the next available track order for a competition
  */
 async function getNextCompetitionEventOrder(
@@ -285,9 +377,7 @@ async function getNextCompetitionEventOrder(
     return 1
   }
 
-  const maxOrder = Math.max(
-    ...trackWorkouts.map((tw) => Number(tw.trackOrder)),
-  )
+  const maxOrder = Math.max(...trackWorkouts.map((tw) => Number(tw.trackOrder)))
   return Math.floor(maxOrder) + 1
 }
 
@@ -319,9 +409,7 @@ async function getNextSubEventOrder(parentEventId: string): Promise<number> {
     return parentOrder + 0.01
   }
 
-  const maxChildOrder = Math.max(
-    ...siblings.map((s) => Number(s.trackOrder)),
-  )
+  const maxChildOrder = Math.max(...siblings.map((s) => Number(s.trackOrder)))
   return Number((maxChildOrder + 0.01).toFixed(2))
 }
 
@@ -944,6 +1032,7 @@ export const getCompetitionWorkoutsFn = createServerFn({ method: "GET" })
         heatStatus: trackWorkoutsTable.heatStatus,
         eventStatus: trackWorkoutsTable.eventStatus,
         sponsorId: trackWorkoutsTable.sponsorId,
+        benchmarkTestId: trackWorkoutsTable.benchmarkTestId,
         createdAt: trackWorkoutsTable.createdAt,
         updatedAt: trackWorkoutsTable.updatedAt,
         workout: {
@@ -996,6 +1085,7 @@ export const getCompetitionEventFn = createServerFn({ method: "GET" })
         heatStatus: trackWorkoutsTable.heatStatus,
         eventStatus: trackWorkoutsTable.eventStatus,
         sponsorId: trackWorkoutsTable.sponsorId,
+        benchmarkTestId: trackWorkoutsTable.benchmarkTestId,
         createdAt: trackWorkoutsTable.createdAt,
         updatedAt: trackWorkoutsTable.updatedAt,
         workout: {
@@ -1081,7 +1171,11 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "add_competition_workout", workout: { competitionId: data.competitionId, workoutId: data.workoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "add_competition_workout",
+      workout: { competitionId: data.competitionId, workoutId: data.workoutId },
+      teamId: data.teamId,
+    })
 
     // Get the competition's programming track
     const track = await getCompetitionTrack(data.competitionId)
@@ -1100,7 +1194,10 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
     // Validate parentEventId if provided
     if (data.parentEventId) {
       const parentEvent = await db
-        .select({ id: trackWorkoutsTable.id, parentEventId: trackWorkoutsTable.parentEventId })
+        .select({
+          id: trackWorkoutsTable.id,
+          parentEventId: trackWorkoutsTable.parentEventId,
+        })
         .from(trackWorkoutsTable)
         .where(
           and(
@@ -1122,7 +1219,7 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
     const trackOrder = data.parentEventId
       ? await getNextSubEventOrder(data.parentEventId)
       : (data.trackOrder ??
-          (await getNextCompetitionEventOrder(data.competitionId)))
+        (await getNextCompetitionEventOrder(data.competitionId)))
 
     // Add workout to track
     const trackWorkoutId = createTrackWorkoutId()
@@ -1161,7 +1258,11 @@ export const removeWorkoutFromCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "delete_competition_workout", workout: { trackWorkoutId: data.trackWorkoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "delete_competition_workout",
+      workout: { trackWorkoutId: data.trackWorkoutId },
+      teamId: data.teamId,
+    })
 
     await db.transaction(async (tx) => {
       // Check if this is a parent event — cascade delete children
@@ -1250,7 +1351,11 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "create_competition_workout", workout: { competitionId: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "create_competition_workout",
+      workout: { competitionId: data.competitionId },
+      teamId: data.teamId,
+    })
 
     // Get or create the competition track
     let track = await getCompetitionTrack(data.competitionId)
@@ -1291,7 +1396,10 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
     // Validate parentEventId if provided
     if (data.parentEventId) {
       const parentEvent = await db
-        .select({ id: trackWorkoutsTable.id, parentEventId: trackWorkoutsTable.parentEventId })
+        .select({
+          id: trackWorkoutsTable.id,
+          parentEventId: trackWorkoutsTable.parentEventId,
+        })
         .from(trackWorkoutsTable)
         .where(
           and(
@@ -1460,7 +1568,11 @@ export const updateCompetitionWorkoutFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_competition_workout", workout: { trackWorkoutId: data.trackWorkoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "update_competition_workout",
+      workout: { trackWorkoutId: data.trackWorkoutId },
+      teamId: data.teamId,
+    })
 
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -1530,141 +1642,190 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "save_competition_event", workout: { trackWorkoutId: data.trackWorkoutId, workoutId: data.workoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "save_competition_event",
+      workout: {
+        trackWorkoutId: data.trackWorkoutId,
+        workoutId: data.workoutId,
+      },
+      teamId: data.teamId,
+    })
 
-    // 1. Update workout table
-    const workoutUpdateData: Record<string, unknown> = {
-      name: data.name,
-      updatedAt: new Date(),
-    }
+    await db.transaction(async (tx) => {
+      const [ownedEvent] = await tx
+        .select({ id: trackWorkoutsTable.id })
+        .from(trackWorkoutsTable)
+        .innerJoin(
+          programmingTracksTable,
+          eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+        )
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(
+          and(
+            eq(trackWorkoutsTable.id, data.trackWorkoutId),
+            eq(trackWorkoutsTable.workoutId, data.workoutId),
+            eq(programmingTracksTable.ownerTeamId, data.teamId),
+            eq(workouts.teamId, data.teamId),
+          ),
+        )
+        .limit(1)
+        .for("update")
 
-    if (data.description !== undefined) {
-      workoutUpdateData.description = data.description
-    }
-    if (data.scheme !== undefined) {
-      workoutUpdateData.scheme = data.scheme
-    }
-    if (data.scoreType !== undefined) {
-      workoutUpdateData.scoreType = data.scoreType
-    }
-    if (data.roundsToScore !== undefined) {
-      workoutUpdateData.roundsToScore = data.roundsToScore
-    }
-    if (data.tiebreakScheme !== undefined) {
-      workoutUpdateData.tiebreakScheme = data.tiebreakScheme
-    }
-    if (data.timeCap !== undefined) {
-      workoutUpdateData.timeCap = data.timeCap
-    }
-
-    await db
-      .update(workouts)
-      .set(workoutUpdateData)
-      .where(eq(workouts.id, data.workoutId))
-
-    // 2. Update movements if provided
-    if (data.movementIds !== undefined) {
-      // Delete existing movements
-      await db
-        .delete(workoutMovements)
-        .where(eq(workoutMovements.workoutId, data.workoutId))
-
-      // Insert new movements
-      if (data.movementIds.length > 0) {
-        const movementValues = data.movementIds.map((movementId) => ({
-          id: `workout_movement_${createId()}`,
-          workoutId: data.workoutId,
-          movementId,
-        }))
-
-        await db.insert(workoutMovements).values(movementValues)
-      }
-    }
-
-    // 3. Update track workout (pointsMultiplier, notes, sponsorId)
-    const trackWorkoutUpdateData: Record<string, unknown> = {
-      updatedAt: new Date(),
-    }
-
-    if (data.pointsMultiplier !== undefined) {
-      trackWorkoutUpdateData.pointsMultiplier = data.pointsMultiplier
-    }
-    if (data.notes !== undefined) {
-      trackWorkoutUpdateData.notes = data.notes
-    }
-    if (data.sponsorId !== undefined) {
-      trackWorkoutUpdateData.sponsorId = data.sponsorId
-    }
-
-    await db
-      .update(trackWorkoutsTable)
-      .set(trackWorkoutUpdateData)
-      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-
-    // 4. Update division descriptions using upsert with ON CONFLICT
-    if (data.divisionDescriptions && data.divisionDescriptions.length > 0) {
-      // Separate null descriptions (to delete) from non-null (to upsert)
-      const toDelete: string[] = []
-      const toUpsert: Array<{
-        divisionId: string
-        description: string
-      }> = []
-
-      for (const { divisionId, description } of data.divisionDescriptions) {
-        if (description === null) {
-          toDelete.push(divisionId)
-        } else {
-          toUpsert.push({ divisionId, description })
-        }
+      if (!ownedEvent) {
+        throw new Error("Competition event does not belong to this team")
       }
 
-      // Delete descriptions that are explicitly null
-      if (toDelete.length > 0) {
-        await db
-          .delete(workoutScalingDescriptionsTable)
-          .where(
-            and(
-              eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-              inArray(workoutScalingDescriptionsTable.scalingLevelId, toDelete),
-            ),
-          )
+      // 1. Update workout table
+      const workoutUpdateData: Record<string, unknown> = {
+        name: data.name,
+        updatedAt: new Date(),
       }
 
-      // Upsert descriptions that have values
-      // Manual upsert pattern for MySQL compatibility
-      for (const { divisionId, description } of toUpsert) {
-        // Check if record exists
-        const existing = await db
-          .select({ id: workoutScalingDescriptionsTable.id })
-          .from(workoutScalingDescriptionsTable)
-          .where(
-            and(
-              eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-              eq(workoutScalingDescriptionsTable.scalingLevelId, divisionId),
-            ),
-          )
-          .limit(1)
+      if (data.description !== undefined) {
+        workoutUpdateData.description = data.description
+      }
+      if (data.scheme !== undefined) {
+        workoutUpdateData.scheme = data.scheme
+      }
+      if (data.scoreType !== undefined) {
+        workoutUpdateData.scoreType = data.scoreType
+      }
+      if (data.roundsToScore !== undefined) {
+        workoutUpdateData.roundsToScore = data.roundsToScore
+      }
+      if (data.tiebreakScheme !== undefined) {
+        workoutUpdateData.tiebreakScheme = data.tiebreakScheme
+      }
+      if (data.timeCap !== undefined) {
+        workoutUpdateData.timeCap = data.timeCap
+      }
 
-        if (existing.length > 0) {
-          // Update existing
-          await db
-            .update(workoutScalingDescriptionsTable)
-            .set({
-              description,
-              updatedAt: new Date(),
-            })
-            .where(eq(workoutScalingDescriptionsTable.id, existing[0]?.id))
-        } else {
-          // Insert new
-          await db.insert(workoutScalingDescriptionsTable).values({
-            id: createWorkoutScalingDescriptionId(),
+      await tx
+        .update(workouts)
+        .set(workoutUpdateData)
+        .where(eq(workouts.id, data.workoutId))
+
+      // 2. Update movements if provided
+      if (data.movementIds !== undefined) {
+        // Delete existing movements
+        await tx
+          .delete(workoutMovements)
+          .where(eq(workoutMovements.workoutId, data.workoutId))
+
+        // Insert new movements
+        if (data.movementIds.length > 0) {
+          const movementValues = data.movementIds.map((movementId) => ({
+            id: `workout_movement_${createId()}`,
             workoutId: data.workoutId,
-            scalingLevelId: divisionId,
-            description,
-          })
+            movementId,
+          }))
+
+          await tx.insert(workoutMovements).values(movementValues)
         }
       }
-    }
+
+      // 3. Update track workout (pointsMultiplier, notes, sponsorId)
+      const trackWorkoutUpdateData: Record<string, unknown> = {
+        updatedAt: new Date(),
+      }
+
+      if (data.pointsMultiplier !== undefined) {
+        trackWorkoutUpdateData.pointsMultiplier = data.pointsMultiplier
+      }
+      if (data.notes !== undefined) {
+        trackWorkoutUpdateData.notes = data.notes
+      }
+      if (data.sponsorId !== undefined) {
+        trackWorkoutUpdateData.sponsorId = data.sponsorId
+      }
+      if (data.benchmarkTestId !== undefined) {
+        if (data.benchmarkTestId === null) {
+          trackWorkoutUpdateData.benchmarkTestId = null
+          trackWorkoutUpdateData.benchmarkCategory = null
+        } else {
+          const linkedTest = await resolveBenchmarkTestLink({
+            db: tx,
+            trackWorkoutId: data.trackWorkoutId,
+            benchmarkTestId: data.benchmarkTestId,
+          })
+          trackWorkoutUpdateData.benchmarkTestId = linkedTest.id
+          trackWorkoutUpdateData.benchmarkCategory = linkedTest.categoryKey
+        }
+      }
+
+      await tx
+        .update(trackWorkoutsTable)
+        .set(trackWorkoutUpdateData)
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+      // 4. Update division descriptions using upsert with ON CONFLICT
+      if (data.divisionDescriptions && data.divisionDescriptions.length > 0) {
+        // Separate null descriptions (to delete) from non-null (to upsert)
+        const toDelete: string[] = []
+        const toUpsert: Array<{
+          divisionId: string
+          description: string
+        }> = []
+
+        for (const { divisionId, description } of data.divisionDescriptions) {
+          if (description === null) {
+            toDelete.push(divisionId)
+          } else {
+            toUpsert.push({ divisionId, description })
+          }
+        }
+
+        // Delete descriptions that are explicitly null
+        if (toDelete.length > 0) {
+          await tx
+            .delete(workoutScalingDescriptionsTable)
+            .where(
+              and(
+                eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+                inArray(
+                  workoutScalingDescriptionsTable.scalingLevelId,
+                  toDelete,
+                ),
+              ),
+            )
+        }
+
+        // Upsert descriptions that have values
+        // Manual upsert pattern for MySQL compatibility
+        for (const { divisionId, description } of toUpsert) {
+          // Check if record exists
+          const existing = await tx
+            .select({ id: workoutScalingDescriptionsTable.id })
+            .from(workoutScalingDescriptionsTable)
+            .where(
+              and(
+                eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+                eq(workoutScalingDescriptionsTable.scalingLevelId, divisionId),
+              ),
+            )
+            .limit(1)
+
+          if (existing.length > 0) {
+            // Update existing
+            await tx
+              .update(workoutScalingDescriptionsTable)
+              .set({
+                description,
+                updatedAt: new Date(),
+              })
+              .where(eq(workoutScalingDescriptionsTable.id, existing[0]?.id))
+          } else {
+            // Insert new
+            await tx.insert(workoutScalingDescriptionsTable).values({
+              id: createWorkoutScalingDescriptionId(),
+              workoutId: data.workoutId,
+              scalingLevelId: divisionId,
+              description,
+            })
+          }
+        }
+      }
+    })
 
     return { success: true }
   })
@@ -1691,7 +1852,11 @@ export const reorderCompetitionEventsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "reorder_competition_events", workout: { competitionId: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "reorder_competition_events",
+      workout: { competitionId: data.competitionId },
+      teamId: data.teamId,
+    })
 
     // Get the competition's programming track
     const track = await getCompetitionTrack(data.competitionId)
@@ -1799,7 +1964,11 @@ export const updateWorkoutDivisionDescriptionsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division_descriptions", workout: { workoutId: data.workoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "update_division_descriptions",
+      workout: { workoutId: data.workoutId },
+      teamId: data.teamId,
+    })
 
     // Verify the workout belongs to this team
     const workout = await db

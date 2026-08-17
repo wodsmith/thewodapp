@@ -34,6 +34,7 @@ import { scoresTable } from "@/db/schemas/scores"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
+import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
 import {
   computeSortKey,
   encodeScore,
@@ -44,6 +45,7 @@ import {
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
 import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 
 const submitScoreSchema = z.object({
@@ -63,15 +65,33 @@ async function checkSubmissionWindow(
   const db = getDb()
 
   const [competition] = await db
-    .select({ competitionType: competitionsTable.competitionType })
+    .select({
+      competitionType: competitionsTable.competitionType,
+      startDate: competitionsTable.startDate,
+      endDate: competitionsTable.endDate,
+    })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
     .limit(1)
 
-  if (
-    !competition ||
-    !competitionCan(competition.competitionType, "submissionWindows")
-  ) {
+  if (!competition) {
+    return {
+      isOpen: false,
+      reason: "Competition not found",
+    }
+  }
+
+  if (competitionCan(competition.competitionType, "perpetual")) {
+    if (perpetualSubmissionsClosed(competition)) {
+      return {
+        isOpen: false,
+        reason: "Submissions have closed for this competition",
+      }
+    }
+    return { isOpen: true, reason: undefined }
+  }
+
+  if (!competitionCan(competition.competitionType, "submissionWindows")) {
     return {
       isOpen: false,
       reason: "Submission windows are not available for this competition type",
@@ -150,6 +170,16 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
         const userId = session.userId
 
         try {
+          if (await isBenchmarkCompetition(data.competitionId)) {
+            return json(
+              {
+                error:
+                  "Benchmark scores must be submitted through the benchmark submission flow",
+              },
+              { status: 422, headers },
+            )
+          }
+
           // Check registration — scope to specific division when provided
           const regConditions = [
             eq(competitionRegistrationsTable.eventId, data.competitionId),

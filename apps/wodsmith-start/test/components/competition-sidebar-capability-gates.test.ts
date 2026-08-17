@@ -30,9 +30,15 @@ describe("competition sidebar capability gates", () => {
     const inPersonLabels = labelsFor(
       getCompetitionSidebarNavigation("/compete/organizer/comp_1", "in-person"),
     )
-    const onlineLabels = labelsFor(
-      getCompetitionSidebarNavigation("/compete/organizer/comp_1", "online"),
-    )
+		const onlineLabels = labelsFor(
+			getCompetitionSidebarNavigation("/compete/organizer/comp_1", "online"),
+		)
+		const benchmarkLabels = labelsFor(
+			getCompetitionSidebarNavigation(
+				"/compete/organizer/comp_1",
+				"benchmark",
+			),
+		)
 
     expect(inPersonLabels).toContain("Results")
     expect(inPersonLabels).toEqual(
@@ -43,23 +49,43 @@ describe("competition sidebar capability gates", () => {
         "Volunteer roster",
         "Volunteer shifts",
         "Judge assignments",
+        "Co-Hosts",
       ]),
     )
-    expect(inPersonLabels).not.toContain("Submission windows")
-    expect(inPersonLabels).not.toContain("Submissions")
+		expect(inPersonLabels).not.toContain("Submission windows")
+		expect(inPersonLabels).not.toContain("Submissions")
+		expect(inPersonLabels).not.toContain("Benchmark scoring")
 
-    expect(onlineLabels).toContain("Submissions")
-    expect(onlineLabels).toContain("Submission windows")
+		expect(onlineLabels).toContain("Submissions")
+		expect(onlineLabels).toContain("Submission windows")
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Venues & lanes"]))
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Heat schedule"]))
     expect(onlineLabels).not.toEqual(
       expect.arrayContaining(["Check-in / athlete status"]),
     )
     expect(onlineLabels).not.toContain("Judge assignments")
-    expect(onlineLabels).toContain("Volunteer roster")
-    expect(onlineLabels).toContain("Volunteer shifts")
-    expect(onlineLabels).not.toContain("Results")
-  })
+		expect(onlineLabels).toContain("Volunteer roster")
+		expect(onlineLabels).toContain("Volunteer shifts")
+		expect(onlineLabels).toContain("Co-Hosts")
+		expect(onlineLabels).not.toContain("Results")
+		expect(onlineLabels).not.toContain("Benchmark scoring")
+
+		expect(benchmarkLabels).toContain("Submissions")
+		expect(benchmarkLabels).toContain("Benchmark scoring")
+		// The most important setup surface for a benchmark board sits directly
+		// under Competition details.
+		expect(benchmarkLabels[benchmarkLabels.indexOf("Competition details") + 1]).toBe(
+			"Benchmark scoring",
+		)
+		expect(benchmarkLabels).not.toContain("Submission windows")
+		expect(benchmarkLabels).not.toContain("Results")
+		// Benchmark boards drop co-host management and volunteer shifts but
+		// keep the volunteer roster and signup questions for invited volunteers.
+		expect(benchmarkLabels).not.toContain("Co-Hosts")
+		expect(benchmarkLabels).not.toContain("Volunteer shifts")
+		expect(benchmarkLabels).toContain("Volunteer roster")
+		expect(benchmarkLabels).toContain("Registration questions")
+	})
 
   it("labels and gates cohost navigation by both permissions and capabilities", () => {
     const inPersonLabels = labelsFor(

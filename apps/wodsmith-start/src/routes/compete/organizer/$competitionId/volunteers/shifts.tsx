@@ -5,7 +5,8 @@
  */
 // @lat: [[organizer-dashboard#Volunteers#Volunteer Shifts]]
 
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { ShiftList } from "../-components/shifts/shift-list"
 
@@ -13,12 +14,20 @@ export const Route = createFileRoute(
   "/compete/organizer/$competitionId/volunteers/shifts",
 )({
   staleTime: 10_000,
-  loader: async ({ parentMatchPromise }) => {
+  loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
 
     if (!competition) {
       throw new Error("Competition not found")
+    }
+
+    // Volunteer shifts are capability-gated (benchmark boards exclude them)
+    if (!competitionCan(competition.competitionType, "volunteerShifts")) {
+      throw redirect({
+        to: "/compete/organizer/$competitionId",
+        params: { competitionId: params.competitionId },
+      })
     }
 
     if (!competition.competitionTeamId) {

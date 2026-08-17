@@ -43,6 +43,7 @@ import {
 } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { getEvlog } from "@/lib/evlog"
 import { getCohostPermissions } from "@/server/cohost"
 import {
@@ -50,11 +51,7 @@ import {
   getUserCompetitionRegistrationsForUser,
 } from "@/server/competition-detail"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
-import {
-  DEFAULT_TIMEZONE,
-  hasDateStartedInTimezone,
-  isDeadlinePassedInTimezone,
-} from "@/utils/timezone-utils"
+import { getRegistrationWindowStatus } from "@/utils/registration-window"
 
 // ============================================================================
 // Input Schemas
@@ -532,28 +529,11 @@ export const getRegistrationStatusFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const timezone = data.timezone || DEFAULT_TIMEZONE
-    const regOpensAt = data.registrationOpensAt
-    const regClosesAt = data.registrationClosesAt
-
-    // Use timezone-aware comparisons
-    const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
-    const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
-
-    const registrationOpen = !!(
-      regOpensAt &&
-      regClosesAt &&
-      hasOpened &&
-      !hasClosed
-    )
-    const registrationClosed = hasClosed
-    const registrationNotYetOpen = !!(regOpensAt && !hasOpened)
-
-    return {
-      registrationOpen,
-      registrationClosed,
-      registrationNotYetOpen,
-    }
+    return getRegistrationWindowStatus({
+      opensAt: data.registrationOpensAt,
+      closesAt: data.registrationClosesAt,
+      timezone: data.timezone,
+    })
   })
 
 // ============================================================================
@@ -1044,10 +1024,23 @@ export const updateCompetitionScoringConfigFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    // Benchmark boards always rank with the online algorithm; force it here
+    // so no client can persist a different one.
+    const scoringConfig = competitionCan(
+      competition.competitionType,
+      "benchmarkScoringTiers",
+    )
+      ? {
+          ...input.scoringConfig,
+          algorithm: "online" as const,
+          customTable: undefined,
+        }
+      : input.scoringConfig
+
     getEvlog()?.set({
       action: "update_scoring_config",
       competition: { id: input.competitionId },
-      scoring: { algorithm: input.scoringConfig.algorithm },
+      scoring: { algorithm: scoringConfig.algorithm },
     })
 
     // Parse existing settings and merge with new scoring config
@@ -1062,7 +1055,7 @@ export const updateCompetitionScoringConfigFn = createServerFn({
 
     const newSettings = {
       ...existingSettings,
-      scoringConfig: input.scoringConfig,
+      scoringConfig,
     }
 
     // Update competition

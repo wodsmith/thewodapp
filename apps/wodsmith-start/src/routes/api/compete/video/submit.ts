@@ -50,6 +50,7 @@ import {
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
 import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 
 const submitVideoSchema = z.object({
@@ -71,7 +72,11 @@ async function checkVideoSubmissionWindow(
   const db = getDb()
 
   const [competition] = await db
-    .select({ competitionType: competitionsTable.competitionType })
+    .select({
+      competitionType: competitionsTable.competitionType,
+      startDate: competitionsTable.startDate,
+      endDate: competitionsTable.endDate,
+    })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
     .limit(1)
@@ -157,6 +162,16 @@ export const Route = createFileRoute("/api/compete/video/submit")({
         const userId = session.userId
 
         try {
+          if (await isBenchmarkCompetition(data.competitionId)) {
+            return json(
+              {
+                error:
+                  "Benchmark submissions must use the benchmark submission flow",
+              },
+              { status: 422, headers },
+            )
+          }
+
           // Check registration — scope to the submitted division so partner +
           // individual registrations don't collide when the same workout is
           // shared across divisions.

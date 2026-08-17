@@ -25,6 +25,13 @@ import { calculatePScore, type PScoreInput } from "./p-score"
 import { calculateTraditionalPoints } from "./traditional"
 
 export {
+  type AbsoluteTierEventTable,
+  type AbsoluteTierScoringContext,
+  type AbsoluteTierThreshold,
+  BenchmarkConfigError,
+  calculateAbsoluteTier,
+} from "./absolute-tier"
+export {
   calculateCustomPoints,
   generatePointsTable,
   WINNER_TAKES_MORE_TABLE,
@@ -43,12 +50,16 @@ export interface EventScoreInput {
   value: number
   /** Score status */
   status: "scored" | "cap" | "dnf" | "dns" | "withdrawn"
+  /** Reps completed at the time cap, for capped time-with-cap scores. */
+  secondaryValue?: number | null
   /**
    * Pre-computed sort key for proper ordering.
    * Encodes status + value + secondaryValue + tiebreak into a single string.
    * If not provided, sorting falls back to value-only comparison.
    */
   sortKey?: string | null
+  /** Benchmark threshold variant, such as a profile-gender snapshot. */
+  variant?: string | null
 }
 
 /**
@@ -136,7 +147,6 @@ function sortScoresByPerformance(
  * This is the main entry point for scoring calculations. It dispatches
  * to the appropriate algorithm based on configuration.
  *
- * @param eventId - Unique identifier for the event (used for caching)
  * @param scores - Array of athlete scores for this event
  * @param scheme - Workout scheme (determines sort direction)
  * @param config - Scoring configuration
@@ -145,7 +155,6 @@ function sortScoresByPerformance(
  * @example
  * ```ts
  * const pointsMap = calculateEventPoints(
- *   "event-123",
  *   [
  *     { userId: "a", value: 60000, status: "scored" },
  *     { userId: "b", value: 65000, status: "scored" },
@@ -157,7 +166,6 @@ function sortScoresByPerformance(
  * ```
  */
 export function calculateEventPoints(
-  _eventId: string,
   scores: EventScoreInput[],
   scheme: WorkoutScheme,
   config: ScoringConfig,

@@ -1,8 +1,8 @@
 # M0 — Competition-Type Capability Registry (Refactor Spec)
 
-> **Status:** Refactor proposal for review. No code written yet.
+> **Status:** Partially implemented in this checkout. The registry, helper tests, and several chokepoint refactors already exist for `"in-person"` and `"online"`; benchmark implementation should extend that current registry rather than recreate it.
 > **Standalone:** This refactor **ships on its own and is valuable independent of any new competition type.** It de-clutters the existing in-person/online products by replacing scattered `competitionType === "online"` / `=== "in-person"` checks with one declarative source of truth. It is the foundation that makes future types (benchmark boards, leagues, ladders, hybrid formats) cheap — but it earns its keep on the current two types alone.
-> **Companion:** Phase **M0** of `hillerfit-benchmark-leaderboard-guide.md`. That guide consumes this registry to add a `"benchmark"` type later (M1); **this spec does not add `"benchmark"`** — it only refactors the two types that exist today. Adding a new type afterward is a few lines (see §9).
+> **Companion:** Phase **M0** of `hillerfit-benchmark-leaderboard-guide.md`. That guide consumes this registry to add a `"benchmark"` type later (M1); **this spec's implemented base does not add `"benchmark"`** — current tests intentionally assert that unknown types fail closed. Adding benchmark means widening the registry type, adding the `perpetual` capability, and updating tests/characterization coverage (see §9).
 > **Migration:** None. `competitionType` stays a TS-only `varchar` discriminator; the registry is a pure function of it.
 
 ---
@@ -97,7 +97,7 @@ export function isSelectableType(type: string): boolean {
 }
 ```
 
-> **`optInResultPublishing` — verified online-only (was the one site to confirm; now confirmed).** `competition-leaderboard.ts:440-443` resolves `divisionResults = bypassPublicationFilter ? undefined : (settings?.divisionResults ?? (competitionType === "online" ? {} : undefined))`. So absent an explicit setting, **online** defaults to `{}` (hide every division until published — opt-in) while **in-person** defaults to `undefined` (show all — backwards compat). Therefore `optInResultPublishing` is declared by `"online"` **only**; in-person does NOT carry it. The refactored call site is `... ?? (competitionCan(type, "optInResultPublishing") ? {} : undefined)` — behavior-identical for both existing types, and a future opt-in type (e.g. benchmark) gets `{}` by declaring the capability. The snapshot test (§7) pins it.
+> **`optInResultPublishing` — verified online-only (was the one site to confirm; now confirmed).** `competition-leaderboard.ts:440-443` resolves `divisionResults = bypassPublicationFilter ? undefined : (settings?.divisionResults ?? (competitionType === "online" ? {} : undefined))`. So absent an explicit setting, **online** defaults to `{}` (hide every division until published — opt-in) while **in-person** defaults to `undefined` (show all — backwards compat). Therefore `optInResultPublishing` is declared by `"online"` **only**; in-person does NOT carry it. The refactored call site is `... ?? (competitionCan(type, "optInResultPublishing") ? {} : undefined)` — behavior-identical for both existing types, and a future type gets `{}` only if it explicitly declares the capability. Benchmark deliberately will not declare it. The snapshot test (§7) pins it.
 
 **Client helper (optional, for components that need several flags):**
 
@@ -248,12 +248,12 @@ After M0, a new type is a registry entry + (if needed) one new capability — **
 // later (e.g. benchmark M1) — additive, no refactor:
 "benchmark": {
   id: "benchmark", label: "Benchmark", leaderboardVariant: "online", selectableOnCreate: false,
-  capabilities: new Set(["videoSubmissions", "optInResultPublishing", "perpetual"]),
+  capabilities: new Set(["videoSubmissions", "perpetual"]),
 }
 // "perpetual" added to CompetitionCapability; the ~3 sites that should respect it read competitionCan(type,"perpetual").
 ```
 
-It inherits video submission, opt-in publishing, the online leaderboard table, and (by omission) no heats/check-in/venue/windows — automatically, everywhere.
+It inherits video submission and the online leaderboard table, and (by omission) no opt-in result publishing, heats, check-in, venue, or submission windows. Benchmark results are public on valid submission; moderation uses invalid verification status rather than per-event publish gates.
 
 ## 10. Risks & gotchas
 

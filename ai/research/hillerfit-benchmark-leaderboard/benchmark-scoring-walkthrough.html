@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmark Tier Scoring — Calculation &amp; Leaderboard Walkthrough</title>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", themeVariables: { fontSize: "14px" } });
+</script>
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --card: #ffffff;
+    --border: #e7e5e4; --accent: #ea580c; --accent-soft: #ffedd5;
+    --code-bg: #f5f5f4; --good: #16a34a; --warn: #d97706;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--fg); line-height: 1.6;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem 6rem; }
+  h1 { font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.4rem; letter-spacing: -0.01em; margin-top: 3rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.4rem; }
+  h3 { font-size: 1.05rem; margin-top: 1.75rem; }
+  .subtitle { color: var(--muted); margin-top: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.25rem 1.5rem; margin: 1.25rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .mermaid { display: flex; justify-content: center; overflow-x: auto; padding: 0.5rem 0; }
+  code {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.1em 0.35em; font-size: 0.85em; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.5;
+  }
+  pre code { background: none; border: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+  th { background: var(--code-bg); }
+  .file {
+    display: inline-block; background: var(--accent-soft); color: #9a3412;
+    border-radius: 4px; padding: 0.05em 0.45em; font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.8em; white-space: nowrap;
+  }
+  .callout {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem;
+  }
+  .pill { display: inline-block; border-radius: 999px; padding: 0.1em 0.7em; font-size: 0.78rem; font-weight: 600; }
+  .pill.green { background: #dcfce7; color: #166534; }
+  .pill.amber { background: #fef3c7; color: #92400e; }
+  .toc { columns: 2; gap: 2rem; font-size: 0.92rem; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .math { text-align: center; font-family: ui-monospace, Menlo, monospace; font-size: 0.95rem; padding: 0.75rem; background: var(--code-bg); border-radius: 8px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Benchmark Tier Scoring</h1>
+<p class="subtitle">How the organizer setup at <span class="file">/compete/organizer/$competitionId/scoring/tiers</span> becomes tier badges, category scores, and ratings on the leaderboard.</p>
+
+<div class="card toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#big-picture">The big picture</a></li>
+    <li><a href="#data-model">Data model</a></li>
+    <li><a href="#setup">Organizer setup (tiers.tsx)</a></li>
+    <li><a href="#submission">Athlete score submission</a></li>
+    <li><a href="#tier-calc">Tier calculation per result</a></li>
+    <li><a href="#aggregation">Category &amp; overall aggregation</a></li>
+    <li><a href="#ranking">Ranking: online vs. absolute_tier</a></li>
+    <li><a href="#display">Leaderboard display</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
+  </ol>
+</div>
+
+<h2 id="big-picture">1. The big picture</h2>
+<p>Benchmark scoring is <strong>two parallel systems</strong> that meet on the leaderboard:</p>
+<ul>
+  <li><strong>Ranking</strong> — the <em>online</em> algorithm (place-based, golf-style: 1st&nbsp;=&nbsp;1&nbsp;pt, lowest total wins) decides who is above whom.</li>
+  <li><strong>Tier context</strong> — the threshold tables you edit on the tiers page turn every raw result into a tier (1…maxTier, or 0.5), tiers aggregate into category scores and an overall <code>x/100</code> with a rating band. This is <em>additive display data</em>, not the ranking — unless the competition still uses the legacy <code>absolute_tier</code> algorithm.</li>
+</ul>
+
+<div class="card">
+<pre class="mermaid">
+flowchart LR
+    subgraph SETUP["Organizer setup"]
+        A["tiers.tsx<br/>threshold editor"] --> B["saveBenchmarkScoringTiersFn"]
+        B --> C["encodeBenchmarkThresholdValue()<br/>'19:30' → 1170000 ms<br/>'315' → 315 reps/lbs"]
+        C --> D[("benchmark_tier_thresholds<br/>testId × variant × tier")]
+    end
+
+    subgraph ATHLETE["Athlete"]
+        E["Submits video + score"] --> F["scores row<br/>+ benchmarkVariant<br/>(from profile gender)"]
+    end
+
+    subgraph LB["getCompetitionLeaderboard()"]
+        G["loadBenchmarkLeaderboardContext()"] --> H["calculateAbsoluteTier()<br/>per score, per event"]
+        F2[("scores")] --> H
+        H --> I["aggregateBenchmarkScores()<br/>tiers → category scores → overall"]
+        I --> J["findBenchmarkRatingBand()"]
+        K["online algorithm<br/>place = points"] --> L["totalPoints → overallRank"]
+    end
+
+    D --> G
+    F --> F2
+    J --> M["Leaderboard UI<br/>87.5/100 · Elite ·<br/>Tier badges per event"]
+    L --> M
+</pre>
+<details class="diagram-fallback">
+  <summary>Diagram summary</summary>
+  <p>Organizers save encoded tier thresholds. Athlete scores are compared with those thresholds to produce category and overall context, while the online algorithm independently determines leaderboard rank.</p>
+</details>
+</div>
+
+<h2 id="data-model">2. Data model</h2>
+<p>One <strong>battery</strong> per competition holds the config; tests belong to categories; thresholds are one row per <code>test × variant × tier</code>.</p>
+
+<div class="card">
+<pre class="mermaid">
+erDiagram
+    COMPETITION ||--|| BENCHMARK_BATTERY : "has one"
+    BENCHMARK_BATTERY ||--o{ BENCHMARK_TEST : "contains"
+    BENCHMARK_TEST ||--o{ TIER_THRESHOLD : "test × variant × tier"
+    BENCHMARK_TEST ||--|| TRACK_WORKOUT : "1:1 via benchmarkTestId"
+    TRACK_WORKOUT ||--o{ SCORE : "athlete results"
+
+    BENCHMARK_BATTERY {
+        int maxTier "e.g. 5"
+        int scoreMax "e.g. 100"
+        json categories "key, label, weight, testCount"
+        json ratingBands "label, minScore, maxScore"
+    }
+    BENCHMARK_TEST {
+        string categoryKey
+        string scoreType "time / reps / load..."
+        bool includedInScoring
+        string scoreModel "standard | hybrid"
+        int hybridFlipTier "nullable"
+    }
+    TIER_THRESHOLD {
+        string variant "male | female"
+        int tier "1..maxTier"
+        int thresholdValue "canonical encoding"
+    }
+    SCORE {
+        int scoreValue "encoded"
+        int secondaryValue "reps at cap"
+        string benchmarkVariant "male | female"
+        string status "scored/cap/dnf/dns"
+    }
+</pre>
+<details class="diagram-fallback">
+  <summary>Diagram summary</summary>
+  <p>Each competition has one benchmark battery. A battery contains tests and tier thresholds; each test links to one track workout, whose athlete scores carry the stored benchmark variant used for tier comparison.</p>
+</details>
+</div>
+
+<h2 id="setup">3. Organizer setup — <span class="file">tiers.tsx</span></h2>
+<p>The route loader gates on <code>competitionCan(type, "benchmarkScoringTiers")</code> and fetches the full summary via <code>getBenchmarkScoringTiersFn</code>. The page is one editor with a local draft keyed <code>testId:variant:tier</code> holding <em>raw strings</em> exactly as typed ("19:30", "315", "42").</p>
+
+<div class="card">
+<pre class="mermaid">
+flowchart TD
+    L["Route loader"] --> G{"competitionCan<br/>benchmarkScoringTiers?"}
+    G -- no --> NF["notFound()"]
+    G -- yes --> S["getBenchmarkScoringTiersFn<br/>→ BenchmarkScoringTierSummary"]
+    S --> E["BenchmarkScoringTiersEditor"]
+    E --> D1["buildDraft()<br/>flat map: testId:variant:tier → rawValue"]
+    D1 --> T["ThresholdTable per category<br/>one input per tier, per variant"]
+    T -- "Save tier table" --> F1["flattenThresholdUpdates()"]
+    F1 --> SV["saveBenchmarkScoringTiersFn"]
+    SV --> EN["encodeBenchmarkThresholdValue()<br/>per row, per dimension"]
+    EN --> DB[("benchmark_tier_thresholds")]
+    SV --> VAL["validateThresholdSet()<br/>every variant has tiers 1..maxTier"]
+</pre>
+<details class="diagram-fallback">
+  <summary>Diagram summary</summary>
+  <p>The organizer route checks benchmark-tier capability, loads the scoring summary, builds an editable threshold draft, encodes saved values, persists them, and validates that every variant has every required tier.</p>
+</details>
+</div>
+
+<h3>Raw value encoding</h3>
+<p><code>encodeBenchmarkThresholdValue()</code> (<span class="file">src/server/benchmark-scoring-tiers.ts:187</span>) converts typed strings into the same canonical integers the scores table uses, so tier comparison is a plain number comparison later:</p>
+<table>
+  <tr><th>Input unit</th><th>Example raw</th><th>Stored as</th></tr>
+  <tr><td>time (mm:ss)</td><td><code>19:30</code></td><td>1,170,000 (ms)</td></tr>
+  <tr><td>reps</td><td><code>42</code></td><td>42</td></tr>
+  <tr><td>lb</td><td><code>315</code></td><td>load encoding via <code>encodeScore(…, unit lbs)</code></td></tr>
+  <tr><td>in / ft</td><td><code>110</code> in</td><td>converted to feet, then encoded</td></tr>
+  <tr><td>hybrid, tier &lt; flip</td><td><code>250</code></td><td>reps (whole number enforced — <code>parseInt("19:59")</code> would silently give 19)</td></tr>
+</table>
+
+<div class="callout">
+<strong>Hybrid tests</strong> (time-cap workouts): <code>benchmarkThresholdDimension()</code> splits the tier row. Tiers <em>below</em> <code>hybridFlipTier</code> are "reps completed at the cap"; tiers <em>at or above</em> it are finish times. The editor shows placeholder <code>reps</code> vs <code>mm:ss</code> per cell accordingly.
+</div>
+
+<p>The same page also edits: battery settings (<code>maxTier</code>, <code>scoreMax</code>), <strong>categories with weights</strong>, <strong>rating bands</strong> (label + min/max score), and test CRUD — each through its own server fn, each returning a fresh summary that resets the draft.</p>
+
+<h2 id="submission">4. Athlete score submission</h2>
+<p>When an athlete submits (<span class="file">src/server-fns/video-submission-fns.ts</span>), benchmark competitions take a dedicated path: individual-only, and the score row is stamped with <code>benchmarkVariant</code> resolved from the athlete's <strong>profile gender</strong> (<code>getBenchmarkProfileVariant</code>). That stored variant — not a live profile lookup — decides which threshold column their result is compared against at leaderboard time.</p>
+
+<h2 id="tier-calc">5. Tier calculation per result — <code>calculateAbsoluteTier()</code></h2>
+<p><span class="file">src/lib/scoring/algorithms/absolute-tier.ts:39</span>. Runs once per (score, event). Walks every threshold for the athlete's variant and keeps the <strong>highest tier whose threshold the score meets</strong>.</p>
+
+<div class="card">
+<pre class="mermaid">
+flowchart TD
+    A["score + threshold table + scheme"] --> B{"variant present<br/>on score?"}
+    B -- no --> ERR["BenchmarkConfigError"]
+    B -- yes --> C{"status dnf / dns /<br/>withdrawn?"}
+    C -- yes --> Z0["tier = 0"]
+    C -- no --> D{"hybrid flip tier?"}
+
+    D -- "no (standard)" --> E{"sort direction<br/>from scheme"}
+    E -- "asc (time)" --> F["meets if score ≤ threshold"]
+    E -- "desc (reps/load)" --> G["meets if score ≥ threshold"]
+
+    D -- yes --> H{"threshold tier ≥ flip?"}
+    H -- "yes → time tier" --> I["meets if status = scored<br/>AND time ≤ threshold"]
+    H -- "no → reps-at-cap tier" --> J{"finished (scored)?"}
+    J -- yes --> K["auto-meets<br/>(finisher did all reps)"]
+    J -- "no (capped)" --> L["meets if secondaryValue<br/>(reps at cap) ≥ threshold"]
+
+    F --> M["bestTier = max(matching tiers)"]
+    G --> M
+    I --> M
+    K --> M
+    L --> M
+    M --> N{"bestTier > 0?"}
+    N -- yes --> O["tier = bestTier"]
+    N -- no --> P["tier = 0.5<br/>(tried, but below T1)"]
+</pre>
+<details class="diagram-fallback">
+  <summary>Diagram summary</summary>
+  <p>Tier calculation rejects missing variants, assigns zero to non-finishes, compares time or rep/load scores in the correct direction, supports hybrid capped workouts, and awards tier 0.5 for a valid attempt below tier one.</p>
+</details>
+</div>
+
+<div class="callout">
+<strong>The 0.5 tier:</strong> any valid attempt below the tier-1 threshold still earns half a tier — participation counts toward the category average, distinct from tier 0 for DNF/DNS/withdrawn.
+</div>
+
+<h2 id="aggregation">6. Category &amp; overall aggregation — <code>aggregateBenchmarkScores()</code></h2>
+<p><span class="file">src/lib/scoring/category-aggregation.ts:36</span>. Pure function; results with <code>includedInScoring: false</code> are dropped first.</p>
+
+<div class="math">
+categoryScore = (Σ tiers in category) / (testCount × maxTier) × scoreMax
+</div>
+<div class="math">
+overallScore = Σ (categoryScore × weight) / Σ weights
+</div>
+
+<p>Note the denominator uses the category's <em>configured</em> <code>testCount</code>, not the number of tests the athlete completed — skipping a test costs you exactly its missing tiers. Then <code>findBenchmarkRatingBand()</code> picks the band where <code>minScore ≤ overall ≤ maxScore</code> (e.g. Elite / Advanced / Intermediate).</p>
+
+<h2 id="ranking">7. Ranking: online points vs. tier context</h2>
+<p>Inside <code>getCompetitionLeaderboard()</code> (<span class="file">src/server/competition-leaderboard.ts</span>):</p>
+
+<div class="card">
+<pre class="mermaid">
+sequenceDiagram
+    participant R as Leaderboard route
+    participant CL as getCompetitionLeaderboard
+    participant BC as loadBenchmarkLeaderboardContext
+    participant ALG as calculateEventPoints (online)
+    participant AT as calculateAbsoluteTier
+    participant AGG as aggregateBenchmarkScores
+
+    R->>CL: competitionId, divisionId
+    CL->>BC: battery + tests + thresholds
+    Note over BC: Validates complete tables:<br/>every variant × every tier 1..maxTier.<br/>Additive mode: config error → null<br/>(board renders without tiers)
+    BC-->>CL: BenchmarkLeaderboardContext
+
+    loop each event
+        CL->>ALG: eventScoreInputs (value, status, variant)
+        ALG-->>CL: points = place (1st = 1pt), rank
+        CL->>AT: same inputs vs threshold table
+        AT-->>CL: displayTiersByUserId (context only)
+        Note over CL: eventResults get rank, points,<br/>benchmarkTier, categoryKey
+    end
+
+    loop each athlete entry
+        CL->>AGG: eventTiers (skip if none — additive stays null, not 0/100)
+        AGG-->>CL: category scores + overallScore
+        CL->>CL: findBenchmarkRatingBand(overall)
+        Note over CL: legacy absolute_tier only:<br/>totalPoints = overallScore
+    end
+
+    CL->>CL: applyTiebreakers per division → overallRank
+    CL-->>R: entries + events + scoringConfig
+</pre>
+<details class="diagram-fallback">
+  <summary>Diagram summary</summary>
+  <p>The leaderboard loads and validates benchmark context, calculates online event points and display tiers in parallel, aggregates category and overall scores, applies rating bands, then ranks each division with its configured algorithm.</p>
+</details>
+</div>
+
+<table>
+  <tr><th></th><th><span class="pill green">online (current)</span></th><th><span class="pill amber">absolute_tier (legacy)</span></th></tr>
+  <tr><td>Ranks the board</td><td>Sum of places, lowest wins</td><td>Weighted overall tier score, highest wins</td></tr>
+  <tr><td>Tier role</td><td>Display context only (<code>displayTiersByUserId</code>)</td><td>Tier <em>is</em> the event points</td></tr>
+  <tr><td>Broken tier config</td><td>Degrades gracefully — board renders without tier context</td><td>Throws <code>BenchmarkConfigError</code></td></tr>
+  <tr><td>Athlete with no tiered scores</td><td>Benchmark fields stay <code>null</code> (no "0/100" branding)</td><td>Scored as 0</td></tr>
+</table>
+
+<p>The amber banner on <span class="file">tiers.tsx</span> ("Leaderboard is ranking by tier score") appears when <code>summary.isActive</code> — i.e. the competition still runs legacy <code>absolute_tier</code> — and the button calls <code>activateBenchmarkOnlineScoringFn</code> to flip it to online.</p>
+
+<h2 id="display">8. Leaderboard display</h2>
+<p><span class="file">src/components/online-competition-leaderboard-table.tsx</span> flips into benchmark mode when any entry has <code>benchmarkOverallScore !== null</code>:</p>
+<ul>
+  <li><strong>Overall cell</strong>: <code>formatBenchmarkOverall()</code> → "87.5/100" plus the rating-band label badge (points are hidden).</li>
+  <li><strong>Rating column</strong>: sortable, shows the band label.</li>
+  <li><strong>Category summary</strong>: <code>BenchmarkCategorySummary</code> renders each category's score.</li>
+  <li><strong>Event cells</strong>: formatted score with "#rank · Tier N" subtext (<code>formatBenchmarkTier()</code>) and verification badges; event columns are <em>grouped under benchmark-category headers</em> instead of parent events.</li>
+  <li><span class="file">leaderboard-page-content.tsx</span> adds benchmark-only filters: category tabs and a gender filter (server exposes <code>benchmarkGender</code> only on benchmark boards).</li>
+</ul>
+
+<h2 id="worked-example">9. Worked example</h2>
+<p>Battery: <code>maxTier = 5</code>, <code>scoreMax = 100</code>. Two categories: <strong>Strength</strong> (3 tests, weight 2) and <strong>Engine</strong> (2 tests, weight 1). Male athlete:</p>
+
+<table>
+  <tr><th>Test</th><th>Category</th><th>Result</th><th>T1…T5 thresholds</th><th>Tier</th></tr>
+  <tr><td>Back Squat (load, desc)</td><td>Strength</td><td>315 lb</td><td>185 / 225 / 275 / 315 / 365</td><td><strong>4</strong> (≥315, &lt;365)</td></tr>
+  <tr><td>Deadlift (load, desc)</td><td>Strength</td><td>350 lb</td><td>225 / 275 / 335 / 405 / 455</td><td><strong>3</strong></td></tr>
+  <tr><td>Press (load, desc)</td><td>Strength</td><td>85 lb</td><td>95 / 115 / 135 / 155 / 185</td><td><strong>0.5</strong> (below T1)</td></tr>
+  <tr><td>5k Row (time, asc)</td><td>Engine</td><td>19:10</td><td>21:00 / 20:00 / 19:30 / 19:00 / 18:30</td><td><strong>3</strong> (≤19:30, not ≤19:00)</td></tr>
+  <tr><td>Chad (hybrid, flip=3)</td><td>Engine</td><td>capped, 780 reps</td><td>500 reps / 800 reps / 60:00 / 55:00 / 50:00</td><td><strong>1</strong> (780 ≥ 500, &lt; 800; time tiers need a finish)</td></tr>
+</table>
+
+<div class="math">
+Strength = (4 + 3 + 0.5) / (3 × 5) × 100 = 7.5/15 × 100 = <strong>50.0</strong><br>
+Engine = (3 + 1) / (2 × 5) × 100 = 4/10 × 100 = <strong>40.0</strong><br>
+Overall = (50.0 × 2 + 40.0 × 1) / 3 = <strong>46.7 / 100</strong>
+</div>
+
+<p>If rating bands are Beginner 0–39, Intermediate 40–69, Advanced 70–89, Elite 90–100 → the leaderboard shows <strong>46.7/100 · Intermediate</strong>, with per-event "Tier 4 / Tier 3 / …" subtext — while the athlete's <em>position</em> on the board still comes from their sum of per-event places under online scoring.</p>
+
+<h2>Key files</h2>
+<table>
+  <tr><th>File</th><th>Role</th></tr>
+  <tr><td><span class="file">src/routes/compete/organizer/$competitionId/scoring/tiers.tsx</span></td><td>Organizer editor: thresholds, categories, bands, settings, tests</td></tr>
+  <tr><td><span class="file">src/server/benchmark-scoring-tiers.ts</span></td><td>Summary building, threshold encoding/validation, all mutations</td></tr>
+  <tr><td><span class="file">src/server/benchmark-leaderboard.ts</span></td><td>Loads/validates tier context for the leaderboard; rating band lookup</td></tr>
+  <tr><td><span class="file">src/lib/scoring/algorithms/absolute-tier.ts</span></td><td><code>calculateAbsoluteTier()</code> — result → tier (incl. hybrid + 0.5 rule)</td></tr>
+  <tr><td><span class="file">src/lib/scoring/category-aggregation.ts</span></td><td><code>aggregateBenchmarkScores()</code> — tiers → category → overall</td></tr>
+  <tr><td><span class="file">src/server/competition-leaderboard.ts</span></td><td>Orchestrates points + tiers + aggregation + tiebreakers per entry</td></tr>
+  <tr><td><span class="file">src/components/online-competition-leaderboard-table.tsx</span></td><td>Benchmark-mode rendering: x/100, rating, tier subtext, category headers</td></tr>
+  <tr><td><span class="file">src/server-fns/video-submission-fns.ts</span></td><td>Stamps <code>benchmarkVariant</code> (profile gender) onto submitted scores</td></tr>
+</table>
+
+</div>
+</body>
+</html>

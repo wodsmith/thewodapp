@@ -1,7 +1,8 @@
-import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { PublicSubmissionWindows } from "@/components/public-submission-windows"
 import { SchedulePageContent } from "@/components/schedule-page-content"
+import { publicCompetitionTabs } from "@/lib/competitions/capabilities"
 import { getPublicScheduleMode } from "@/lib/competitions/scheduling-check-in-gates"
 import { getPublicCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
@@ -12,9 +13,16 @@ const parentRoute = getRouteApi("/compete/$slug")
 export const Route = createFileRoute("/compete/$slug/schedule")({
   component: CompetitionSchedulePage,
   staleTime: 30_000,
-  loader: async ({ parentMatchPromise }) => {
+  loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
+
+    if (
+      competition &&
+      !publicCompetitionTabs(competition.competitionType).includes("schedule")
+    ) {
+      throw redirect({ to: "/compete/$slug", params: { slug: params.slug } })
+    }
 
     if (!competition) {
       return {
@@ -96,7 +104,10 @@ function CompetitionSchedulePage() {
   return (
     <div className="space-y-4">
       <div className="sticky top-4 z-10">
-        <CompetitionTabs slug={competition.slug} />
+        <CompetitionTabs
+          slug={competition.slug}
+          competitionType={competition.competitionType}
+        />
       </div>
       <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
         {isOnline ? (

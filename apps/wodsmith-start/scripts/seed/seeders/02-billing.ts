@@ -176,6 +176,17 @@ export async function seed(client: Connection): Promise<void> {
 			update_counter: 0,
 		},
 		{
+			id: "feat_create_benchmarks",
+			key: "create_benchmarks",
+			name: "Create Benchmarks",
+			description: "Create perpetual benchmark competition boards",
+			category: "team",
+			is_active: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
 			id: "feat_workout_tracking",
 			key: "workout_tracking",
 			name: "Workout Tracking",

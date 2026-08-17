@@ -8,6 +8,13 @@ import alchemy from "alchemy/cloudflare/tanstack-start"
 import { defineConfig } from "vite"
 import viteTsConfigPaths from "vite-tsconfig-paths"
 
+// The devtools event bus is a standalone HTTP server hardcoded to 42069,
+// which collides when running multiple instances (e.g. via portless, which
+// injects a unique PORT in 4000-4999). Offset from PORT to keep it unique.
+const devtoolsBusPort = process.env.PORT
+  ? Number(process.env.PORT) + 10000
+  : 42069
+
 const config = defineConfig({
   plugins: [
     // MUST be first - handles Cloudflare bindings via Alchemy IaC
@@ -21,7 +28,7 @@ const config = defineConfig({
     // Transforms TC39 decorators (e.g. @callable() in src/agents/*) since
     // Oxc — Vite's default TS transformer — doesn't yet support them.
     agents(),
-    devtools(),
+    devtools({ eventBusConfig: { port: devtoolsBusPort } }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],
@@ -47,6 +54,7 @@ const config = defineConfig({
       : []),
   ],
   define: {
+    "import.meta.env.VITE_DEVTOOLS_BUS_PORT": JSON.stringify(devtoolsBusPort),
     "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(
       "https://a55d70f610d33fa3108b7faea06accb7@o4510933498462208.ingest.us.sentry.io/4510937818005504",
     ),

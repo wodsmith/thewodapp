@@ -60,6 +60,8 @@ function EventEditPage() {
     timezone,
     childEvents,
     eventDivisionMappings,
+    benchmarkTests,
+    benchmarkBattery,
   } = eventRoute.useLoaderData()
   // Get competition from parent layout loader data
   const { competition } = parentRoute.useLoaderData()
@@ -98,6 +100,8 @@ function EventEditPage() {
         movements={movements}
         sponsors={sponsors}
         eventDivisionMappings={eventDivisionMappings}
+        benchmarkTests={benchmarkTests}
+        benchmarkBattery={benchmarkBattery}
       />
 
       {/* Event Resources */}
@@ -181,6 +185,8 @@ function ParentEventEditPage() {
     childEvents,
     childDivisionDescriptions,
     eventDivisionMappings,
+    benchmarkTests,
+    benchmarkBattery,
   } = eventRoute.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const { tab } = Route.useSearch()
@@ -296,6 +302,8 @@ function ParentEventEditPage() {
                   sponsors={sponsors}
                   formId={getChildFormId(child.id)}
                   eventDivisionMappings={eventDivisionMappings}
+                  benchmarkTests={benchmarkTests}
+                  benchmarkBattery={benchmarkBattery}
                 />
               </TabsContent>
             ))}
