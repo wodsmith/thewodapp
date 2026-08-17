@@ -150,6 +150,23 @@ describe("upload API route", () => {
     expect(mockR2Put.mock.calls[0][1]).toBe(expectedBody)
   })
 
+  // @lat: [[commerce#Downloadable Competition Products#Private file delivery]]
+  it("uses unguessable object keys for purchase-gated PDFs", async () => {
+    const file = createFileLike({
+      name: "standards.pdf",
+      size: 1024,
+      type: "application/pdf",
+    })
+    vi.mocked(file.arrayBuffer).mockResolvedValue(new ArrayBuffer(5))
+
+    const response = await callUpload(file, "competition-download")
+
+    expect(response.status).toBe(200)
+    expect(mockR2Put.mock.calls[0][0]).toMatch(
+      /^competitions\/product-downloads\/user-admin\/[0-9a-f-]{36}\.pdf$/,
+    )
+  })
+
   it("rejects docs-video uploads above the demo-safe cap before R2 writes", async () => {
     // @lat: [[route-docs#Video storage#Rejects docs-video above demo-safe cap]]
     const file = createFileLike({

@@ -299,9 +299,9 @@ Requires `PRODUCT_COUPONS` entitlement. `CouponsPage` handles creating and deact
 
 ## Merch
 
-Registration add-ons (merch) management for a competition, gated behind the `registration_addons` entitlement.
+Physical and downloadable registration products are managed together behind the `registration_addons` entitlement.
 
-`MerchPage` at `/compete/organizer/$competitionId/merch` renders a locked state when the organizing team lacks the entitlement. When entitled: product CRUD (price, size variants with optional stock, order-by deadline, max per athlete, ACTIVE/HIDDEN/ARCHIVED status) plus two fulfillment tables — counts-by-variant for the print shop and the per-athlete pickup list. Uses `listCompetitionAddonsFn`, `createCompetitionAddonFn`, `updateCompetitionAddonFn`, `archiveCompetitionAddonFn`, and `getAddonSalesReportFn`. See [[commerce#Registration Add-ons]] for the checkout and payment flow.
+`MerchPage` at `/compete/organizer/$competitionId/merch` renders a locked state when the organizing team lacks the entitlement. Organizers can configure physical pickup products or PDF downloads, choose optional purchase vs. included-with-registration access, and upload multiple PDFs. Physical fulfillment retains counts-by-variant and pickup reports. See [[commerce#Registration Add-ons]] and [[commerce#Downloadable Competition Products]].
 
 ## Sponsors
 

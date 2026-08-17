@@ -15,12 +15,16 @@ import { getDb } from "@/db"
 import {
   COMMERCE_PRODUCT_TYPE,
   COMMERCE_PURCHASE_STATUS,
+  COMPETITION_PRODUCT_ACCESS,
+  COMPETITION_PRODUCT_DELIVERY,
   COMPETITION_PRODUCT_STATUS,
   commerceProductTable,
   commercePurchaseTable,
+  competitionProductFilesTable,
   competitionProductsTable,
   competitionProductVariantsTable,
   competitionsTable,
+  createCompetitionProductFileId,
   createCompetitionProductId,
   createCompetitionProductVariantId,
   teamTable,
@@ -53,11 +57,32 @@ const variantInputSchema = z.object({
   stockQty: z.number().int().min(0).nullable().optional(),
 })
 
+const productFileInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  title: z.string().trim().min(1, "File title is required").max(255),
+  r2Key: z.string().trim().min(1).max(600),
+  originalFilename: z.string().trim().min(1).max(255),
+  fileSize: z.number().int().positive(),
+  mimeType: z.literal("application/pdf"),
+})
+
 const addonFieldsSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255),
   description: z.string().max(2000).optional(),
   imageUrl: z.string().trim().url().max(1024).optional().or(z.literal("")),
-  priceCents: z.number().int().positive("Price must be greater than 0"),
+  priceCents: z.number().int().min(0, "Price cannot be negative"),
+  delivery: z
+    .enum([
+      COMPETITION_PRODUCT_DELIVERY.PICKUP,
+      COMPETITION_PRODUCT_DELIVERY.DOWNLOAD,
+    ])
+    .optional(),
+  access: z
+    .enum([
+      COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE,
+      COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION,
+    ])
+    .optional(),
   maxPerAthlete: z.number().int().positive().nullable().optional(),
   availableUntil: dateStringSchema.nullable().optional(),
   status: z
@@ -77,6 +102,7 @@ const addonFieldsSchema = z.object({
       { message: "Variant labels must be unique" },
     )
     .optional(),
+  files: z.array(productFileInputSchema).max(20).optional(),
 })
 
 const createAddonInputSchema = addonFieldsSchema.extend({
@@ -147,6 +173,61 @@ async function getOwnedAddon(productId: string, teamId: string) {
   return product
 }
 
+function assertValidProductConfiguration(input: {
+  priceCents: number
+  delivery: string
+  access: string
+  variants: Array<unknown>
+  files: Array<unknown>
+}) {
+  if (
+    input.access === COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION &&
+    input.delivery !== COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+  ) {
+    throw new Error("Included products must be downloadable")
+  }
+  if (
+    input.access === COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION &&
+    input.priceCents !== 0
+  ) {
+    throw new Error("Products included with registration cannot have a price")
+  }
+  if (
+    input.access === COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE &&
+    input.priceCents <= 0
+  ) {
+    throw new Error("Optional products must have a price greater than 0")
+  }
+  if (
+    input.delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD &&
+    input.files.length === 0
+  ) {
+    throw new Error("Downloadable products need at least one PDF")
+  }
+  if (
+    input.delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD &&
+    input.variants.length > 0
+  ) {
+    throw new Error("Downloadable products cannot have size or stock options")
+  }
+  if (
+    input.delivery === COMPETITION_PRODUCT_DELIVERY.PICKUP &&
+    input.files.length > 0
+  ) {
+    throw new Error("Physical products cannot have download files")
+  }
+}
+
+function assertProductFileOwnership(
+  competitionId: string,
+  files: Array<{ r2Key: string }>,
+) {
+  const expectedPrefix = `competitions/product-downloads/${competitionId}/`
+  if (files.some((file) => !file.r2Key.startsWith(expectedPrefix))) {
+    throw new Error("A download file was not uploaded for this competition")
+  }
+}
+
 /**
  * COMPLETED add-on sales for a competition, aggregated per
  * (catalog product, variant). Joins purchases through the lazily created
@@ -194,29 +275,30 @@ async function loadProductsWithVariants(competitionId: string) {
       asc(competitionProductsTable.createdAt),
     ],
   })
-  if (products.length === 0)
-    return [] as Array<
-      (typeof products)[number] & {
-        variants: Array<{
-          id: string
-          label: string
-          stockQty: number | null
-          soldQty: number
-          sortOrder: number
-        }>
-      }
-    >
+  if (products.length === 0) return []
 
-  const variants = await db.query.competitionProductVariantsTable.findMany({
-    where: inArray(
-      competitionProductVariantsTable.productId,
-      products.map((p) => p.id),
-    ),
-    orderBy: [
-      asc(competitionProductVariantsTable.sortOrder),
-      asc(competitionProductVariantsTable.createdAt),
-    ],
-  })
+  const [variants, files] = await Promise.all([
+    db.query.competitionProductVariantsTable.findMany({
+      where: inArray(
+        competitionProductVariantsTable.productId,
+        products.map((p) => p.id),
+      ),
+      orderBy: [
+        asc(competitionProductVariantsTable.sortOrder),
+        asc(competitionProductVariantsTable.createdAt),
+      ],
+    }),
+    db.query.competitionProductFilesTable.findMany({
+      where: inArray(
+        competitionProductFilesTable.productId,
+        products.map((p) => p.id),
+      ),
+      orderBy: [
+        asc(competitionProductFilesTable.sortOrder),
+        asc(competitionProductFilesTable.createdAt),
+      ],
+    }),
+  ])
 
   return products.map((product) => ({
     ...product,
@@ -228,6 +310,17 @@ async function loadProductsWithVariants(competitionId: string) {
         stockQty: v.stockQty,
         soldQty: v.soldQty,
         sortOrder: v.sortOrder,
+      })),
+    files: files
+      .filter((file) => file.productId === product.id)
+      .map((file) => ({
+        id: file.id,
+        title: file.title,
+        r2Key: file.r2Key,
+        originalFilename: file.originalFilename,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+        sortOrder: file.sortOrder,
       })),
   }))
 }
@@ -252,11 +345,22 @@ export interface OrganizerAddon {
   description: string | null
   imageUrl: string | null
   priceCents: number
+  delivery: string
+  access: string
   maxPerAthlete: number | null
   availableUntil: string | null
   status: string
   sortOrder: number
   variants: OrganizerAddonVariant[]
+  files: Array<{
+    id: string
+    title: string
+    r2Key: string
+    originalFilename: string
+    fileSize: number
+    mimeType: string
+    sortOrder: number
+  }>
   unitsSold: number
   revenueCents: number
 }
@@ -287,6 +391,8 @@ export const listCompetitionAddonsFn = createServerFn({ method: "GET" })
         description: product.description,
         imageUrl: product.imageUrl,
         priceCents: product.priceCents,
+        delivery: product.delivery,
+        access: product.access,
         maxPerAthlete: product.maxPerAthlete,
         availableUntil: product.availableUntil,
         status: product.status,
@@ -296,6 +402,7 @@ export const listCompetitionAddonsFn = createServerFn({ method: "GET" })
           unitsSold:
             productSales.find((s) => s.variantId === v.id)?.units ?? v.soldQty,
         })),
+        files: product.files,
         unitsSold: productSales.reduce((sum, s) => sum + s.units, 0),
         revenueCents: productSales.reduce((sum, s) => sum + s.revenueCents, 0),
       }
@@ -323,6 +430,18 @@ export const createCompetitionAddonFn = createServerFn({ method: "POST" })
 
     const db = getDb()
     const productId = createCompetitionProductId()
+    const delivery = input.delivery ?? COMPETITION_PRODUCT_DELIVERY.PICKUP
+    const access = input.access ?? COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE
+    const files = input.files ?? []
+    const variants = input.variants ?? []
+    assertValidProductConfiguration({
+      priceCents: input.priceCents,
+      delivery,
+      access,
+      files,
+      variants,
+    })
+    assertProductFileOwnership(input.competitionId, files)
     await db.transaction(async (tx) => {
       await tx.insert(competitionProductsTable).values({
         id: productId,
@@ -331,8 +450,16 @@ export const createCompetitionAddonFn = createServerFn({ method: "POST" })
         description: input.description || null,
         imageUrl: input.imageUrl || null,
         priceCents: input.priceCents,
-        maxPerAthlete: input.maxPerAthlete ?? null,
-        availableUntil: input.availableUntil ?? null,
+        delivery,
+        access,
+        maxPerAthlete:
+          delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+            ? 1
+            : (input.maxPerAthlete ?? null),
+        availableUntil:
+          delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+            ? null
+            : (input.availableUntil ?? null),
         status: input.status ?? COMPETITION_PRODUCT_STATUS.ACTIVE,
       })
 
@@ -343,6 +470,21 @@ export const createCompetitionAddonFn = createServerFn({ method: "POST" })
             productId,
             label: variant.label,
             stockQty: variant.stockQty ?? null,
+            sortOrder: index,
+          })),
+        )
+      }
+
+      if (files.length > 0) {
+        await tx.insert(competitionProductFilesTable).values(
+          files.map((file, index) => ({
+            id: createCompetitionProductFileId(),
+            productId,
+            title: file.title,
+            r2Key: file.r2Key,
+            originalFilename: file.originalFilename,
+            fileSize: file.fileSize,
+            mimeType: file.mimeType,
             sortOrder: index,
           })),
         )
@@ -383,6 +525,27 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
+    const existingFiles = await db.query.competitionProductFilesTable.findMany({
+      where: eq(competitionProductFilesTable.productId, product.id),
+    })
+    const nextDelivery = input.delivery ?? product.delivery
+    const nextAccess = input.access ?? product.access
+    const nextFiles = input.files ?? existingFiles
+    const existingVariants =
+      await db.query.competitionProductVariantsTable.findMany({
+        where: eq(competitionProductVariantsTable.productId, product.id),
+      })
+    const nextVariants = input.variants ?? existingVariants
+    const nextPriceCents = input.priceCents ?? product.priceCents
+    assertValidProductConfiguration({
+      priceCents: nextPriceCents,
+      delivery: nextDelivery,
+      access: nextAccess,
+      files: nextFiles,
+      variants: nextVariants,
+    })
+    assertProductFileOwnership(product.competitionId, nextFiles)
+
     // Product fields and variant reconciliation commit together — a variant
     // validation error (e.g. removing a variant with sales) must not leave
     // half-applied product changes behind.
@@ -400,11 +563,23 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
           ...(input.priceCents !== undefined
             ? { priceCents: input.priceCents }
             : {}),
-          ...(input.maxPerAthlete !== undefined
-            ? { maxPerAthlete: input.maxPerAthlete }
+          ...(input.delivery !== undefined ? { delivery: input.delivery } : {}),
+          ...(input.access !== undefined ? { access: input.access } : {}),
+          ...(input.maxPerAthlete !== undefined || input.delivery !== undefined
+            ? {
+                maxPerAthlete:
+                  nextDelivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+                    ? 1
+                    : (input.maxPerAthlete ?? product.maxPerAthlete),
+              }
             : {}),
-          ...(input.availableUntil !== undefined
-            ? { availableUntil: input.availableUntil }
+          ...(input.availableUntil !== undefined || input.delivery !== undefined
+            ? {
+                availableUntil:
+                  nextDelivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+                    ? null
+                    : (input.availableUntil ?? product.availableUntil),
+              }
             : {}),
           ...(input.status !== undefined ? { status: input.status } : {}),
           updatedAt: new Date(),
@@ -412,10 +587,7 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
         .where(eq(competitionProductsTable.id, product.id))
 
       if (input.variants !== undefined) {
-        const existing =
-          await tx.query.competitionProductVariantsTable.findMany({
-            where: eq(competitionProductVariantsTable.productId, product.id),
-          })
+        const existing = existingVariants
         const incomingIds = new Set(
           input.variants.map((v) => v.id).filter(Boolean),
         )
@@ -462,6 +634,55 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
               productId: product.id,
               label: variant.label,
               stockQty: variant.stockQty ?? null,
+              sortOrder: index,
+            })
+          }
+        }
+      }
+
+      if (input.files !== undefined) {
+        const incomingIds = new Set(
+          input.files.map((file) => file.id).filter(Boolean),
+        )
+        const removed = existingFiles.filter(
+          (file) => !incomingIds.has(file.id),
+        )
+        if (removed.length > 0) {
+          await tx.delete(competitionProductFilesTable).where(
+            inArray(
+              competitionProductFilesTable.id,
+              removed.map((file) => file.id),
+            ),
+          )
+        }
+        for (const [index, file] of input.files.entries()) {
+          if (file.id) {
+            const current = existingFiles.find(
+              (existing) => existing.id === file.id,
+            )
+            if (!current)
+              throw new Error("Download file not found on this product")
+            await tx
+              .update(competitionProductFilesTable)
+              .set({
+                title: file.title,
+                r2Key: file.r2Key,
+                originalFilename: file.originalFilename,
+                fileSize: file.fileSize,
+                mimeType: file.mimeType,
+                sortOrder: index,
+                updatedAt: new Date(),
+              })
+              .where(eq(competitionProductFilesTable.id, file.id))
+          } else {
+            await tx.insert(competitionProductFilesTable).values({
+              id: createCompetitionProductFileId(),
+              productId: product.id,
+              title: file.title,
+              r2Key: file.r2Key,
+              originalFilename: file.originalFilename,
+              fileSize: file.fileSize,
+              mimeType: file.mimeType,
               sortOrder: index,
             })
           }
@@ -532,6 +753,9 @@ export interface PublicAddon {
   imageUrl: string | null
   /** Raw product price per unit */
   priceCents: number
+  delivery: string
+  access: string
+  downloadFiles: Array<{ title: string }>
   /** Session fee settings used by the registration order preview. */
   feeConfig: FeeConfiguration
   maxPerAthlete: number | null
@@ -570,29 +794,38 @@ export const getPublicCompetitionAddonsFn = createServerFn({ method: "GET" })
         organizerFeeFixed: true,
       },
     })
-    // Add-ons are always paid; without a verified Stripe account the
-    // checkout would dead-end, so don't offer them.
-    if (organizingTeam?.stripeAccountStatus !== "VERIFIED") {
-      return { addons: [] }
-    }
-
     const timezone = competition.timezone || DEFAULT_TIMEZONE
     const teamFeeOverrides: TeamFeeOverrides = {
-      organizerFeePercentage: organizingTeam.organizerFeePercentage,
-      organizerFeeFixed: organizingTeam.organizerFeeFixed,
+      organizerFeePercentage: organizingTeam?.organizerFeePercentage ?? null,
+      organizerFeeFixed: organizingTeam?.organizerFeeFixed ?? null,
     }
     const feeConfig = buildFeeConfig(competition, teamFeeOverrides)
 
     const products = await loadProductsWithVariants(input.competitionId)
 
     const addons: PublicAddon[] = products
-      .filter((product) => isAddonPurchasable(product, timezone))
+      .filter((product) => {
+        if (product.status !== COMPETITION_PRODUCT_STATUS.ACTIVE) return false
+        if (
+          product.access ===
+          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+        ) {
+          return product.delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+        }
+        return (
+          organizingTeam?.stripeAccountStatus === "VERIFIED" &&
+          isAddonPurchasable(product, timezone)
+        )
+      })
       .map((product) => ({
         id: product.id,
         name: product.name,
         description: product.description,
         imageUrl: product.imageUrl,
         priceCents: product.priceCents,
+        delivery: product.delivery,
+        access: product.access,
+        downloadFiles: product.files.map((file) => ({ title: file.title })),
         feeConfig,
         maxPerAthlete: product.maxPerAthlete,
         availableUntil: product.availableUntil,
@@ -710,6 +943,7 @@ export const getAddonSalesReportFn = createServerFn({ method: "GET" })
 
     for (const row of purchases) {
       const product = productById.get(row.addonProductId)
+      if (product?.delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD) continue
       const productName = product?.name ?? "Unknown add-on"
       const variantLabel = resolveVariantLabel(row)
 

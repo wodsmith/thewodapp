@@ -85,6 +85,8 @@ const activeProduct = {
   description: null,
   imageUrl: null,
   priceCents: 2500,
+  delivery: "PICKUP",
+  access: "OPTIONAL_PURCHASE",
   maxPerAthlete: 2,
   availableUntil: null,
   status: "ACTIVE",
@@ -97,6 +99,7 @@ function registerTables() {
   mockDb.registerTable("competitionsTable")
   mockDb.registerTable("competitionProductsTable")
   mockDb.registerTable("competitionProductVariantsTable")
+  mockDb.registerTable("competitionProductFilesTable")
   mockDb.registerTable("teamTable")
 }
 
@@ -165,6 +168,34 @@ describe("competition-addon-fns", () => {
           },
         }),
       ).rejects.toThrow("Unauthorized")
+    })
+
+    // @lat: [[commerce#Downloadable Competition Products#Product configuration]]
+    it("creates a PDF included with registration at no extra charge", async () => {
+      mockDb.queueMockSingleValues([competition])
+
+      const result = await createAddon({
+        data: {
+          competitionId: "comp-1",
+          teamId: "team-1",
+          name: "Benchmark standards",
+          priceCents: 0,
+          delivery: "DOWNLOAD",
+          access: "INCLUDED_WITH_REGISTRATION",
+          files: [
+            {
+              title: "Competition standards",
+              r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+              originalFilename: "standards.pdf",
+              fileSize: 2048,
+              mimeType: "application/pdf",
+            },
+          ],
+        },
+      })
+
+      expect(result.productId).toMatch(/^cmpprod_/)
+      expect(mockDb.insert).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -240,6 +271,51 @@ describe("competition-addon-fns", () => {
       })
 
       expect(result.addons).toEqual([])
+    })
+
+    it("advertises included downloads without requiring a separate Stripe line item", async () => {
+      mockDb.queueMockSingleValues([
+        competition,
+        {
+          stripeAccountStatus: "PENDING",
+          organizerFeePercentage: null,
+          organizerFeeFixed: null,
+        },
+      ])
+      mockDb.query.competitionProductsTable.findMany.mockResolvedValue([
+        {
+          ...activeProduct,
+          name: "Benchmark standards",
+          priceCents: 0,
+          delivery: "DOWNLOAD",
+          access: "INCLUDED_WITH_REGISTRATION",
+          maxPerAthlete: 1,
+        },
+      ])
+      mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([
+        {
+          id: "file-1",
+          productId: activeProduct.id,
+          title: "Competition standards",
+          r2Key: "competitions/product-downloads/comp-1/file.pdf",
+          originalFilename: "standards.pdf",
+          fileSize: 2048,
+          mimeType: "application/pdf",
+          sortOrder: 0,
+        },
+      ])
+
+      const result = await getPublicAddons({
+        data: { competitionId: "comp-1" },
+      })
+
+      expect(result.addons).toEqual([
+        expect.objectContaining({
+          name: "Benchmark standards",
+          access: "INCLUDED_WITH_REGISTRATION",
+          downloadFiles: [{ title: "Competition standards" }],
+        }),
+      ])
     })
 
     it("returns purchasable products with base pricing and session fee config", async () => {

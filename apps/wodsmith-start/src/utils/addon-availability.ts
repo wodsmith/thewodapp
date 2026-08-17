@@ -6,11 +6,15 @@
  * Authoritative stock enforcement lives in the Stripe checkout workflow;
  * these helpers cover display and submit-time soft checks.
  */
-import { COMPETITION_PRODUCT_STATUS } from "@/db/schema"
+import {
+  COMPETITION_PRODUCT_ACCESS,
+  COMPETITION_PRODUCT_STATUS,
+} from "@/db/schema"
 import { getEndOfDayInTimezone } from "@/utils/timezone-utils"
 
 export interface AddonAvailabilityInput {
   status: string
+  access?: string
   /** YYYY-MM-DD order-by deadline, end-of-day in the competition timezone */
   availableUntil: string | null
 }
@@ -26,6 +30,11 @@ export function isAddonPurchasable(
   now: Date = new Date(),
 ): boolean {
   if (product.status !== COMPETITION_PRODUCT_STATUS.ACTIVE) return false
+  if (
+    product.access &&
+    product.access !== COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE
+  )
+    return false
   if (!product.availableUntil) return true
   const deadline = getEndOfDayInTimezone(product.availableUntil, timezone)
   // Malformed deadline strings fail closed: organizers fix the date rather

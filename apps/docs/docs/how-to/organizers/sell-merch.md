@@ -2,15 +2,15 @@
 sidebar_position: 6
 ---
 
-# How to Sell Merch During Registration
+# How to Sell Merch and Downloads During Registration
 
-Sell event t-shirts and other add-ons inside your registration flow. Athletes pick items while registering and pay for everything in one checkout; you hand the merch out at the venue.
+Offer physical merch and downloadable PDFs inside your registration flow. Products can be optional line items or digital benefits included with registration.
 
 ## Prerequisites
 
 - Competition organizer permissions
 - Registration add-ons enabled for your team (this is an account-level feature — contact WODsmith to turn it on)
-- A verified Stripe account connected to your team (merch is always paid)
+- A verified Stripe account connected to your team when selling optional paid products
 
 If add-ons aren't enabled, the Merch page shows a locked notice instead of the editor.
 
@@ -21,14 +21,17 @@ If add-ons aren't enabled, the Merch page shows a locked notice instead of the e
 3. Click **Add product**
 4. Fill in the product details:
    - **Name** — what athletes see (e.g., "Event Tee 2026")
-   - **Price ($)** — your price per unit; processing fees are added on top according to your competition's fee settings
+   - **Delivery** — physical pickup or PDF download
+   - **Access** — optional line item or included with registration (downloads only)
+   - **Price ($)** — the per-unit price for optional products
    - **Max per athlete** *(optional)* — caps how many one registrant can order across all sizes
    - **Order by** *(optional)* — last day athletes can order, end of day in your competition's timezone
    - **Description** and **Image URL** *(optional)*
-5. Add **Options** if the product comes in sizes (e.g., S, M, L, XL)
-6. Click **Create add-on**
+5. For physical products, add **Options** if the product comes in sizes (e.g., S, M, L, XL)
+6. For downloadable products, upload one or more PDF files and give each a clear display title
+7. Click **Create product**
 
-To sell a shirt that's *included* in the registration fee, don't use Merch — collect sizes with a [registration question](/how-to/organizers/registration-questions) instead. Use Merch when athletes pay extra for the item.
+To include a shirt in the registration fee, collect sizes with a [registration question](/how-to/organizers/registration-questions). Included product fulfillment is currently designed for downloads.
 
 ## Controlling Availability
 
@@ -40,7 +43,9 @@ Pick the model that matches how you source the merch:
 
 ## How Athletes Buy
 
-Athletes see an **Event merch** section in the registration form, between the coupon field and the order summary. They pick a size and quantity, and the items are added to the same Stripe checkout as their registration fee.
+Athletes see included downloads and optional add-ons in the registration form, between the coupon field and the order summary. Optional products are added to the same checkout as the registration fee.
+
+After registration or payment completes, entitled PDFs appear in **Settings → Downloads**. Each download request checks the athlete's active registration or completed add-on purchase before serving the file.
 
 - Merch works with free divisions too — a $0 registration with a paid shirt still goes through checkout.
 - Coupons never discount merch; codes apply to registration fees only.
@@ -62,6 +67,8 @@ The Merch page gives you both reports you need:
 
 - **Print shop summary** — total units per product and size. Send this to your printer after the order deadline passes.
 - **Pickup list** — every athlete with the items and quantities they bought. Use it at the check-in table on event day.
+
+Downloadable products do not appear in physical fulfillment reports; delivery is automatic through the athlete's downloads library.
 
 ## Refunds
 

@@ -11,6 +11,7 @@
  * - athlete-cover: Athlete cover images (5MB max)
  * - sponsor-logo: General sponsor logos (2MB max)
  * - judging-sheet: Judging sheet PDFs (20MB max)
+ * - competition-download: Purchase-gated competition product PDFs (20MB max)
  *
  * OBSERVABILITY:
  * - All upload attempts are logged with purpose and file info
@@ -57,6 +58,11 @@ const PURPOSE_CONFIG: Record<
     maxSizeMb: 2,
     pathPrefix: "competitions/sponsors",
     allowedTypes: IMAGE_TYPES,
+  },
+  "competition-download": {
+    maxSizeMb: 20,
+    pathPrefix: "competitions/product-downloads",
+    allowedTypes: DOCUMENT_TYPES,
   },
   "athlete-profile": {
     maxSizeMb: 2,
@@ -190,7 +196,7 @@ export const Route = createFileRoute("/api/upload")({
             },
           })
           const allowedTypeNames =
-            purpose === "judging-sheet"
+            purpose === "judging-sheet" || purpose === "competition-download"
               ? "PDF"
               : purpose === "docs-video"
                 ? DOCS_VIDEO_ALLOWED_TYPE_LABEL
@@ -203,7 +209,10 @@ export const Route = createFileRoute("/api/upload")({
 
         const extension = file.name.split(".").pop() || "jpg"
         const timestamp = Date.now()
-        const filename = `${timestamp}.${extension}`
+        const filename =
+          purpose === "competition-download"
+            ? `${crypto.randomUUID()}.${extension}`
+            : `${timestamp}.${extension}`
         const key = entityId
           ? `${config.pathPrefix}/${entityId}/${filename}`
           : `${config.pathPrefix}/${session.user.id}/${filename}`

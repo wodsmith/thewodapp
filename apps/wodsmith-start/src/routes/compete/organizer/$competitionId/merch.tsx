@@ -15,13 +15,16 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
   Archive,
+  Download,
   Eye,
   EyeOff,
+  FileText,
   Lock,
   Pencil,
   Plus,
   ShoppingBag,
   Trash2,
+  Upload,
 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -53,7 +56,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { COMPETITION_PRODUCT_STATUS } from "@/db/schema"
+import {
+  COMPETITION_PRODUCT_ACCESS,
+  COMPETITION_PRODUCT_DELIVERY,
+  COMPETITION_PRODUCT_STATUS,
+} from "@/db/schema"
 import {
   archiveCompetitionAddonFn,
   createCompetitionAddonFn,
@@ -106,7 +113,19 @@ interface AddonDraft {
   availableUntil: string
   maxPerAthlete: string
   status: string
+  delivery: string
+  access: string
   variants: VariantDraft[]
+  files: ProductFileDraft[]
+}
+
+interface ProductFileDraft {
+  id?: string
+  title: string
+  r2Key: string
+  originalFilename: string
+  fileSize: number
+  mimeType: "application/pdf"
 }
 
 const emptyDraft: AddonDraft = {
@@ -117,7 +136,10 @@ const emptyDraft: AddonDraft = {
   availableUntil: "",
   maxPerAthlete: "",
   status: COMPETITION_PRODUCT_STATUS.ACTIVE,
+  delivery: COMPETITION_PRODUCT_DELIVERY.PICKUP,
+  access: COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE,
   variants: [],
+  files: [],
 }
 
 function draftFromAddon(addon: OrganizerAddon): AddonDraft {
@@ -129,11 +151,21 @@ function draftFromAddon(addon: OrganizerAddon): AddonDraft {
     availableUntil: addon.availableUntil ?? "",
     maxPerAthlete: addon.maxPerAthlete?.toString() ?? "",
     status: addon.status,
+    delivery: addon.delivery,
+    access: addon.access,
     variants: addon.variants.map((v) => ({
       id: v.id,
       label: v.label,
       stock: v.stockQty?.toString() ?? "",
       unitsSold: v.unitsSold,
+    })),
+    files: addon.files.map((file) => ({
+      id: file.id,
+      title: file.title,
+      r2Key: file.r2Key,
+      originalFilename: file.originalFilename,
+      fileSize: file.fileSize,
+      mimeType: "application/pdf",
     })),
   }
 }
@@ -171,6 +203,7 @@ function MerchPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<AddonDraft>(emptyDraft)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
   const createAddon = useServerFn(createCompetitionAddonFn)
   const updateAddon = useServerFn(updateCompetitionAddonFn)
@@ -235,13 +268,22 @@ function MerchPage() {
   }
 
   async function handleSave() {
-    const priceCents = Math.round(parseFloat(draft.priceDollars) * 100)
+    const included =
+      draft.access === COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+    const isDownload = draft.delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+    const priceCents = included
+      ? 0
+      : Math.round(parseFloat(draft.priceDollars) * 100)
     if (!draft.name.trim()) {
       toast.error("Enter a product name")
       return
     }
-    if (Number.isNaN(priceCents) || priceCents <= 0) {
+    if (!included && (Number.isNaN(priceCents) || priceCents <= 0)) {
       toast.error("Enter a valid price")
+      return
+    }
+    if (isDownload && draft.files.length === 0) {
+      toast.error("Upload at least one PDF")
       return
     }
     // Number() (not parseInt) so decimal input like "2.5" is rejected
@@ -260,7 +302,7 @@ function MerchPage() {
       toast.error("Max per athlete must be a positive whole number (or blank)")
       return
     }
-    const variants = draft.variants
+    const variants = (isDownload ? [] : draft.variants)
       .filter((v) => v.label.trim())
       .map((v) => ({
         ...(v.id ? { id: v.id } : {}),
@@ -282,10 +324,15 @@ function MerchPage() {
       description: draft.description.trim() || undefined,
       imageUrl: draft.imageUrl.trim() || undefined,
       priceCents,
-      maxPerAthlete,
-      availableUntil: draft.availableUntil.trim() || null,
+      delivery: draft.delivery as "PICKUP" | "DOWNLOAD",
+      access: draft.access as
+        | "OPTIONAL_PURCHASE"
+        | "INCLUDED_WITH_REGISTRATION",
+      maxPerAthlete: isDownload ? 1 : maxPerAthlete,
+      availableUntil: isDownload ? null : draft.availableUntil.trim() || null,
       status: draft.status as "ACTIVE" | "HIDDEN" | "ARCHIVED",
       variants,
+      files: draft.files,
     }
 
     setIsSaving(true)
@@ -307,6 +354,53 @@ function MerchPage() {
       toast.error(err instanceof Error ? err.message : "Failed to save add-on")
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  async function handleFileUpload(file: File | undefined) {
+    if (!file) return
+    if (file.type !== "application/pdf") {
+      toast.error("Only PDF files can be uploaded")
+      return
+    }
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.set("file", file)
+      formData.set("purpose", "competition-download")
+      formData.set("entityId", competitionId)
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+      const result = (await response.json()) as {
+        error?: string
+        key?: string
+        originalFilename?: string
+        fileSize?: number
+      }
+      if (!response.ok || !result.key) {
+        throw new Error(result.error ?? "Upload failed")
+      }
+      const uploadedKey = result.key
+      setDraft((current) => ({
+        ...current,
+        files: [
+          ...current.files,
+          {
+            title: file.name.replace(/\.pdf$/i, ""),
+            r2Key: uploadedKey,
+            originalFilename: result.originalFilename ?? file.name,
+            fileSize: result.fileSize ?? file.size,
+            mimeType: "application/pdf",
+          },
+        ],
+      }))
+      toast.success("PDF uploaded")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed")
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -344,10 +438,10 @@ function MerchPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold">Merch</h2>
+          <h2 className="text-xl font-semibold">Merch &amp; downloads</h2>
           <p className="text-sm text-muted-foreground">
-            Sell add-ons inside the registration flow for {competition.name}.
-            Athletes pay with their registration; pickup happens at the venue.
+            Offer physical add-ons and PDF products for {competition.name}.
+            Downloads can be sold separately or included with registration.
           </p>
         </div>
         <Button onClick={openCreate}>
@@ -379,6 +473,8 @@ function MerchPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
+                    <TableHead>Delivery</TableHead>
+                    <TableHead>Access</TableHead>
                     <TableHead>Price</TableHead>
                     <TableHead>Options</TableHead>
                     <TableHead>Order by</TableHead>
@@ -395,10 +491,37 @@ function MerchPage() {
                         {addon.name}
                       </TableCell>
                       <TableCell>
-                        ${(addon.priceCents / 100).toFixed(2)}
+                        <Badge variant="outline" className="font-normal">
+                          {addon.delivery ===
+                          COMPETITION_PRODUCT_DELIVERY.DOWNLOAD ? (
+                            <>
+                              <Download className="mr-1 h-3 w-3" /> Download
+                            </>
+                          ) : (
+                            "Pickup"
+                          )}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        {addon.variants.length === 0 ? (
+                        {addon.access ===
+                        COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+                          ? "Included"
+                          : "Optional add-on"}
+                      </TableCell>
+                      <TableCell>
+                        {addon.access ===
+                        COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+                          ? "—"
+                          : `$${(addon.priceCents / 100).toFixed(2)}`}
+                      </TableCell>
+                      <TableCell>
+                        {addon.delivery ===
+                        COMPETITION_PRODUCT_DELIVERY.DOWNLOAD ? (
+                          <span className="text-muted-foreground">
+                            {addon.files.length} PDF
+                            {addon.files.length === 1 ? "" : "s"}
+                          </span>
+                        ) : addon.variants.length === 0 ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (
                           <div className="flex flex-wrap gap-1">
@@ -565,7 +688,7 @@ function MerchPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Edit add-on" : "New add-on"}
+              {editingId ? "Edit product" : "New product"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -582,56 +705,96 @@ function MerchPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label htmlFor="addon-price">Price ($)</Label>
-                <Input
-                  id="addon-price"
-                  type="number"
-                  min="0.50"
-                  step="0.01"
-                  placeholder="25.00"
-                  value={draft.priceDollars}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, priceDollars: e.target.value }))
+                <Label htmlFor="addon-delivery">Delivery</Label>
+                <Select
+                  value={draft.delivery}
+                  onValueChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      delivery: value,
+                      access:
+                        value === COMPETITION_PRODUCT_DELIVERY.PICKUP
+                          ? COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE
+                          : current.access,
+                    }))
                   }
-                />
+                >
+                  <SelectTrigger id="addon-delivery">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={COMPETITION_PRODUCT_DELIVERY.PICKUP}>
+                      Physical pickup
+                    </SelectItem>
+                    <SelectItem value={COMPETITION_PRODUCT_DELIVERY.DOWNLOAD}>
+                      PDF download
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="addon-max">
-                  Max per athlete{" "}
-                  <span className="text-muted-foreground">(optional)</span>
-                </Label>
-                <Input
-                  id="addon-max"
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="No limit"
-                  value={draft.maxPerAthlete}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, maxPerAthlete: e.target.value }))
+                <Label htmlFor="addon-access">Access</Label>
+                <Select
+                  value={draft.access}
+                  disabled={
+                    draft.delivery === COMPETITION_PRODUCT_DELIVERY.PICKUP
                   }
-                />
+                  onValueChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      access: value,
+                      priceDollars:
+                        value ===
+                        COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+                          ? "0.00"
+                          : current.priceDollars === "0.00"
+                            ? ""
+                            : current.priceDollars,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="addon-access">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      value={COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE}
+                    >
+                      Optional line item
+                    </SelectItem>
+                    <SelectItem
+                      value={
+                        COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+                      }
+                    >
+                      Included with registration
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="addon-until">
-                  Order by{" "}
-                  <span className="text-muted-foreground">(optional)</span>
-                </Label>
-                <Input
-                  id="addon-until"
-                  type="date"
-                  value={draft.availableUntil}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, availableUntil: e.target.value }))
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  Last day athletes can order — e.g. your print shop deadline.
-                  End of day in the competition timezone.
-                </p>
-              </div>
+              {draft.access === COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE ? (
+                <div className="space-y-1">
+                  <Label htmlFor="addon-price">Price ($)</Label>
+                  <Input
+                    id="addon-price"
+                    type="number"
+                    min="0.50"
+                    step="0.01"
+                    placeholder="25.00"
+                    value={draft.priceDollars}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, priceDollars: e.target.value }))
+                    }
+                  />
+                </div>
+              ) : (
+                <div className="rounded-md border bg-primary/5 p-3 text-sm text-muted-foreground">
+                  The download unlocks automatically after registration.
+                </div>
+              )}
               <div className="space-y-1">
                 <Label htmlFor="addon-status">Status</Label>
                 <Select
@@ -657,6 +820,48 @@ function MerchPage() {
                 </Select>
               </div>
             </div>
+
+            {draft.delivery === COMPETITION_PRODUCT_DELIVERY.PICKUP ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="addon-max">
+                    Max per athlete{" "}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="addon-max"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="No limit"
+                    value={draft.maxPerAthlete}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        maxPerAthlete: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="addon-until">
+                    Order by{" "}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="addon-until"
+                    type="date"
+                    value={draft.availableUntil}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        availableUntil: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            ) : null}
             <div className="space-y-1">
               <Label htmlFor="addon-description">
                 Description{" "}
@@ -688,88 +893,170 @@ function MerchPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>
-                  Options (sizes){" "}
-                  <span className="text-muted-foreground">(optional)</span>
-                </Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setDraft((d) => ({
-                      ...d,
-                      variants: [
-                        ...d.variants,
-                        { label: "", stock: "", unitsSold: 0 },
-                      ],
-                    }))
-                  }
-                >
-                  <Plus className="mr-1 h-3 w-3" />
-                  Add option
-                </Button>
-              </div>
-              {draft.variants.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No options — athletes just pick a quantity. Add options for
-                  sizes like S / M / L / XL.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {draft.variants.map((variant, index) => (
-                    <div
-                      key={variant.id ?? `new-${index}`}
-                      className="flex items-center gap-2"
-                    >
-                      <Input
-                        placeholder="Label (e.g. L)"
-                        value={variant.label}
-                        onChange={(e) =>
-                          updateVariant(index, { label: e.target.value })
-                        }
+            {draft.delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD ? (
+              <div className="space-y-3 rounded-md border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label>PDF files</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Files are delivered through the purchase-gated downloads
+                      library.
+                    </p>
+                  </div>
+                  <Button asChild type="button" variant="outline" size="sm">
+                    <label className="cursor-pointer">
+                      <Upload className="mr-1 h-3.5 w-3.5" />
+                      {isUploading ? "Uploading…" : "Upload PDF"}
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        className="sr-only"
+                        disabled={isUploading}
+                        onChange={(event) => {
+                          void handleFileUpload(event.target.files?.[0])
+                          event.target.value = ""
+                        }}
                       />
-                      <Input
-                        type="number"
-                        min="0"
-                        step="1"
-                        className="w-28"
-                        placeholder="Stock"
-                        title="Leave blank for untracked stock"
-                        value={variant.stock}
-                        onChange={(e) =>
-                          updateVariant(index, { stock: e.target.value })
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={variant.unitsSold > 0}
-                        title={
-                          variant.unitsSold > 0
-                            ? "Sold units — set stock to 0 instead"
-                            : "Remove option"
-                        }
-                        onClick={() =>
-                          setDraft((d) => ({
-                            ...d,
-                            variants: d.variants.filter((_, i) => i !== index),
-                          }))
-                        }
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground">
-                    Blank stock = untracked (sell until the order deadline).
-                  </p>
+                    </label>
+                  </Button>
                 </div>
-              )}
-            </div>
+                {draft.files.length === 0 ? (
+                  <p className="rounded-md bg-muted/50 px-3 py-4 text-center text-sm text-muted-foreground">
+                    Upload at least one PDF.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {draft.files.map((file, index) => (
+                      <div
+                        key={file.id ?? file.r2Key}
+                        className="flex items-center gap-2"
+                      >
+                        <FileText className="h-4 w-4 shrink-0 text-primary" />
+                        <Input
+                          aria-label={`Title for ${file.originalFilename}`}
+                          value={file.title}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              files: current.files.map(
+                                (candidate, fileIndex) =>
+                                  fileIndex === index
+                                    ? {
+                                        ...candidate,
+                                        title: event.target.value,
+                                      }
+                                    : candidate,
+                              ),
+                            }))
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              files: current.files.filter(
+                                (_, fileIndex) => fileIndex !== index,
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Remove file</span>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>
+                    Options (sizes){" "}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setDraft((d) => ({
+                        ...d,
+                        variants: [
+                          ...d.variants,
+                          { label: "", stock: "", unitsSold: 0 },
+                        ],
+                      }))
+                    }
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add option
+                  </Button>
+                </div>
+                {draft.variants.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No options — athletes just pick a quantity. Add options for
+                    sizes like S / M / L / XL.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {draft.variants.map((variant, index) => (
+                      <div
+                        key={variant.id ?? `new-${index}`}
+                        className="flex items-center gap-2"
+                      >
+                        <Input
+                          placeholder="Label (e.g. L)"
+                          value={variant.label}
+                          onChange={(e) =>
+                            updateVariant(index, { label: e.target.value })
+                          }
+                        />
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          className="w-28"
+                          placeholder="Stock"
+                          title="Leave blank for untracked stock"
+                          value={variant.stock}
+                          onChange={(e) =>
+                            updateVariant(index, { stock: e.target.value })
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={variant.unitsSold > 0}
+                          title={
+                            variant.unitsSold > 0
+                              ? "Sold units — set stock to 0 instead"
+                              : "Remove option"
+                          }
+                          onClick={() =>
+                            setDraft((d) => ({
+                              ...d,
+                              variants: d.variants.filter(
+                                (_, variantIndex) => variantIndex !== index,
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">
+                      Blank stock = untracked (sell until the order deadline).
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
@@ -779,12 +1066,12 @@ function MerchPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={isSaving || isUploading}>
               {isSaving
                 ? "Saving..."
                 : editingId
                   ? "Save changes"
-                  : "Create add-on"}
+                  : "Create product"}
             </Button>
           </DialogFooter>
         </DialogContent>
