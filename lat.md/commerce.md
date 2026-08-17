@@ -102,7 +102,7 @@ Competition products can deliver PDFs either as optional registration add-ons or
 
 Delivery and access are separate catalog concerns; fulfillment cannot change after checkout starts or when doing so would revoke an active registration entitlement.
 
-[[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductsTable]] stores `delivery` (`PICKUP` or `DOWNLOAD`) and `access` (`OPTIONAL_PURCHASE` or `INCLUDED_WITH_REGISTRATION`). [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFilesTable]] stores one or more PDF records for a downloadable product. Included products have a zero price; optional products retain the normal add-on checkout path. Once an active registration exists, an active included product cannot change access, hide, archive, or remove attached files.
+[[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductsTable]] stores `delivery` (`PICKUP` or `DOWNLOAD`) and `access` (`OPTIONAL_PURCHASE` or `INCLUDED_WITH_REGISTRATION`). [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFilesTable]] stores one or more PDF records for a downloadable product. Included products have a zero price; optional products retain the normal add-on checkout path. Once an active registration exists, an active included product cannot change access, hide, archive, or remove attached files. Registration insertion and these lifecycle changes lock the same competition row, so the empty-registration case cannot race a revoking edit.
 
 ### Checkout authority
 

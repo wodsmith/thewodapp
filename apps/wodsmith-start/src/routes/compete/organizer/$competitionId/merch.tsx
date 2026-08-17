@@ -318,7 +318,9 @@ function MerchPage() {
         editingAddon?.access ===
           COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
           ? "Delivery cannot be changed while this product is included with registration"
-          : "Delivery cannot be changed after a product has sales",
+          : editingAddon?.hasPendingCheckout
+            ? "Delivery cannot be changed after checkout has started for a product"
+            : "Delivery cannot be changed after a product has sales",
       )
       return
     }
@@ -382,7 +384,9 @@ function MerchPage() {
         editingAddon.access ===
           COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
           ? "Delivery cannot be changed while this product is included with registration"
-          : "Delivery cannot be changed after a product has sales",
+          : editingAddon.hasPendingCheckout
+            ? "Delivery cannot be changed after checkout has started for a product"
+            : "Delivery cannot be changed after a product has sales",
       )
       return
     }

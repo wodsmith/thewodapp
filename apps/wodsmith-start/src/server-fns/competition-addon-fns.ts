@@ -636,6 +636,15 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
     // validation error (e.g. removing a variant with sales) must not leave
     // half-applied product changes behind.
     await db.transaction(async (tx) => {
+      // Registration creation locks the same durable competition row before
+      // inserting its ACTIVE row. This serializes the zero-registration case,
+      // where locking a registration query alone would not be portable.
+      await tx
+        .select({ id: competitionsTable.id })
+        .from(competitionsTable)
+        .where(eq(competitionsTable.id, product.competitionId))
+        .for("update")
+
       // Checkout locks the same catalog row before inserting PENDING purchase
       // rows. Sharing that lock closes the race between starting checkout and
       // changing how an existing product is fulfilled.
@@ -965,6 +974,12 @@ export const archiveCompetitionAddonFn = createServerFn({ method: "POST" })
 
     const db = getDb()
     await db.transaction(async (tx) => {
+      await tx
+        .select({ id: competitionsTable.id })
+        .from(competitionsTable)
+        .where(eq(competitionsTable.id, product.competitionId))
+        .for("update")
+
       await tx
         .select({ id: competitionProductsTable.id })
         .from(competitionProductsTable)

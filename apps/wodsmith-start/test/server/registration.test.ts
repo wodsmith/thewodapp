@@ -199,6 +199,8 @@ describe("registerForCompetition", () => {
 			// ASSERT
 			expect(result.registrationId).toBe("reg-new-1")
 			expect(result.athleteTeamId).toBeNull() // individual, no team
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1)
+			expect(mockDb.getChainMock().for).toHaveBeenCalledWith("update")
 			expect(mockUpdateAllSessionsOfUser).toHaveBeenCalledWith("user-1")
 		})
 
