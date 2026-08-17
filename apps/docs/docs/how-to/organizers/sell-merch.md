@@ -9,7 +9,7 @@ Offer physical merch and downloadable PDFs inside your registration flow. Produc
 ## Prerequisites
 
 - Competition organizer permissions
-- Registration add-ons enabled for your team (this is an account-level feature — contact WODsmith to turn it on)
+- Registration add-ons enabled for your team (this is a team-level feature — contact WODsmith to turn it on)
 - A verified Stripe account connected to your team when selling optional paid products
 
 If add-ons aren't enabled, the Merch page shows a locked notice instead of the editor.
@@ -45,7 +45,9 @@ Pick the model that matches how you source the merch:
 
 Athletes see included downloads and optional add-ons in the registration form, between the coupon field and the order summary. Optional products are added to the same checkout as the registration fee.
 
-After registration or payment completes, entitled PDFs appear in **Settings → Downloads**. Each download request checks the athlete's active registration or completed add-on purchase before serving the file.
+After registration or payment completes, entitled PDFs appear in **Settings → Downloads**. Each download request checks the athlete's active registration, active membership on a registered athlete team, or completed add-on purchase before serving the file.
+
+Once a product has completed sales, its delivery type is locked so existing purchases keep the fulfillment method athletes bought. You can still update its name, description, visibility, and delivery-specific details.
 
 - Merch works with free divisions too — a $0 registration with a paid shirt still goes through checkout.
 - Coupons never discount merch; codes apply to registration fees only.

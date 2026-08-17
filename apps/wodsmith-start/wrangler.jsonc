@@ -66,6 +66,10 @@
 			"bucket_name": "wodsmith-wodsmith-uploads-prod"
 		},
 		{
+			"binding": "R2_DOWNLOADS_BUCKET",
+			"bucket_name": "wodsmith-wodsmith-private-downloads-prod"
+		},
+		{
 			"bucket_name": "wodsmith-uploads-dev",
 			"binding": "wodsmith_uploads_dev"
 		}

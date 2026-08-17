@@ -32,6 +32,7 @@ declare namespace Cloudflare {
 		ALCHEMY_PASSWORD: string;
 		SENTRY_DSN: string;
 		R2_BUCKET: R2Bucket;
+		R2_DOWNLOADS_BUCKET: R2Bucket;
 		wodsmith_uploads_dev: R2Bucket;
 	}
 }

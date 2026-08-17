@@ -9,12 +9,13 @@
 import {
   COMPETITION_PRODUCT_ACCESS,
   COMPETITION_PRODUCT_STATUS,
+  type CompetitionProductAccess,
 } from "@/db/schema"
 import { getEndOfDayInTimezone } from "@/utils/timezone-utils"
 
 export interface AddonAvailabilityInput {
   status: string
-  access?: string
+  access?: CompetitionProductAccess
   /** YYYY-MM-DD order-by deadline, end-of-day in the competition timezone */
   availableUntil: string | null
 }

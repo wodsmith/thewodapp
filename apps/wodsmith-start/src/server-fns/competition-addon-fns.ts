@@ -18,6 +18,8 @@ import {
   COMPETITION_PRODUCT_ACCESS,
   COMPETITION_PRODUCT_DELIVERY,
   COMPETITION_PRODUCT_STATUS,
+  type CompetitionProductAccess,
+  type CompetitionProductDelivery,
   commerceProductTable,
   commercePurchaseTable,
   competitionProductFilesTable,
@@ -31,7 +33,7 @@ import {
   userTable,
 } from "@/db/schema"
 import { getEvlog } from "@/lib/evlog"
-import { logInfo } from "@/lib/logging"
+import { logInfo, logWarning } from "@/lib/logging"
 import type { FeeConfiguration } from "@/server/commerce/fee-calculator"
 import { buildFeeConfig, type TeamFeeOverrides } from "@/server/commerce/utils"
 import { hasFeature } from "@/server/entitlements"
@@ -175,8 +177,8 @@ async function getOwnedAddon(productId: string, teamId: string) {
 
 function assertValidProductConfiguration(input: {
   priceCents: number
-  delivery: string
-  access: string
+  delivery: CompetitionProductDelivery
+  access: CompetitionProductAccess
   variants: Array<unknown>
   files: Array<unknown>
 }) {
@@ -537,6 +539,15 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
       })
     const nextVariants = input.variants ?? existingVariants
     const nextPriceCents = input.priceCents ?? product.priceCents
+    if (input.delivery !== undefined && input.delivery !== product.delivery) {
+      const sales = await getAddonSalesAggregates(product.competitionId)
+      const unitsSold = sales
+        .filter((sale) => sale.addonProductId === product.id)
+        .reduce((sum, sale) => sum + sale.units, 0)
+      if (unitsSold > 0) {
+        throw new Error("Delivery cannot be changed after a product has sales")
+      }
+    }
     assertValidProductConfiguration({
       priceCents: nextPriceCents,
       delivery: nextDelivery,
@@ -545,6 +556,12 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
       variants: nextVariants,
     })
     assertProductFileOwnership(product.competitionId, nextFiles)
+    const removedFiles =
+      input.files === undefined
+        ? []
+        : existingFiles.filter(
+            (file) => !input.files?.some((incoming) => incoming.id === file.id),
+          )
 
     // Product fields and variant reconciliation commit together — a variant
     // validation error (e.g. removing a variant with sales) must not leave
@@ -641,17 +658,11 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
       }
 
       if (input.files !== undefined) {
-        const incomingIds = new Set(
-          input.files.map((file) => file.id).filter(Boolean),
-        )
-        const removed = existingFiles.filter(
-          (file) => !incomingIds.has(file.id),
-        )
-        if (removed.length > 0) {
+        if (removedFiles.length > 0) {
           await tx.delete(competitionProductFilesTable).where(
             inArray(
               competitionProductFilesTable.id,
-              removed.map((file) => file.id),
+              removedFiles.map((file) => file.id),
             ),
           )
         }
@@ -689,6 +700,24 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
         }
       }
     })
+
+    if (removedFiles.length > 0) {
+      try {
+        const { env } = await import("cloudflare:workers")
+        await env.R2_DOWNLOADS_BUCKET.delete(
+          removedFiles.map((file) => file.r2Key),
+        )
+      } catch (error) {
+        logWarning({
+          message: "[Addons] Failed to delete detached download objects",
+          attributes: {
+            productId: product.id,
+            fileCount: removedFiles.length,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        })
+      }
+    }
 
     logInfo({
       message: "[Addons] Add-on updated",
@@ -753,8 +782,8 @@ export interface PublicAddon {
   imageUrl: string | null
   /** Raw product price per unit */
   priceCents: number
-  delivery: string
-  access: string
+  delivery: CompetitionProductDelivery
+  access: CompetitionProductAccess
   downloadFiles: Array<{ title: string }>
   /** Session fee settings used by the registration order preview. */
   feeConfig: FeeConfiguration
@@ -767,8 +796,8 @@ export interface PublicAddon {
  * Purchasable add-ons for the registration form.
  *
  * Returns an empty list when the organizing team lacks the
- * REGISTRATION_ADDONS entitlement (the gate also applies to catalogs created
- * before a revoke) or has no verified Stripe account to receive the funds.
+ * REGISTRATION_ADDONS entitlement. Included downloads remain visible without
+ * Stripe; optional paid add-ons require a verified connected account.
  */
 export const getPublicCompetitionAddonsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => publicAddonsInputSchema.parse(data))

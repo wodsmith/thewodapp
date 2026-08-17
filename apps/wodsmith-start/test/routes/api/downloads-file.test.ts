@@ -14,7 +14,11 @@ vi.mock("@/server-fns/downloadable-product-fns", () => ({
 }))
 
 vi.mock("cloudflare:workers", () => ({
-  env: { R2_BUCKET: { get: (...args: unknown[]) => mockR2Get(...args) } },
+  env: {
+    R2_DOWNLOADS_BUCKET: {
+      get: (...args: unknown[]) => mockR2Get(...args),
+    },
+  },
 }))
 
 vi.mock("@tanstack/react-router", () => ({
@@ -64,7 +68,7 @@ describe("download file API", () => {
     mockGetSessionFromCookie.mockResolvedValue({ userId: "user-1" })
     mockGetAuthorizedDownloadFile.mockResolvedValue({
       r2Key: "private/file.pdf",
-      originalFilename: "Benchmark Standards.pdf",
+      originalFilename: "Benchmark's (Final)!.pdf",
       mimeType: "application/pdf",
     })
     mockR2Get.mockResolvedValue({ body: "pdf body" })
@@ -76,7 +80,7 @@ describe("download file API", () => {
     expect(response.status).toBe(200)
     expect(response.headers.get("Cache-Control")).toBe("private, no-store")
     expect(response.headers.get("Content-Disposition")).toContain(
-      "Benchmark%20Standards.pdf",
+      "Benchmark%27s%20%28Final%29%21.pdf",
     )
     expect(await response.text()).toBe("pdf body")
   })

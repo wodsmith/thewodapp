@@ -118,9 +118,13 @@ Every file request re-derives access from current registration and purchase reco
 
 ### Private file delivery
 
-Download files use unguessable R2 keys and are streamed only through an authenticated application endpoint.
+Download files live in a private R2 bucket and are streamed only through an authenticated application endpoint.
 
-The `competition-download` upload purpose accepts PDFs up to 20 MB and preserves existing upload authorization for competition organizers. [[apps/wodsmith-start/src/routes/api/downloads/$fileId.ts#Route]] returns the R2 object only after entitlement validation and applies private, no-store response headers.
+The `competition-download` upload purpose requires an owned competition id, accepts PDFs up to 20 MB, and writes through `R2_DOWNLOADS_BUCKET`, which has no public domain. Detached objects are deleted after catalog updates, and unsaved uploads are removed when the organizer closes the editor.
+
+[[apps/wodsmith-start/src/routes/api/downloads/$fileId.ts#Route]] returns the private R2 object only after entitlement validation and applies private, no-store response headers. Hidden or archived included products stop granting registration access, while completed purchases retain paid access.
+
+Products with completed sales cannot switch between pickup and download delivery because doing so would change how an existing purchase is fulfilled.
 
 ### Athlete download library
 

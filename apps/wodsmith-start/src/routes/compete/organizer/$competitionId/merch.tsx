@@ -267,6 +267,64 @@ function MerchPage() {
     }))
   }
 
+  async function cleanupPendingFiles(files: ProductFileDraft[]) {
+    await Promise.allSettled(
+      files
+        .filter((file) => !file.id)
+        .map((file) =>
+          fetch("/api/upload", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              purpose: "competition-download",
+              entityId: competitionId,
+              key: file.r2Key,
+            }),
+          }),
+        ),
+    )
+  }
+
+  function handleDialogOpenChange(open: boolean) {
+    if (!open && isUploading) {
+      toast.error("Wait for the PDF upload to finish before closing")
+      return
+    }
+    if (!open) void cleanupPendingFiles(draft.files)
+    setDialogOpen(open)
+  }
+
+  function handleDeliveryChange(value: string) {
+    if (value === COMPETITION_PRODUCT_DELIVERY.PICKUP) {
+      void cleanupPendingFiles(draft.files)
+    }
+    setDraft((current) => ({
+      ...current,
+      delivery: value,
+      access:
+        value === COMPETITION_PRODUCT_DELIVERY.PICKUP
+          ? COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE
+          : current.access,
+      priceDollars:
+        value === COMPETITION_PRODUCT_DELIVERY.PICKUP &&
+        current.access ===
+          COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+          ? ""
+          : current.priceDollars,
+      files:
+        value === COMPETITION_PRODUCT_DELIVERY.PICKUP ? [] : current.files,
+    }))
+  }
+
+  function handleRemoveFile(index: number) {
+    const file = draft.files[index]
+    if (file && !file.id) void cleanupPendingFiles([file])
+    setDraft((current) => ({
+      ...current,
+      files: current.files.filter((_, fileIndex) => fileIndex !== index),
+    }))
+  }
+
   async function handleSave() {
     const included =
       draft.access === COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
@@ -284,6 +342,21 @@ function MerchPage() {
     }
     if (isDownload && draft.files.length === 0) {
       toast.error("Upload at least one PDF")
+      return
+    }
+    if (isDownload && draft.files.some((file) => !file.title.trim())) {
+      toast.error("Give every PDF a display title")
+      return
+    }
+    const existingAddon = editingId
+      ? addons.find((addon) => addon.id === editingId)
+      : undefined
+    if (
+      existingAddon &&
+      existingAddon.delivery !== draft.delivery &&
+      existingAddon.unitsSold > 0
+    ) {
+      toast.error("Delivery cannot be changed after a product has sales")
       return
     }
     // Number() (not parseInt) so decimal input like "2.5" is rejected
@@ -332,7 +405,10 @@ function MerchPage() {
       availableUntil: isDownload ? null : draft.availableUntil.trim() || null,
       status: draft.status as "ACTIVE" | "HIDDEN" | "ARCHIVED",
       variants,
-      files: draft.files,
+      files: draft.files.map((file) => ({
+        ...file,
+        title: file.title.trim(),
+      })),
     }
 
     setIsSaving(true)
@@ -684,7 +760,7 @@ function MerchPage() {
       </Card>
 
       {/* Create / edit dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -708,16 +784,7 @@ function MerchPage() {
                 <Label htmlFor="addon-delivery">Delivery</Label>
                 <Select
                   value={draft.delivery}
-                  onValueChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      delivery: value,
-                      access:
-                        value === COMPETITION_PRODUCT_DELIVERY.PICKUP
-                          ? COMPETITION_PRODUCT_ACCESS.OPTIONAL_PURCHASE
-                          : current.access,
-                    }))
-                  }
+                  onValueChange={handleDeliveryChange}
                 >
                   <SelectTrigger id="addon-delivery">
                     <SelectValue />
@@ -954,14 +1021,7 @@ function MerchPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            setDraft((current) => ({
-                              ...current,
-                              files: current.files.filter(
-                                (_, fileIndex) => fileIndex !== index,
-                              ),
-                            }))
-                          }
+                          onClick={() => handleRemoveFile(index)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                           <span className="sr-only">Remove file</span>
@@ -1061,8 +1121,8 @@ function MerchPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDialogOpen(false)}
-              disabled={isSaving}
+              onClick={() => handleDialogOpenChange(false)}
+              disabled={isSaving || isUploading}
             >
               Cancel
             </Button>

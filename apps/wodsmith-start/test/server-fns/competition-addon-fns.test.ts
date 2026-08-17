@@ -38,7 +38,10 @@ vi.mock("@tanstack/react-start", () => ({
 
 // Mock cloudflare:workers
 vi.mock("cloudflare:workers", () => ({
-  env: { APP_URL: "https://test.wodsmith.com" },
+  env: {
+    APP_URL: "https://test.wodsmith.com",
+    R2_DOWNLOADS_BUCKET: { delete: vi.fn() },
+  },
 }))
 
 import {
@@ -196,6 +199,16 @@ describe("competition-addon-fns", () => {
 
       expect(result.productId).toMatch(/^cmpprod_/)
       expect(mockDb.insert).toHaveBeenCalledTimes(2)
+      expect(mockDb.getChainMock().values).toHaveBeenNthCalledWith(
+        2,
+        [
+          expect.objectContaining({
+            productId: result.productId,
+            r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+            sortOrder: 0,
+          }),
+        ],
+      )
     })
   })
 
@@ -208,6 +221,43 @@ describe("competition-addon-fns", () => {
           data: { productId: "cmpprod-1", teamId: "team-1", priceCents: 3000 },
         }),
       ).rejects.toThrow(/not enabled for your account/)
+    })
+
+    it("prevents delivery changes after completed sales", async () => {
+      mockDb.queueMockSingleValues([activeProduct, competition])
+      mockDb.query.competitionProductFilesTable.findMany.mockResolvedValue([])
+      mockDb.query.competitionProductVariantsTable.findMany.mockResolvedValue(
+        [],
+      )
+      mockDb.setMockReturnValue([
+        {
+          addonProductId: activeProduct.id,
+          variantId: null,
+          units: 1,
+          revenueCents: 2500,
+          purchases: 1,
+        },
+      ])
+
+      await expect(
+        updateAddon({
+          data: {
+            productId: activeProduct.id,
+            teamId: "team-1",
+            delivery: "DOWNLOAD",
+            files: [
+              {
+                title: "Standards",
+                r2Key: "competitions/product-downloads/comp-1/standards.pdf",
+                originalFilename: "standards.pdf",
+                fileSize: 2048,
+                mimeType: "application/pdf",
+              },
+            ],
+            variants: [],
+          },
+        }),
+      ).rejects.toThrow("Delivery cannot be changed after a product has sales")
     })
   })
 

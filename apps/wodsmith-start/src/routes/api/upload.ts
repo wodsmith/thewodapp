@@ -102,6 +102,54 @@ async function getR2UploadBody(file: File, purpose: string) {
 export const Route = createFileRoute("/api/upload")({
   server: {
     handlers: {
+      DELETE: async ({ request }) => {
+        const session = await getSessionFromCookie()
+        if (!session) return json({ error: "Unauthorized" }, { status: 401 })
+
+        const body = (await request.json().catch(() => null)) as {
+          purpose?: string
+          entityId?: string
+          key?: string
+        } | null
+        if (
+          body?.purpose !== "competition-download" ||
+          !body.entityId ||
+          !body.key ||
+          !body.key.startsWith(
+            `competitions/product-downloads/${body.entityId}/`,
+          )
+        ) {
+          return json({ error: "Invalid cleanup request" }, { status: 400 })
+        }
+
+        const authCheck = await checkUploadAuthorization(
+          body.purpose,
+          body.entityId,
+          session.user.id,
+        )
+        if (!authCheck.authorized) {
+          return json(
+            { error: authCheck.error || "Forbidden" },
+            { status: 403 },
+          )
+        }
+
+        try {
+          await env.R2_DOWNLOADS_BUCKET.delete(body.key)
+          logInfo({
+            message: "[Upload] Detached competition download removed",
+            attributes: { entityId: body.entityId, key: body.key },
+          })
+          return json({ success: true })
+        } catch (error) {
+          logError({
+            message: "[Upload] Competition download cleanup failed",
+            error,
+            attributes: { entityId: body.entityId, key: body.key },
+          })
+          return json({ error: "Cleanup failed" }, { status: 500 })
+        }
+      },
       POST: async ({ request }) => {
         const session = await getSessionFromCookie()
         if (!session) {
@@ -128,6 +176,16 @@ export const Route = createFileRoute("/api/upload")({
             attributes: { purpose },
           })
           return json({ error: "Invalid or missing purpose" }, { status: 400 })
+        }
+
+        if (purpose === "competition-download" && !entityId) {
+          logWarning({
+            message: "[Upload] Competition download missing competition ID",
+          })
+          return json(
+            { error: "Competition ID is required for product downloads" },
+            { status: 400 },
+          )
         }
 
         // Add upload context
@@ -216,9 +274,13 @@ export const Route = createFileRoute("/api/upload")({
         const key = entityId
           ? `${config.pathPrefix}/${entityId}/${filename}`
           : `${config.pathPrefix}/${session.user.id}/${filename}`
+        const bucket =
+          purpose === "competition-download"
+            ? env.R2_DOWNLOADS_BUCKET
+            : env.R2_BUCKET
 
         try {
-          await env.R2_BUCKET.put(key, await getR2UploadBody(file, purpose), {
+          await bucket.put(key, await getR2UploadBody(file, purpose), {
             httpMetadata: {
               contentType: file.type,
             },
@@ -229,9 +291,12 @@ export const Route = createFileRoute("/api/upload")({
             },
           })
 
-          const publicUrl = env.R2_PUBLIC_URL
-            ? `${env.R2_PUBLIC_URL}/${key}`
-            : key
+          const publicUrl =
+            purpose === "competition-download"
+              ? undefined
+              : env.R2_PUBLIC_URL
+                ? `${env.R2_PUBLIC_URL}/${key}`
+                : key
 
           addRequestContextAttribute("uploadKey", key)
 
@@ -246,7 +311,7 @@ export const Route = createFileRoute("/api/upload")({
           })
 
           return json({
-            url: publicUrl,
+            ...(publicUrl ? { url: publicUrl } : {}),
             key,
             // Additional metadata useful for judging sheets and other document uploads
             originalFilename: file.name,

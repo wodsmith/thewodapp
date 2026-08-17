@@ -6,6 +6,7 @@ import {
   COMMERCE_PURCHASE_STATUS,
   COMPETITION_PRODUCT_ACCESS,
   COMPETITION_PRODUCT_DELIVERY,
+  COMPETITION_PRODUCT_STATUS,
   type CompetitionProductAccess,
   commerceProductTable,
   commercePurchaseTable,
@@ -117,10 +118,14 @@ export async function canUserAccessCompetitionProduct(
   userId: string,
   product: { id: string; competitionId: string; access: string },
 ): Promise<boolean> {
-  const [registeredCompetitionIds, purchasedProductIds] = await Promise.all([
-    getRegisteredCompetitionIds(userId),
-    getPurchasedDownloadProductIds(userId),
-  ])
+  const needsRegistration =
+    product.access === COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION
+  const registeredCompetitionIds = needsRegistration
+    ? await getRegisteredCompetitionIds(userId)
+    : new Set<string>()
+  const purchasedProductIds = needsRegistration
+    ? new Set<string>()
+    : await getPurchasedDownloadProductIds(userId)
   return hasDownloadEntitlement(product, {
     registeredCompetitionIds,
     purchasedProductIds,
@@ -147,6 +152,10 @@ export async function getUserDownloadableProducts(
             eq(
               competitionProductsTable.access,
               COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION,
+            ),
+            eq(
+              competitionProductsTable.status,
+              COMPETITION_PRODUCT_STATUS.ACTIVE,
             ),
             inArray(competitionProductsTable.competitionId, [
               ...registeredCompetitionIds,
