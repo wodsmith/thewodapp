@@ -22,6 +22,8 @@ const leaderboardPreviewSearchSchema = z.object({
   division: z.string().optional(),
   event: z.string().optional(),
   affiliate: z.string().optional(),
+  category: z.string().optional(),
+  gender: z.string().optional(),
 })
 
 export const Route = createFileRoute(

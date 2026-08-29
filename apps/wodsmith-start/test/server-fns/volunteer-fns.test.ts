@@ -178,9 +178,10 @@ const createMockMembership = (overrides?: Partial<{
 })
 
 const mockCompetitionWithoutRequiredVolunteerWaivers = () => {
-  mockDb.query.competitionsTable.findFirst.mockResolvedValueOnce({
+  mockDb.query.competitionsTable.findFirst.mockResolvedValue({
     id: 'comp_test123',
     competitionTeamId: 'team_comp123',
+    competitionType: 'in-person',
   })
   mockDb.query.waiversTable.findMany.mockResolvedValueOnce([])
 }
@@ -333,6 +334,27 @@ describe('Volunteer Server Functions', () => {
   // submitVolunteerSignupFn
   // ============================================================================
   describe('submitVolunteerSignupFn', () => {
+    // @lat: [[competition-type-capabilities#Competition Type Capabilities#Public Volunteer Signup Mutation Gate]]
+    it('should reject public signups when the competition type lacks the capability', async () => {
+      mockDb.query.competitionsTable.findFirst.mockResolvedValueOnce({
+        id: 'comp_test123',
+        competitionTeamId: 'team_comp123',
+        competitionType: 'benchmark',
+      })
+
+      await expect(
+        submitVolunteerSignupFn({
+          data: {
+            competitionTeamId: 'team_comp123',
+            signupName: 'Blocked Volunteer',
+            signupEmail: 'blocked@example.com',
+          },
+        }),
+      ).rejects.toThrow('Public volunteer signup is not available')
+
+      expect(mockDb.insert).not.toHaveBeenCalled()
+    })
+
     it('should create a volunteer signup invitation', async () => {
       mockCompetitionWithoutRequiredVolunteerWaivers()
       // findMany must return [] for duplicate check
@@ -937,6 +959,22 @@ describe('Volunteer Server Functions', () => {
       expect(canSignUp).not.toHaveBeenCalled()
     })
 
+    it('should reject unsupported competitions before creating an account', async () => {
+      mockDb.query.competitionsTable.findFirst.mockResolvedValueOnce({
+        id: 'comp_test123',
+        competitionTeamId: 'team_comp123',
+        competitionType: 'benchmark',
+      })
+
+      await expect(
+        createAccountAndApplyAsVolunteerFn({data: baseInput}),
+      ).rejects.toThrow('Public volunteer signup is not available')
+
+      expect(canSignUp).not.toHaveBeenCalled()
+      expect(hashPassword).not.toHaveBeenCalled()
+      expect(mockDb.insert).not.toHaveBeenCalled()
+    })
+
     it('should create a new user account and volunteer application', async () => {
       mockCompetitionWithoutRequiredVolunteerWaivers()
       // No existing user in account creation check
@@ -989,6 +1027,7 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should reject an existing fully-verified user', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       const verifiedUser = {
         id: 'user_verified789',
         email: 'jane@example.com',

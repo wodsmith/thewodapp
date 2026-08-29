@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-router"
 import { Dumbbell, Filter } from "lucide-react"
 import { z } from "zod"
+import { BenchmarkWorkoutDirectory } from "@/components/benchmark-workout-directory"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import {
   type ChildEvent,
@@ -19,12 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import type { BenchmarkViewerScores } from "@/server-fns/athlete-score-fns"
 import {
   getPublicScheduleDataFn,
   type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
-import {
-  type DivisionDescription,
+import type {
+  DivisionDescription,
   getPublishedCompetitionWorkoutsWithDetailsFn,
 } from "@/server-fns/competition-workouts-fns"
 import {
@@ -55,6 +58,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
         venueMap: {} as Record<string, PublicWorkoutVenueInfo | null>,
         athleteRegisteredDivisionId: null as string | null,
         submissionStatusMap: {} as Record<string, SubmissionStatus>,
+        benchmarkViewerScores: {} as BenchmarkViewerScores,
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
         }),
@@ -78,18 +82,24 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
       parentMatch.loaderData?.userRegistration?.divisionId ?? null
 
     const divisionIds = divisions?.map((d) => d.id) ?? []
-    const isOnline = competition.competitionType === "online"
+    const supportsVideoSubmissions = competitionCan(
+      competition.competitionType,
+      "videoSubmissions",
+    )
 
     // Single consolidated call for workouts + division descriptions +
     // event-division mappings + venues + the viewer's submission statuses
     // (fetched server-side in the same wave as descriptions/venues, only
-    // for registered athletes on online competitions).
+    // for registered athletes on video-submission competitions).
     const pageData = await getPublicWorkoutsPageDataFn({
       data: {
         competitionId,
         divisionIds,
         includeVenues: true,
-        includeSubmissionStatuses: isOnline && !!athleteRegisteredDivisionId,
+        includeSubmissionStatuses:
+          supportsVideoSubmissions && !!athleteRegisteredDivisionId,
+        includeBenchmarkViewerScores:
+          competition.competitionType === "benchmark",
       },
     })
 
@@ -99,6 +109,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
       venueMap: pageData.venuesMap,
       athleteRegisteredDivisionId,
       submissionStatusMap: pageData.submissionStatuses,
+      benchmarkViewerScores: pageData.benchmarkViewerScores,
       deferredSchedule,
       eventDivisionMappings: pageData.eventDivisionMappings,
     }
@@ -112,6 +123,7 @@ function CompetitionWorkoutsPage() {
     venueMap,
     athleteRegisteredDivisionId,
     submissionStatusMap,
+    benchmarkViewerScores,
     deferredSchedule,
     eventDivisionMappings,
   } = Route.useLoaderData()
@@ -139,7 +151,10 @@ function CompetitionWorkoutsPage() {
     return (
       <div className="space-y-4">
         <div className="sticky top-4 z-10">
-          <CompetitionTabs slug={competition.slug} />
+          <CompetitionTabs
+            slug={competition.slug}
+            competitionType={competition.competitionType}
+          />
         </div>
         <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
           <div className="space-y-8">
@@ -158,10 +173,33 @@ function CompetitionWorkoutsPage() {
     )
   }
 
+  if (competition.competitionType === "benchmark") {
+    return (
+      <div className="space-y-4">
+        <div className="sticky top-4 z-10">
+          <CompetitionTabs
+            slug={competition.slug}
+            competitionType={competition.competitionType}
+          />
+        </div>
+        <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+          <BenchmarkWorkoutDirectory
+            slug={slug}
+            workouts={workouts.filter((workout) => !workout.parentEventId)}
+            viewerScores={benchmarkViewerScores}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="sticky top-4 z-10">
-        <CompetitionTabs slug={competition.slug} />
+        <CompetitionTabs
+          slug={competition.slug}
+          competitionType={competition.competitionType}
+        />
       </div>
       <div className="rounded-2xl border border-black/10 bg-black/5 p-4 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
         <div className="space-y-8">
@@ -172,10 +210,17 @@ function CompetitionWorkoutsPage() {
                 Workouts
                 <span className="inline-flex items-center justify-center rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium text-muted-foreground">
                   {(() => {
-                    let visibleTopLevel = workouts.filter((w) => !w.parentEventId)
-                    if (eventDivisionMappings.hasMappings && selectedDivisionId) {
+                    let visibleTopLevel = workouts.filter(
+                      (w) => !w.parentEventId,
+                    )
+                    if (
+                      eventDivisionMappings.hasMappings &&
+                      selectedDivisionId
+                    ) {
                       const eventsWithMappings = new Set(
-                        eventDivisionMappings.mappings.map((m) => m.trackWorkoutId),
+                        eventDivisionMappings.mappings.map(
+                          (m) => m.trackWorkoutId,
+                        ),
                       )
                       const mappedToSelectedDiv = new Set(
                         eventDivisionMappings.mappings
@@ -183,7 +228,9 @@ function CompetitionWorkoutsPage() {
                           .map((m) => m.trackWorkoutId),
                       )
                       visibleTopLevel = visibleTopLevel.filter(
-                        (w) => !eventsWithMappings.has(w.id) || mappedToSelectedDiv.has(w.id),
+                        (w) =>
+                          !eventsWithMappings.has(w.id) ||
+                          mappedToSelectedDiv.has(w.id),
                       )
                     }
                     return visibleTopLevel.length

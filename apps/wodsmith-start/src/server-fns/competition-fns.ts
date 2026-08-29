@@ -37,6 +37,7 @@ import {
   updateRequestContext,
 } from "@/lib/logging"
 import { addressInputSchema } from "@/schemas/address"
+import { assertBenchmarkCreationAccess } from "@/server/benchmark-creation-access"
 import {
   createCompetition,
   createCompetitionGroup,
@@ -46,6 +47,7 @@ import {
 } from "@/server-fns/competition-server-logic"
 import { normalizeAddressInput } from "@/utils/address"
 import { getSessionFromCookie } from "@/utils/auth"
+import { AppError } from "@/utils/errors"
 
 // ============================================================================
 // Types
@@ -594,9 +596,38 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 export const createCompetitionFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createCompetitionInputSchema.parse(data))
   .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new AppError("NOT_AUTHORIZED", "Authentication required")
+    }
+
+    const isAdmin = session.user.role === ROLES_ENUM.ADMIN
+    const organizingTeam = session.teams?.find(
+      (team) => team.id === data.organizingTeamId,
+    )
+    if (
+      !isAdmin &&
+      !organizingTeam?.permissions.includes(
+        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+      )
+    ) {
+      throw new AppError(
+        "FORBIDDEN",
+        "You do not have permission to create competitions for this team",
+      )
+    }
+
     // Update request context
     updateRequestContext({ teamId: data.organizingTeamId })
-    getEvlog()?.set({ action: "create_competition", competition: { name: data.name, slug: data.slug, type: data.competitionType }, teamId: data.organizingTeamId })
+    getEvlog()?.set({
+      action: "create_competition",
+      competition: {
+        name: data.name,
+        slug: data.slug,
+        type: data.competitionType,
+      },
+      teamId: data.organizingTeamId,
+    })
 
     logInfo({
       message: "[Competition] Create competition started",
@@ -609,6 +640,11 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
     })
 
     try {
+      await assertBenchmarkCreationAccess({
+        teamId: data.organizingTeamId,
+        competitionType: data.competitionType,
+      })
+
       const result = await createCompetition({
         organizingTeamId: data.organizingTeamId,
         name: data.name,
@@ -627,7 +663,12 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
       // Update context with new IDs
       addRequestContextAttribute("competitionId", result.competitionId)
       addRequestContextAttribute("competitionTeamId", result.competitionTeamId)
-      getEvlog()?.set({ competition: { id: result.competitionId, competitionTeamId: result.competitionTeamId } })
+      getEvlog()?.set({
+        competition: {
+          id: result.competitionId,
+          competitionTeamId: result.competitionTeamId,
+        },
+      })
 
       logEntityCreated({
         entity: "competition",
@@ -677,7 +718,13 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", data.competitionId)
-    getEvlog()?.set({ action: "update_competition", competition: { id: data.competitionId, updatedFields: Object.keys(data).filter(k => k !== "competitionId") } })
+    getEvlog()?.set({
+      action: "update_competition",
+      competition: {
+        id: data.competitionId,
+        updatedFields: Object.keys(data).filter((k) => k !== "competitionId"),
+      },
+    })
 
     const db = getDb()
 
@@ -725,6 +772,13 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
     }
 
     try {
+      if (data.competitionType === "benchmark") {
+        await assertBenchmarkCreationAccess({
+          teamId: existingCompetition[0].organizingTeamId,
+          competitionType: data.competitionType,
+        })
+      }
+
       const { competitionId, address, ...updates } = data
       let primaryAddressId = existingCompetition[0].primaryAddressId
 
@@ -894,7 +948,11 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     // Update request context
     updateRequestContext({ teamId: data.organizingTeamId })
-    getEvlog()?.set({ action: "create_competition_group", group: { name: data.name, slug: data.slug }, teamId: data.organizingTeamId })
+    getEvlog()?.set({
+      action: "create_competition_group",
+      group: { name: data.name, slug: data.slug },
+      teamId: data.organizingTeamId,
+    })
 
     try {
       const result = await createCompetitionGroup({
@@ -938,7 +996,10 @@ export const updateCompetitionGroupFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     addRequestContextAttribute("groupId", data.groupId)
-    getEvlog()?.set({ action: "update_competition_group", group: { id: data.groupId } })
+    getEvlog()?.set({
+      action: "update_competition_group",
+      group: { id: data.groupId },
+    })
 
     try {
       const { groupId, ...updates } = data
@@ -972,7 +1033,10 @@ export const deleteCompetitionGroupFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     addRequestContextAttribute("groupId", data.groupId)
-    getEvlog()?.set({ action: "delete_competition_group", group: { id: data.groupId } })
+    getEvlog()?.set({
+      action: "delete_competition_group",
+      group: { id: data.groupId },
+    })
 
     try {
       const result = await deleteCompetitionGroup(data.groupId)

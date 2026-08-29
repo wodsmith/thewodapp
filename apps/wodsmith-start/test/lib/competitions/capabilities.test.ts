@@ -19,11 +19,16 @@ const CAPABILITIES: CompetitionCapability[] = [
 	"videoSubmissions",
 	"submissionWindows",
 	"optInResultPublishing",
+	"perpetual",
 	"heatScheduling",
 	"dayOfCheckIn",
 	"physicalVenue",
 	"volunteerScheduling",
 	"organizerEntersResults",
+	"benchmarkScoringTiers",
+	"cohosts",
+	"volunteerShifts",
+	"publicVolunteerSignup",
 ]
 
 const EXPECTED = {
@@ -31,35 +36,50 @@ const EXPECTED = {
 		videoSubmissions: false,
 		submissionWindows: false,
 		optInResultPublishing: false,
+		perpetual: false,
 		heatScheduling: true,
 		dayOfCheckIn: true,
 		physicalVenue: true,
 		volunteerScheduling: true,
 		organizerEntersResults: true,
+		benchmarkScoringTiers: false,
+		cohosts: true,
+		volunteerShifts: true,
+		publicVolunteerSignup: true,
 		leaderboardVariant: "standard",
 		selectableOnCreate: true,
-	},
-	benchmark: {
-		videoSubmissions: false,
-		submissionWindows: false,
-		optInResultPublishing: false,
-		heatScheduling: false,
-		dayOfCheckIn: false,
-		physicalVenue: false,
-		volunteerScheduling: false,
-		organizerEntersResults: false,
-		leaderboardVariant: "standard",
-		selectableOnCreate: false,
 	},
 	online: {
 		videoSubmissions: true,
 		submissionWindows: true,
 		optInResultPublishing: true,
+		perpetual: false,
 		heatScheduling: false,
 		dayOfCheckIn: false,
 		physicalVenue: false,
 		volunteerScheduling: false,
 		organizerEntersResults: false,
+		benchmarkScoringTiers: false,
+		cohosts: true,
+		volunteerShifts: true,
+		publicVolunteerSignup: true,
+		leaderboardVariant: "online",
+		selectableOnCreate: true,
+	},
+	benchmark: {
+		videoSubmissions: true,
+		submissionWindows: false,
+		optInResultPublishing: false,
+		perpetual: true,
+		heatScheduling: false,
+		dayOfCheckIn: false,
+		physicalVenue: false,
+		volunteerScheduling: false,
+		organizerEntersResults: false,
+		benchmarkScoringTiers: true,
+		cohosts: false,
+		volunteerShifts: false,
+		publicVolunteerSignup: false,
 		leaderboardVariant: "online",
 		selectableOnCreate: true,
 	},
@@ -67,7 +87,7 @@ const EXPECTED = {
 
 describe("competition type capabilities", () => {
 	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Current Type Matrix]]
-	it("pins every registered competition type to the existing behavior table", () => {
+	it("pins every registered capability to the expected behavior table", () => {
 		for (const [type, expected] of Object.entries(EXPECTED)) {
 			for (const capability of CAPABILITIES) {
 				expect(competitionCan(type, capability), `${type}:${capability}`).toBe(
@@ -98,25 +118,25 @@ describe("competition type capabilities", () => {
 	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Unknown Type Fallback]]
 	it("falls back safely for unknown competition types", () => {
 		for (const capability of CAPABILITIES) {
-			expect(competitionCan("unsupported", capability)).toBe(false)
+			expect(competitionCan("unregistered", capability)).toBe(false)
 		}
 
-		expect(leaderboardVariant("unsupported")).toBe("standard")
-		expect(isSelectableType("unsupported")).toBe(false)
+		expect(leaderboardVariant("unregistered")).toBe("standard")
+		expect(isSelectableType("unregistered")).toBe(false)
 	})
 
 	// @lat: [[competition-type-capabilities#Create Picker Selectability Test]]
-	it("keeps benchmark editable while excluding it from the create picker", () => {
+	it("derives all create-picker options from registered selectable types", () => {
 		const registeredOptions = competitionTypeOptions()
 		const selectableTypes = selectableCompetitionTypes()
 		const pickerOptions = selectableCompetitionTypeOptions()
 
 		expectTypeOf<SelectableCompetitionTypeId>().toEqualTypeOf<
-			"in-person" | "online"
+			"in-person" | "online" | "benchmark"
 		>()
 
 		expect(isCompetitionTypeValue("benchmark")).toBe(true)
-		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(false)
+		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(true)
 		expect(isCompetitionTypeValue("unsupported")).toBe(false)
 		expect(isCompetitionTypeValue(null)).toBe(false)
 		expect(isSelectableCompetitionTypeValue(null)).toBe(false)
@@ -124,12 +144,14 @@ describe("competition type capabilities", () => {
 		expect(registeredOptions).toContainEqual({
 			id: "benchmark",
 			label: "Benchmark",
-			description: "Perpetual athlete benchmark tracking",
-			displayLabel: "Benchmark - Perpetual athlete benchmark tracking",
+			description: "Perpetual benchmark board with video submissions",
+			displayLabel:
+				"Benchmark - Perpetual benchmark board with video submissions",
 		})
 		expect(selectableTypes.map((type) => type.id)).toEqual([
 			"in-person",
 			"online",
+			"benchmark",
 		])
 		for (const type of selectableTypes) {
 			expect(isSelectableType(type.id)).toBe(true)
@@ -149,6 +171,13 @@ describe("competition type capabilities", () => {
 				description: "Virtual competition with video submissions",
 				displayLabel: "Online - Virtual competition with video submissions",
 			},
+			{
+				id: "benchmark",
+				label: "Benchmark",
+				description: "Perpetual benchmark board with video submissions",
+				displayLabel:
+					"Benchmark - Perpetual benchmark board with video submissions",
+			},
 		])
 	})
 
@@ -159,5 +188,8 @@ describe("competition type capabilities", () => {
 
 		expect(resultsEntryMode("online")).toBe("athlete-submitted")
 		expect(resultsNavLabel("online")).toBe("Submissions")
+
+		expect(resultsEntryMode("benchmark")).toBe("athlete-submitted")
+		expect(resultsNavLabel("benchmark")).toBe("Submissions")
 	})
 })

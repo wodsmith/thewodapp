@@ -33,6 +33,17 @@ The primary web application containing all user-facing functionality.
 - `src/workflows/` — Multi-step business processes (registration, checkout)
 - `src/agents/` — Cloudflare Agents (Durable Object classes) for AI-augmented features
 
+#### Multi-instance local dev
+
+`pnpm dev:multi` runs the dev server through [portless](https://github.com/vercel-labs/portless) so multiple checkouts/worktrees can run simultaneously without port conflicts, served at `https://wodsmith.localhost` (worktrees get branch subdomains like `https://my-branch.wodsmith.localhost`).
+
+The script invokes `portless run vite dev` (portless can only inject `--port`/`--host` flags when it spawns the command directly, not through an npm script). Portless assigns a unique `PORT` (4000-4999) per instance. Two hardcoded ports needed handling:
+
+- **TanStack devtools event bus** (default 42069, a standalone HTTP server that collides across instances): `vite.config.ts` derives a per-instance bus port as `PORT + 10000` and mirrors it to the browser client via the `import.meta.env.VITE_DEVTOOLS_BUS_PORT` define, consumed by `TanStackDevtools`'s `eventBusConfig` in `src/routes/__root.tsx`.
+- **Cloudflare inspector port** (default 9229): no change needed — `@cloudflare/vite-plugin` falls back to the first available port automatically.
+
+One-time setup: `sudo portless proxy start --https` (binds :443 and trusts a local CA). Plain `pnpm dev` on port 3000 still works unchanged.
+
 #### Deploy pipeline
 
 The main app deploys to Cloudflare Workers via `.github/workflows/deploy.yml` using Alchemy IaC, with database schema handled differently per stage.

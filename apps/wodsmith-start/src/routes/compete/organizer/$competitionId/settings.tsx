@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { CapacitySettingsForm } from "./-components/capacity-settings-form"
 import { RotationSettingsForm } from "./-components/rotation-settings-form"
 import { ScoringSettingsForm } from "./-components/scoring-settings-form"
@@ -68,6 +69,10 @@ function SettingsPage() {
             name: competition.name,
             settings: competition.settings,
           }}
+          lockAlgorithmOnline={competitionCan(
+            competition.competitionType,
+            "benchmarkScoringTiers",
+          )}
         />
       </section>
 

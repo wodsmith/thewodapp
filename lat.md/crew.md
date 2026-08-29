@@ -374,7 +374,7 @@ This slice is preview and history only. Applying volunteer invitations, voluntee
 
 ## Import Tabs Duplicate Panel Regression
 
-The import tab regression test verifies the organizer upload panel is mounted once while switching between volunteer-list and heat-schedule imports.
+The import tab regression test verifies the organizer upload panel is mounted once while switching between volunteer-list and heat-schedule imports, using file labels that cover CSV and Excel uploads.
 
 ## Import Apply
 

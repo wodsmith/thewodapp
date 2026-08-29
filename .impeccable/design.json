@@ -1,0 +1,632 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-16T00:12:58.394Z",
+  "title": "Design System: WODsmith Compete Benchmark Directory",
+  "extensions": {
+    "colorMeta": {
+      "primary-action": {
+        "role": "primary",
+        "displayName": "Competition Orange",
+        "canonical": "#f97316",
+        "tonalRamp": [
+          "oklch(15% 0.1867 47.6)",
+          "oklch(27% 0.1867 47.6)",
+          "oklch(39% 0.1867 47.6)",
+          "oklch(51% 0.1867 47.6)",
+          "oklch(63% 0.1867 47.6)",
+          "oklch(75% 0.1867 47.6)",
+          "oklch(87% 0.1867 47.6)",
+          "oklch(95% 0.1867 47.6)"
+        ]
+      },
+      "primary-action-hover": {
+        "role": "primary",
+        "displayName": "Competition Orange Hover",
+        "canonical": "#fb8b3d",
+        "tonalRamp": [
+          "oklch(15% 0.1624 52)",
+          "oklch(27% 0.1624 52)",
+          "oklch(39% 0.1624 52)",
+          "oklch(51% 0.1624 52)",
+          "oklch(63% 0.1624 52)",
+          "oklch(75% 0.1624 52)",
+          "oklch(87% 0.1624 52)",
+          "oklch(95% 0.1624 52)"
+        ]
+      },
+      "primary-soft": {
+        "role": "primary",
+        "displayName": "Ember Wash",
+        "canonical": "#3c2012",
+        "tonalRamp": [
+          "oklch(15% 0.0495 46.6)",
+          "oklch(27% 0.0495 46.6)",
+          "oklch(39% 0.0495 46.6)",
+          "oklch(51% 0.0495 46.6)",
+          "oklch(63% 0.0495 46.6)",
+          "oklch(75% 0.0495 46.6)",
+          "oklch(87% 0.0495 46.6)",
+          "oklch(95% 0.0495 46.6)"
+        ]
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Focus Amber",
+        "canonical": "#fdba74",
+        "tonalRamp": [
+          "oklch(15% 0.1165 66.3)",
+          "oklch(27% 0.1165 66.3)",
+          "oklch(39% 0.1165 66.3)",
+          "oklch(51% 0.1165 66.3)",
+          "oklch(63% 0.1165 66.3)",
+          "oklch(75% 0.1165 66.3)",
+          "oklch(87% 0.1165 66.3)",
+          "oklch(95% 0.1165 66.3)"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Accent Ink",
+        "canonical": "#1a0d05",
+        "tonalRamp": [
+          "oklch(15% 0.028 54.6)",
+          "oklch(27% 0.028 54.6)",
+          "oklch(39% 0.028 54.6)",
+          "oklch(51% 0.028 54.6)",
+          "oklch(63% 0.028 54.6)",
+          "oklch(75% 0.028 54.6)",
+          "oklch(87% 0.028 54.6)",
+          "oklch(95% 0.028 54.6)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Competition Background",
+        "canonical": "#0b0a09",
+        "tonalRamp": [
+          "oklch(15% 0.0028 68.6)",
+          "oklch(27% 0.0028 68.6)",
+          "oklch(39% 0.0028 68.6)",
+          "oklch(51% 0.0028 68.6)",
+          "oklch(63% 0.0028 68.6)",
+          "oklch(75% 0.0028 68.6)",
+          "oklch(87% 0.0028 68.6)",
+          "oklch(95% 0.0028 68.6)"
+        ]
+      },
+      "shell-background": {
+        "role": "neutral",
+        "displayName": "Shell Background",
+        "canonical": "#0d0c0b",
+        "tonalRamp": [
+          "oklch(15% 0.0027 67.6)",
+          "oklch(27% 0.0027 67.6)",
+          "oklch(39% 0.0027 67.6)",
+          "oklch(51% 0.0027 67.6)",
+          "oklch(63% 0.0027 67.6)",
+          "oklch(75% 0.0027 67.6)",
+          "oklch(87% 0.0027 67.6)",
+          "oklch(95% 0.0027 67.6)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Base Surface",
+        "canonical": "#11100f",
+        "tonalRamp": [
+          "oklch(15% 0.0026 67.7)",
+          "oklch(27% 0.0026 67.7)",
+          "oklch(39% 0.0026 67.7)",
+          "oklch(51% 0.0026 67.7)",
+          "oklch(63% 0.0026 67.7)",
+          "oklch(75% 0.0026 67.7)",
+          "oklch(87% 0.0026 67.7)",
+          "oklch(95% 0.0026 67.7)"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Raised Surface",
+        "canonical": "#171513",
+        "tonalRamp": [
+          "oklch(15% 0.0051 67.5)",
+          "oklch(27% 0.0051 67.5)",
+          "oklch(39% 0.0051 67.5)",
+          "oklch(51% 0.0051 67.5)",
+          "oklch(63% 0.0051 67.5)",
+          "oklch(75% 0.0051 67.5)",
+          "oklch(87% 0.0051 67.5)",
+          "oklch(95% 0.0051 67.5)"
+        ]
+      },
+      "surface-soft": {
+        "role": "neutral",
+        "displayName": "Soft Surface",
+        "canonical": "#1d1a17",
+        "tonalRamp": [
+          "oklch(15% 0.0074 67.4)",
+          "oklch(27% 0.0074 67.4)",
+          "oklch(39% 0.0074 67.4)",
+          "oklch(51% 0.0074 67.4)",
+          "oklch(63% 0.0074 67.4)",
+          "oklch(75% 0.0074 67.4)",
+          "oklch(87% 0.0074 67.4)",
+          "oklch(95% 0.0074 67.4)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#302b27",
+        "tonalRamp": [
+          "oklch(15% 0.0102 61.1)",
+          "oklch(27% 0.0102 61.1)",
+          "oklch(39% 0.0102 61.1)",
+          "oklch(51% 0.0102 61.1)",
+          "oklch(63% 0.0102 61.1)",
+          "oklch(75% 0.0102 61.1)",
+          "oklch(87% 0.0102 61.1)",
+          "oklch(95% 0.0102 61.1)"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Rule",
+        "canonical": "#484039",
+        "tonalRamp": [
+          "oklch(15% 0.0161 63.5)",
+          "oklch(27% 0.0161 63.5)",
+          "oklch(39% 0.0161 63.5)",
+          "oklch(51% 0.0161 63.5)",
+          "oklch(63% 0.0161 63.5)",
+          "oklch(75% 0.0161 63.5)",
+          "oklch(87% 0.0161 63.5)",
+          "oklch(95% 0.0161 63.5)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Primary Text",
+        "canonical": "#f7f4ef",
+        "tonalRamp": [
+          "oklch(15% 0.0074 80.7)",
+          "oklch(27% 0.0074 80.7)",
+          "oklch(39% 0.0074 80.7)",
+          "oklch(51% 0.0074 80.7)",
+          "oklch(63% 0.0074 80.7)",
+          "oklch(75% 0.0074 80.7)",
+          "oklch(87% 0.0074 80.7)",
+          "oklch(95% 0.0074 80.7)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Text",
+        "canonical": "#aaa29a",
+        "tonalRamp": [
+          "oklch(15% 0.0148 67.6)",
+          "oklch(27% 0.0148 67.6)",
+          "oklch(39% 0.0148 67.6)",
+          "oklch(51% 0.0148 67.6)",
+          "oklch(63% 0.0148 67.6)",
+          "oklch(75% 0.0148 67.6)",
+          "oklch(87% 0.0148 67.6)",
+          "oklch(95% 0.0148 67.6)"
+        ]
+      },
+      "text-subtle": {
+        "role": "neutral",
+        "displayName": "Subtle Text",
+        "canonical": "#918981",
+        "tonalRamp": [
+          "oklch(15% 0.0152 67.5)",
+          "oklch(27% 0.0152 67.5)",
+          "oklch(39% 0.0152 67.5)",
+          "oklch(51% 0.0152 67.5)",
+          "oklch(63% 0.0152 67.5)",
+          "oklch(75% 0.0152 67.5)",
+          "oklch(87% 0.0152 67.5)",
+          "oklch(95% 0.0152 67.5)"
+        ]
+      },
+      "status-published": {
+        "role": "secondary",
+        "displayName": "Published Green",
+        "canonical": "#34d399",
+        "tonalRamp": [
+          "oklch(15% 0.1535 163.2)",
+          "oklch(27% 0.1535 163.2)",
+          "oklch(39% 0.1535 163.2)",
+          "oklch(51% 0.1535 163.2)",
+          "oklch(63% 0.1535 163.2)",
+          "oklch(75% 0.1535 163.2)",
+          "oklch(87% 0.1535 163.2)",
+          "oklch(95% 0.1535 163.2)"
+        ]
+      },
+      "domain-ember": {
+        "role": "secondary",
+        "displayName": "Domain Ember",
+        "canonical": "#ea580c",
+        "tonalRamp": [
+          "oklch(15% 0.19 41.1)",
+          "oklch(27% 0.19 41.1)",
+          "oklch(39% 0.19 41.1)",
+          "oklch(51% 0.19 41.1)",
+          "oklch(63% 0.19 41.1)",
+          "oklch(75% 0.19 41.1)",
+          "oklch(87% 0.19 41.1)",
+          "oklch(95% 0.19 41.1)"
+        ]
+      },
+      "domain-ember-soft": {
+        "role": "secondary",
+        "displayName": "Domain Ember Wash",
+        "canonical": "#3d2113",
+        "tonalRamp": [
+          "oklch(15% 0.0494 46.6)",
+          "oklch(27% 0.0494 46.6)",
+          "oklch(39% 0.0494 46.6)",
+          "oklch(51% 0.0494 46.6)",
+          "oklch(63% 0.0494 46.6)",
+          "oklch(75% 0.0494 46.6)",
+          "oklch(87% 0.0494 46.6)",
+          "oklch(95% 0.0494 46.6)"
+        ]
+      },
+      "domain-sky": {
+        "role": "secondary",
+        "displayName": "Domain Sky",
+        "canonical": "#60a5fa",
+        "tonalRamp": [
+          "oklch(15% 0.1434 254.6)",
+          "oklch(27% 0.1434 254.6)",
+          "oklch(39% 0.1434 254.6)",
+          "oklch(51% 0.1434 254.6)",
+          "oklch(63% 0.1434 254.6)",
+          "oklch(75% 0.1434 254.6)",
+          "oklch(87% 0.1434 254.6)",
+          "oklch(95% 0.1434 254.6)"
+        ]
+      },
+      "domain-sky-soft": {
+        "role": "secondary",
+        "displayName": "Domain Sky Wash",
+        "canonical": "#172b42",
+        "tonalRamp": [
+          "oklch(15% 0.0499 253)",
+          "oklch(27% 0.0499 253)",
+          "oklch(39% 0.0499 253)",
+          "oklch(51% 0.0499 253)",
+          "oklch(63% 0.0499 253)",
+          "oklch(75% 0.0499 253)",
+          "oklch(87% 0.0499 253)",
+          "oklch(95% 0.0499 253)"
+        ]
+      },
+      "domain-lime": {
+        "role": "secondary",
+        "displayName": "Domain Lime",
+        "canonical": "#a3e635",
+        "tonalRamp": [
+          "oklch(15% 0.2073 128.8)",
+          "oklch(27% 0.2073 128.8)",
+          "oklch(39% 0.2073 128.8)",
+          "oklch(51% 0.2073 128.8)",
+          "oklch(63% 0.2073 128.8)",
+          "oklch(75% 0.2073 128.8)",
+          "oklch(87% 0.2073 128.8)",
+          "oklch(95% 0.2073 128.8)"
+        ]
+      },
+      "domain-lime-soft": {
+        "role": "secondary",
+        "displayName": "Domain Lime Wash",
+        "canonical": "#263315",
+        "tonalRamp": [
+          "oklch(15% 0.0524 128.5)",
+          "oklch(27% 0.0524 128.5)",
+          "oklch(39% 0.0524 128.5)",
+          "oklch(51% 0.0524 128.5)",
+          "oklch(63% 0.0524 128.5)",
+          "oklch(75% 0.0524 128.5)",
+          "oklch(87% 0.0524 128.5)",
+          "oklch(95% 0.0524 128.5)"
+        ]
+      },
+      "domain-violet": {
+        "role": "secondary",
+        "displayName": "Domain Violet",
+        "canonical": "#c084fc",
+        "tonalRamp": [
+          "oklch(15% 0.1767 305.5)",
+          "oklch(27% 0.1767 305.5)",
+          "oklch(39% 0.1767 305.5)",
+          "oklch(51% 0.1767 305.5)",
+          "oklch(63% 0.1767 305.5)",
+          "oklch(75% 0.1767 305.5)",
+          "oklch(87% 0.1767 305.5)",
+          "oklch(95% 0.1767 305.5)"
+        ]
+      },
+      "domain-violet-soft": {
+        "role": "secondary",
+        "displayName": "Domain Violet Wash",
+        "canonical": "#31203f",
+        "tonalRamp": [
+          "oklch(15% 0.0592 308.3)",
+          "oklch(27% 0.0592 308.3)",
+          "oklch(39% 0.0592 308.3)",
+          "oklch(51% 0.0592 308.3)",
+          "oklch(63% 0.0592 308.3)",
+          "oklch(75% 0.0592 308.3)",
+          "oklch(87% 0.0592 308.3)",
+          "oklch(95% 0.0592 308.3)"
+        ]
+      },
+      "domain-sand": {
+        "role": "secondary",
+        "displayName": "Domain Sand",
+        "canonical": "#fbbf24",
+        "tonalRamp": [
+          "oklch(15% 0.1644 84.4)",
+          "oklch(27% 0.1644 84.4)",
+          "oklch(39% 0.1644 84.4)",
+          "oklch(51% 0.1644 84.4)",
+          "oklch(63% 0.1644 84.4)",
+          "oklch(75% 0.1644 84.4)",
+          "oklch(87% 0.1644 84.4)",
+          "oklch(95% 0.1644 84.4)"
+        ]
+      },
+      "domain-sand-soft": {
+        "role": "secondary",
+        "displayName": "Domain Sand Wash",
+        "canonical": "#392d14",
+        "tonalRamp": [
+          "oklch(15% 0.0428 84.1)",
+          "oklch(27% 0.0428 84.1)",
+          "oklch(39% 0.0428 84.1)",
+          "oklch(51% 0.0428 84.1)",
+          "oklch(63% 0.0428 84.1)",
+          "oklch(75% 0.0428 84.1)",
+          "oklch(87% 0.0428 84.1)",
+          "oklch(95% 0.0428 84.1)"
+        ]
+      },
+      "domain-cyan": {
+        "role": "secondary",
+        "displayName": "Domain Cyan",
+        "canonical": "#22d3ee",
+        "tonalRamp": [
+          "oklch(15% 0.1339 211.5)",
+          "oklch(27% 0.1339 211.5)",
+          "oklch(39% 0.1339 211.5)",
+          "oklch(51% 0.1339 211.5)",
+          "oklch(63% 0.1339 211.5)",
+          "oklch(75% 0.1339 211.5)",
+          "oklch(87% 0.1339 211.5)",
+          "oklch(95% 0.1339 211.5)"
+        ]
+      },
+      "domain-cyan-soft": {
+        "role": "secondary",
+        "displayName": "Domain Cyan Wash",
+        "canonical": "#12323a",
+        "tonalRamp": [
+          "oklch(15% 0.0399 216.7)",
+          "oklch(27% 0.0399 216.7)",
+          "oklch(39% 0.0399 216.7)",
+          "oklch(51% 0.0399 216.7)",
+          "oklch(63% 0.0399 216.7)",
+          "oklch(75% 0.0399 216.7)",
+          "oklch(87% 0.0399 216.7)",
+          "oklch(95% 0.0399 216.7)"
+        ]
+      },
+      "domain-rose": {
+        "role": "secondary",
+        "displayName": "Domain Rose",
+        "canonical": "#fb7185",
+        "tonalRamp": [
+          "oklch(15% 0.169 13.4)",
+          "oklch(27% 0.169 13.4)",
+          "oklch(39% 0.169 13.4)",
+          "oklch(51% 0.169 13.4)",
+          "oklch(63% 0.169 13.4)",
+          "oklch(75% 0.169 13.4)",
+          "oklch(87% 0.169 13.4)",
+          "oklch(95% 0.169 13.4)"
+        ]
+      },
+      "domain-rose-soft": {
+        "role": "secondary",
+        "displayName": "Domain Rose Wash",
+        "canonical": "#3f1e25",
+        "tonalRamp": [
+          "oklch(15% 0.0518 7.4)",
+          "oklch(27% 0.0518 7.4)",
+          "oklch(39% 0.0518 7.4)",
+          "oklch(51% 0.0518 7.4)",
+          "oklch(63% 0.0518 7.4)",
+          "oklch(75% 0.0518 7.4)",
+          "oklch(87% 0.0518 7.4)",
+          "oklch(95% 0.0518 7.4)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Competition title only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Workout-section headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Domain, group, and count hierarchy."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Shell copy, controls, and workout data."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Compact navigation and shell labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "published-status-glow",
+        "value": "0 2px 8px rgb(52 211 153 / 0.35)",
+        "purpose": "The seven-pixel published indicator only."
+      },
+      {
+        "name": "domain-zone-lift",
+        "value": "0 10px 28px rgb(0 0 0 / 0.14)",
+        "purpose": "Domain Board exploration zones only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "interaction-transform",
+        "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Rail and Board disclosure chevrons."
+      },
+      {
+        "name": "board-reveal",
+        "value": "260ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Domain Board desktop zone reveal only."
+      },
+      {
+        "name": "smooth-scroll",
+        "value": "smooth",
+        "purpose": "Domain navigation scrolls selected groups into view."
+      },
+      {
+        "name": "reduced-motion-duration",
+        "value": "0.01ms",
+        "purpose": "Reduced-motion override for animation and transition duration."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "shell-mobile",
+        "value": "640px"
+      },
+      {
+        "name": "workout-alternative-mobile",
+        "value": "720px"
+      },
+      {
+        "name": "shell-single-column",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Registration Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Shared high-priority registration action in the Compete sidebar.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Register now</a>",
+      "css": ".ds-btn-primary { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 0 15px; border-radius: 9px; background: var(--orange, #f97316); color: #1a0d05; font: 700 12px/1.45 var(--font-body, \"Public Sans\", sans-serif); text-decoration: none; } .ds-btn-primary:hover { background: #fb8b3d; } .ds-btn-primary:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 3px; }"
+    },
+    {
+      "name": "Active Competition Tab",
+      "kind": "nav",
+      "refersTo": "tab-active",
+      "description": "Shared route navigation with one explicit active section.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"Competition sections\"><a class=\"ds-tab\" href=\"#\">Event Details</a><a class=\"ds-tab\" href=\"#workouts\" aria-current=\"page\">Workouts</a></nav>",
+      "css": ".ds-tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line, #302b27); border-radius: 12px; background: #100f0e; } .ds-tab { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; border-radius: 8px; color: var(--muted, #aaa29a); font: 600 13px/1.45 var(--font-body, \"Public Sans\", sans-serif); text-decoration: none; } .ds-tab:hover { color: var(--text, #f7f4ef); } .ds-tab[aria-current=\"page\"] { background: var(--orange, #f97316); color: #1a0d05; } .ds-tab:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 3px; }"
+    },
+    {
+      "name": "Workout Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Shared labeled search with leading icon and accessible clear action.",
+      "html": "<label class=\"ds-search\" for=\"ds-workout-search\"><span class=\"ds-sr-only\">Search workouts</span><svg aria-hidden=\"true\" viewBox=\"0 0 20 20\" fill=\"none\"><circle cx=\"9\" cy=\"9\" r=\"5.5\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"m13.2 13.2 3.3 3.3\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg><input id=\"ds-workout-search\" type=\"search\" placeholder=\"Search workouts\"><button type=\"button\" aria-label=\"Clear workout search\">×</button></label>",
+      "css": ".ds-search { position: relative; display: block; min-width: 250px; color: var(--subtle, #918981); } .ds-search > svg { position: absolute; left: 13px; top: 50%; width: 17px; height: 17px; transform: translateY(-50%); pointer-events: none; } .ds-search input { width: 100%; height: 42px; border: 1px solid var(--line-strong, #484039); border-radius: 10px; padding: 0 36px 0 40px; background: #0d0c0b; color: var(--text, #f7f4ef); font: 400 14px/1.45 var(--font-body, \"Public Sans\", sans-serif); } .ds-search input:hover { border-color: #62584f; } .ds-search input:focus-visible, .ds-search button:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 3px; } .ds-search button { position: absolute; right: 5px; top: 5px; width: 32px; height: 32px; border: 0; border-radius: 7px; background: transparent; color: var(--muted, #aaa29a); } .ds-search button:hover { background: var(--surface-soft, #1d1a17); color: var(--text, #f7f4ef); } .ds-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }"
+    },
+    {
+      "name": "Selected Domain Chip",
+      "kind": "chip",
+      "refersTo": "domain-chip",
+      "description": "Shared categorical filter using a domain tone without competing with the primary action.",
+      "html": "<button class=\"ds-domain-chip\" type=\"button\" aria-pressed=\"true\">Strength <span>12</span></button>",
+      "css": ".ds-domain-chip { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid var(--line-strong, #484039); border-radius: 999px; background: var(--surface-soft, #1d1a17); color: var(--text, #f7f4ef); font: 600 11px/1.45 var(--font-body, \"Public Sans\", sans-serif); } .ds-domain-chip span { color: var(--subtle, #918981); font: 700 13px/1 var(--font-condensed, \"Barlow Condensed\", sans-serif); } .ds-domain-chip:hover { background: var(--surface-raised, #171513); } .ds-domain-chip:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 3px; }"
+    },
+    {
+      "name": "Shared Content Panel",
+      "kind": "card",
+      "refersTo": "content-panel",
+      "description": "Shared flat shell for whichever workout-section alternative is under evaluation.",
+      "html": "<section class=\"ds-content-panel\" aria-labelledby=\"ds-panel-heading\"><header><h2 id=\"ds-panel-heading\">Browse the benchmark</h2><p>Search and scan all published workouts.</p></header></section>",
+      "css": ".ds-content-panel { overflow: clip; border: 1px solid var(--line, #302b27); border-radius: var(--radius, 14px); background: var(--surface, #11100f); color: var(--text, #f7f4ef); } .ds-content-panel header { padding: 24px 24px 20px; border-bottom: 1px solid var(--line, #302b27); } .ds-content-panel h2 { margin: 0; font: 700 34px/1 var(--font-condensed, \"Barlow Condensed\", sans-serif); letter-spacing: -0.01em; } .ds-content-panel p { max-width: 62ch; margin: 8px 0 0; color: var(--muted, #aaa29a); font: 400 13px/1.45 var(--font-body, \"Public Sans\", sans-serif); } .ds-content-panel:focus-within { border-color: var(--line-strong, #484039); }"
+    },
+    {
+      "name": "Benchmark Domain Rail",
+      "kind": "custom",
+      "description": "Production benchmark-only domain index; collapses from a 190px labeled rail to 56px monochrome codes on desktop and becomes a horizontal strip on mobile.",
+      "html": "<button class=\"ds-domain-rail-item\" type=\"button\" aria-current=\"true\"><span>Strength</span><strong>15</strong></button>",
+      "css": ".ds-domain-rail-item { min-height: 44px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 190px; padding: 0 10px; border: 0; border-radius: 9px; background: var(--surface-soft, #1d1a17); color: var(--text, #f7f4ef); text-align: left; } .ds-domain-rail-item span { font: 600 12px/1.45 var(--font-body, \"Public Sans\", sans-serif); } .ds-domain-rail-item strong { color: var(--subtle, #918981); font: 700 14px/1 var(--font-condensed, \"Barlow Condensed\", sans-serif); } .ds-domain-rail-item:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 2px; }"
+    },
+    {
+      "name": "Benchmark Matrix Row — Alternative B",
+      "kind": "custom",
+      "description": "Exploration-only aligned comparison row for Benchmark Matrix; not canonical pending selection.",
+      "html": "<table class=\"ds-matrix\"><tbody><tr><th scope=\"row\">Fran</th><td><span>Strength</span></td><td>For time</td><td>Couplet</td><td><a href=\"#\" aria-label=\"View Fran\">→</a></td></tr></tbody></table>",
+      "css": ".ds-matrix { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; background: var(--surface, #11100f); color: var(--text, #f7f4ef); font: 400 12px/1.45 var(--font-body, \"Public Sans\", sans-serif); } .ds-matrix th, .ds-matrix td { height: 50px; padding: 0 14px; border-bottom: 1px solid var(--line, #302b27); text-align: left; } .ds-matrix th { width: 38%; font-weight: 600; } .ds-matrix td { color: var(--muted, #aaa29a); } .ds-matrix tr:hover th, .ds-matrix tr:hover td { background: #171411; } .ds-matrix td:last-child { width: 44px; padding-inline: 6px; } .ds-matrix a { min-width: 38px; min-height: 38px; display: grid; place-items: center; border-radius: 8px; color: var(--subtle, #918981); text-decoration: none; } .ds-matrix a:hover { color: var(--orange, #f97316); } .ds-matrix a:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 3px; }"
+    },
+    {
+      "name": "Domain Zone — Alternative C",
+      "kind": "custom",
+      "description": "Exploration-only expandable training-domain zone for Domain Board; not canonical pending selection.",
+      "html": "<details class=\"ds-domain-zone\" open><summary><span><strong>Strength</strong><small>Foundational force and load</small></span><b>12</b><i aria-hidden=\"true\">⌄</i></summary><ul><li><a href=\"#\"><span>Back Squat</span><small>Load</small></a></li><li><a href=\"#\"><span>Deadlift</span><small>Load</small></a></li></ul></details>",
+      "css": ".ds-domain-zone { overflow: clip; border: 1px solid var(--line-strong, #484039); border-radius: 12px; background: #131210; color: var(--text, #f7f4ef); box-shadow: 0 10px 28px rgb(0 0 0 / 0.14); } .ds-domain-zone summary { min-height: 72px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--line, #302b27); background: linear-gradient(90deg, #3d2113, #151310 45%); cursor: pointer; list-style: none; } .ds-domain-zone summary span { display: grid; gap: 3px; } .ds-domain-zone summary strong { font: 700 23px/1 var(--font-condensed, \"Barlow Condensed\", sans-serif); } .ds-domain-zone summary small { color: var(--muted, #aaa29a); font: 400 10px/1.45 var(--font-body, \"Public Sans\", sans-serif); } .ds-domain-zone summary b { color: var(--orange, #f97316); font: 700 24px/1 var(--font-condensed, \"Barlow Condensed\", sans-serif); } .ds-domain-zone summary:focus-visible, .ds-domain-zone a:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 3px; } .ds-domain-zone ul { display: grid; grid-template-columns: 1fr 1fr; margin: 0; padding: 6px 12px 10px; list-style: none; } .ds-domain-zone li { border-bottom: 1px solid var(--line, #302b27); } .ds-domain-zone a { min-height: 43px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 0 7px; border-radius: 8px; color: inherit; font: 600 11px/1.45 var(--font-body, \"Public Sans\", sans-serif); text-decoration: none; } .ds-domain-zone a:hover { background: #3d2113; } .ds-domain-zone a small { color: var(--subtle, #918981); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Compact Competition Index",
+    "overview": "The production benchmark directory extends the incumbent WODsmith Compete shell with a compact, monochrome domain rail and ruled workout rows. It applies only to benchmark competitions; Matrix and Board remain comparison prototypes. Viewer scores are private, division-scoped, optional row data.",
+    "keyCharacteristics": [
+      "Dark warm-neutral Compete shell with restrained one-pixel rules.",
+      "Benchmark-only domain grouping with a collapsible desktop rail and horizontal mobile strip.",
+      "Compact rows preserve every workout, result format, movement context, and detail route.",
+      "Authenticated viewer scores appear only where available and are loaded in one batch.",
+      "Semantic structure, visible focus, live counts, 44px targets, and reduced-motion-safe interactions."
+    ],
+    "rules": [
+      {
+        "name": "Orange Means Action",
+        "body": "Keep orange scarce and decisive. Domain colors classify content; they do not replace the primary action hierarchy.",
+        "section": "colors"
+      },
+      {
+        "name": "Condensed Means Structure",
+        "body": "Use the condensed face for competition, section, domain, and count hierarchy; keep descriptive copy and data in Public Sans.",
+        "section": "typography"
+      },
+      {
+        "name": "Flat-by-Default",
+        "body": "Use tonal layering and one-pixel rules before shadow; reserve observed shadows for status emphasis or the Board alternative's grouped zones.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Apply the Domain Rail only to benchmark competitions.",
+      "Keep every workout navigable and preserve source order within domains.",
+      "Batch current-viewer scores and scope them to the resolved registration division.",
+      "Preserve labeled controls, polite live counts, visible focus, mobile targets, and reduced motion."
+    ],
+    "donts": [
+      "Do not promote the Domain Rail into a global competition workout pattern.",
+      "Do not fetch scores per row or display another athlete’s score.",
+      "Do not add domain colors, decorative dots, or colored rail markers.",
+      "Do not hide workouts to shorten the page."
+    ]
+  }
+}

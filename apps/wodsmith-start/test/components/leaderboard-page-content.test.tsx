@@ -129,6 +129,39 @@ const mockCompetition = {
 	competitionType: "in-person" as const,
 }
 
+type EventResult = CompetitionLeaderboardEntry["eventResults"][number]
+
+const createMockEventResult = (
+	overrides: Partial<EventResult> = {},
+): EventResult => ({
+	trackWorkoutId: "tw-1",
+	trackOrder: 1,
+	eventName: "Event 1",
+	scheme: "time",
+	rank: 1,
+	points: 100,
+	rawScore: "300000",
+	formattedScore: "5:00",
+	formattedTiebreak: null,
+	penaltyType: null,
+	penaltyPercentage: null,
+	isDirectlyModified: false,
+	videoUrl: null,
+	videoSubmissionId: null,
+	parentEventId: null,
+	parentEventName: null,
+	isParentEvent: false,
+	cappedRoundCount: 0,
+	totalRoundCount: 0,
+	verificationStatus: null,
+	benchmarkTier: null,
+	benchmarkCategoryKey: null,
+	benchmarkCategoryLabel: null,
+	benchmarkIncludedInScoring: null,
+	reviewSummary: null,
+	...overrides,
+})
+
 const createMockEntry = (
 	overrides: Partial<CompetitionLeaderboardEntry> = {},
 ): CompetitionLeaderboardEntry => ({
@@ -143,30 +176,14 @@ const createMockEntry = (
 	teamName: null,
 	teamMembers: [],
 	affiliate: null,
+	benchmarkOverallScore: null,
+	benchmarkScoreMax: null,
+	benchmarkRatingBand: null,
+	benchmarkCategoryScores: [],
+	benchmarkGender: null,
 	eventResults: [
-		{
-			trackWorkoutId: "tw-1",
-			trackOrder: 1,
-			eventName: "Event 1",
-			scheme: "time",
-			rank: 1,
-			points: 100,
-			rawScore: "300000",
-			formattedScore: "5:00",
-			formattedTiebreak: null,
-			penaltyType: null,
-			penaltyPercentage: null,
-			isDirectlyModified: false,
-			videoUrl: null,
-			videoSubmissionId: null,
-			parentEventId: null,
-			parentEventName: null,
-			isParentEvent: false,
-			cappedRoundCount: 0,
-			totalRoundCount: 0,
-			reviewSummary: null,
-		},
-		{
+		createMockEventResult(),
+		createMockEventResult({
 			trackWorkoutId: "tw-2",
 			trackOrder: 2,
 			eventName: "Event 2",
@@ -180,14 +197,7 @@ const createMockEntry = (
 			penaltyPercentage: null,
 			isDirectlyModified: false,
 			videoUrl: null,
-			videoSubmissionId: null,
-			parentEventId: null,
-			parentEventName: null,
-			isParentEvent: false,
-			cappedRoundCount: 0,
-			totalRoundCount: 0,
-			reviewSummary: null,
-		},
+		}),
 	],
 	...overrides,
 })
@@ -311,7 +321,7 @@ describe("LeaderboardPageContent", () => {
 					totalPoints: 15.5,
 					overallRank: 1,
 					eventResults: [
-						{
+						createMockEventResult({
 							trackWorkoutId: "tw-1",
 							trackOrder: 1,
 							eventName: "Event 1",
@@ -331,9 +341,9 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
-			reviewSummary: null,
-						},
-						{
+							reviewSummary: null,
+						}),
+						createMockEventResult({
 							trackWorkoutId: "tw-2",
 							trackOrder: 2,
 							eventName: "Event 2",
@@ -353,8 +363,8 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
-			reviewSummary: null,
-						},
+							reviewSummary: null,
+						}),
 					],
 				}),
 			]
@@ -381,7 +391,7 @@ describe("LeaderboardPageContent", () => {
 					totalPoints: -3.2,
 					overallRank: 3,
 					eventResults: [
-						{
+						createMockEventResult({
 							trackWorkoutId: "tw-1",
 							trackOrder: 1,
 							eventName: "Event 1",
@@ -401,8 +411,8 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
-			reviewSummary: null,
-						},
+							reviewSummary: null,
+						}),
 					],
 				}),
 			]
@@ -557,7 +567,7 @@ describe("LeaderboardPageContent", () => {
 			const entries = [
 				createMockEntry({
 					eventResults: [
-						{
+						createMockEventResult({
 							trackWorkoutId: "tw-1",
 							trackOrder: 1,
 							eventName: "Event 1",
@@ -577,8 +587,8 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
-			reviewSummary: null,
-						},
+							reviewSummary: null,
+						}),
 					],
 				}),
 			]
@@ -603,7 +613,7 @@ describe("LeaderboardPageContent", () => {
 			const entries = [
 				createMockEntry({
 					eventResults: [
-						{
+						createMockEventResult({
 							trackWorkoutId: "tw-1",
 							trackOrder: 1,
 							eventName: "Event 1",
@@ -623,8 +633,8 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
-			reviewSummary: null,
-						},
+							reviewSummary: null,
+						}),
 					],
 				}),
 			]
@@ -649,7 +659,7 @@ describe("LeaderboardPageContent", () => {
 			const entries = [
 				createMockEntry({
 					eventResults: [
-						{
+						createMockEventResult({
 							trackWorkoutId: "tw-1",
 							trackOrder: 1,
 							eventName: "Event 1",
@@ -669,8 +679,8 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
-			reviewSummary: null,
-						},
+							reviewSummary: null,
+						}),
 					],
 				}),
 			]
@@ -695,7 +705,7 @@ describe("LeaderboardPageContent", () => {
 			const entries = [
 				createMockEntry({
 					eventResults: [
-						{
+						createMockEventResult({
 							trackWorkoutId: "tw-1",
 							trackOrder: 1,
 							eventName: "Event 1",
@@ -715,8 +725,8 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
-			reviewSummary: null,
-						},
+							reviewSummary: null,
+						}),
 					],
 				}),
 			]
@@ -746,7 +756,7 @@ describe("LeaderboardPageContent", () => {
 			const entries = [
 				createMockEntry({
 					eventResults: [
-						{
+						createMockEventResult({
 							trackWorkoutId: "tw-1",
 							trackOrder: 1,
 							eventName: "Event 1",
@@ -766,8 +776,8 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
-			reviewSummary: null,
-						},
+							reviewSummary: null,
+						}),
 					],
 				}),
 			]
@@ -791,6 +801,75 @@ describe("LeaderboardPageContent", () => {
 				expect(screen.getByText("Score Adjusted")).toBeInTheDocument()
 				expect(screen.getByText("This score was modified by an organizer.")).toBeInTheDocument()
 			})
+		})
+	})
+
+	describe("Benchmark category and gender filters", () => {
+		const createBenchmarkEntry = () =>
+			createMockEntry({
+				benchmarkOverallScore: 72.5,
+				benchmarkScoreMax: 100,
+				benchmarkGender: "male",
+				eventResults: [
+					createMockEventResult({
+						benchmarkCategoryKey: "strength",
+						benchmarkCategoryLabel: "Strength",
+					}),
+					createMockEventResult({
+						trackWorkoutId: "tw-2",
+						trackOrder: 2,
+						eventName: "Event 2",
+						benchmarkCategoryKey: "engine",
+						benchmarkCategoryLabel: "Engine",
+					}),
+				],
+			})
+
+		// @lat: [[competition-type-capabilities#Benchmark Category Grouping#Category and Gender Filters]]
+		it("shows category and gender filters when benchmark categories exist", async () => {
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(
+				mockLeaderboardResponse([createBenchmarkEntry()], "online"),
+			)
+
+			render(
+				<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={{ ...mockCompetition, competitionType: "online" }}
+				/>,
+			)
+
+			await waitFor(() => {
+				expect(
+					screen.getByTestId("online-leaderboard-variant"),
+				).toBeInTheDocument()
+			})
+
+			// division + category + view + gender selects (affiliate hidden — no affiliates)
+			expect(screen.getAllByRole("combobox")).toHaveLength(4)
+		})
+
+		it("hides category and gender filters on non-benchmark boards", async () => {
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(
+				mockLeaderboardResponse([createMockEntry()], "online"),
+			)
+
+			render(
+				<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={{ ...mockCompetition, competitionType: "online" }}
+				/>,
+			)
+
+			await waitFor(() => {
+				expect(
+					screen.getByTestId("online-leaderboard-variant"),
+				).toBeInTheDocument()
+			})
+
+			// division + view selects only
+			expect(screen.getAllByRole("combobox")).toHaveLength(2)
 		})
 	})
 
