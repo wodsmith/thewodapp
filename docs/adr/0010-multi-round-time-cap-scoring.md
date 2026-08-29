@@ -247,3 +247,17 @@ Only render the breakdown when `rounds.length > 0` so single-round workouts don'
 - `src/lib/scoring/sort/sort-key.ts` — `computeSortKey` handles `cap` + `timeCap.secondaryValue`
 - Conversation 2026-04-12 — original bug report: Team B outranking Team A under the current behavior
 - ADR-0004 — penalty framework (related but orthogonal: ADR-0004 is about organizer video review, this ADR is about live/entered score state)
+
+## Current Compete Write Characterization (2026-08-29)
+
+The current `saveCompetitionScoreFn` behavior diverges from this proposed decision and is covered by characterization tests before refactoring.
+
+- `roundScoreSchema` accepts only `score` and optional `parts`; Zod strips the explicit per-round `status` and `secondaryScore` fields proposed above.
+- Multi-round `time-with-cap` writes implement rejected Option B: each encoded round at or above `timeCap * 1000` is inferred as `cap`, even when the caller declared it `scored`.
+- For non-terminal multi-round writes, inferred round state overrides the caller's parent `scoreStatus`; explicit parent or round CAP declarations with all values below the cap persist as `scored`.
+- The parent keeps the aggregate of encoded round values. Each inferred round status is persisted, and `cappedRoundCount` is bit-packed into the parent sort key ahead of aggregate time.
+- Tiebreaks are encoded using their own scheme. Encoding failures are silently persisted as a null tiebreak.
+- Score lookup after upsert is scoped by event, user, and exact division; a null division uses `IS NULL` rather than acting as a wildcard.
+- Parent upsert and non-empty round replacement run in one transaction. A write without `roundScores` does not delete old round rows, so changing a previously multi-round result to a single value currently leaves stale breakdown rows.
+
+See [[lat.md/tests/competition-score-writes#Competition Score Write Characterization]] for the executable contract. This section records observed behavior, not an amendment adopting those divergences as the desired design.
