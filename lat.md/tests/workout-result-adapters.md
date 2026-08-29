@@ -42,3 +42,51 @@ A verification adjustment without new round inputs preserves existing round rows
 ## Manual entry explicit CAP and audit transaction
 
 Reviewer manual entry trusts explicit single-round CAP, silently discards an invalid tiebreak, and atomically writes the score, audit record, and video review update.
+
+## Mobile score HTTP auth and validation
+
+The mobile score route retains bearer-or-cookie authentication plus its exact invalid JSON, invalid request, and registration error envelopes.
+
+## Mobile score nullable-division readback
+
+The mobile score route stores the registration division, while a null division currently leaves its post-upsert score-id readback unscoped by division.
+
+## Mobile score explicit CAP and tiebreak
+
+Mobile score entry trusts explicit CAP, clamps time-with-cap values, accepts non-negative secondary reps, and stores a null encoding for an invalid tiebreak.
+
+## Mobile score non-transactional response
+
+Mobile score entry upserts before reading the score id without a transaction and returns the established success envelope.
+
+## Mobile video HTTP auth validation and registration
+
+The mobile video route retains bearer-or-cookie authentication, request validation, and its missing or ambiguous registration responses.
+
+## Mobile video score compatibility
+
+Mobile video entry preserves explicit below-threshold CAP, ignores secondary reps in that case, stores invalid tiebreak as null, and carries a null division.
+
+## Mobile video lifecycle precedes score validation
+
+The mobile video lifecycle persists before optional score validation, so an invalid claimed score can return an error after the video write succeeds.
+
+## Mobile video non-atomic response
+
+Mobile video and optional score writes remain ordered and non-transactional while the route preserves its success response shape.
+
+## Judge HTTP auth authorization and validation
+
+The judge route retains bearer-or-cookie authentication, supplied-team membership authorization, site-admin bypass, and request error envelopes.
+
+## Judge trusts workout and athlete targets
+
+Judge entry trusts supplied workout metadata and athlete targeting, maps inactive statuses, and reads null-division scores with an exact null predicate.
+
+## Judge multi-round CAP and tiebreak
+
+Judge entry aggregates rounds, derives parent and per-round CAP status, rejects partial invalid rounds, and preserves compatible tiebreak encoding.
+
+## Judge score-round transaction and stale rounds
+
+Judge entry atomically upserts and reads the score before replacing supplied rounds, but leaves existing rounds untouched when no rounds are supplied.

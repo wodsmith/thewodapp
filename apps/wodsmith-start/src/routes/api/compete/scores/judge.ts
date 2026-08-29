@@ -24,7 +24,7 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -32,24 +32,14 @@ import {
   competitionsTable,
 } from "@/db/schemas/competitions"
 
-import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
-import {
-  SCORE_STATUS_VALUES,
-  type ScoreStatus,
-  type ScoreType,
-  type TiebreakScheme,
-  workouts,
-} from "@/db/schemas/workouts"
+import { SCORE_STATUS_VALUES, workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import {
-  computeSortKey,
-  encodeRounds,
-  encodeScore,
-  getDefaultScoreType,
-  type WorkoutScheme as ScoringWorkoutScheme,
-  STATUS_ORDER,
-  sortKeyToString,
-} from "@/lib/scoring"
+  InvalidJudgeRoundScoreError,
+  normalizeJudgeWorkoutResult,
+  persistJudgeWorkoutResult,
+} from "@/server/workout-results/judge"
+import type { NormalizedCompetitionWorkoutResult } from "@/server/workout-results/normalize"
 import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 
 const roundScoreSchema = z.object({
@@ -81,25 +71,6 @@ const judgeScoreSchema = z.object({
   roundScores: z.array(roundScoreSchema).optional(),
   workout: workoutInfoSchema.optional(),
 })
-
-function mapToNewStatus(
-  status: ScoreStatus,
-): "scored" | "cap" | "dq" | "withdrawn" {
-  switch (status) {
-    case "scored":
-      return "scored"
-    case "cap":
-      return "cap"
-    case "dq":
-      return "dq"
-    case "withdrawn":
-    case "dns":
-    case "dnf":
-      return "withdrawn"
-    default:
-      return "scored"
-  }
-}
 
 export const Route = createFileRoute("/api/compete/scores/judge")({
   server: {
@@ -221,197 +192,31 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
             }
           }
 
-          const scheme = workoutInfo.scheme as ScoringWorkoutScheme
-          const scoreType =
-            (workoutInfo.scoreType as ScoreType) || getDefaultScoreType(scheme)
-          const workoutTiebreakScheme =
-            (workoutInfo.tiebreakScheme as TiebreakScheme) ?? null
-
-          let encodedValue: number | null = null
-          let encodedRounds: number[] = []
-          const hasRoundScores = !!(
-            data.roundScores && data.roundScores.length > 0
-          )
-
-          if (data.roundScores && data.roundScores.length > 0) {
-            const roundInputs = data.roundScores.map((rs) => ({
-              raw: rs.score,
-            }))
-            const result = encodeRounds(roundInputs, scheme, scoreType)
-            // Reject partial rounds so roundStatuses aligns with the rows
-            // we insert below (encodeRounds silently drops null encodes).
-            if (result.rounds.length !== data.roundScores.length) {
-              return json(
-                { error: "Every round must be a valid score" },
-                { status: 422, headers },
-              )
-            }
-            encodedValue = result.aggregated
-            encodedRounds = result.rounds
-          } else if (data.score?.trim()) {
-            encodedValue = encodeScore(data.score, scheme)
+          let result: NormalizedCompetitionWorkoutResult
+          try {
+            result = normalizeJudgeWorkoutResult({
+              score: data.score,
+              scoreStatus: data.scoreStatus,
+              tieBreakScore: data.tieBreakScore,
+              secondaryScore: data.secondaryScore,
+              roundScores: data.roundScores,
+              workout: workoutInfo,
+            })
+          } catch (error) {
+            if (!(error instanceof InvalidJudgeRoundScoreError)) throw error
+            return json({ error: error.message }, { status: 422, headers })
           }
 
-          // For multi-round `time-with-cap` the status is derived server
-          // side from individual rounds (parent becomes "cap" if any round
-          // meets the per-round cap). Single-round keeps legacy clamping.
-          let newStatus = mapToNewStatus(data.scoreStatus)
-          const roundStatuses: Array<"scored" | "cap"> = []
-          let cappedRoundCount = 0
-
-          if (
-            scheme === "time-with-cap" &&
-            workoutInfo.timeCap &&
-            hasRoundScores &&
-            encodedValue !== null
-          ) {
-            const capMs = workoutInfo.timeCap * 1000
-            for (const roundValue of encodedRounds) {
-              const isRoundCapped = roundValue >= capMs
-              roundStatuses.push(isRoundCapped ? "cap" : "scored")
-              if (isRoundCapped) cappedRoundCount++
-            }
-            // Preserve terminal statuses (dq/withdrawn). Only flip between
-            // scored/cap when the caller said the score is scored/cap.
-            if (newStatus !== "dq" && newStatus !== "withdrawn") {
-              newStatus = cappedRoundCount > 0 ? "cap" : "scored"
-            }
-          } else if (
-            newStatus === "cap" &&
-            scheme === "time-with-cap" &&
-            workoutInfo.timeCap
-          ) {
-            encodedValue = workoutInfo.timeCap * 1000
-          }
-
-          let secondaryValue: number | null = null
-          if (data.secondaryScore && newStatus === "cap") {
-            const p = Number.parseInt(data.secondaryScore.trim(), 10)
-            if (!Number.isNaN(p) && p >= 0) secondaryValue = p
-          }
-
-          let tiebreakValue: number | null = null
-          if (data.tieBreakScore && workoutInfo.tiebreakScheme) {
-            try {
-              tiebreakValue = encodeScore(
-                data.tieBreakScore,
-                workoutInfo.tiebreakScheme as ScoringWorkoutScheme,
-              )
-            } catch {
-              // ignore tiebreak encoding errors
-            }
-          }
-
-          const timeCapMs = workoutInfo.timeCap
-            ? workoutInfo.timeCap * 1000
-            : null
-
-          const sortKey =
-            encodedValue !== null
-              ? computeSortKey({
-                  value: encodedValue,
-                  status: newStatus,
-                  scheme,
-                  scoreType,
-                  cappedRoundCount,
-                  timeCap:
-                    newStatus === "cap" && timeCapMs && secondaryValue !== null
-                      ? { ms: timeCapMs, secondaryValue }
-                      : undefined,
-                  tiebreak:
-                    tiebreakValue !== null && workoutInfo.tiebreakScheme
-                      ? {
-                          scheme: workoutInfo.tiebreakScheme as "time" | "reps",
-                          value: tiebreakValue,
-                        }
-                      : undefined,
-                })
-              : null
-
-          const scoreId = await db.transaction(async (tx) => {
-            await tx
-              .insert(scoresTable)
-              .values({
-                userId: data.userId,
-                teamId: data.organizingTeamId,
-                workoutId: data.workoutId,
-                competitionEventId: data.trackWorkoutId,
-                scheme,
-                scoreType,
-                scoreValue: encodedValue,
-                status: newStatus,
-                statusOrder: STATUS_ORDER[newStatus],
-                sortKey: sortKey ? sortKeyToString(sortKey) : null,
-                tiebreakScheme: workoutTiebreakScheme,
-                tiebreakValue,
-                timeCapMs,
-                secondaryValue,
-                scalingLevelId: data.divisionId,
-                asRx: true,
-                recordedAt: new Date(),
-              })
-              .onDuplicateKeyUpdate({
-                set: {
-                  scoreValue: encodedValue,
-                  status: newStatus,
-                  statusOrder: STATUS_ORDER[newStatus],
-                  sortKey: sortKey ? sortKeyToString(sortKey) : null,
-                  tiebreakScheme: workoutTiebreakScheme,
-                  tiebreakValue,
-                  timeCapMs,
-                  secondaryValue,
-                  scalingLevelId: data.divisionId,
-                  updatedAt: new Date(),
-                },
-              })
-
-            const finalScoreConditions = [
-              eq(scoresTable.competitionEventId, data.trackWorkoutId),
-              eq(scoresTable.userId, data.userId),
-              data.divisionId
-                ? eq(scoresTable.scalingLevelId, data.divisionId)
-                : isNull(scoresTable.scalingLevelId),
-            ]
-            const [finalScore] = await tx
-              .select({ id: scoresTable.id })
-              .from(scoresTable)
-              .where(and(...finalScoreConditions))
-              .limit(1)
-
-            if (!finalScore)
-              throw new Error("Failed to retrieve score after upsert")
-
-            const id = finalScore.id
-
-            if (data.roundScores && data.roundScores.length > 0) {
-              await tx
-                .delete(scoreRoundsTable)
-                .where(eq(scoreRoundsTable.scoreId, id))
-
-              const roundsToInsert = data.roundScores.map((round, index) => {
-                let roundValue: number
-
-                if (scheme === "rounds-reps") {
-                  const roundsNum =
-                    Number.parseInt(round.parts?.[0] ?? round.score, 10) || 0
-                  const reps = Number.parseInt(round.parts?.[1] ?? "0", 10) || 0
-                  roundValue = roundsNum * 100000 + reps
-                } else {
-                  roundValue = encodeScore(round.score, scheme) ?? 0
-                }
-
-                return {
-                  scoreId: id,
-                  roundNumber: index + 1,
-                  value: roundValue,
-                  status: roundStatuses[index] ?? null,
-                }
-              })
-
-              await tx.insert(scoreRoundsTable).values(roundsToInsert)
-            }
-
-            return id
+          const scoreId = await persistJudgeWorkoutResult({
+            db,
+            target: {
+              userId: data.userId,
+              teamId: data.organizingTeamId,
+              workoutId: data.workoutId,
+              trackWorkoutId: data.trackWorkoutId,
+              divisionId: data.divisionId,
+            },
+            result,
           })
 
           return json(
