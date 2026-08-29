@@ -1,7 +1,8 @@
 import { and, eq, isNull } from "drizzle-orm"
 import type { Database } from "@/db"
-import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
+import { scoresTable } from "@/db/schemas/scores"
 import type { NormalizedCompetitionWorkoutResult } from "./normalize"
+import { writeWorkoutResultRounds } from "./rounds"
 
 export interface CompetitionWorkoutResultTarget {
   userId: string
@@ -17,7 +18,7 @@ export interface ReplaceCompetitionWorkoutResultInput {
   result: NormalizedCompetitionWorkoutResult
 }
 
-// @lat: [[domain#Domain Model#Scoring#Organizer workout-result write seam]]
+// @lat: [[domain#Domain Model#Scoring#Workout-result module]]
 export async function replaceCompetitionWorkoutResult({
   db,
   target,
@@ -78,18 +79,9 @@ export async function replaceCompetitionWorkoutResult({
     }
 
     if (result.rounds.length > 0) {
-      await tx
-        .delete(scoreRoundsTable)
-        .where(eq(scoreRoundsTable.scoreId, finalScore.id))
-
-      await tx.insert(scoreRoundsTable).values(
-        result.rounds.map((round) => ({
-          scoreId: finalScore.id,
-          roundNumber: round.roundNumber,
-          value: round.value,
-          status: round.status,
-        })),
-      )
+      await writeWorkoutResultRounds(tx, finalScore.id, result.rounds, {
+        replaceExisting: true,
+      })
     }
 
     return finalScore.id

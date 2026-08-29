@@ -106,13 +106,17 @@ Key design:
 - Tiebreak values stored separately for time-capped workouts
 - Score rounds (`scoreRoundsTable`) store per-round breakdowns for multi-round workouts
 
-### Organizer workout-result write seam
+### Workout-result module
 
-The Compete organizer adapter delegates result normalization and atomic replacement to an in-app workout-result module while retaining request policy, ownership lookup, and logging.
+Personal tracking and Compete organizer writes share one in-app workout-result module while their adapters retain authentication, ownership, policy, default-scaling lookup, request logging, and response contracts.
 
-[[apps/wodsmith-start/src/server/workout-results/normalize.ts#normalizeCompetitionWorkoutResult]] validates and normalizes parent and round values, then calls the existing scoring primitives for encoding and sort-key construction. [[apps/wodsmith-start/src/server/workout-results/replace.ts#replaceCompetitionWorkoutResult]] performs the score upsert, exact nullable-division lookup, and optional round replacement in one transaction. Both [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoreFn]] and [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoresFn]] reach this module through the same adapter path.
+[[apps/wodsmith-start/src/server/workout-results/kernel.ts]] is the shared internal scoring kernel. It resolves score types, aggregates rounds, constructs statuses and sort keys through existing scoring primitives, and normalizes round rows. Thin competition and personal interfaces select their compatible parsing and sort-key string formats rather than sharing context-specific types.
 
-This first extraction intentionally retains the characterized legacy contract: multi-round CAP is inferred, explicit per-round CAP fields are ignored, invalid tiebreaks become null, and overwriting without round scores leaves stale round rows. [[tests/competition-score-writes#Competition Score Write Characterization]] freezes these behaviors until a later migration changes them deliberately.
+[[apps/wodsmith-start/src/server/workout-results/normalize.ts#normalizeCompetitionWorkoutResult]] and [[apps/wodsmith-start/src/server/workout-results/replace.ts#replaceCompetitionWorkoutResult]] form the Compete interface. The replacer performs the score upsert, exact nullable-division lookup, and optional round replacement in one transaction. Both [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoreFn]] and [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoresFn]] reach it through the same organizer adapter path.
+
+[[apps/wodsmith-start/src/server/workout-results/personal.ts#normalizeSubmittedPersonalWorkoutResult]], [[apps/wodsmith-start/src/server/workout-results/personal.ts#submitPersonalWorkoutResult]], [[apps/wodsmith-start/src/server/workout-results/personal.ts#createPersonalWorkoutResult]], and [[apps/wodsmith-start/src/server/workout-results/personal.ts#updatePersonalWorkoutResult]] form the personal interface used by all three personal write adapters. The module preserves the existing personal schema/default score-type choices, raw sort-key strings, response shapes, and non-transactional operation order. Submit inserts the score before rounds; update writes and re-reads the score before deleting and replacing rounds.
+
+Round row persistence is shared internally: Compete calls it inside its transaction, while personal writes call it without adding a transaction. Compatibility debt remains unchanged. Compete still infers multi-round CAP, ignores explicit per-round CAP fields, discards invalid tiebreaks, and leaves stale rounds when overwriting without rounds; personal updates likewise leave rounds untouched unless new rounds are supplied. [[tests/competition-score-writes#Competition Score Write Characterization]] freezes the Compete behaviors until a deliberate migration.
 
 ### One score per athlete per event per division
 

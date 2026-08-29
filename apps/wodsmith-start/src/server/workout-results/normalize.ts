@@ -3,15 +3,13 @@ import type {
   ScoreType,
   TiebreakScheme,
 } from "@/db/schemas/workouts"
+import { encodeScore, sortKeyToString, type WorkoutScheme } from "@/lib/scoring"
 import {
-  computeSortKey,
-  encodeRounds,
-  encodeScore,
-  getDefaultScoreType,
-  STATUS_ORDER,
-  sortKeyToString,
-  type WorkoutScheme,
-} from "@/lib/scoring"
+  buildWorkoutResultScoring,
+  encodeWorkoutResultRounds,
+  normalizeWorkoutResultRounds,
+  resolveWorkoutResultScoreType,
+} from "./kernel"
 
 export interface CompetitionWorkoutResultRoundInput {
   score: string
@@ -81,8 +79,10 @@ export function normalizeCompetitionWorkoutResult(
   }
 
   const scheme = input.workout.scheme as WorkoutScheme
-  const scoreType =
-    (input.workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
+  const scoreType = resolveWorkoutResultScoreType(
+    scheme,
+    input.workout.scoreType,
+  )
   const tiebreakScheme =
     (input.workout.tiebreakScheme as TiebreakScheme) ?? null
   const hasRoundScores = !!(input.roundScores && input.roundScores.length > 0)
@@ -91,8 +91,11 @@ export function normalizeCompetitionWorkoutResult(
   let encodedRounds: number[] = []
 
   if (hasRoundScores && input.roundScores) {
-    const roundInputs = input.roundScores.map((round) => ({ raw: round.score }))
-    const result = encodeRounds(roundInputs, scheme, scoreType)
+    const result = encodeWorkoutResultRounds(
+      input.roundScores,
+      scheme,
+      scoreType,
+    )
 
     if (result.rounds.length !== input.roundScores.length) {
       throw new Error("Every round in roundScores must be a valid score")
@@ -155,46 +158,29 @@ export function normalizeCompetitionWorkoutResult(
     }
   }
 
-  const sortKey =
-    scoreValue !== null
-      ? computeSortKey({
-          value: scoreValue,
-          status,
-          scheme,
-          scoreType,
-          cappedRoundCount,
-          timeCap:
-            status === "cap" && timeCapMs && secondaryValue !== null
-              ? { ms: timeCapMs, secondaryValue }
-              : undefined,
-          tiebreak:
-            tiebreakValue !== null && input.workout.tiebreakScheme
-              ? {
-                  scheme: input.workout.tiebreakScheme as "time" | "reps",
-                  value: tiebreakValue,
-                }
-              : undefined,
-        })
-      : null
+  const scoring = buildWorkoutResultScoring({
+    value: scoreValue,
+    status,
+    scheme,
+    scoreType,
+    cappedRoundCount,
+    timeCap:
+      status === "cap" && timeCapMs && secondaryValue !== null
+        ? { ms: timeCapMs, secondaryValue }
+        : undefined,
+    tiebreak:
+      tiebreakValue !== null && input.workout.tiebreakScheme
+        ? {
+            scheme: input.workout.tiebreakScheme as "time" | "reps",
+            value: tiebreakValue,
+          }
+        : undefined,
+  })
 
   const rounds = hasRoundScores
-    ? (input.roundScores ?? []).map((round, index) => {
-        let value: number
-
-        if (scheme === "rounds-reps") {
-          const roundsNumber =
-            Number.parseInt(round.parts?.[0] ?? round.score, 10) || 0
-          const reps = Number.parseInt(round.parts?.[1] ?? "0", 10) || 0
-          value = roundsNumber * 100000 + reps
-        } else {
-          value = encodeScore(round.score, scheme) ?? 0
-        }
-
-        return {
-          roundNumber: index + 1,
-          value,
-          status: roundStatuses[index] ?? null,
-        }
+    ? normalizeWorkoutResultRounds(input.roundScores ?? [], scheme, {
+        roundsRepsInput: "parts",
+        statuses: roundStatuses,
       })
     : []
 
@@ -203,8 +189,8 @@ export function normalizeCompetitionWorkoutResult(
     scoreType,
     scoreValue,
     status,
-    statusOrder: STATUS_ORDER[status],
-    sortKey: sortKey ? sortKeyToString(sortKey) : null,
+    statusOrder: scoring.statusOrder,
+    sortKey: scoring.sortKey ? sortKeyToString(scoring.sortKey) : null,
     tiebreakScheme,
     tiebreakValue,
     timeCapMs,
