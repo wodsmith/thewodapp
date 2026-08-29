@@ -56,13 +56,15 @@ import {
   aggregateValues,
   computeSortKey,
   decodeScore,
-  encodeRounds,
-  encodeScore,
   getDefaultScoreType,
   type WorkoutScheme as ScoringWorkoutScheme,
   STATUS_ORDER,
   sortKeyToString,
 } from "@/lib/scoring"
+import {
+  normalizeCompetitionWorkoutResult,
+  replaceCompetitionWorkoutResult,
+} from "@/server/workout-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -235,28 +237,6 @@ async function isWithinSubmissionWindow(
   return { allowed: true }
 }
 
-/**
- * Map ScoreStatus to the simplified status type for scores table.
- */
-function mapToNewStatus(
-  status: ScoreStatus,
-): "scored" | "cap" | "dq" | "withdrawn" {
-  switch (status) {
-    case "scored":
-      return "scored"
-    case "cap":
-      return "cap"
-    case "dq":
-      return "dq"
-    case "withdrawn":
-    case "dns":
-    case "dnf":
-      return "withdrawn"
-    default:
-      return "scored"
-  }
-}
-
 // ============================================================================
 // Input Schemas
 // ============================================================================
@@ -301,6 +281,13 @@ const saveCompetitionScoreInputSchema = z.object({
   /** Workout info for proper score processing */
   workout: workoutInfoSchema.optional(),
 })
+
+type SaveCompetitionScoreInput = z.infer<typeof saveCompetitionScoreInputSchema>
+
+interface SaveCompetitionScoreResult {
+  success: boolean
+  data: { resultId: string; isNew: boolean }
+}
 
 const saveCompetitionScoresInputSchema = z.object({
   competitionId: z.string().min(1),
@@ -1151,6 +1138,134 @@ export const getEventScoreEntryDataWithHeatsBatchFn = createServerFn({
     },
   )
 
+async function saveCompetitionScore(
+  data: SaveCompetitionScoreInput,
+): Promise<SaveCompetitionScoreResult> {
+  const db = getDb()
+
+  getEvlog()?.set({
+    action: "save_score",
+    score: {
+      competitionId: data.competitionId,
+      registrationId: data.registrationId,
+      workoutId: data.workoutId,
+    },
+  })
+
+  addRequestContextAttribute("competitionId", data.competitionId)
+  addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+  addRequestContextAttribute("athleteUserId", data.userId)
+
+  logInfo({
+    message: "[Score] Save competition score started",
+    attributes: {
+      competitionId: data.competitionId,
+      trackWorkoutId: data.trackWorkoutId,
+      userId: data.userId,
+      registrationId: data.registrationId,
+      divisionId: data.divisionId,
+      scoreStatus: data.scoreStatus,
+    },
+  })
+
+  const submissionCheck = await isWithinSubmissionWindow(
+    data.competitionId,
+    data.trackWorkoutId,
+  )
+
+  if (!submissionCheck.allowed) {
+    logWarning({
+      message: "[Score] Submission window blocked",
+      attributes: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        userId: data.userId,
+        reason: submissionCheck.reason,
+      },
+    })
+    throw new Error(
+      submissionCheck.reason || "Score submission not allowed at this time",
+    )
+  }
+
+  // Normalize before resolving ownership to preserve the legacy validation
+  // order while keeping result rules inside the workout-result module.
+  const result = normalizeCompetitionWorkoutResult({
+    score: data.score,
+    scoreStatus: data.scoreStatus,
+    tieBreakScore: data.tieBreakScore,
+    secondaryScore: data.secondaryScore,
+    roundScores: data.roundScores,
+    workout: data.workout,
+  })
+
+  const [teamResult] = await db
+    .select({
+      ownerTeamId: programmingTracksTable.ownerTeamId,
+    })
+    .from(trackWorkoutsTable)
+    .innerJoin(
+      programmingTracksTable,
+      eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+    )
+    .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+    .limit(1)
+
+  if (!teamResult?.ownerTeamId) {
+    throw new Error("Could not determine team ownership for competition")
+  }
+
+  const scoreId = await replaceCompetitionWorkoutResult({
+    db,
+    target: {
+      userId: data.userId,
+      teamId: teamResult.ownerTeamId,
+      workoutId: data.workoutId,
+      trackWorkoutId: data.trackWorkoutId,
+      divisionId: data.divisionId,
+    },
+    result,
+  })
+
+  addRequestContextAttribute("scoreId", scoreId)
+  logEntityUpdated({
+    entity: "score",
+    id: scoreId,
+    attributes: {
+      competitionId: data.competitionId,
+      trackWorkoutId: data.trackWorkoutId,
+      userId: data.userId,
+      registrationId: data.registrationId,
+      divisionId: data.divisionId,
+      scoreStatus: data.scoreStatus,
+      hasRoundScores: !!(data.roundScores && data.roundScores.length > 0),
+    },
+  })
+
+  if (data.roundScores && data.roundScores.length > 0) {
+    logInfo({
+      message: "[Score] Round scores saved",
+      attributes: {
+        scoreId,
+        roundCount: data.roundScores.length,
+      },
+    })
+  }
+
+  logInfo({
+    message: "[Score] Competition score saved successfully",
+    attributes: {
+      scoreId,
+      competitionId: data.competitionId,
+      trackWorkoutId: data.trackWorkoutId,
+      userId: data.userId,
+      scoreStatus: data.scoreStatus,
+    },
+  })
+
+  return { success: true, data: { resultId: scoreId, isNew: true } }
+}
+
 /**
  * Save a single athlete's competition score
  */
@@ -1158,349 +1273,9 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     saveCompetitionScoreInputSchema.parse(data),
   )
-  .handler(
-    async ({
-      data,
-    }): Promise<{
-      success: boolean
-      data: { resultId: string; isNew: boolean }
-    }> => {
-      const db = getDb()
-
-      getEvlog()?.set({
-        action: "save_score",
-        score: {
-          competitionId: data.competitionId,
-          registrationId: data.registrationId,
-          workoutId: data.workoutId,
-        },
-      })
-
-      // Update request context for tracing
-      addRequestContextAttribute("competitionId", data.competitionId)
-      addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
-      addRequestContextAttribute("athleteUserId", data.userId)
-
-      logInfo({
-        message: "[Score] Save competition score started",
-        attributes: {
-          competitionId: data.competitionId,
-          trackWorkoutId: data.trackWorkoutId,
-          userId: data.userId,
-          registrationId: data.registrationId,
-          divisionId: data.divisionId,
-          scoreStatus: data.scoreStatus,
-        },
-      })
-
-      // Check submission window for online competitions
-      const submissionCheck = await isWithinSubmissionWindow(
-        data.competitionId,
-        data.trackWorkoutId,
-      )
-
-      if (!submissionCheck.allowed) {
-        logWarning({
-          message: "[Score] Submission window blocked",
-          attributes: {
-            competitionId: data.competitionId,
-            trackWorkoutId: data.trackWorkoutId,
-            userId: data.userId,
-            reason: submissionCheck.reason,
-          },
-        })
-        throw new Error(
-          submissionCheck.reason || "Score submission not allowed at this time",
-        )
-      }
-
-      // Validate workout info is provided
-      if (!data.workout) {
-        throw new Error("Workout info is required to save competition score")
-      }
-
-      const scheme = data.workout.scheme as ScoringWorkoutScheme
-      const scoreType =
-        (data.workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
-      const workoutTiebreakScheme =
-        (data.workout.tiebreakScheme as TiebreakScheme) ?? null
-
-      // Encode score using encoding
-      let encodedValue: number | null = null
-      let encodedRounds: number[] = []
-      const hasRoundScores = !!(data.roundScores && data.roundScores.length > 0)
-
-      if (data.roundScores && data.roundScores.length > 0) {
-        // Multi-round: encode each round and aggregate
-        const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
-        const result = encodeRounds(roundInputs, scheme, scoreType)
-        // `encodeRounds` drops rounds that fail to encode — that would
-        // misalign roundStatuses with the per-round rows we insert below.
-        if (result.rounds.length !== data.roundScores.length) {
-          throw new Error("Every round in roundScores must be a valid score")
-        }
-        encodedValue = result.aggregated
-        encodedRounds = result.rounds
-      } else if (data.score?.trim()) {
-        // Single score: encode directly
-        encodedValue = encodeScore(data.score, scheme)
-      }
-
-      // Map client-declared status to simplified type. For multi-round
-      // `time-with-cap` we derive status server-side from the rounds
-      // themselves (mirroring `submitVideoFn`), ignoring the client value.
-      let newStatus = mapToNewStatus(data.scoreStatus)
-      const roundStatuses: Array<"scored" | "cap"> = []
-      let cappedRoundCount = 0
-
-      if (
-        scheme === "time-with-cap" &&
-        data.workout.timeCap &&
-        hasRoundScores &&
-        encodedValue !== null
-      ) {
-        // Multi-round time cap: per-round inference. Preserve the summed
-        // total — do NOT clamp to cap. Parent status becomes "cap" if any
-        // round is capped.
-        const capMs = data.workout.timeCap * 1000
-        for (const roundValue of encodedRounds) {
-          const isRoundCapped = roundValue >= capMs
-          roundStatuses.push(isRoundCapped ? "cap" : "scored")
-          if (isRoundCapped) cappedRoundCount++
-        }
-        // Preserve terminal statuses (dq/withdrawn). Only flip between
-        // scored/cap when the caller declared a non-terminal status.
-        if (newStatus !== "dq" && newStatus !== "withdrawn") {
-          newStatus = cappedRoundCount > 0 ? "cap" : "scored"
-        }
-      } else if (
-        newStatus === "cap" &&
-        scheme === "time-with-cap" &&
-        data.workout.timeCap
-      ) {
-        // Single-round legacy clamp + reps-at-cap behavior.
-        encodedValue = data.workout.timeCap * 1000
-      }
-
-      // Parse secondary score (reps completed at cap) if provided
-      let secondaryValue: number | null = null
-      if (data.secondaryScore && newStatus === "cap") {
-        const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
-        if (!Number.isNaN(parsed) && parsed >= 0) {
-          secondaryValue = parsed
-        }
-      }
-
-      // Store time cap in milliseconds for reference
-      const timeCapMs = data.workout.timeCap
-        ? data.workout.timeCap * 1000
-        : null
-
-      // Encode tiebreak if provided (needed for sortKey computation)
-      let tiebreakValue: number | null = null
-      if (data.tieBreakScore && data.workout.tiebreakScheme) {
-        try {
-          tiebreakValue = encodeScore(
-            data.tieBreakScore,
-            data.workout.tiebreakScheme as ScoringWorkoutScheme,
-          )
-        } catch (_error) {
-          // Silently ignore tiebreak encoding errors
-        }
-      }
-
-      // Compute sort key for efficient leaderboard queries.
-      // Includes the multi-round `cappedRoundCount` tiebreaker so scores
-      // with fewer capped rounds sort ahead of scores with more, even
-      // when the summed total is slower.
-      const sortKey =
-        encodedValue !== null
-          ? computeSortKey({
-              value: encodedValue,
-              status: newStatus,
-              scheme,
-              scoreType,
-              cappedRoundCount,
-              // Include time cap info for capped scores
-              timeCap:
-                newStatus === "cap" && timeCapMs && secondaryValue !== null
-                  ? { ms: timeCapMs, secondaryValue }
-                  : undefined,
-              // Include tiebreak for proper tie-breaking in rankings
-              tiebreak:
-                tiebreakValue !== null && data.workout.tiebreakScheme
-                  ? {
-                      scheme: data.workout.tiebreakScheme as "time" | "reps",
-                      value: tiebreakValue,
-                    }
-                  : undefined,
-            })
-          : null
-
-      // Get teamId from competition context
-      const [teamResult] = await db
-        .select({
-          ownerTeamId: programmingTracksTable.ownerTeamId,
-        })
-        .from(trackWorkoutsTable)
-        .innerJoin(
-          programmingTracksTable,
-          eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
-        )
-        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-        .limit(1)
-
-      if (!teamResult?.ownerTeamId) {
-        throw new Error("Could not determine team ownership for competition")
-      }
-
-      const teamId = teamResult.ownerTeamId
-
-      // Use a transaction for atomicity: upsert score → retrieve ID → manage rounds
-      const scoreId = await db.transaction(async (tx) => {
-        // Insert/update scores table
-        await tx
-          .insert(scoresTable)
-          .values({
-            userId: data.userId,
-            teamId,
-            workoutId: data.workoutId,
-            competitionEventId: data.trackWorkoutId,
-            scheme,
-            scoreType,
-            scoreValue: encodedValue,
-            status: newStatus,
-            statusOrder: STATUS_ORDER[newStatus],
-            sortKey: sortKey ? sortKeyToString(sortKey) : null,
-            tiebreakScheme: workoutTiebreakScheme,
-            tiebreakValue,
-            timeCapMs,
-            secondaryValue,
-            scalingLevelId: data.divisionId,
-            asRx: true,
-            recordedAt: new Date(),
-          })
-          .onDuplicateKeyUpdate({
-            set: {
-              scoreValue: encodedValue,
-              status: newStatus,
-              statusOrder: STATUS_ORDER[newStatus],
-              sortKey: sortKey ? sortKeyToString(sortKey) : null,
-              tiebreakScheme: workoutTiebreakScheme,
-              tiebreakValue,
-              timeCapMs,
-              secondaryValue,
-              scalingLevelId: data.divisionId,
-              updatedAt: new Date(),
-            },
-          })
-
-        // Get the final score ID (either new or existing). Always scope by
-        // division — null divisionId is its own scope (isNull), not a
-        // wildcard, so we never grab a sibling division's row when the
-        // athlete has scores in multiple divisions for a shared workout.
-        const finalScoreConditions = [
-          eq(scoresTable.competitionEventId, data.trackWorkoutId),
-          eq(scoresTable.userId, data.userId),
-          data.divisionId
-            ? eq(scoresTable.scalingLevelId, data.divisionId)
-            : isNull(scoresTable.scalingLevelId),
-        ]
-        const [finalScore] = await tx
-          .select({ id: scoresTable.id })
-          .from(scoresTable)
-          .where(and(...finalScoreConditions))
-          .limit(1)
-
-        if (!finalScore) {
-          throw new Error("Failed to retrieve score after upsert")
-        }
-
-        const id = finalScore.id
-
-        // Handle score_rounds - delete existing and insert new
-        if (data.roundScores && data.roundScores.length > 0) {
-          // Delete existing rounds
-          await tx
-            .delete(scoreRoundsTable)
-            .where(eq(scoreRoundsTable.scoreId, id))
-
-          // Convert and insert new rounds. For multi-round time caps we
-          // persist per-round `status` ("cap" / "scored") derived above
-          // so the leaderboard can count capped rounds without replaying
-          // the cap check, and so the round breakdown UI tags each round.
-          const roundsToInsert = data.roundScores.map((round, index) => {
-            let roundValue: number
-
-            if (scheme === "rounds-reps") {
-              const roundsNum =
-                Number.parseInt(round.parts?.[0] ?? round.score, 10) || 0
-              const reps = Number.parseInt(round.parts?.[1] ?? "0", 10) || 0
-              roundValue = roundsNum * 100000 + reps
-            } else if (
-              scheme === "time" ||
-              scheme === "time-with-cap" ||
-              scheme === "emom"
-            ) {
-              roundValue = encodeScore(round.score, scheme) ?? 0
-            } else {
-              roundValue = encodeScore(round.score, scheme) ?? 0
-            }
-
-            return {
-              scoreId: id,
-              roundNumber: index + 1,
-              value: roundValue,
-              status: roundStatuses[index] ?? null,
-            }
-          })
-
-          await tx.insert(scoreRoundsTable).values(roundsToInsert)
-        }
-
-        return id
-      })
-
-      // Log score entity creation/update
-      addRequestContextAttribute("scoreId", scoreId)
-      logEntityUpdated({
-        entity: "score",
-        id: scoreId,
-        attributes: {
-          competitionId: data.competitionId,
-          trackWorkoutId: data.trackWorkoutId,
-          userId: data.userId,
-          registrationId: data.registrationId,
-          divisionId: data.divisionId,
-          scoreStatus: data.scoreStatus,
-          hasRoundScores: !!(data.roundScores && data.roundScores.length > 0),
-        },
-      })
-
-      if (data.roundScores && data.roundScores.length > 0) {
-        logInfo({
-          message: "[Score] Round scores saved",
-          attributes: {
-            scoreId,
-            roundCount: data.roundScores.length,
-          },
-        })
-      }
-
-      logInfo({
-        message: "[Score] Competition score saved successfully",
-        attributes: {
-          scoreId,
-          competitionId: data.competitionId,
-          trackWorkoutId: data.trackWorkoutId,
-          userId: data.userId,
-          scoreStatus: data.scoreStatus,
-        },
-      })
-
-      return { success: true, data: { resultId: scoreId, isNew: true } }
-    },
-  )
+  .handler(async ({ data }): Promise<SaveCompetitionScoreResult> => {
+    return saveCompetitionScore(data)
+  })
 
 /**
  * Batch save multiple competition scores
@@ -1581,21 +1356,19 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 
       for (const scoreData of data.scores) {
         try {
-          await saveCompetitionScoreFn({
-            data: {
-              competitionId: data.competitionId,
-              organizingTeamId: data.organizingTeamId,
-              trackWorkoutId: data.trackWorkoutId,
-              workoutId: data.workoutId,
-              registrationId: scoreData.registrationId,
-              userId: scoreData.userId,
-              divisionId: scoreData.divisionId,
-              score: scoreData.score,
-              scoreStatus: scoreData.scoreStatus,
-              tieBreakScore: scoreData.tieBreakScore,
-              secondaryScore: scoreData.secondaryScore,
-              workout: workoutResult,
-            },
+          await saveCompetitionScore({
+            competitionId: data.competitionId,
+            organizingTeamId: data.organizingTeamId,
+            trackWorkoutId: data.trackWorkoutId,
+            workoutId: data.workoutId,
+            registrationId: scoreData.registrationId,
+            userId: scoreData.userId,
+            divisionId: scoreData.divisionId,
+            score: scoreData.score,
+            scoreStatus: scoreData.scoreStatus,
+            tieBreakScore: scoreData.tieBreakScore,
+            secondaryScore: scoreData.secondaryScore,
+            workout: workoutResult,
           })
           savedCount++
         } catch (error) {

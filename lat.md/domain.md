@@ -106,6 +106,14 @@ Key design:
 - Tiebreak values stored separately for time-capped workouts
 - Score rounds (`scoreRoundsTable`) store per-round breakdowns for multi-round workouts
 
+### Organizer workout-result write seam
+
+The Compete organizer adapter delegates result normalization and atomic replacement to an in-app workout-result module while retaining request policy, ownership lookup, and logging.
+
+[[apps/wodsmith-start/src/server/workout-results/normalize.ts#normalizeCompetitionWorkoutResult]] validates and normalizes parent and round values, then calls the existing scoring primitives for encoding and sort-key construction. [[apps/wodsmith-start/src/server/workout-results/replace.ts#replaceCompetitionWorkoutResult]] performs the score upsert, exact nullable-division lookup, and optional round replacement in one transaction. Both [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoreFn]] and [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoresFn]] reach this module through the same adapter path.
+
+This first extraction intentionally retains the characterized legacy contract: multi-round CAP is inferred, explicit per-round CAP fields are ignored, invalid tiebreaks become null, and overwriting without round scores leaves stale round rows. [[tests/competition-score-writes#Competition Score Write Characterization]] freezes these behaviors until a later migration changes them deliberately.
+
 ### One score per athlete per event per division
 
 The `scoresTable` unique index spans `(competition_event_id, user_id, scaling_level_id)` so an athlete registered in multiple divisions can hold a separate score per division on a shared workout.
