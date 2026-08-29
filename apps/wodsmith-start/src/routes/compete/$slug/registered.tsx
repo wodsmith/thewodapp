@@ -12,11 +12,13 @@ import { z } from "zod"
 import { CompetitionRegisteredBanner } from "@/components/competition-registered-banner"
 import { CompetitionShareCard } from "@/components/competition-share-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
+import { RegistrationFulfillmentCard } from "@/components/registration/registration-fulfillment-card"
 import { Button } from "@/components/ui/button"
 import {
   checkCheckoutCompletionFn,
   getUserCompetitionRegistrationsFn,
 } from "@/server-fns/competition-detail-fns"
+import { getMyCompetitionFulfillmentFn } from "@/server-fns/registration-fulfillment-fns"
 import { getUserAffiliateNameFn } from "@/server-fns/registration-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
@@ -47,17 +49,22 @@ export const Route = createFileRoute("/compete/$slug/registered")({
       throw redirect({ to: "/" })
     }
 
-    const [{ registrations }, affiliateResult] = await Promise.all([
-      getUserCompetitionRegistrationsFn({
-        data: {
-          competitionId: competition.id,
-          userId: session.userId,
-        },
-      }),
-      getUserAffiliateNameFn({
-        data: { userId: session.userId },
-      }),
-    ])
+    const [{ registrations }, affiliateResult, fulfillment] = await Promise.all(
+      [
+        getUserCompetitionRegistrationsFn({
+          data: {
+            competitionId: competition.id,
+            userId: session.userId,
+          },
+        }),
+        getUserAffiliateNameFn({
+          data: { userId: session.userId },
+        }),
+        getMyCompetitionFulfillmentFn({
+          data: { competitionId: competition.id },
+        }),
+      ],
+    )
 
     // Only redirect if no session_id — if we came from Stripe checkout,
     // registrations may still be processing
@@ -82,13 +89,20 @@ export const Route = createFileRoute("/compete/$slug/registered")({
       }
     })
 
-    return { athleteName, affiliateName, items, sessionId: session_id ?? null }
+    return {
+      athleteName,
+      affiliateName,
+      items,
+      fulfillment,
+      sessionId: session_id ?? null,
+    }
   },
 })
 
 function RegisteredPage() {
   const { competition } = parentRoute.useLoaderData()
-  const { athleteName, affiliateName, items, sessionId } = Route.useLoaderData()
+  const { athleteName, affiliateName, items, fulfillment, sessionId } =
+    Route.useLoaderData()
   const { slug } = Route.useParams()
   const router = useRouter()
   const checkCompletion = useServerFn(checkCheckoutCompletionFn)
@@ -232,6 +246,12 @@ function RegisteredPage() {
           </Button>
         ))}
       </div>
+
+      {fulfillment.purchases.length > 0 || fulfillment.downloads.length > 0 ? (
+        <div className="mx-auto w-full max-w-3xl">
+          <RegistrationFulfillmentCard {...fulfillment} />
+        </div>
+      ) : null}
     </div>
   )
 }

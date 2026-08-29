@@ -5,7 +5,7 @@
  * the coupon input and the fee summary. Entirely skippable — selecting
  * nothing changes nothing about the registration flow.
  */
-import { FileDown, Minus, Plus, ShoppingBag } from "lucide-react"
+import { FileDown, Minus, PackageCheck, Plus, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -105,6 +105,36 @@ export function AddOnsSection({
     (addon) =>
       addon.access !== COMPETITION_PRODUCT_ACCESS.INCLUDED_WITH_REGISTRATION,
   )
+  const selectedAddons = optionalAddons.flatMap((addon) => {
+    if (addon.variants.length === 0) {
+      const quantity = quantities.get(addonSelectionKey(addon.id, null)) ?? 0
+      return quantity > 0
+        ? [
+            {
+              key: addonSelectionKey(addon.id, null),
+              name: addon.name,
+              quantity,
+              delivery: addon.delivery,
+            },
+          ]
+        : []
+    }
+
+    return addon.variants.flatMap((variant) => {
+      const quantity =
+        quantities.get(addonSelectionKey(addon.id, variant.id)) ?? 0
+      return quantity > 0
+        ? [
+            {
+              key: addonSelectionKey(addon.id, variant.id),
+              name: `${addon.name} (${variant.label})`,
+              quantity,
+              delivery: addon.delivery,
+            },
+          ]
+        : []
+    })
+  })
 
   return (
     <div className="space-y-6">
@@ -117,8 +147,8 @@ export function AddOnsSection({
             </CardTitle>
             <CardDescription>
               These digital products are included with your registration and
-              will appear in Settings → Downloads after registration is
-              complete.
+              will be available on your registration page and in Settings →
+              Downloads after registration is complete.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-5">
@@ -152,8 +182,9 @@ export function AddOnsSection({
               Optional add-ons
             </CardTitle>
             <CardDescription>
-              Add products to the same checkout as your registration. Physical
-              items are picked up at the venue; downloads go to your library.
+              Add products to the same checkout as your registration. Your
+              registration page will show what you purchased and how to receive
+              it.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -196,10 +227,10 @@ export function AddOnsSection({
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {addon.delivery ===
                         COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
-                          ? "Download after purchase"
+                          ? "Available to download after payment"
                           : addon.availableUntil
-                            ? `Order by ${formatRegistrationDate(addon.availableUntil)}`
-                            : "Only available with registration"}
+                            ? `Pick up at the competition · Order by ${formatRegistrationDate(addon.availableUntil)}`
+                            : "Pick up at the competition"}
                         {addon.maxPerAthlete !== null
                           ? ` · Max ${addon.maxPerAthlete} per athlete`
                           : ""}
@@ -273,6 +304,32 @@ export function AddOnsSection({
                 </div>
               )
             })}
+
+            {selectedAddons.length > 0 ? (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
+                <p className="flex items-center gap-2 font-medium">
+                  <PackageCheck className="h-4 w-4 text-primary" />
+                  Added to your registration
+                </p>
+                <div className="mt-3 space-y-2">
+                  {selectedAddons.map((item) => (
+                    <div
+                      key={item.key}
+                      className="flex items-start justify-between gap-4 text-sm"
+                    >
+                      <span>
+                        {item.quantity} × {item.name}
+                      </span>
+                      <span className="shrink-0 text-right text-muted-foreground">
+                        {item.delivery === COMPETITION_PRODUCT_DELIVERY.DOWNLOAD
+                          ? "Download after payment"
+                          : "Pick up at competition"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}

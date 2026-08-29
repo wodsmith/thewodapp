@@ -28,6 +28,32 @@ const includedDownload: PublicAddon = {
   variants: [],
 }
 
+const optionalDownload: PublicAddon = {
+  ...includedDownload,
+  id: "product-2",
+  name: "Programming guide",
+  priceCents: 1900,
+  access: "OPTIONAL_PURCHASE",
+}
+
+const pickupShirt: PublicAddon = {
+  ...includedDownload,
+  id: "product-3",
+  name: "Event shirt",
+  priceCents: 2500,
+  delivery: "PICKUP",
+  access: "OPTIONAL_PURCHASE",
+  downloadFiles: [],
+  variants: [
+    {
+      id: "variant-medium",
+      label: "Medium",
+      remaining: null,
+      soldOut: false,
+    },
+  ],
+}
+
 describe("AddOnsSection", () => {
   // @lat: [[commerce#Downloadable Competition Products#Athlete download library]]
   it("shows included PDFs without rendering purchase controls", () => {
@@ -45,5 +71,27 @@ describe("AddOnsSection", () => {
       screen.getByText("Movement standards · Printable scorecards"),
     ).toBeInTheDocument()
     expect(screen.queryByText("Quantity")).not.toBeInTheDocument()
+  })
+
+  // @lat: [[commerce#Registration Add-ons]]
+  it("explains how selected add-ons will be delivered", () => {
+    render(
+      <AddOnsSection
+        addons={[optionalDownload, pickupShirt]}
+        quantities={
+          new Map([
+            ["product-2::", 1],
+            ["product-3::variant-medium", 2],
+          ])
+        }
+        onQuantityChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText("Added to your registration")).toBeInTheDocument()
+    expect(screen.getByText("1 × Programming guide")).toBeInTheDocument()
+    expect(screen.getByText("Download after payment")).toBeInTheDocument()
+    expect(screen.getByText("2 × Event shirt (Medium)")).toBeInTheDocument()
+    expect(screen.getByText("Pick up at competition")).toBeInTheDocument()
   })
 })

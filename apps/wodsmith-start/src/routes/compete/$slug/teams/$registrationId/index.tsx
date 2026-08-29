@@ -29,6 +29,7 @@ import { type ReactNode, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
+import { RegistrationFulfillmentCard } from "@/components/registration/registration-fulfillment-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -49,6 +50,10 @@ import {
   type TeamRosterResult,
 } from "@/server-fns/registration-fns"
 import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
+import {
+  getMyCompetitionFulfillmentFn,
+  type RegistrationFulfillment,
+} from "@/server-fns/registration-fulfillment-fns"
 import { cn } from "@/utils/cn"
 import {
   getCompetitionQuestionsFn,
@@ -123,6 +128,7 @@ interface LoaderData {
     answer: string
   }>
   allUserRegistrations: UserRegistrationEntry[]
+  fulfillment: RegistrationFulfillment
 }
 
 export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
@@ -171,6 +177,10 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
       answer: string
     }> = []
     let fullCompetition: { registrationClosesAt: string | null } | null = null
+    let fulfillment: RegistrationFulfillment = {
+      purchases: [],
+      downloads: [],
+    }
 
     if (registration.competition?.id) {
       const [questionsResult, answersResult, competitionData] =
@@ -201,6 +211,10 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
       registrationQuestions = questionsResult.questions
       registrationAnswers = answersResult.answers
       fullCompetition = competitionData || null
+
+      fulfillment = await getMyCompetitionFulfillmentFn({
+        data: { competitionId: registration.competition.id },
+      })
     }
 
     // Parse affiliates from registration metadata
@@ -330,6 +344,7 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
       registrationQuestions,
       registrationAnswers,
       allUserRegistrations,
+      fulfillment,
     }
   },
 })
@@ -450,6 +465,7 @@ function TeamManagementPage() {
     registrationQuestions,
     registrationAnswers,
     allUserRegistrations,
+    fulfillment,
   } = Route.useLoaderData()
 
   const hasMultipleRegistrations = allUserRegistrations.length > 1
@@ -567,6 +583,8 @@ function TeamManagementPage() {
           />
         )}
 
+        <RegistrationFulfillmentCard {...fulfillment} />
+
         {/* Registration Questions */}
         {isRegisteredUser && !isRemoved && (
           <RegistrationAnswersForm
@@ -658,6 +676,8 @@ function TeamManagementPage() {
           />
         )}
 
+        <RegistrationFulfillmentCard {...fulfillment} />
+
         {/* Registration Questions */}
         {(isTeamMember || isRegisteredUser) && !isRemoved && (
           <RegistrationAnswersForm
@@ -748,7 +768,8 @@ function TeamManagementPage() {
                   {pending.map((invite) => {
                     const pendingAffiliate = getPendingAffiliate(invite.email)
                     const isExpired =
-                      invite.expiresAt && new Date(invite.expiresAt) < new Date()
+                      invite.expiresAt &&
+                      new Date(invite.expiresAt) < new Date()
                     return (
                       <div
                         key={invite.id}
@@ -793,18 +814,16 @@ function TeamManagementPage() {
                                 : "Resend Invite"}
                             </Button>
                           )}
-                          {isRegisteredUser &&
-                            !isExpired &&
-                            invite.token && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyInviteLink(invite.token!)}
-                              >
-                                <Copy className="w-4 h-4 mr-1" />
-                                Copy link
-                              </Button>
-                            )}
+                          {isRegisteredUser && !isExpired && invite.token && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyInviteLink(invite.token!)}
+                            >
+                              <Copy className="w-4 h-4 mr-1" />
+                              Copy link
+                            </Button>
+                          )}
                           {isExpired ? (
                             <StatusBadge tone="expired">Expired</StatusBadge>
                           ) : (

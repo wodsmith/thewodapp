@@ -130,7 +130,7 @@ Products with recent pending or completed purchases cannot switch delivery; aban
 
 Athletes find all entitled digital products in one account-level library after registration or checkout completes.
 
-[[apps/wodsmith-start/src/server-fns/downloadable-product-fns.ts#getMyDownloadsFn]] powers `/settings/downloads`, grouping files by competition and labeling whether access came from registration or an optional purchase. Its client-safe RPC wrapper loads database-backed logic only inside the server handler. The registration form advertises included downloads before checkout without exposing storage keys.
+[[apps/wodsmith-start/src/server-fns/downloadable-product-fns.ts#getMyDownloadsFn]] powers `/settings/downloads`, grouping files by competition and labeling whether access came from registration or an optional purchase. Its client-safe RPC wrapper loads database-backed logic only inside the server handler. The registration form advertises included downloads before checkout without exposing storage keys and summarizes how each selected add-on will be delivered. [[apps/wodsmith-start/src/server-fns/registration-fulfillment-fns.ts#getMyCompetitionFulfillmentFn]] combines entitled files with the athlete's completed add-on purchase lines. [[apps/wodsmith-start/src/components/registration/registration-fulfillment-card.tsx#RegistrationFulfillmentCard]] exposes that receipt and fulfillment detail on both the checkout confirmation and permanent registration details pages, while every file link remains protected by the normal download authorization endpoint.
 
 ## Purchase Transfers
 
