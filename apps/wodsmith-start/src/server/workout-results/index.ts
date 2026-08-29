@@ -17,3 +17,9 @@ export {
   type CompetitionWorkoutResultTarget,
   replaceCompetitionWorkoutResult,
 } from "./replace"
+export {
+  normalizeSubmittedVideoWorkoutResult,
+  persistSubmittedVideoWorkoutResult,
+  type SubmittedVideoWorkoutResultInput,
+  type SubmittedVideoWorkoutResultTarget,
+} from "./video"

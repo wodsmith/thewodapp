@@ -108,7 +108,7 @@ Key design:
 
 ### Workout-result module
 
-Personal tracking and Compete organizer writes share one in-app workout-result module while their adapters retain authentication, ownership, policy, default-scaling lookup, request logging, and response contracts.
+Personal tracking, Compete organizer entry, and athlete video score claims share one in-app workout-result module while their adapters retain authentication, ownership, policy, lifecycle, request logging, and response contracts.
 
 [[apps/wodsmith-start/src/server/workout-results/kernel.ts]] is the shared internal scoring kernel. It resolves score types, aggregates rounds, constructs statuses and sort keys through existing scoring primitives, and normalizes round rows. Thin competition and personal interfaces select their compatible parsing and sort-key string formats rather than sharing context-specific types.
 
@@ -116,7 +116,11 @@ Personal tracking and Compete organizer writes share one in-app workout-result m
 
 [[apps/wodsmith-start/src/server/workout-results/personal.ts#normalizeSubmittedPersonalWorkoutResult]], [[apps/wodsmith-start/src/server/workout-results/personal.ts#submitPersonalWorkoutResult]], [[apps/wodsmith-start/src/server/workout-results/personal.ts#createPersonalWorkoutResult]], and [[apps/wodsmith-start/src/server/workout-results/personal.ts#updatePersonalWorkoutResult]] form the personal interface used by all three personal write adapters. The module preserves the existing personal schema/default score-type choices, raw sort-key strings, response shapes, and non-transactional operation order. Submit inserts the score before rounds; update writes and re-reads the score before deleting and replacing rounds.
 
-Round row persistence is shared internally: Compete calls it inside its transaction, while personal writes call it without adding a transaction. Compatibility debt remains unchanged. Compete still infers multi-round CAP, ignores explicit per-round CAP fields, discards invalid tiebreaks, and leaves stale rounds when overwriting without rounds; personal updates likewise leave rounds untouched unless new rounds are supplied. [[tests/competition-score-writes#Competition Score Write Characterization]] freezes the Compete behaviors until a deliberate migration.
+[[apps/wodsmith-start/src/server/workout-results/video.ts#normalizeSubmittedVideoWorkoutResult]] and [[apps/wodsmith-start/src/server/workout-results/video.ts#persistSubmittedVideoWorkoutResult]] form the athlete video interface used by [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]]. It preserves server-derived CAP, strict video score/tiebreak errors, summed multi-round CAP totals, exact nullable-division lookup, and the existing video-first, non-transactional score/round operation order.
+
+Round row persistence is shared internally: Compete calls it inside its transaction, while personal and video writes call it without adding a transaction. Compatibility debt remains unchanged. Compete still infers multi-round CAP, ignores explicit per-round CAP fields, discards invalid tiebreaks, and leaves stale rounds when overwriting without rounds; personal updates likewise leave rounds untouched unless new rounds are supplied.
+
+Athlete self-entry, verification adjustments, and reviewer manual entry remain adapter-local pending their focused characterization boundary in [[tests/workout-result-adapters#Workout-result Adapter Characterization]]. Their current differences are deliberate compatibility constraints: self-entry trusts explicit CAP and silently stores invalid tiebreaks; direct verification overrides can retain stale rounds without clamping; manual entry trusts explicit CAP and couples score persistence to its audit/video transaction. Mobile competition HTTP routes and Crew sharing remain outside this module rollout.
 
 ### One score per athlete per event per division
 

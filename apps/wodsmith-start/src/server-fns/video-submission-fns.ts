@@ -36,21 +36,14 @@ import {
   videoSubmissionsTable,
 } from "@/db/schemas/video-submissions"
 import { videoVotesTable } from "@/db/schemas/video-votes"
-import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
 import {
-  computeSortKey,
   decodeScore,
-  encodeRounds,
-  encodeScore,
   formatScore,
   getDefaultScoreType,
-  parseScore,
   type ScoreType,
-  STATUS_ORDER,
-  sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
 import type { BenchmarkVariant } from "@/schemas/benchmark.schema"
@@ -63,6 +56,10 @@ import {
   resetBenchmarkVideoReviewState,
   saveBenchmarkScoreInTransaction,
 } from "@/server/benchmark-submissions"
+import {
+  normalizeSubmittedVideoWorkoutResult,
+  persistSubmittedVideoWorkoutResult,
+} from "@/server/workout-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { requireSubmissionReviewAccess } from "@/utils/team-auth"
@@ -106,20 +103,6 @@ type SubmitVideoInput = z.infer<typeof submitVideoInputSchema>
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/**
- * Map status to the simplified type for scores table.
- */
-function getStatusOrder(status: "scored" | "cap"): number {
-  switch (status) {
-    case "scored":
-      return STATUS_ORDER.scored
-    case "cap":
-      return STATUS_ORDER.cap
-    default:
-      return STATUS_ORDER.scored
-  }
-}
 
 /**
  * Check if current time is within the event's submission window.
@@ -1804,127 +1787,14 @@ export const submitVideoFn = createServerFn({ method: "POST" })
         throw new Error("Workout not found")
       }
 
-      const scheme = workout.scheme as WorkoutScheme
-      const scoreType =
-        (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
-
-      // Encode the score — multi-round or single
-      let encodedValue: number | null = null
-      let encodedRounds: number[] = []
-
-      if (hasRoundScores && data.roundScores) {
-        // Multi-round: validate and encode each round, then aggregate
-        for (const rs of data.roundScores) {
-          const roundResult = parseScore(rs.score, scheme)
-          if (!roundResult.isValid) {
-            throw new Error(
-              `Invalid round score: ${roundResult.error || "Please check your entry"}`,
-            )
-          }
-        }
-        const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
-        const roundsResult = encodeRounds(roundInputs, scheme, scoreType)
-        encodedValue = roundsResult.aggregated
-        encodedRounds = roundsResult.rounds
-      } else if (data.score) {
-        // Single score: parse and encode directly
-        const parseResult = parseScore(data.score, scheme)
-        if (!parseResult.isValid) {
-          throw new Error(
-            `Invalid score format: ${parseResult.error || "Please check your entry"}`,
-          )
-        }
-        encodedValue = encodeScore(data.score, scheme)
-      }
-
-      // Derive status server-side (ignore client-provided scoreStatus)
-      // For time-with-cap:
-      // - Single-round: time >= cap → capped, clamp to cap
-      // - Multi-round: cap applies per round. Any round with encoded time >= cap
-      //   is capped for that round; summed total is preserved so the display
-      //   reflects what the team actually entered (e.g., 4:00 + 10:02 = 14:02).
-      //   Under the "missed reps add seconds" convention, a capped round's
-      //   encoded value already bakes in the penalty, so the sum is meaningful.
-      let status: "scored" | "cap" = "scored"
-      let secondaryValue: number | null = null
-      const roundStatuses: Array<"scored" | "cap"> = []
-      let cappedRoundCount = 0
-
-      if (
-        scheme === "time-with-cap" &&
-        workout.timeCap &&
-        encodedValue !== null
-      ) {
-        const capMs = workout.timeCap * 1000
-
-        if (hasRoundScores && encodedRounds.length > 0) {
-          // Per-round cap inference — don't clamp the summed total.
-          for (const roundValue of encodedRounds) {
-            const isRoundCapped = roundValue >= capMs
-            roundStatuses.push(isRoundCapped ? "cap" : "scored")
-            if (isRoundCapped) cappedRoundCount++
-          }
-          if (cappedRoundCount > 0) {
-            status = "cap"
-          }
-        } else if (encodedValue >= capMs) {
-          // Single-round: preserve legacy clamp + reps-at-cap behavior
-          status = "cap"
-          encodedValue = capMs
-
-          if (data.secondaryScore) {
-            const trimmed = data.secondaryScore.trim()
-            if (trimmed) {
-              const parsed = Number.parseInt(trimmed, 10)
-              if (!Number.isNaN(parsed) && parsed >= 0) {
-                secondaryValue = parsed
-              }
-            }
-          }
-        }
-      }
-
-      // Parse tiebreak score
-      let tiebreakValue: number | null = null
-      if (data.tiebreakScore && workout.tiebreakScheme) {
-        tiebreakValue = encodeScore(
-          data.tiebreakScore,
-          workout.tiebreakScheme as WorkoutScheme,
-        )
-        if (tiebreakValue === null) {
-          throw new Error(
-            `Invalid tiebreak score format: "${data.tiebreakScore}". Please check your entry.`,
-          )
-        }
-      }
-
-      // Time cap in milliseconds
-      const timeCapMs = workout.timeCap ? workout.timeCap * 1000 : null
-
-      // Compute sort key (includes secondary_value, tiebreak, and the
-      // multi-round `cappedRoundCount` tiebreaker so more capped rounds
-      // sort below fewer capped rounds regardless of summed total).
-      const sortKey =
-        encodedValue !== null
-          ? computeSortKey({
-              value: encodedValue,
-              status,
-              scheme,
-              scoreType,
-              cappedRoundCount,
-              timeCap:
-                status === "cap" && secondaryValue !== null
-                  ? { ms: timeCapMs ?? 0, secondaryValue }
-                  : undefined,
-              tiebreak:
-                tiebreakValue !== null && workout.tiebreakScheme
-                  ? {
-                      scheme: workout.tiebreakScheme as "time" | "reps",
-                      value: tiebreakValue,
-                    }
-                  : undefined,
-            })
-          : null
+      const result = normalizeSubmittedVideoWorkoutResult({
+        score: data.score,
+        scoreStatus: data.scoreStatus,
+        secondaryScore: data.secondaryScore,
+        tiebreakScore: data.tiebreakScore,
+        roundScores: data.roundScores,
+        workout,
+      })
 
       // Get teamId from track
       const [track] = await db
@@ -1939,79 +1809,18 @@ export const submitVideoFn = createServerFn({ method: "POST" })
         throw new Error("Could not determine team ownership")
       }
 
-      // Upsert the score
-      await db
-        .insert(scoresTable)
-        .values({
+      await persistSubmittedVideoWorkoutResult({
+        db,
+        target: {
           userId: session.userId,
           teamId: track.ownerTeamId,
           workoutId: workout.workoutId,
-          competitionEventId: data.trackWorkoutId,
-          scheme,
-          scoreType,
-          scoreValue: encodedValue,
-          status,
-          statusOrder: getStatusOrder(status),
-          sortKey: sortKey ? sortKeyToString(sortKey) : null,
-          tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
-          tiebreakValue,
-          timeCapMs,
-          secondaryValue,
-          scalingLevelId: registration.divisionId,
-          asRx: true,
-          recordedAt: now,
-        })
-        .onDuplicateKeyUpdate({
-          set: {
-            scoreValue: encodedValue,
-            status,
-            statusOrder: getStatusOrder(status),
-            sortKey: sortKey ? sortKeyToString(sortKey) : null,
-            tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
-            tiebreakValue,
-            timeCapMs,
-            secondaryValue,
-            scalingLevelId: registration.divisionId,
-            updatedAt: now,
-          },
-        })
-
-      // Save round scores if multi-round
-      if (encodedRounds.length > 0) {
-        // Look up the score ID for the upserted score
-        const [upsertedScore] = await db
-          .select({ id: scoresTable.id })
-          .from(scoresTable)
-          .where(
-            and(
-              eq(scoresTable.competitionEventId, data.trackWorkoutId),
-              eq(scoresTable.userId, session.userId),
-              registration.divisionId
-                ? eq(scoresTable.scalingLevelId, registration.divisionId)
-                : isNull(scoresTable.scalingLevelId),
-            ),
-          )
-          .limit(1)
-
-        if (upsertedScore) {
-          // Delete existing rounds
-          await db
-            .delete(scoreRoundsTable)
-            .where(eq(scoreRoundsTable.scoreId, upsertedScore.id))
-
-          // Insert new rounds. Persist per-round cap status from the
-          // per-round derivation above so the leaderboard can later rank
-          // by number of capped rounds.
-          const roundsToInsert = encodedRounds.map((value, index) => ({
-            scoreId: upsertedScore.id,
-            roundNumber: index + 1,
-            value,
-            status: roundStatuses[index] ?? null,
-          }))
-
-          await db.insert(scoreRoundsTable).values(roundsToInsert)
-        }
-      }
+          trackWorkoutId: data.trackWorkoutId,
+          divisionId: registration.divisionId,
+        },
+        result,
+        recordedAt: now,
+      })
     }
 
     return {
