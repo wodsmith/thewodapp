@@ -7,13 +7,12 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { cohostUpdateScoringConfigFn } from "@/server-fns/cohost/cohost-competition-fns"
 import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
 import { ScoringSettingsForm } from "../../organizer/$competitionId/-components/scoring-settings-form"
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/scoring",
-)({
+export const Route = createFileRoute("/compete/cohost/$competitionId/scoring")({
   staleTime: 10_000,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
@@ -77,6 +76,10 @@ function CohostScoringPage() {
           name: competition.name,
           settings: competition.settings,
         }}
+        lockAlgorithmOnline={competitionCan(
+          competition.competitionType,
+          "benchmarkScoringTiers",
+        )}
         events={events}
         onSaveScoringConfig={async (data) => {
           await updateScoringConfig({

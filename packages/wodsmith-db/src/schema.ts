@@ -3,6 +3,7 @@
 export * from "./schemas/addresses"
 export * from "./schemas/coupons"
 export * from "./schemas/affiliates"
+export * from "./schemas/benchmarks"
 export * from "./schemas/broadcasts"
 export * from "./schemas/billing"
 export * from "./schemas/commerce"

@@ -16,6 +16,7 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("@/server-fns/video-submission-fns", () => ({
   getAthleteDivisionSubmissionsFn: vi.fn(),
+  getVideoSubmissionFn: vi.fn(),
 }))
 
 const mockGetSubmissions = vi.mocked(getAthleteDivisionSubmissionsFn)
@@ -25,26 +26,28 @@ function scoreWorkout(
   name: string,
   scheme: string,
   parentEventId: string | null = null,
+  benchmarkCategory = "strength",
 ): WorkoutInfo {
   return {
     id,
     workoutId: `workout-${id}`,
     trackOrder: Number(id.replace(/\D/g, "")) || 1,
     parentEventId,
+    benchmarkCategory,
     workout: { name, scheme },
   }
 }
 
 describe("shouldGroupScoreSubmissionWorkouts", () => {
   // @lat: [[research#Benchmark Score Submission Group Test#Dense List Activation]]
-  it("groups only dense score lists that span multiple benchmark domains", () => {
+  it("groups only dense score lists that span multiple benchmark categories", () => {
     const strengthOnly = Array.from(
       { length: MIN_GROUPED_SCORE_WORKOUTS },
       (_, index) => scoreWorkout(`s${index}`, `Lift ${index}`, "load"),
     )
     const mixedDomains = [
       ...strengthOnly.slice(0, MIN_GROUPED_SCORE_WORKOUTS - 1),
-      scoreWorkout("run", "1 Mile Run", "time"),
+      scoreWorkout("run", "1 Mile Run", "time", null, "engine"),
     ]
 
     expect(
@@ -61,17 +64,46 @@ describe("AthleteScoreSubmissionPanel category disclosure", () => {
   })
 
   // @lat: [[research#Benchmark Score Submission Group Test#Default Collapsed Interaction]]
-  it("starts categories collapsed and reveals workouts on demand", async () => {
-    const workouts = [
-      ...Array.from({ length: MIN_GROUPED_SCORE_WORKOUTS - 1 }, (_, index) =>
-        scoreWorkout(`s${index}`, index === 0 ? "Strict Press" : `Lift ${index}`, "load"),
+  it("groups dense child score rows and reveals them on demand", async () => {
+    const strengthParent = scoreWorkout(
+      "strength-parent",
+      "Strength Tests",
+      "load",
+    )
+    const engineParent = scoreWorkout(
+      "engine-parent",
+      "Engine Tests",
+      "time",
+      null,
+      "engine",
+    )
+    const strengthChildren = Array.from({ length: 4 }, (_, index) =>
+      scoreWorkout(
+        `strength-child-${index}`,
+        index === 0 ? "Strict Press" : `Lift ${index}`,
+        "load",
+        strengthParent.id,
       ),
-      scoreWorkout("run", "1 Mile Run", "time"),
+    )
+    const engineChildren = Array.from({ length: 4 }, (_, index) =>
+      scoreWorkout(
+        `engine-child-${index}`,
+        `Engine Test ${index}`,
+        "time",
+        engineParent.id,
+        "engine",
+      ),
+    )
+    const workouts = [
+      strengthParent,
+      engineParent,
+      ...strengthChildren,
+      ...engineChildren,
     ]
     mockGetSubmissions.mockResolvedValue({
       submissions: [
         {
-          trackWorkoutId: "s0",
+          trackWorkoutId: strengthChildren[0].id,
           hasVideo: false,
           videoReviewStatus: null,
           hasScore: true,
@@ -103,19 +135,19 @@ describe("AthleteScoreSubmissionPanel category disclosure", () => {
     await waitFor(() => expect(mockGetSubmissions).toHaveBeenCalledOnce())
 
     const strengthCategory = await screen.findByRole("button", {
-      name: /Strength & barbell/i,
+      name: /Strength/i,
     })
-    expect(strengthCategory).toHaveTextContent("1 of 7 scores submitted")
+    expect(strengthCategory).toHaveTextContent("1 of 4 scores submitted")
     expect(strengthCategory).toHaveAttribute("aria-expanded", "false")
     expect(
-      screen.queryByRole("link", { name: /Strict Press/i }),
+      screen.queryByRole("button", { name: /Strict Press/i }),
     ).not.toBeInTheDocument()
 
     fireEvent.click(strengthCategory)
 
     expect(strengthCategory).toHaveAttribute("aria-expanded", "true")
     expect(
-      await screen.findByRole("link", { name: /Strict Press/i }),
+      await screen.findByRole("button", { name: /Strict Press/i }),
     ).toBeInTheDocument()
   })
 })

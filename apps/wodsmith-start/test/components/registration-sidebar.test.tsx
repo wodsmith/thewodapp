@@ -35,6 +35,7 @@ vi.mock("lucide-react", () => {
     AlertTriangle: icon("alert-triangle"),
     Calendar: icon("calendar"),
     CheckCircle2: icon("check-circle"),
+    ClipboardCheck: icon("clipboard-check"),
     Clock: icon("clock"),
     HandHeart: icon("hand-heart"),
     MapPin: icon("map-pin"),
@@ -49,6 +50,7 @@ const competition = {
   slug: "test-comp",
   name: "Test Competition",
   status: "published",
+  competitionType: "in-person",
   startDate: "2026-06-01",
   endDate: "2026-06-02",
   registrationOpensAt: "2026-01-01",
@@ -144,6 +146,63 @@ describe("RegistrationSidebar draft competitions", () => {
     renderSidebar({ competition: draftCompetition, registrationOpen: false })
 
     expect(screen.queryByText("Registration closed")).not.toBeInTheDocument()
+  })
+})
+
+describe("RegistrationSidebar volunteer signup card", () => {
+  it("shows the volunteer signup card for types with public volunteer signup", () => {
+    renderSidebar()
+
+    expect(
+      screen.getByRole("link", { name: /sign up to volunteer/i }),
+    ).toHaveAttribute("href", "/compete/test-comp/volunteer")
+  })
+
+  it("hides the volunteer signup card for benchmark competitions", () => {
+    renderSidebar({
+      competition: {
+        ...competition,
+        competitionType: "benchmark",
+      } as ComponentProps<typeof RegistrationSidebar>["competition"],
+    })
+
+    expect(
+      screen.queryByRole("link", { name: /sign up to volunteer/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("hides the volunteer signup card when the user already volunteers", () => {
+    renderSidebar({ isVolunteer: true })
+
+    expect(
+      screen.queryByRole("link", { name: /sign up to volunteer/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("hides all volunteer tools for existing benchmark role holders", () => {
+    renderSidebar({
+      competition: {
+        ...competition,
+        competitionType: "benchmark",
+      } as ComponentProps<typeof RegistrationSidebar>["competition"],
+      isVolunteer: true,
+    })
+
+    expect(screen.queryByText("Volunteer Dashboard")).not.toBeInTheDocument()
+    expect(screen.queryByText("Check-In Kiosk")).not.toBeInTheDocument()
+  })
+
+  it("shows only capability-supported tools for online volunteers", () => {
+    renderSidebar({
+      competition: {
+        ...competition,
+        competitionType: "online",
+      } as ComponentProps<typeof RegistrationSidebar>["competition"],
+      isVolunteer: true,
+    })
+
+    expect(screen.getByText("Volunteer Dashboard")).toBeInTheDocument()
+    expect(screen.queryByText("Check-In Kiosk")).not.toBeInTheDocument()
   })
 })
 

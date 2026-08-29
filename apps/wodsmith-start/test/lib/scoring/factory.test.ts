@@ -29,7 +29,7 @@ describe("Scoring Factory", () => {
 			}
 
 			it("calculates points for time-based event (ascending)", () => {
-				const results = calculateEventPoints("e1", baseScores, "time", config)
+				const results = calculateEventPoints(baseScores, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 				expect(results.get("b")).toEqual({ userId: "b", points: 95, rank: 2 })
@@ -38,7 +38,7 @@ describe("Scoring Factory", () => {
 			})
 
 			it("calculates points for reps-based event (descending)", () => {
-				const results = calculateEventPoints("e1", baseScores, "reps", config)
+				const results = calculateEventPoints(baseScores, "reps", config)
 
 				// Higher reps = better, so order is reversed
 				expect(results.get("d")).toEqual({ userId: "d", points: 100, rank: 1 })
@@ -54,7 +54,7 @@ describe("Scoring Factory", () => {
 					{ userId: "c", value: 70000, status: "scored" },
 				]
 
-				const results = calculateEventPoints("e1", tiedScores, "time", config)
+				const results = calculateEventPoints(tiedScores, "time", config)
 
 				// Tied athletes get same rank and same points
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
@@ -69,7 +69,7 @@ describe("Scoring Factory", () => {
 					{ userId: "c", value: 0, status: "dnf" },
 				]
 
-				const results = calculateEventPoints("e1", scoresWithDnf, "time", config)
+				const results = calculateEventPoints(scoresWithDnf, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 				expect(results.get("b")).toEqual({ userId: "b", points: 95, rank: 2 })
@@ -83,7 +83,7 @@ describe("Scoring Factory", () => {
 					{ userId: "b", value: 0, status: "dns" },
 				]
 
-				const results = calculateEventPoints("e1", scoresWithDns, "time", config)
+				const results = calculateEventPoints(scoresWithDns, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 				expect(results.get("b")).toEqual({ userId: "b", points: 0, rank: 2 })
@@ -95,7 +95,7 @@ describe("Scoring Factory", () => {
 					{ userId: "b", value: 0, status: "withdrawn" },
 				]
 
-				const results = calculateEventPoints("e1", scoresWithWithdrawn, "time", config)
+				const results = calculateEventPoints(scoresWithWithdrawn, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 				expect(results.has("b")).toBe(false)
@@ -111,7 +111,7 @@ describe("Scoring Factory", () => {
 			}
 
 			it("calculates P-Score points for time-based event", () => {
-				const results = calculateEventPoints("e1", baseScores, "time", config)
+				const results = calculateEventPoints(baseScores, "time", config)
 
 				// First place gets 100
 				expect(results.get("a")?.points).toBe(100)
@@ -132,7 +132,7 @@ describe("Scoring Factory", () => {
 					{ userId: "d", value: 200000, status: "scored" }, // Way behind
 				]
 
-				const results = calculateEventPoints("e1", spreadScores, "time", config)
+				const results = calculateEventPoints(spreadScores, "time", config)
 
 				// Last place could have negative score
 				expect(results.get("d")?.points).toBeLessThan(50)
@@ -153,7 +153,7 @@ describe("Scoring Factory", () => {
 					{ userId: "d", value: 200000, status: "scored" },
 				]
 
-				const results = calculateEventPoints("e1", spreadScores, "time", noNegativesConfig)
+				const results = calculateEventPoints(spreadScores, "time", noNegativesConfig)
 
 				// Last place should be clamped to 0
 				expect(results.get("d")?.points).toBeGreaterThanOrEqual(0)
@@ -172,7 +172,7 @@ describe("Scoring Factory", () => {
 			}
 
 			it("applies overrides to base template", () => {
-				const results = calculateEventPoints("e1", baseScores, "time", config)
+				const results = calculateEventPoints(baseScores, "time", config)
 
 				// 1st place gets overridden 150
 				expect(results.get("a")).toEqual({ userId: "a", points: 150, rank: 1 })
@@ -192,7 +192,7 @@ describe("Scoring Factory", () => {
 					statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 				}
 
-				const results = calculateEventPoints("e1", baseScores, "time", traditionalCustomConfig)
+				const results = calculateEventPoints(baseScores, "time", traditionalCustomConfig)
 
 				expect(results.get("a")?.points).toBe(100) // 1st
 				expect(results.get("b")?.points).toBe(90) // Overridden
@@ -204,7 +204,7 @@ describe("Scoring Factory", () => {
 			const config = DEFAULT_SCORING_CONFIG
 
 			it("returns empty map for empty scores", () => {
-				const results = calculateEventPoints("e1", [], "time", config)
+				const results = calculateEventPoints([], "time", config)
 				expect(results.size).toBe(0)
 			})
 
@@ -213,7 +213,7 @@ describe("Scoring Factory", () => {
 					{ userId: "a", value: 60000, status: "scored" },
 				]
 
-				const results = calculateEventPoints("e1", singleScore, "time", config)
+				const results = calculateEventPoints(singleScore, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 			})
@@ -224,7 +224,7 @@ describe("Scoring Factory", () => {
 					{ userId: "b", value: 0, status: "dnf" },
 				]
 
-				const results = calculateEventPoints("e1", allDnf, "time", config)
+				const results = calculateEventPoints(allDnf, "time", config)
 
 				// Both get last_place_plus_one points
 				expect(results.get("a")?.points).toBe(100) // Rank 1 since no one scored
@@ -238,7 +238,7 @@ describe("Scoring Factory", () => {
 					{ userId: "c", value: 120000, status: "cap" }, // Hit time cap
 				]
 
-				const results = calculateEventPoints("e1", cappedScores, "time-with-cap", config)
+				const results = calculateEventPoints(cappedScores, "time-with-cap", config)
 
 				// Capped athlete ranks last among active athletes
 				expect(results.get("a")?.rank).toBe(1)

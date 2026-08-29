@@ -35,6 +35,7 @@ import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { createEntitlement } from "@/server/entitlements"
 import { inviteUserToTeam } from "@/server/team-members"
 import { signRequiredVolunteerWaivers } from "@/server/volunteer-waivers"
@@ -479,6 +480,28 @@ const volunteerApplicationSchema = z.object({
 type VolunteerApplicationInput = z.infer<typeof volunteerApplicationSchema>
 type VolunteerDb = Pick<Database, "insert" | "query" | "update">
 
+async function assertPublicVolunteerSignupAvailable({
+  competitionTeamId,
+  db,
+}: {
+  competitionTeamId: string
+  db: Pick<Database, "query">
+}): Promise<void> {
+  const competition = await db.query.competitionsTable.findFirst({
+    where: eq(competitionsTable.competitionTeamId, competitionTeamId),
+    columns: { competitionType: true },
+  })
+
+  if (
+    !competition ||
+    !competitionCan(competition.competitionType, "publicVolunteerSignup")
+  ) {
+    throw new Error(
+      "Public volunteer signup is not available for this competition",
+    )
+  }
+}
+
 /**
  * Creates a volunteer application (team invitation) and saves any question answers.
  * Throws if the email is already associated with a volunteer invitation or membership.
@@ -593,6 +616,10 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
     }
 
     const db = getDb()
+    await assertPublicVolunteerSignupAvailable({
+      competitionTeamId: data.competitionTeamId,
+      db,
+    })
     const { membershipId } = await db.transaction(async (tx) => {
       await signRequiredVolunteerWaivers({
         db: tx,
@@ -640,6 +667,10 @@ export const createAccountAndApplyAsVolunteerFn = createServerFn({
     }
 
     const db = getDb()
+    await assertPublicVolunteerSignupAvailable({
+      competitionTeamId: data.competitionTeamId,
+      db,
+    })
 
     // Check if email is disposable or already fully claimed
     await canSignUp({ email: data.signupEmail })

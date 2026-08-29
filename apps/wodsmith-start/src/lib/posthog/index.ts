@@ -7,6 +7,7 @@ export {
   isPostHogInitialized,
   posthog,
 } from "./client"
+export { useFeatureFlagEnabled } from "./hooks"
 // React provider for TanStack Start
 export { PostHogProvider, usePostHog } from "./provider"
 // Utility functions with proper guards

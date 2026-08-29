@@ -1,9 +1,11 @@
 "use client"
 
 import { Link, useLocation } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
   type CellContext,
   type ColumnDef,
+  type ExpandedState,
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
@@ -12,9 +14,7 @@ import {
   type Row,
   type SortingState,
   useReactTable,
-  type ExpandedState,
 } from "@tanstack/react-table"
-import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
   ArrowDownNarrowWide,
@@ -27,6 +27,8 @@ import {
   Video,
 } from "lucide-react"
 import { Fragment, useEffect, useMemo, useState } from "react"
+import { getStatusConfig } from "@/components/compete/submission-status-badge"
+import { VideoVoteButtons } from "@/components/compete/video-vote-buttons"
 import { Button } from "@/components/ui/button"
 import {
   Collapsible,
@@ -50,19 +52,17 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VideoEmbed } from "@/components/video-embed"
-import { getStatusConfig } from "@/components/compete/submission-status-badge"
-import { VideoVoteButtons } from "@/components/compete/video-vote-buttons"
-import { getLeaderboardVideosFn } from "@/server-fns/video-submission-fns"
-import { getVideoVoteCountsFn } from "@/server-fns/video-vote-fns"
-import { useSession } from "@/utils/auth-client"
-import { getSortDirection } from "@/lib/scoring"
+import { formatLeaderboardPoints, getSortDirection } from "@/lib/scoring"
 import type { WorkoutScheme } from "@/lib/scoring/types"
 import { cn } from "@/lib/utils"
 import type {
   CompetitionLeaderboardEntry,
   TeamMemberInfo,
 } from "@/server-fns/leaderboard-fns"
+import { getLeaderboardVideosFn } from "@/server-fns/video-submission-fns"
+import { getVideoVoteCountsFn } from "@/server-fns/video-vote-fns"
 import type { ScoringAlgorithm } from "@/types/scoring"
+import { useSession } from "@/utils/auth-client"
 
 // Type aliases for cleaner column definitions
 type LeaderboardCellContext = CellContext<CompetitionLeaderboardEntry, unknown>
@@ -80,6 +80,8 @@ interface OnlineCompetitionLeaderboardTableProps {
     scheme: string
     parentEventId?: string | null
     parentEventName?: string | null
+    benchmarkCategoryKey?: string | null
+    benchmarkCategoryLabel?: string | null
   }>
   selectedEventId: string | null
   scoringAlgorithm: ScoringAlgorithm
@@ -132,6 +134,36 @@ function SubmissionLinkWrapper({
   )
 }
 
+type LeaderboardEvent = OnlineCompetitionLeaderboardTableProps["events"][number]
+
+declare module "@tanstack/react-table" {
+  // biome-ignore lint/correctness/noUnusedVariables: type params required to match the library interface
+  interface ColumnMeta<TData, TValue> {
+    /** Alternating tint for event columns so adjacent header groups read apart. */
+    stripe?: boolean
+  }
+}
+
+/** Background tint applied to striped (odd) event-group columns. */
+const GROUP_STRIPE_CLASS = "bg-muted/20"
+
+/**
+ * Header-grouping identity for an event column. Parent events win; benchmark
+ * category is the fallback grouping so tests cluster under their category
+ * (Strength, Engine, ...) the same way sub-events cluster under a parent.
+ */
+function getEventGroupId(event: LeaderboardEvent): string | null {
+  if (event.parentEventId) return `parent:${event.parentEventId}`
+  if (event.benchmarkCategoryKey)
+    return `category:${event.benchmarkCategoryKey}`
+  return null
+}
+
+function getEventGroupLabel(event: LeaderboardEvent): string | null {
+  if (event.parentEventId) return event.parentEventName ?? null
+  return event.benchmarkCategoryLabel ?? null
+}
+
 function getRankIcon(rank: number) {
   switch (rank) {
     case 1:
@@ -145,7 +177,49 @@ function getRankIcon(rank: number) {
   }
 }
 
-function RankCell({ rank, points }: { rank: number; points?: number }) {
+function formatBenchmarkNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function formatBenchmarkOverall(entry: CompetitionLeaderboardEntry): string {
+  // Under online ranking the benchmark score is additive context — an entry
+  // with no tiered scores has nothing to show, so fall back to its points.
+  if (entry.benchmarkOverallScore === null) {
+    return `${entry.totalPoints} pts`
+  }
+  return `${formatBenchmarkNumber(entry.benchmarkOverallScore)}/${entry.benchmarkScoreMax ?? 100}`
+}
+
+function formatBenchmarkTier(tier: number | null | undefined): string {
+  if (tier === null || tier === undefined) return "Tier -"
+  return `Tier ${formatBenchmarkNumber(tier)}`
+}
+
+function getBenchmarkVerificationLabel(
+  result: CompetitionLeaderboardEntry["eventResults"][number],
+): string | null {
+  if (result.rawScore === null) return null
+
+  const reviewStatus = result.reviewSummary?.worstStatus ?? null
+  const status = reviewStatus ?? result.verificationStatus
+
+  if (status === "invalid") return "Invalid"
+  if (status === "pending" || status === "under_review") return "Pending"
+  if (result.penaltyType || status === "penalized") return "Penalized"
+  if (result.isDirectlyModified || status === "adjusted") return "Adjusted"
+  if (status === "verified") return "Verified"
+  return null
+}
+
+function RankCell({
+  rank,
+  points,
+  pointsLabel,
+}: {
+  rank: number
+  points?: number
+  pointsLabel?: string
+}) {
   const icon = getRankIcon(rank)
   const isPodium = rank <= 3
   return (
@@ -161,24 +235,62 @@ function RankCell({ rank, points }: { rank: number; points?: number }) {
           {rank}
         </span>
       </div>
-      {points !== undefined && (
+      {(points !== undefined || pointsLabel) && (
         <span className="text-xs text-muted-foreground tabular-nums">
-          {points} pts
+          {pointsLabel ?? `${points} pts`}
         </span>
       )}
     </div>
   )
 }
 
-function formatPoints(points: number, algorithm: ScoringAlgorithm): string {
-  // scoringAlgorithm axis, not competitionType.
-  if (algorithm === "online" || algorithm === "p_score") {
-    return String(points)
+function BenchmarkCategorySummary({
+  categories,
+}: {
+  categories: CompetitionLeaderboardEntry["benchmarkCategoryScores"]
+}) {
+  if (categories.length === 0) {
+    return <span className="text-sm text-muted-foreground">-</span>
   }
-  if (points < 0) {
-    return String(points)
-  }
-  return `+${points}`
+
+  return (
+    <div className="flex min-w-[9rem] flex-col gap-0.5">
+      {categories.map((category) => (
+        <div
+          key={category.key}
+          className="flex items-baseline justify-between gap-3 text-xs"
+          title={category.label ?? category.key}
+        >
+          <span className="truncate text-muted-foreground">
+            {category.label ?? category.key}
+          </span>
+          <span className="font-medium tabular-nums">
+            {formatBenchmarkNumber(category.score)}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Verification state badge for a benchmark score cell. Tier and category are
+ * deliberately not repeated here — tier lives in the "#rank · Tier N" subtext
+ * and category in the column group header.
+ */
+function BenchmarkEventBadges({
+  result,
+}: {
+  result: CompetitionLeaderboardEntry["eventResults"][number]
+}) {
+  const verificationLabel = getBenchmarkVerificationLabel(result)
+  if (!verificationLabel) return null
+
+  return (
+    <span className="rounded-sm border bg-muted/30 px-1 py-px text-[10px] font-medium text-muted-foreground">
+      {verificationLabel}
+    </span>
+  )
 }
 
 function formatMemberName(member: TeamMemberInfo): string {
@@ -231,11 +343,9 @@ function CappedRoundsIndicator({
 function ReviewStatusIndicator({
   summary,
 }: {
-  summary:
-    | NonNullable<
-        CompetitionLeaderboardEntry["eventResults"][number]["reviewSummary"]
-      >
-    | null
+  summary: NonNullable<
+    CompetitionLeaderboardEntry["eventResults"][number]["reviewSummary"]
+  > | null
 }) {
   if (!summary) return null
 
@@ -552,10 +662,7 @@ function ExpandedVideoContent({
   isOwnSubmission: boolean
   isLoggedIn: boolean
 }) {
-  const { videos, loading } = useTeamVideos(
-    result.videoSubmissionId,
-    isTeam,
-  )
+  const { videos, loading } = useTeamVideos(result.videoSubmissionId, isTeam)
 
   // Team with multiple videos — show tabs
   if (isTeam && videos.length > 1) {
@@ -573,7 +680,11 @@ function ExpandedVideoContent({
           ))}
         </TabsList>
         {videos.map((v) => (
-          <TabsContent key={v.id} value={v.id} className="mt-3 animate-in fade-in-50 duration-200">
+          <TabsContent
+            key={v.id}
+            value={v.id}
+            className="mt-3 animate-in fade-in-50 duration-200"
+          >
             <VideoCard
               videoUrl={v.videoUrl}
               videoSubmissionId={v.id}
@@ -613,6 +724,7 @@ function MobileOnlineLeaderboardRow({
   entry,
   events,
   scoringAlgorithm,
+  isBenchmarkLeaderboard,
   voteCounts,
   isLoggedIn,
   currentUserId,
@@ -620,15 +732,9 @@ function MobileOnlineLeaderboardRow({
   competitionId,
 }: {
   entry: CompetitionLeaderboardEntry
-  events: Array<{
-    id: string
-    name: string
-    trackOrder: number
-    scheme: string
-    parentEventId?: string | null
-    parentEventName?: string | null
-  }>
+  events: LeaderboardEvent[]
   scoringAlgorithm: ScoringAlgorithm
+  isBenchmarkLeaderboard: boolean
   voteCounts: VoteCounts
   isLoggedIn: boolean
   currentUserId: string | null
@@ -669,7 +775,9 @@ function MobileOnlineLeaderboardRow({
 
           <div className="w-14 shrink-0">
             <span className="text-xs text-muted-foreground tabular-nums">
-              {entry.totalPoints} pts
+              {isBenchmarkLeaderboard
+                ? formatBenchmarkOverall(entry)
+                : `${entry.totalPoints} pts`}
             </span>
           </div>
 
@@ -679,6 +787,11 @@ function MobileOnlineLeaderboardRow({
                 <span className="font-medium truncate block">
                   {entry.teamName || "Unknown Team"}
                 </span>
+                {isBenchmarkLeaderboard && entry.benchmarkRatingBand && (
+                  <span className="text-[10px] text-muted-foreground truncate block">
+                    {entry.benchmarkRatingBand.label}
+                  </span>
+                )}
                 {entry.affiliate && (
                   <span className="text-[10px] text-muted-foreground truncate block">
                     {entry.affiliate}
@@ -697,6 +810,11 @@ function MobileOnlineLeaderboardRow({
                 <span className="font-medium truncate block">
                   {entry.athleteName}
                 </span>
+                {isBenchmarkLeaderboard && entry.benchmarkRatingBand && (
+                  <span className="text-[10px] text-muted-foreground truncate block">
+                    {entry.benchmarkRatingBand.label}
+                  </span>
+                )}
                 {entry.affiliate && (
                   <span className="text-[10px] text-muted-foreground truncate block">
                     {entry.affiliate}
@@ -733,69 +851,81 @@ function MobileOnlineLeaderboardRow({
                 (r) => r.trackWorkoutId === event.id,
               )
               const prevEvent = index > 0 ? sortedEvents[index - 1] : null
-              const showParentHeader =
-                event.parentEventName &&
-                event.parentEventId !== prevEvent?.parentEventId
+              const groupLabel = getEventGroupLabel(event)
+              const showGroupHeader =
+                groupLabel &&
+                getEventGroupId(event) !==
+                  (prevEvent ? getEventGroupId(prevEvent) : null)
               return (
                 <Fragment key={event.id}>
-                  {showParentHeader && (
+                  {showGroupHeader && (
                     <div className="col-span-2">
                       <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
-                        {event.parentEventName}
+                        {groupLabel}
                       </span>
                     </div>
                   )}
                   <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground/70">
-                    {event.name}
-                  </span>
-                  {result && result.rank > 0 ? (
-                    <SubmissionLinkWrapper
-                      enabled={linkToSubmission}
-                      competitionId={competitionId}
-                      eventId={result.trackWorkoutId}
-                      submissionId={result.videoSubmissionId}
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium tabular-nums inline-flex items-center gap-1">
-                          {result.formattedScore}
-                          <CappedRoundsIndicator result={result} />
-                          {linkToSubmission && (
-                            <ReviewStatusIndicator
-                              summary={result.reviewSummary}
-                            />
-                          )}
-                          {result.formattedTiebreak && (
-                            <span className="text-muted-foreground font-normal ml-1">
-                              (TB: {result.formattedTiebreak})
+                    <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground/70">
+                      {event.name}
+                    </span>
+                    {result && result.rank > 0 ? (
+                      <SubmissionLinkWrapper
+                        enabled={linkToSubmission}
+                        competitionId={competitionId}
+                        eventId={result.trackWorkoutId}
+                        submissionId={result.videoSubmissionId}
+                      >
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium tabular-nums inline-flex items-center gap-1">
+                            {result.formattedScore}
+                            <CappedRoundsIndicator result={result} />
+                            {isBenchmarkLeaderboard && (
+                              <BenchmarkEventBadges result={result} />
+                            )}
+                            {linkToSubmission && (
+                              <ReviewStatusIndicator
+                                summary={result.reviewSummary}
+                              />
+                            )}
+                            {result.formattedTiebreak && (
+                              <span className="text-muted-foreground font-normal ml-1">
+                                (TB: {result.formattedTiebreak})
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            #{result.rank}{" "}
+                            {isBenchmarkLeaderboard
+                              ? formatBenchmarkTier(result.benchmarkTier)
+                              : formatLeaderboardPoints(
+                                  result.points,
+                                  scoringAlgorithm,
+                                )}
+                          </span>
+                          {result.penaltyType && (
+                            <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                              <AlertTriangle className="h-2.5 w-2.5" />
+                              {result.penaltyType === "major"
+                                ? "Major"
+                                : "Minor"}{" "}
+                              Penalty
+                              {result.penaltyPercentage != null &&
+                                ` · ${result.penaltyPercentage}% deduction`}
                             </span>
                           )}
-                        </span>
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          #{result.rank}{" "}
-                          {formatPoints(result.points, scoringAlgorithm)}
-                        </span>
-                        {result.penaltyType && (
-                          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                            <AlertTriangle className="h-2.5 w-2.5" />
-                            {result.penaltyType === "major" ? "Major" : "Minor"}{" "}
-                            Penalty
-                            {result.penaltyPercentage != null &&
-                              ` · ${result.penaltyPercentage}% deduction`}
-                          </span>
-                        )}
-                        {!result.penaltyType && result.isDirectlyModified && (
-                          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                            <AlertTriangle className="h-2.5 w-2.5" />
-                            Score adjusted by organizer
-                          </span>
-                        )}
-                      </div>
-                    </SubmissionLinkWrapper>
-                  ) : (
-                    <span className="text-muted-foreground italic">—</span>
-                  )}
-                </div>
+                          {!result.penaltyType && result.isDirectlyModified && (
+                            <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                              <AlertTriangle className="h-2.5 w-2.5" />
+                              Score adjusted by organizer
+                            </span>
+                          )}
+                        </div>
+                      </SubmissionLinkWrapper>
+                    ) : (
+                      <span className="text-muted-foreground italic">—</span>
+                    )}
+                  </div>
                 </Fragment>
               )
             })}
@@ -845,6 +975,11 @@ export function OnlineCompetitionLeaderboardTable({
   const session = useSession()
   const isLoggedIn = !!session?.userId
   const currentUserId = session?.userId ?? null
+  // Benchmark context is additive: it renders whenever tier data made it onto
+  // the entries, regardless of which algorithm ranks the board.
+  const isBenchmarkLeaderboard = leaderboard.some(
+    (entry) => entry.benchmarkOverallScore !== null,
+  )
 
   const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
 
@@ -934,15 +1069,9 @@ export function OnlineCompetitionLeaderboardTable({
     [leaderboard],
   )
 
-  // Preview (organizer/cohost) suppresses the dedicated affiliate column —
-  // affiliate renders as subtext under the athlete name via `TeamCell`, freeing
-  // horizontal space for event columns. `linkToSubmission` is only true on the
-  // preview route.
-  const hasAffiliates = useMemo(
-    () => !linkToSubmission && leaderboard.some((entry) => entry.affiliate),
-    [leaderboard, linkToSubmission],
-  )
-
+  // Affiliate renders as subtext under the athlete/team name via `TeamCell`
+  // (and in the mobile rows) — there is no dedicated affiliate column, freeing
+  // horizontal space for event columns.
   const columns = useMemo<ColumnDef<CompetitionLeaderboardEntry>[]>(() => {
     const athleteColumnLabel = isTeamLeaderboard ? "Team" : "Athlete"
 
@@ -989,7 +1118,17 @@ export function OnlineCompetitionLeaderboardTable({
             if (!result || result.rank === 0) {
               return <span className="text-muted-foreground italic">—</span>
             }
-            return <RankCell rank={result.rank} points={result.points} />
+            return (
+              <RankCell
+                rank={result.rank}
+                points={isBenchmarkLeaderboard ? undefined : result.points}
+                pointsLabel={
+                  isBenchmarkLeaderboard
+                    ? formatBenchmarkTier(result.benchmarkTier)
+                    : undefined
+                }
+              />
+            )
           },
           sortingFn: "basic",
         },
@@ -1001,20 +1140,6 @@ export function OnlineCompetitionLeaderboardTable({
             <TeamCell entry={row.original} />
           ),
         },
-        ...(hasAffiliates
-          ? [
-              {
-                id: "affiliate",
-                header: "Affiliate",
-                accessorKey: "affiliate" as const,
-                cell: ({ row }: LeaderboardCellContext) => (
-                  <span className="text-sm text-muted-foreground">
-                    {row.original.affiliate ?? "—"}
-                  </span>
-                ),
-              } satisfies ColumnDef<CompetitionLeaderboardEntry>,
-            ]
-          : []),
         {
           id: "score",
           header: "Score",
@@ -1042,6 +1167,9 @@ export function OnlineCompetitionLeaderboardTable({
                   {result.formattedScore}
                   <CappedRoundsIndicator result={result} />
                   <PenaltyIndicator result={result} />
+                  {isBenchmarkLeaderboard && (
+                    <BenchmarkEventBadges result={result} />
+                  )}
                   {linkToSubmission && (
                     <ReviewStatusIndicator summary={result.reviewSummary} />
                   )}
@@ -1081,7 +1209,14 @@ export function OnlineCompetitionLeaderboardTable({
         cell: ({ row }: LeaderboardCellContext) => (
           <RankCell
             rank={row.original.overallRank}
-            points={row.original.totalPoints}
+            points={
+              isBenchmarkLeaderboard ? undefined : row.original.totalPoints
+            }
+            pointsLabel={
+              isBenchmarkLeaderboard
+                ? formatBenchmarkOverall(row.original)
+                : undefined
+            }
           />
         ),
         sortingFn: "basic",
@@ -1098,26 +1233,53 @@ export function OnlineCompetitionLeaderboardTable({
       },
     ]
 
-    if (hasAffiliates) {
-      baseColumns.push({
-        id: "affiliate",
-        header: ({ column }: LeaderboardHeaderContext) => (
-          <SortableHeader column={column}>Affiliate</SortableHeader>
-        ),
-        accessorKey: "affiliate",
-        cell: ({ row }: LeaderboardCellContext) => (
-          <span className="text-sm text-muted-foreground">
-            {row.original.affiliate ?? "—"}
-          </span>
-        ),
-      })
+    if (isBenchmarkLeaderboard) {
+      baseColumns.push(
+        {
+          id: "benchmarkRating",
+          header: ({ column }: LeaderboardHeaderContext) => (
+            <SortableHeader column={column}>Rating</SortableHeader>
+          ),
+          accessorFn: (row: CompetitionLeaderboardEntry) =>
+            row.benchmarkRatingBand?.label ?? "",
+          cell: ({ row }: LeaderboardCellContext) => (
+            <span className="text-sm text-muted-foreground">
+              {row.original.benchmarkRatingBand?.label ?? "-"}
+            </span>
+          ),
+        },
+        {
+          id: "benchmarkCategories",
+          header: "Categories",
+          accessorFn: (row: CompetitionLeaderboardEntry) =>
+            row.benchmarkCategoryScores
+              .map((category) => category.score)
+              .join("|"),
+          cell: ({ row }: LeaderboardCellContext) => (
+            <BenchmarkCategorySummary
+              categories={row.original.benchmarkCategoryScores}
+            />
+          ),
+        },
+      )
     }
 
     const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
+    // Mirror the parity walk in `parentGroupSpans` so column tints line up
+    // with the group header row.
+    let prevGroupId: string | null = null
+    let labeledGroupIndex = -1
+
     for (const event of sortedEvents) {
+      const groupId = getEventGroupId(event)
+      if (groupId && groupId !== prevGroupId) labeledGroupIndex++
+      prevGroupId = groupId
+      const stripe = groupId ? labeledGroupIndex % 2 === 1 : false
+
       baseColumns.push({
         id: `event-${event.id}`,
+        meta: { stripe },
         header: ({ column }: LeaderboardHeaderContext) => (
           <SortableHeader column={column}>
             <span title={event.name}>{event.name}</span>
@@ -1148,6 +1310,9 @@ export function OnlineCompetitionLeaderboardTable({
                   {result.formattedScore}
                   <CappedRoundsIndicator result={result} />
                   <PenaltyIndicator result={result} />
+                  {isBenchmarkLeaderboard && (
+                    <BenchmarkEventBadges result={result} />
+                  )}
                   {result.formattedTiebreak && (
                     <span className="text-muted-foreground font-normal ml-1">
                       (TB: {result.formattedTiebreak})
@@ -1157,7 +1322,14 @@ export function OnlineCompetitionLeaderboardTable({
                 <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
                   <span className="font-medium">#{result.rank}</span>
                   <span>·</span>
-                  <span>{formatPoints(result.points, scoringAlgorithm)}</span>
+                  <span>
+                    {isBenchmarkLeaderboard
+                      ? formatBenchmarkTier(result.benchmarkTier)
+                      : formatLeaderboardPoints(
+                          result.points,
+                          scoringAlgorithm,
+                        )}
+                  </span>
                   {result.videoUrl && <Video className="h-3 w-3 ml-0.5" />}
                   {linkToSubmission && (
                     <ReviewStatusIndicator summary={result.reviewSummary} />
@@ -1176,7 +1348,7 @@ export function OnlineCompetitionLeaderboardTable({
     events,
     selectedEventId,
     isTeamLeaderboard,
-    hasAffiliates,
+    isBenchmarkLeaderboard,
     scoringAlgorithm,
     linkToSubmission,
     competitionId,
@@ -1196,49 +1368,62 @@ export function OnlineCompetitionLeaderboardTable({
     return validSorting
   }, [sorting, columns, selectedEventId])
 
-  // Compute parent event group spans for the header row
+  // Compute event group spans (parent events or benchmark categories) for the header row
   const parentGroupSpans = useMemo(() => {
     if (selectedEventId) return []
 
-    const sortedEvents = [...events].sort(
-      (a, b) => a.trackOrder - b.trackOrder,
-    )
-    const hasAnyParent = sortedEvents.some((e) => e.parentEventId)
-    if (!hasAnyParent) return []
+    const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
+    const hasAnyGroup = sortedEvents.some((e) => getEventGroupId(e))
+    if (!hasAnyGroup) return []
 
-    // Count leading non-event columns (rank, athlete, optionally affiliate)
-    const leadingCols = hasAffiliates ? 3 : 2
+    // Count leading non-event columns (rank, athlete, optional benchmark summary)
+    const leadingCols = 2 + (isBenchmarkLeaderboard ? 2 : 0)
 
     const groups: Array<{
       label: string | null
       colSpan: number
+      stripe: boolean
     }> = []
 
-    groups.push({ label: null, colSpan: leadingCols })
+    groups.push({ label: null, colSpan: leadingCols, stripe: false })
 
-    let currentParentId: string | null | undefined
+    let currentGroupId: string | null | undefined
     let currentSpan = 0
     let currentName: string | null = null
+    let currentStripe = false
+    let labeledGroupIndex = -1
 
     for (const event of sortedEvents) {
-      const pid = event.parentEventId ?? null
-      if (pid === currentParentId) {
+      const groupId = getEventGroupId(event)
+      if (groupId === currentGroupId) {
         currentSpan++
       } else {
         if (currentSpan > 0) {
-          groups.push({ label: currentName, colSpan: currentSpan })
+          groups.push({
+            label: currentName,
+            colSpan: currentSpan,
+            stripe: currentStripe,
+          })
         }
-        currentParentId = pid
-        currentName = event.parentEventName ?? null
+        currentGroupId = groupId
+        currentName = getEventGroupLabel(event)
+        // Only labeled/grouped runs participate in striping; ungrouped
+        // columns keep the default background and don't advance parity.
+        if (groupId) labeledGroupIndex++
+        currentStripe = groupId ? labeledGroupIndex % 2 === 1 : false
         currentSpan = 1
       }
     }
     if (currentSpan > 0) {
-      groups.push({ label: currentName, colSpan: currentSpan })
+      groups.push({
+        label: currentName,
+        colSpan: currentSpan,
+        stripe: currentStripe,
+      })
     }
 
     return groups
-  }, [events, selectedEventId, hasAffiliates])
+  }, [events, selectedEventId, isBenchmarkLeaderboard])
 
   const table = useReactTable({
     data: tableData,
@@ -1267,8 +1452,14 @@ export function OnlineCompetitionLeaderboardTable({
         scheme: selectedEvent?.scheme,
       })
     } else {
-      options.push({ id: "overallRank", label: "Rank" })
+      options.push({
+        id: "overallRank",
+        label: isBenchmarkLeaderboard ? "Overall" : "Rank",
+      })
       options.push({ id: "athlete", label: "Athlete" })
+      if (isBenchmarkLeaderboard) {
+        options.push({ id: "benchmarkRating", label: "Rating" })
+      }
       for (const event of events) {
         options.push({
           id: `event-${event.id}`,
@@ -1279,7 +1470,7 @@ export function OnlineCompetitionLeaderboardTable({
     }
 
     return options
-  }, [selectedEventId, events])
+  }, [selectedEventId, events, isBenchmarkLeaderboard])
 
   const currentSortId =
     validatedSorting[0]?.id ?? (selectedEventId ? "eventRank" : "overallRank")
@@ -1358,6 +1549,7 @@ export function OnlineCompetitionLeaderboardTable({
                 entry={entry}
                 events={events}
                 scoringAlgorithm={scoringAlgorithm}
+                isBenchmarkLeaderboard={isBenchmarkLeaderboard}
                 voteCounts={voteCounts}
                 isLoggedIn={isLoggedIn}
                 currentUserId={currentUserId}
@@ -1382,11 +1574,19 @@ export function OnlineCompetitionLeaderboardTable({
                     className={cn(
                       "text-center py-1 h-auto",
                       group.label
-                        ? "text-[11px] uppercase tracking-wide font-semibold text-muted-foreground bg-muted/40 border-x border-t rounded-t-sm"
+                        ? "text-[11px] uppercase tracking-wide font-semibold text-muted-foreground border-x border-t rounded-t-sm"
                         : "border-b-0",
+                      group.label &&
+                        (group.stripe ? "bg-muted/70" : "bg-muted/40"),
                     )}
                   >
-                    {group.label}
+                    {group.label && (
+                      // Sticky within the horizontal scrollport so the label
+                      // stays readable while scrolling through a wide group.
+                      <span className="sticky left-4 right-4 inline-block">
+                        {group.label}
+                      </span>
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -1396,6 +1596,10 @@ export function OnlineCompetitionLeaderboardTable({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
+                    className={cn(
+                      header.column.columnDef.meta?.stripe &&
+                        GROUP_STRIPE_CLASS,
+                    )}
                     style={
                       header.column.getSize() !== 150
                         ? { width: header.column.getSize() }
@@ -1441,7 +1645,14 @@ export function OnlineCompetitionLeaderboardTable({
                     }}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="table-cell">
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          "table-cell",
+                          cell.column.columnDef.meta?.stripe &&
+                            GROUP_STRIPE_CLASS,
+                        )}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext(),

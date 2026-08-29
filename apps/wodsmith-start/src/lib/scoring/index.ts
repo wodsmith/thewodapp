@@ -136,6 +136,7 @@ export {
 export {
   convertDistance,
   convertWeight,
+  formatLeaderboardPoints,
   formatNumber,
   formatRounds,
   formatScore,

@@ -248,8 +248,8 @@ Common primitives feel compact, direct, and instrument-like. Their shared states
 
 ### Benchmark Workout Directory
 
-- **Selected Domain Rail:** benchmark competitions use a sticky 190px monochrome domain rail beside grouped compact rows. The rail collapses to 56px desktop codes, persists that preference locally, and becomes a non-collapsible horizontal strip at 720px.
-- **Rows:** every top-level workout retains its track order, domain, movement summary, result format, and direct detail link. Authenticated athletes see `My score` only where a division-scoped score exists; scoreless rows show no score label.
+- **Selected Category Rail:** benchmark competitions use a sticky 190px monochrome rail grouped by the benchmark battery's persisted categories. It collapses to 56px desktop codes, persists that preference locally, and becomes a non-collapsible horizontal strip at 720px.
+- **Rows:** every top-level workout retains its track order, benchmark category, movement summary, result format, and direct detail link. Authenticated athletes see `My score` only where a division-scoped score exists; scoreless rows show no score label.
 - **Search:** workout name, result format, tags, and movements filter together. Visible workout and domain counts update in a polite live region; zero results provide an explicit clear action.
 - **Alternatives:** Benchmark Matrix and Domain Board remain comparison prototypes only. They are not production patterns.
 
@@ -259,8 +259,8 @@ Motion is limited to the 180ms interaction-transform token for rail and chevron 
 
 ### Do:
 - **Do** preserve the shared Compete header, competition hero, route tabs, and registration context around the benchmark directory.
-- **Do** apply the Domain Rail only when `competitionType` is `benchmark`; other competition types retain workout cards.
-- **Do** keep every workout navigable with domain cues, result context, and direct detail links.
+- **Do** apply the Category Rail only when `competitionType` is `benchmark`; other competition types retain workout cards.
+- **Do** keep every workout navigable with category cues, result context, and direct detail links.
 - **Do** keep viewer scores private, division-scoped, and loaded in one batch.
 - **Do** preserve semantic headings and lists, labeled controls, polite live counts, visible focus, 44px mobile targets, and reduced-motion behavior.
 - **Do** use alignment, rules, and progressive disclosure to create density.

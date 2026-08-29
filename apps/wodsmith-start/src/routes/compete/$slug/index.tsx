@@ -11,6 +11,7 @@ import {
 } from "@/components/competition-workout-card"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import type { BenchmarkViewerScores } from "@/server-fns/athlete-score-fns"
 import {
   getPublicScheduleDataFn,
@@ -61,7 +62,8 @@ export const Route = createFileRoute("/compete/$slug/")({
         competitionId,
         divisionIds,
         includeSubmissionStatuses:
-          competition.competitionType === "online" && !!userRegistration,
+          competitionCan(competition.competitionType, "videoSubmissions") &&
+          !!userRegistration,
         includeBenchmarkViewerScores:
           competition.competitionType === "benchmark",
       },
@@ -142,7 +144,7 @@ function CompetitionOverviewPage() {
   }
 
   const showScorePanel =
-    competition.competitionType === "online" &&
+    competitionCan(competition.competitionType, "videoSubmissions") &&
     isRegistered &&
     !!session &&
     userDivisions.length > 0 &&
@@ -155,12 +157,14 @@ function CompetitionOverviewPage() {
         workoutId: w.workoutId,
         trackOrder: w.trackOrder,
         parentEventId: w.parentEventId,
+        benchmarkCategory: w.benchmarkCategory,
         workout: {
           name: w.workout.name,
           scheme: w.workout.scheme,
           scoreType: w.workout.scoreType,
           movements: w.workout.movements,
           tags: w.workout.tags,
+          description: w.workout.description,
         },
       })),
     [workouts],
@@ -183,6 +187,8 @@ function CompetitionOverviewPage() {
       userDivisions={userDivisions}
       workouts={scorePanelWorkouts}
       eventDivisionMappings={eventDivisionMappings}
+      timezone={competition.timezone}
+      divisionDescriptionsMap={divisionDescriptionsMap}
     />
   ) : null
 
@@ -192,7 +198,10 @@ function CompetitionOverviewPage() {
       <div className="space-y-4">
         {/* Sticky Tabs */}
         <div className="sticky top-4 z-10">
-          <CompetitionTabs slug={competition.slug} />
+          <CompetitionTabs
+            slug={competition.slug}
+            competitionType={competition.competitionType}
+          />
         </div>
 
         {/* Score panel — desktop only (in main column) */}

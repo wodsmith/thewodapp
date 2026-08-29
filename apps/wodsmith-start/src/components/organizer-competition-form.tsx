@@ -29,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import {
   type CompetitionTypeId,
+  competitionCan,
   isSelectableCompetitionTypeValue,
   selectableCompetitionTypeOptions,
 } from "@/lib/competitions/capabilities"
@@ -73,6 +74,8 @@ const formSchema = z
   })
   .refine(
     (data) => {
+      // Perpetual competitions never require an end date
+      if (competitionCan(data.competitionType, "perpetual")) return true
       // For single-day competitions, endDate is optional (will be set to startDate on submit)
       if (!data.isMultiDay) return true
       // For multi-day competitions, endDate is required
@@ -87,6 +90,11 @@ const formSchema = z
   .refine(
     (data) => {
       if (!data.startDate) return true
+      if (competitionCan(data.competitionType, "perpetual")) {
+        // Perpetual: end date is optional, but must be after start when set
+        if (!data.endDate) return true
+        return new Date(data.startDate) < new Date(data.endDate)
+      }
       // For single-day competitions, no endDate validation needed
       if (!data.isMultiDay) return true
       // For multi-day competitions, endDate must be after startDate
@@ -94,7 +102,7 @@ const formSchema = z
       return new Date(data.startDate) < new Date(data.endDate)
     },
     {
-      message: "End date must be after start date for multi-day competitions",
+      message: "End date must be after start date",
       path: ["endDate"],
     },
   )
@@ -118,6 +126,7 @@ interface TeamForForm {
   id: string
   name: string
   type: string
+  canCreateBenchmarks?: boolean
 }
 
 interface OrganizerCompetitionFormProps {
@@ -155,9 +164,24 @@ export function OrganizerCompetitionForm({
   const navigate = useNavigate()
   const router = useRouter()
   const isEditMode = !!competition
+  const initialCompetitionType: CompetitionTypeId =
+    isSelectableCompetitionTypeValue(competition?.competitionType)
+      ? competition.competitionType
+      : "in-person"
+  const showCompetitionTypeField =
+    !isEditMode ||
+    isSelectableCompetitionTypeValue(competition?.competitionType)
 
-  // Determine if existing competition is multi-day (start and end dates differ)
-  const existingIsMultiDay = competition
+  const initialIsPerpetual = competitionCan(initialCompetitionType, "perpetual")
+  // Determine if existing competition is multi-day (start and end dates differ).
+  // Perpetual competitions don't use the multi-day concept.
+  const existingIsMultiDay =
+    competition && !initialIsPerpetual
+      ? formatDateForInput(competition.startDate) !==
+        formatDateForInput(competition.endDate)
+      : false
+  // Perpetual sentinel: endDate === startDate means "no end date set"
+  const existingHasEndDate = competition
     ? formatDateForInput(competition.startDate) !==
       formatDateForInput(competition.endDate)
     : false
@@ -168,14 +192,15 @@ export function OrganizerCompetitionForm({
       teamId: competition?.organizingTeamId ?? selectedTeamId,
       name: competition?.name ?? "",
       slug: competition?.slug ?? "",
-      competitionType: competition?.competitionType ?? "in-person",
+      competitionType: initialCompetitionType,
       isMultiDay: existingIsMultiDay,
       startDate: competition?.startDate
         ? formatDateForInput(competition.startDate)
         : "",
-      endDate: competition?.endDate
-        ? formatDateForInput(competition.endDate)
-        : "",
+      endDate:
+        competition?.endDate && (!initialIsPerpetual || existingHasEndDate)
+          ? formatDateForInput(competition.endDate)
+          : "",
       description: competition?.description ?? "",
       registrationOpensAt: competition?.registrationOpensAt
         ? formatDateForInput(competition.registrationOpensAt)
@@ -191,7 +216,29 @@ export function OrganizerCompetitionForm({
   })
 
   const isMultiDay = form.watch("isMultiDay")
+  const selectedFormTeamId = form.watch("teamId")
+  const watchedCompetitionType = form.watch("competitionType")
+  const isPerpetualType = competitionCan(watchedCompetitionType, "perpetual")
   const watchedGroupId = form.watch("groupId")
+  const canCreateBenchmarks =
+    teams.find((team) => team.id === selectedFormTeamId)?.canCreateBenchmarks ??
+    false
+  const competitionTypeOptions = selectableCompetitionTypeOptions().filter(
+    (option) =>
+      option.id !== "benchmark" ||
+      canCreateBenchmarks ||
+      (isEditMode && initialCompetitionType === "benchmark"),
+  )
+
+  useEffect(() => {
+    if (
+      !canCreateBenchmarks &&
+      !(isEditMode && initialCompetitionType === "benchmark") &&
+      form.getValues("competitionType") === "benchmark"
+    ) {
+      form.setValue("competitionType", "in-person")
+    }
+  }, [canCreateBenchmarks, form, initialCompetitionType, isEditMode])
 
   // Track selected divisions for series template
   const templateData = watchedGroupId
@@ -242,9 +289,13 @@ export function OrganizerCompetitionForm({
   }
 
   async function onSubmit(data: FormValues) {
-    // For single-day competitions, endDate = startDate
+    // Perpetual: optional end date, endDate = startDate means open-ended.
+    // Single-day: endDate = startDate.
     const effectiveEndDate =
-      data.isMultiDay && data.endDate ? data.endDate : data.startDate
+      (competitionCan(data.competitionType, "perpetual") || data.isMultiDay) &&
+      data.endDate
+        ? data.endDate
+        : data.startDate
 
     try {
       if (isEditMode && competition) {
@@ -446,40 +497,41 @@ export function OrganizerCompetitionForm({
           )}
         />
 
-        {/* Competition Type */}
-        <FormField
-          control={form.control}
-          name="competitionType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Competition Type</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={isEditMode}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select competition type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {selectableCompetitionTypeOptions().map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.displayLabel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                {field.value === "online"
-                  ? "Athletes submit video recordings of their workouts"
-                  : "Athletes compete at a physical venue"}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {showCompetitionTypeField && (
+          <FormField
+            control={form.control}
+            name="competitionType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Competition Type</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={isEditMode}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select competition type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {competitionTypeOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.displayLabel}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {competitionTypeOptions.find(
+                    (option) => option.id === field.value,
+                  )?.description ?? "Select the competition format"}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Series/Group Selector */}
         {groups.length > 0 && (
@@ -611,55 +663,67 @@ export function OrganizerCompetitionForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {isMultiDay ? "Start date" : "Competition date"}
+                {isPerpetualType || isMultiDay
+                  ? "Start date"
+                  : "Competition date"}
               </FormLabel>
               <FormControl>
                 <Input type="date" {...field} />
               </FormControl>
               <FormDescription>
-                {isMultiDay
-                  ? "When the competition begins"
-                  : "The date of the competition"}
+                {isPerpetualType
+                  ? "When the leaderboard opens for submissions"
+                  : isMultiDay
+                    ? "When the competition begins"
+                    : "The date of the competition"}
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Multi-day toggle */}
-        <FormField
-          control={form.control}
-          name="isMultiDay"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>Multi-day competition</FormLabel>
-                <FormDescription>
-                  Enable this if your competition spans multiple days
-                </FormDescription>
-              </div>
-            </FormItem>
-          )}
-        />
+        {/* Multi-day toggle (not applicable to perpetual competitions) */}
+        {!isPerpetualType && (
+          <FormField
+            control={form.control}
+            name="isMultiDay"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Multi-day competition</FormLabel>
+                  <FormDescription>
+                    Enable this if your competition spans multiple days
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
+        )}
 
-        {/* End Date (only shown for multi-day) */}
-        {isMultiDay && (
+        {/* End Date (multi-day, or optional for perpetual) */}
+        {(isMultiDay || isPerpetualType) && (
           <FormField
             control={form.control}
             name="endDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>End Date</FormLabel>
+                <FormLabel>
+                  {isPerpetualType ? "End date (optional)" : "End Date"}
+                </FormLabel>
                 <FormControl>
                   <Input type="date" {...field} value={field.value || ""} />
                 </FormControl>
-                <FormDescription>When the competition ends</FormDescription>
+                <FormDescription>
+                  {isPerpetualType
+                    ? "Leave blank to keep the leaderboard open forever. If set, submissions close after this date but the leaderboard stays visible."
+                    : "When the competition ends"}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

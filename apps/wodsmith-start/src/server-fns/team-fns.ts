@@ -435,6 +435,7 @@ export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
       name: string
       slug: string
       type: string
+      canCreateBenchmarks: boolean
     }> = []
     const seenTeamIds = new Set<string>()
 
@@ -460,6 +461,8 @@ export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
           name: team.name,
           slug: team.slug,
           type: team.type,
+          canCreateBenchmarks:
+            team.plan?.features?.includes(FEATURES.CREATE_BENCHMARKS) ?? false,
         })
       }
     }

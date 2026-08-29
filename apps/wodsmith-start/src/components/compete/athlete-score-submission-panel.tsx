@@ -12,13 +12,18 @@ import {
   Lock,
   Trophy,
 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   type BenchmarkWorkoutDomain,
   groupBenchmarkWorkouts,
 } from "@/components/benchmark-workout-directory"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   Select,
   SelectContent,
@@ -28,8 +33,14 @@ import {
 } from "@/components/ui/select"
 import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import { cn } from "@/lib/utils"
-import { getAthleteDivisionSubmissionsFn } from "@/server-fns/video-submission-fns"
+import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
+import {
+  getAthleteDivisionSubmissionsFn,
+  getVideoSubmissionFn,
+  type VideoSubmissionResult,
+} from "@/server-fns/video-submission-fns"
 import { SubmissionStatusBadge } from "./submission-status-badge"
+import { VideoSubmissionForm } from "./video-submission-form"
 
 interface Division {
   id: string
@@ -51,12 +62,14 @@ export interface WorkoutInfo {
   workoutId: string
   trackOrder: number
   parentEventId: string | null
+  benchmarkCategory?: string | null
   workout: {
     name: string
     scheme: string
     scoreType?: string | null
     movements?: readonly { name: string }[]
     tags?: readonly { name: string }[]
+    description?: string | null
   }
 }
 
@@ -80,8 +93,9 @@ export const MIN_GROUPED_SCORE_WORKOUTS = 8
 export function shouldGroupScoreSubmissionWorkouts(
   workouts: readonly WorkoutInfo[],
   groupCount = groupBenchmarkWorkouts(workouts).length,
+  scoreEntryCount = workouts.length,
 ): boolean {
-  return workouts.length >= MIN_GROUPED_SCORE_WORKOUTS && groupCount > 1
+  return scoreEntryCount >= MIN_GROUPED_SCORE_WORKOUTS && groupCount > 1
 }
 
 export function getScoreSubmissionGroupProgress(
@@ -114,6 +128,8 @@ interface AthleteScoreSubmissionPanelProps {
   userDivisions: UserDivision[]
   workouts: WorkoutInfo[]
   eventDivisionMappings: EventDivisionMappings
+  timezone?: string | null
+  divisionDescriptionsMap?: Record<string, DivisionDescription[]>
 }
 
 export function AthleteScoreSubmissionPanel({
@@ -122,6 +138,8 @@ export function AthleteScoreSubmissionPanel({
   userDivisions,
   workouts,
   eventDivisionMappings,
+  timezone,
+  divisionDescriptionsMap,
 }: AthleteScoreSubmissionPanelProps) {
   const [selectedDivisionIdx, setSelectedDivisionIdx] = useState(0)
   const [submissions, setSubmissions] = useState<WorkoutSubmission[]>([])
@@ -214,15 +232,23 @@ export function AthleteScoreSubmissionPanel({
     return ids
   }, [filteredParents, filteredChildEventsMap])
 
+  // Monotonic token shared by the fetch effect and refreshSubmissions so a
+  // stale response (e.g. after a division switch) never overwrites newer data.
+  const fetchSeqRef = useRef(0)
+  const refreshSeqRef = useRef(0)
+
   useEffect(() => {
     if (!registration?.id || !division?.id || trackWorkoutIds.length === 0) {
+      fetchSeqRef.current++
+      refreshSeqRef.current++
       setSubmissions([])
       setFetchError(false)
       setLoading(false)
       return
     }
 
-    let cancelled = false
+    const seq = ++fetchSeqRef.current
+    refreshSeqRef.current++
     setLoading(true)
     setFetchError(false)
 
@@ -235,20 +261,43 @@ export function AthleteScoreSubmissionPanel({
       },
     })
       .then((result) => {
-        if (!cancelled) {
+        if (seq === fetchSeqRef.current) {
           setSubmissions(result.submissions)
         }
       })
       .catch(() => {
-        if (!cancelled) setFetchError(true)
+        if (seq === fetchSeqRef.current) setFetchError(true)
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (seq === fetchSeqRef.current) setLoading(false)
       })
+  }, [competitionId, registration?.id, division?.id, trackWorkoutIds])
 
-    return () => {
-      cancelled = true
+  // Silent refresh after an inline submit — updates row score/status badges
+  // without collapsing the open form behind a loading spinner.
+  const refreshSubmissions = useCallback(() => {
+    if (!registration?.id || !division?.id || trackWorkoutIds.length === 0) {
+      return
     }
+    const fetchSeq = fetchSeqRef.current
+    const refreshSeq = ++refreshSeqRef.current
+    getAthleteDivisionSubmissionsFn({
+      data: {
+        competitionId,
+        trackWorkoutIds,
+        registrationId: registration.id,
+        divisionId: division.id,
+      },
+    })
+      .then((result) => {
+        if (
+          fetchSeq === fetchSeqRef.current &&
+          refreshSeq === refreshSeqRef.current
+        ) {
+          setSubmissions(result.submissions)
+        }
+      })
+      .catch(() => {})
   }, [competitionId, registration?.id, division?.id, trackWorkoutIds])
 
   const submissionMap = useMemo(
@@ -268,6 +317,7 @@ export function AthleteScoreSubmissionPanel({
   const groupByCategory = shouldGroupScoreSubmissionWorkouts(
     filteredParents,
     workoutGroups.length,
+    trackWorkoutIds.length,
   )
   const eventPositions = useMemo(
     () =>
@@ -308,13 +358,19 @@ export function AthleteScoreSubmissionPanel({
               const letter = String.fromCharCode(65 + childIdx)
               return (
                 <WorkoutRow
-                  key={child.id}
+                  key={`${child.id}:${division?.id ?? "none"}`}
                   event={child}
                   submission={sub ?? null}
                   slug={slug}
-                  divisionId={division?.id}
+                  competitionId={competitionId}
+                  timezone={timezone}
+                  division={division ?? null}
+                  divisionDescriptions={
+                    divisionDescriptionsMap?.[child.workoutId]
+                  }
                   parentEventId={event.id}
                   badge={letter}
+                  onScoreSubmitted={refreshSubmissions}
                 />
               )
             })}
@@ -326,12 +382,16 @@ export function AthleteScoreSubmissionPanel({
     const sub = submissionMap.get(event.id)
     return (
       <WorkoutRow
-        key={event.id}
+        key={`${event.id}:${division?.id ?? "none"}`}
         event={event}
         submission={sub ?? null}
         slug={slug}
-        divisionId={division?.id}
+        competitionId={competitionId}
+        timezone={timezone}
+        division={division ?? null}
+        divisionDescriptions={divisionDescriptionsMap?.[event.workoutId]}
         badge={String(position).padStart(2, "0")}
+        onScoreSubmitted={refreshSubmissions}
       />
     )
   }
@@ -591,22 +651,63 @@ function WorkoutRow({
   event,
   submission,
   slug,
-  divisionId,
+  competitionId,
+  timezone,
+  division,
+  divisionDescriptions,
   parentEventId,
   badge,
+  onScoreSubmitted,
 }: {
   event: WorkoutInfo
   submission: WorkoutSubmission | null
   slug: string
-  divisionId?: string
+  competitionId: string
+  timezone?: string | null
+  division: Division | null
+  divisionDescriptions?: DivisionDescription[]
   parentEventId?: string
   badge: string
+  onScoreSubmitted: () => void
 }) {
   const linkEventId = parentEventId ?? event.id
   const hasSubmitted = submission?.hasScore || submission?.hasVideo
   const canSubmit = submission?.canSubmit ?? false
   const windowStatus = submission?.windowStatus ?? "no_window"
   const isInteractive = canSubmit || hasSubmitted
+
+  const [open, setOpen] = useState(false)
+  const [formData, setFormData] = useState<VideoSubmissionResult | null>(null)
+  const [formLoading, setFormLoading] = useState(false)
+  const [formError, setFormError] = useState(false)
+
+  const loadFormData = useCallback(() => {
+    setFormLoading(true)
+    setFormError(false)
+    getVideoSubmissionFn({
+      data: {
+        trackWorkoutId: event.id,
+        competitionId,
+        divisionId: division?.id,
+      },
+    })
+      .then(setFormData)
+      .catch(() => setFormError(true))
+      .finally(() => setFormLoading(false))
+  }, [event.id, competitionId, division?.id])
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (next && !formData && !formLoading) {
+      loadFormData()
+    }
+  }
+
+  const divisionDescription =
+    divisionDescriptions?.find((d) => d.divisionId === division?.id)
+      ?.description ??
+    event.workout.description ??
+    null
 
   const rowContent = (
     <>
@@ -635,7 +736,12 @@ function WorkoutRow({
       </div>
 
       {isInteractive && (
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
       )}
     </>
   )
@@ -649,13 +755,77 @@ function WorkoutRow({
   }
 
   return (
-    <Link
-      to="/compete/$slug/workouts/$eventId"
-      params={{ slug, eventId: linkEventId }}
-      search={divisionId ? { division: divisionId } : {}}
-      className="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-colors hover:bg-accent/50"
-    >
-      {rowContent}
-    </Link>
+    <Collapsible open={open} onOpenChange={handleOpenChange}>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="group flex w-full items-center gap-3 rounded-lg border bg-background p-3 text-left transition-colors hover:bg-accent/50"
+        >
+          {rowContent}
+        </button>
+      </CollapsibleTrigger>
+
+      <CollapsibleContent>
+        <div className="mt-1 space-y-3 rounded-lg bg-muted/20 p-2">
+          {/* Quick reference: the division's workout */}
+          {divisionDescription && (
+            <div className="rounded-md bg-muted/40 p-3">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                Workout{division ? ` — ${division.label}` : ""}
+              </p>
+              <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-sm">
+                {divisionDescription}
+              </p>
+            </div>
+          )}
+
+          {/* Inline submission form */}
+          {formLoading ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading submission form...</span>
+            </div>
+          ) : formError ? (
+            <div className="py-4 text-center">
+              <p className="text-sm text-destructive">
+                Failed to load the submission form.
+              </p>
+              <button
+                type="button"
+                onClick={loadFormData}
+                className="mt-1 text-xs text-primary underline underline-offset-2"
+              >
+                Try again
+              </button>
+            </div>
+          ) : formData ? (
+            <VideoSubmissionForm
+              trackWorkoutId={event.id}
+              competitionId={competitionId}
+              timezone={timezone}
+              registeredDivisions={
+                division
+                  ? [{ divisionId: division.id, label: division.label }]
+                  : undefined
+              }
+              initialData={formData}
+              initialDivisionId={division?.id}
+              onSubmitSuccess={onScoreSubmitted}
+            />
+          ) : null}
+
+          {/* Secondary action */}
+          <Link
+            to="/compete/$slug/workouts/$eventId"
+            params={{ slug, eventId: linkEventId }}
+            search={division ? { division: division.id } : {}}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            View full workout
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }

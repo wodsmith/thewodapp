@@ -14,21 +14,19 @@ import { cn } from "@/lib/utils"
 import type { BenchmarkViewerScore } from "@/server-fns/athlete-score-fns"
 
 export const BENCHMARK_WORKOUT_DOMAINS = [
-  "Strength & barbell",
-  "Gymnastics & skill",
-  "Machines & rope",
-  "Mixed tests",
-  "Running",
-  "Rowing",
-  "CrossFit benchmarks",
-  "Other benchmarks",
+  "Strength",
+  "Gymnastics",
+  "Engine",
+  "Benchmark Workouts",
+  "Uncategorized",
 ] as const
 
-export type BenchmarkWorkoutDomain = (typeof BENCHMARK_WORKOUT_DOMAINS)[number]
+export type BenchmarkWorkoutDomain = string
 
 export interface BenchmarkDirectoryWorkout {
   id: string
   trackOrder: number
+  benchmarkCategory?: string | null
   workout: {
     name: string
     scheme: string
@@ -51,80 +49,44 @@ interface BenchmarkWorkoutDirectoryProps {
   viewerScores?: Readonly<Record<string, BenchmarkViewerScore>>
 }
 
-const DOMAIN_META: Record<
-  BenchmarkWorkoutDomain,
-  { code: string; short: string; description: string }
+const DOMAIN_META: Readonly<
+  Record<string, { code: string; short: string; description: string }>
 > = {
-  "Strength & barbell": {
+  Strength: {
     code: "ST",
     short: "Strength",
-    description: "Presses, pulls, squats and Olympic lifts",
+    description: "Strength-category benchmark tests",
   },
-  "Gymnastics & skill": {
+  Gymnastics: {
     code: "GY",
     short: "Gymnastics",
-    description: "Bodyweight strength, control and skill",
+    description: "Gymnastics-category benchmark tests",
   },
-  "Machines & rope": {
+  Engine: {
     code: "EN",
-    short: "Machines",
-    description: "Bike, ski and rope capacity",
+    short: "Engine",
+    description: "Engine-category benchmark tests",
   },
-  "Mixed tests": {
-    code: "MX",
-    short: "Mixed",
-    description: "Multi-modal competition tests",
+  "Benchmark Workouts": {
+    code: "BW",
+    short: "Benchmarks",
+    description: "Benchmark-workout category tests",
   },
-  Running: {
-    code: "RN",
-    short: "Running",
-    description: "Short speed through long aerobic work",
-  },
-  Rowing: {
-    code: "RW",
-    short: "Rowing",
-    description: "Sprint, middle and long distance",
-  },
-  "CrossFit benchmarks": {
-    code: "CF",
-    short: "Classics",
-    description: "Girls, heroes and Open tests",
-  },
-  "Other benchmarks": {
-    code: "OT",
-    short: "Other",
-    description: "Benchmarks outside the established domains",
+  Uncategorized: {
+    code: "UC",
+    short: "Uncategorized",
+    description: "Tests missing benchmark category data",
   },
 }
 
-const CROSSFIT_BENCHMARK_NAMES = [
-  "angie",
-  "annie",
-  "barbara",
-  "chelsea",
-  "eva",
-  "fran",
-  "diane",
-  "helen",
-  "grace",
-  "isabel",
-  "amanda",
-  "elizabeth",
-  "nancy",
-  "murph",
-  "cindy",
-  "jackie",
-  "karen",
-  "kelly",
-  "linda",
-  "lynne",
-  "mary",
-  "nicole",
-  "100 wall ball 100 cal row",
-  "7 min amrap burpees",
-]
+const DOMAIN_BY_CATEGORY_KEY: Readonly<Record<string, BenchmarkWorkoutDomain>> =
+  {
+    strength: "Strength",
+    gymnastics: "Gymnastics",
+    engine: "Engine",
+    benchmark_workout: "Benchmark Workouts",
+  }
 
-const MIXED_TEST_NAMES = ["acid bath", "beat bagent", "regional triple 3"]
 const RAIL_STORAGE_KEY = "benchmark-domain-rail-collapsed"
 const RESULT_LABELS: Readonly<Record<string, string>> = {
   time: "Time",
@@ -151,15 +113,33 @@ function normalizeBenchmarkText(value: string): string {
     .replace(/\s+/g, " ")
 }
 
-function containsAny(value: string, terms: readonly string[]): boolean {
-  return terms.some((term) => value.includes(term))
+function humanizeCategoryKey(categoryKey: string): string {
+  return categoryKey
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ")
 }
 
-function hasExplicitTag(tags: string, terms: readonly string[]): boolean {
-  const paddedTags = ` ${tags} `
-  return terms.some((term) =>
-    paddedTags.includes(` ${normalizeBenchmarkText(term)} `),
-  )
+function getDomainMeta(domain: BenchmarkWorkoutDomain): {
+  code: string
+  short: string
+  description: string
+} {
+  const configured = DOMAIN_META[domain]
+  if (configured) return configured
+
+  const words = domain.split(/\s+/).filter(Boolean)
+  const code = words
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("")
+
+  return {
+    code: code || "CT",
+    short: domain,
+    description: `${domain} benchmark tests`,
+  }
 }
 
 function getWorkoutSearchText(workout: BenchmarkDirectoryWorkout): string {
@@ -169,6 +149,7 @@ function getWorkoutSearchText(workout: BenchmarkDirectoryWorkout): string {
       descriptor.name,
       descriptor.scheme,
       descriptor.scoreType ?? "",
+      getBenchmarkWorkoutDomain(workout),
       formatBenchmarkResult(descriptor),
       ...(descriptor.tags?.map(({ name }) => name) ?? []),
       ...(descriptor.movements?.map(({ name }) => name) ?? []),
@@ -179,139 +160,32 @@ function getWorkoutSearchText(workout: BenchmarkDirectoryWorkout): string {
 export function getBenchmarkWorkoutDomain(
   workout: BenchmarkDirectoryWorkout,
 ): BenchmarkWorkoutDomain {
-  const descriptor = workout.workout
-  const name = normalizeBenchmarkText(descriptor.name)
-  const tags = normalizeBenchmarkText(
-    descriptor.tags?.map(({ name: tagName }) => tagName).join(" ") ?? "",
-  )
-  const movements = normalizeBenchmarkText(
-    descriptor.movements
-      ?.map(({ name: movementName }) => movementName)
-      .join(" ") ?? "",
-  )
-  const combined = `${name} ${movements}`
-
-  if (
-    hasExplicitTag(tags, [
-      "girl benchmark",
-      "hero benchmark",
-      "crossfit benchmark",
-      "crossfit classic",
-      "girl",
-      "hero",
-      "crossfit girl",
-      "crossfit hero",
-      "crossfit open",
-      "girl wod",
-      "hero wod",
-      "open workout",
-    ]) ||
-    CROSSFIT_BENCHMARK_NAMES.some(
-      (benchmarkName) =>
-        name === benchmarkName || name.startsWith(`${benchmarkName} `),
-    ) ||
-    /^open \d/.test(name)
-  ) {
-    return "CrossFit benchmarks"
-  }
-
-  if (
-    hasExplicitTag(tags, ["mixed modal", "mixed test", "multi modal"]) ||
-    MIXED_TEST_NAMES.includes(name)
-  ) {
-    return "Mixed tests"
-  }
-
-  if (hasExplicitTag(tags, ["strength and barbell", "strength", "barbell"])) {
-    return "Strength & barbell"
-  }
-  if (hasExplicitTag(tags, ["gymnastics and skill", "gymnastics", "skill"])) {
-    return "Gymnastics & skill"
-  }
-  if (hasExplicitTag(tags, ["machines and rope", "machine", "jump rope"])) {
-    return "Machines & rope"
-  }
-  if (hasExplicitTag(tags, ["running"])) return "Running"
-  if (hasExplicitTag(tags, ["rowing"])) return "Rowing"
-
-  if (containsAny(name, ["run", "mile", "400m sprint"])) return "Running"
-  if (containsAny(name, [" row", "row ", "rowing"]) || name.endsWith(" row")) {
-    return "Rowing"
-  }
-  if (
-    containsAny(combined, [
-      "bike erg",
-      "bikeerg",
-      "echo bike",
-      "assault bike",
-      "ski erg",
-      "skierg",
-      "double under",
-      "jump rope",
-    ])
-  ) {
-    return "Machines & rope"
-  }
-  if (
-    containsAny(combined, [
-      "pull up",
-      "pullup",
-      "toes to bar",
-      "handstand",
-      "hspu",
-      "muscle up",
-      "ring dip",
-      "l sit",
-      "ghdsu",
-      "vertical jump",
-      "dead hang",
-      "pegboard",
-    ])
-  ) {
-    return "Gymnastics & skill"
-  }
-  if (
-    descriptor.scheme === "load" ||
-    containsAny(combined, [
-      "deadlift",
-      "press",
-      "squat",
-      "snatch",
-      "clean",
-      "jerk",
-      "barbell",
-      "bench",
-    ])
-  ) {
-    return "Strength & barbell"
-  }
-
-  return "Other benchmarks"
+  const categoryKey = workout.benchmarkCategory?.trim()
+  if (!categoryKey) return "Uncategorized"
+  return DOMAIN_BY_CATEGORY_KEY[categoryKey] ?? humanizeCategoryKey(categoryKey)
 }
 
 export function groupBenchmarkWorkouts<
   TWorkout extends BenchmarkDirectoryWorkout,
 >(workouts: readonly TWorkout[]): BenchmarkWorkoutGroup<TWorkout>[] {
-  const grouped: Record<BenchmarkWorkoutDomain, TWorkout[]> = {
-    "Strength & barbell": [],
-    "Gymnastics & skill": [],
-    "Machines & rope": [],
-    "Mixed tests": [],
-    Running: [],
-    Rowing: [],
-    "CrossFit benchmarks": [],
-    "Other benchmarks": [],
-  }
+  const grouped = new Map<BenchmarkWorkoutDomain, TWorkout[]>()
 
   for (const workout of workouts) {
-    grouped[getBenchmarkWorkoutDomain(workout)].push(workout)
+    const domain = getBenchmarkWorkoutDomain(workout)
+    const domainWorkouts = grouped.get(domain) ?? []
+    domainWorkouts.push(workout)
+    grouped.set(domain, domainWorkouts)
   }
 
-  return BENCHMARK_WORKOUT_DOMAINS.flatMap((domain) => {
-    const domainWorkouts = grouped[domain]
-    return domainWorkouts.length > 0
-      ? [{ domain, workouts: domainWorkouts }]
-      : []
+  const canonicalDomains = new Set<string>(BENCHMARK_WORKOUT_DOMAINS)
+  const orderedDomains = [
+    ...BENCHMARK_WORKOUT_DOMAINS,
+    ...[...grouped.keys()].filter((domain) => !canonicalDomains.has(domain)),
+  ]
+
+  return orderedDomains.flatMap((domain) => {
+    const domainWorkouts = grouped.get(domain)
+    return domainWorkouts ? [{ domain, workouts: domainWorkouts }] : []
   })
 }
 
@@ -344,7 +218,7 @@ function getMovementSummary(workout: BenchmarkDirectoryWorkout): string {
       ? movementNames
       : (workout.workout.tags?.map(({ name }) => name) ?? [])
   if (patternNames.length === 0) {
-    return DOMAIN_META[getBenchmarkWorkoutDomain(workout)].short
+    return getDomainMeta(getBenchmarkWorkoutDomain(workout)).short
   }
   if (patternNames.length <= 2) return patternNames.join(" · ")
   return `${patternNames.slice(0, 2).join(" · ")} +${patternNames.length - 2}`
@@ -488,8 +362,8 @@ export function BenchmarkWorkoutDirectory({
             Browse the benchmark
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Jump by training domain, then scan each test and your recorded score
-            when available.
+            Jump by benchmark category, then scan each test and your recorded
+            score when available.
           </p>
         </div>
         <div className="relative w-full sm:max-w-xs">
@@ -532,7 +406,7 @@ export function BenchmarkWorkoutDirectory({
         )}
       >
         <nav
-          aria-label="Workout domains"
+          aria-label="Workout categories"
           className={cn(
             "sticky top-20 grid gap-1 border-r border-border py-3 max-[720px]:top-16 max-[720px]:z-20 max-[720px]:flex max-[720px]:max-w-full max-[720px]:gap-2 max-[720px]:overflow-x-auto max-[720px]:border-b max-[720px]:border-r-0 max-[720px]:bg-background max-[720px]:px-0 max-[720px]:py-3 max-[720px]:[scrollbar-width:none] max-[720px]:[&::-webkit-scrollbar]:hidden",
             railCollapsed ? "px-1.5" : "px-2.5",
@@ -542,7 +416,7 @@ export function BenchmarkWorkoutDirectory({
             type="button"
             onClick={toggleRail}
             aria-expanded={!railCollapsed}
-            aria-label={`${railCollapsed ? "Expand" : "Collapse"} domain rail`}
+            aria-label={`${railCollapsed ? "Expand" : "Collapse"} category rail`}
             className="mb-1 grid min-h-11 grid-cols-[24px_minmax(0,1fr)] items-center gap-2 border-b border-border px-2 text-left text-xs font-semibold outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset max-[720px]:hidden"
           >
             {railCollapsed ? (
@@ -551,7 +425,7 @@ export function BenchmarkWorkoutDirectory({
               <PanelLeftClose aria-hidden="true" className="size-[18px]" />
             )}
             <span className={cn("truncate", railCollapsed && "sr-only")}>
-              Domains
+              Categories
             </span>
           </button>
 
@@ -560,7 +434,7 @@ export function BenchmarkWorkoutDirectory({
               visibleGroups.find((group) => group.domain === domain)?.workouts
                 .length ?? 0
             if (hasQuery && visibleCount === 0) return null
-            const meta = DOMAIN_META[domain]
+            const meta = getDomainMeta(domain)
             return (
               <button
                 key={domain}
@@ -616,13 +490,14 @@ export function BenchmarkWorkoutDirectory({
               {filteredWorkouts.length}
             </strong>{" "}
             workout{filteredWorkouts.length === 1 ? "" : "s"} in{" "}
-            {visibleGroups.length} domain{visibleGroups.length === 1 ? "" : "s"}
+            {visibleGroups.length} categor
+            {visibleGroups.length === 1 ? "y" : "ies"}
           </p>
 
           {visibleGroups.length > 0 ? (
             <div className="grid gap-7 max-[720px]:gap-5">
               {visibleGroups.map(({ domain, workouts: domainWorkouts }) => {
-                const meta = DOMAIN_META[domain]
+                const meta = getDomainMeta(domain)
                 const expanded = hasQuery || expandedDomains.has(domain)
                 const id = domainId(domain)
                 return (

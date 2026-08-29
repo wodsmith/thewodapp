@@ -60,6 +60,13 @@ export interface CompetitionSettings {
     string,
     Record<string, { publishedAt: number | null }>
   >
+
+  /**
+   * Pre-publish division results as scores come in, skipping the manual
+   * per-division publish gate. Only settable for perpetual (benchmark)
+   * competitions, which default to `true` when unset.
+   */
+  resultsAutoPublish?: boolean
 }
 
 /**

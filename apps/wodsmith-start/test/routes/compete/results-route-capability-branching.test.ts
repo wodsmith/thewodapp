@@ -7,13 +7,13 @@ describe("results route capability branching", () => {
   it("routes organizer results pages by organizer-entered-results capability", () => {
     expect(getOrganizerResultsRouteMode("in-person")).toBe("organizer-entered")
     expect(getOrganizerResultsRouteMode("online")).toBe("athlete-submitted")
-    expect(getOrganizerResultsRouteMode("benchmark")).toBe("organizer-entered")
+    expect(getOrganizerResultsRouteMode("benchmark")).toBe("athlete-submitted")
   })
 
   // @lat: [[competition-type-capabilities#Results Entry and Sidebar Gates Test#Cohost Results Route Mode]]
   it("routes cohost results pages by organizer-entered-results capability", () => {
     expect(getCohostResultsRouteMode("in-person")).toBe("organizer-entered")
     expect(getCohostResultsRouteMode("online")).toBe("athlete-submitted")
-    expect(getCohostResultsRouteMode("benchmark")).toBe("organizer-entered")
+    expect(getCohostResultsRouteMode("benchmark")).toBe("athlete-submitted")
   })
 })

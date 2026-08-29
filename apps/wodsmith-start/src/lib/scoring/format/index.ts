@@ -2,6 +2,7 @@
  * Formatting module: display formatting for scores and related data
  */
 
+export { formatLeaderboardPoints } from "./points"
 // Re-export all format functions
 export {
   formatRounds,
