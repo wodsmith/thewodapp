@@ -158,6 +158,9 @@ function CompetitionOverviewPage() {
         workout: {
           name: w.workout.name,
           scheme: w.workout.scheme,
+          scoreType: w.workout.scoreType,
+          movements: w.workout.movements,
+          tags: w.workout.tags,
         },
       })),
     [workouts],

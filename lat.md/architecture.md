@@ -102,6 +102,8 @@ The competition discovery index moved to `/`; competition detail pages remain at
 
 The root discovery route renders the Compete navigation and footer shell because it is outside the `/compete` layout tree. Active Compete header links keep normal text color and use a primary-orange underline.
 
+The public competition layout ([[apps/wodsmith-start/src/routes/compete/$slug.tsx#CompetitionDetailLayout]]) dims uploaded banner images with a neutral black gradient. The overlay must not use chromatic theme colors, so an organizer's brand palette remains accurate while text retains contrast.
+
 Compete breadcrumbs label the `/compete` route segment as `Competitions`, but link that root crumb back to `/` because discovery moved out of the `/compete` layout tree.
 
 During pending navigation, the `/compete` layout bases shell ownership on the currently rendered route matches, not the pending target URL, so organizer/cohost layouts are not wrapped by the public Compete shell while another route is still loading.

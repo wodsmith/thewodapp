@@ -38,9 +38,11 @@ export interface BenchmarkDirectoryWorkout {
   }
 }
 
-export interface BenchmarkWorkoutGroup {
+export interface BenchmarkWorkoutGroup<
+  TWorkout extends BenchmarkDirectoryWorkout = BenchmarkDirectoryWorkout,
+> {
   domain: BenchmarkWorkoutDomain
-  workouts: BenchmarkDirectoryWorkout[]
+  workouts: TWorkout[]
 }
 
 interface BenchmarkWorkoutDirectoryProps {
@@ -287,10 +289,10 @@ export function getBenchmarkWorkoutDomain(
   return "Other benchmarks"
 }
 
-export function groupBenchmarkWorkouts(
-  workouts: readonly BenchmarkDirectoryWorkout[],
-): BenchmarkWorkoutGroup[] {
-  const grouped: Record<BenchmarkWorkoutDomain, BenchmarkDirectoryWorkout[]> = {
+export function groupBenchmarkWorkouts<
+  TWorkout extends BenchmarkDirectoryWorkout,
+>(workouts: readonly TWorkout[]): BenchmarkWorkoutGroup<TWorkout>[] {
+  const grouped: Record<BenchmarkWorkoutDomain, TWorkout[]> = {
     "Strength & barbell": [],
     "Gymnastics & skill": [],
     "Machines & rope": [],
