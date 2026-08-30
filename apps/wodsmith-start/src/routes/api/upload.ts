@@ -11,6 +11,7 @@
  * - athlete-cover: Athlete cover images (5MB max)
  * - sponsor-logo: General sponsor logos (2MB max)
  * - judging-sheet: Judging sheet PDFs (20MB max)
+ * - competition-download: Purchase-gated competition product PDFs (20MB max)
  *
  * OBSERVABILITY:
  * - All upload attempts are logged with purpose and file info
@@ -21,6 +22,13 @@
 import { env } from "cloudflare:workers"
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { eq } from "drizzle-orm"
+import { getDb } from "@/db"
+import {
+  COMPETITION_PRODUCT_FILE_CLAIM_STATUS,
+  competitionProductFileClaimsTable,
+  competitionProductFilesTable,
+} from "@/db/schema"
 import {
   addRequestContextAttribute,
   logError,
@@ -57,6 +65,11 @@ const PURPOSE_CONFIG: Record<
     maxSizeMb: 2,
     pathPrefix: "competitions/sponsors",
     allowedTypes: IMAGE_TYPES,
+  },
+  "competition-download": {
+    maxSizeMb: 20,
+    pathPrefix: "competitions/product-downloads",
+    allowedTypes: DOCUMENT_TYPES,
   },
   "athlete-profile": {
     maxSizeMb: 2,
@@ -96,6 +109,95 @@ async function getR2UploadBody(file: File, purpose: string) {
 export const Route = createFileRoute("/api/upload")({
   server: {
     handlers: {
+      DELETE: async ({ request }) => {
+        const session = await getSessionFromCookie()
+        if (!session) return json({ error: "Unauthorized" }, { status: 401 })
+
+        const body = (await request.json().catch(() => null)) as Record<
+          string,
+          unknown
+        > | null
+        const purpose =
+          typeof body?.purpose === "string" ? body.purpose : undefined
+        const entityId =
+          typeof body?.entityId === "string" ? body.entityId : undefined
+        const key = typeof body?.key === "string" ? body.key : undefined
+        if (
+          purpose !== "competition-download" ||
+          !entityId ||
+          !key ||
+          !key.startsWith(`competitions/product-downloads/${entityId}/`)
+        ) {
+          return json({ error: "Invalid cleanup request" }, { status: 400 })
+        }
+
+        const authCheck = await checkUploadAuthorization(
+          purpose,
+          entityId,
+          session.user.id,
+        )
+        if (!authCheck.authorized) {
+          return json(
+            { error: authCheck.error || "Forbidden" },
+            { status: 403 },
+          )
+        }
+
+        const db = getDb()
+        const claimedForCleanup = await db.transaction(async (tx) => {
+          await tx
+            .select({ r2Key: competitionProductFileClaimsTable.r2Key })
+            .from(competitionProductFileClaimsTable)
+            .where(eq(competitionProductFileClaimsTable.r2Key, key))
+            .for("update")
+          const claim =
+            await tx.query.competitionProductFileClaimsTable.findFirst({
+              where: eq(competitionProductFileClaimsTable.r2Key, key),
+            })
+          if (!claim || claim.competitionId !== entityId) return false
+
+          const attachedFile =
+            await tx.query.competitionProductFilesTable.findFirst({
+              where: eq(competitionProductFilesTable.r2Key, key),
+              columns: { id: true },
+            })
+          if (attachedFile) return false
+
+          await tx
+            .update(competitionProductFileClaimsTable)
+            .set({
+              status: COMPETITION_PRODUCT_FILE_CLAIM_STATUS.CLEANING,
+              updatedAt: new Date(),
+            })
+            .where(eq(competitionProductFileClaimsTable.r2Key, key))
+          return true
+        })
+        if (!claimedForCleanup) {
+          return json(
+            { error: "Attached or unknown product files cannot be deleted" },
+            { status: 409 },
+          )
+        }
+
+        try {
+          await env.R2_DOWNLOADS_BUCKET.delete(key)
+          await db
+            .delete(competitionProductFileClaimsTable)
+            .where(eq(competitionProductFileClaimsTable.r2Key, key))
+          logInfo({
+            message: "[Upload] Detached competition download removed",
+            attributes: { entityId, key },
+          })
+          return json({ success: true })
+        } catch (error) {
+          logError({
+            message: "[Upload] Competition download cleanup failed",
+            error,
+            attributes: { entityId, key },
+          })
+          return json({ error: "Cleanup failed" }, { status: 500 })
+        }
+      },
       POST: async ({ request }) => {
         const session = await getSessionFromCookie()
         if (!session) {
@@ -122,6 +224,16 @@ export const Route = createFileRoute("/api/upload")({
             attributes: { purpose },
           })
           return json({ error: "Invalid or missing purpose" }, { status: 400 })
+        }
+
+        if (purpose === "competition-download" && !entityId) {
+          logWarning({
+            message: "[Upload] Competition download missing competition ID",
+          })
+          return json(
+            { error: "Competition ID is required for product downloads" },
+            { status: 400 },
+          )
         }
 
         // Add upload context
@@ -190,7 +302,7 @@ export const Route = createFileRoute("/api/upload")({
             },
           })
           const allowedTypeNames =
-            purpose === "judging-sheet"
+            purpose === "judging-sheet" || purpose === "competition-download"
               ? "PDF"
               : purpose === "docs-video"
                 ? DOCS_VIDEO_ALLOWED_TYPE_LABEL
@@ -203,13 +315,21 @@ export const Route = createFileRoute("/api/upload")({
 
         const extension = file.name.split(".").pop() || "jpg"
         const timestamp = Date.now()
-        const filename = `${timestamp}.${extension}`
+        const filename =
+          purpose === "competition-download"
+            ? `${crypto.randomUUID()}.${extension}`
+            : `${timestamp}.${extension}`
         const key = entityId
           ? `${config.pathPrefix}/${entityId}/${filename}`
           : `${config.pathPrefix}/${session.user.id}/${filename}`
+        const bucket =
+          purpose === "competition-download"
+            ? env.R2_DOWNLOADS_BUCKET
+            : env.R2_BUCKET
 
+        let privateObjectStored = false
         try {
-          await env.R2_BUCKET.put(key, await getR2UploadBody(file, purpose), {
+          await bucket.put(key, await getR2UploadBody(file, purpose), {
             httpMetadata: {
               contentType: file.type,
             },
@@ -219,10 +339,23 @@ export const Route = createFileRoute("/api/upload")({
               originalFilename: file.name,
             },
           })
+          privateObjectStored = purpose === "competition-download"
 
-          const publicUrl = env.R2_PUBLIC_URL
-            ? `${env.R2_PUBLIC_URL}/${key}`
-            : key
+          if (purpose === "competition-download" && entityId) {
+            await getDb().insert(competitionProductFileClaimsTable).values({
+              r2Key: key,
+              competitionId: entityId,
+              uploadedByUserId: session.user.id,
+              status: COMPETITION_PRODUCT_FILE_CLAIM_STATUS.UPLOADED,
+            })
+          }
+
+          const publicUrl =
+            purpose === "competition-download"
+              ? undefined
+              : env.R2_PUBLIC_URL
+                ? `${env.R2_PUBLIC_URL}/${key}`
+                : key
 
           addRequestContextAttribute("uploadKey", key)
 
@@ -237,7 +370,7 @@ export const Route = createFileRoute("/api/upload")({
           })
 
           return json({
-            url: publicUrl,
+            ...(publicUrl ? { url: publicUrl } : {}),
             key,
             // Additional metadata useful for judging sheets and other document uploads
             originalFilename: file.name,
@@ -245,6 +378,17 @@ export const Route = createFileRoute("/api/upload")({
             mimeType: file.type,
           })
         } catch (err) {
+          if (privateObjectStored) {
+            try {
+              await env.R2_DOWNLOADS_BUCKET.delete(key)
+            } catch (cleanupError) {
+              logError({
+                message: "[Upload] Failed to remove unclaimed private upload",
+                error: cleanupError,
+                attributes: { entityId, key },
+              })
+            }
+          }
           logError({
             message: "[Upload] R2 upload failed",
             error: err,

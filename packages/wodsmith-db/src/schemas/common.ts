@@ -76,6 +76,7 @@ export const createCompetitionDivisionFeeId = () => `cdfee_${ulid()}`
 // Competition add-on catalog ID generators
 export const createCompetitionProductId = () => `cmpprod_${ulid()}`
 export const createCompetitionProductVariantId = () => `cmpvar_${ulid()}`
+export const createCompetitionProductFileId = () => `cmpfile_${ulid()}`
 
 // Competition heat scheduling ID generators
 export const createCompetitionVenueId = () => `cvenue_${ulid()}`
