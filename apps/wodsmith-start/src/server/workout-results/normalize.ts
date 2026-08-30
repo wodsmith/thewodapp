@@ -34,6 +34,10 @@ export interface CompetitionWorkoutResultInput {
   workout?: CompetitionWorkoutResultWorkout
 }
 
+interface NormalizeCompetitionWorkoutResultOptions {
+  invalidRoundError?: (message: string) => Error
+}
+
 type PersistedScoreStatus = "scored" | "cap" | "dq" | "withdrawn"
 
 export interface NormalizedCompetitionWorkoutResult {
@@ -73,6 +77,7 @@ function mapToPersistedStatus(status: ScoreStatus): PersistedScoreStatus {
 
 export function normalizeCompetitionWorkoutResult(
   input: CompetitionWorkoutResultInput,
+  options: NormalizeCompetitionWorkoutResultOptions = {},
 ): NormalizedCompetitionWorkoutResult {
   if (!input.workout) {
     throw new Error("Workout info is required to save competition score")
@@ -95,10 +100,12 @@ export function normalizeCompetitionWorkoutResult(
       input.roundScores,
       scheme,
       scoreType,
+      { roundsRepsInput: "parts" },
     )
 
     if (result.rounds.length !== input.roundScores.length) {
-      throw new Error("Every round in roundScores must be a valid score")
+      const message = "Every round in roundScores must be a valid score"
+      throw options.invalidRoundError?.(message) ?? new Error(message)
     }
 
     scoreValue = result.aggregated

@@ -5,6 +5,7 @@ import {
   decodeScore,
   parseScore,
   type ScoreType,
+  sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
 import {
@@ -91,7 +92,7 @@ function normalizeEncodedPersonalWorkoutResult(
     scoreValue,
     status: "scored" as const,
     statusOrder: scoring.statusOrder,
-    sortKey: scoring.sortKey?.toString() ?? null,
+    sortKey: scoring.sortKey ? sortKeyToString(scoring.sortKey) : null,
   }
 }
 
@@ -113,6 +114,9 @@ export function normalizeSubmittedPersonalWorkoutResult({
 
   if (isMultiRound && roundScores) {
     const encoded = encodeWorkoutResultRounds(roundScores, scheme, scoreType)
+    if (encoded.rounds.length !== roundScores.length) {
+      throw new Error("Every round must be a valid score")
+    }
     scoreValue = encoded.aggregated
     formatted = scoreValue !== null ? decodeScore(scoreValue, scheme) : ""
   } else {
@@ -274,6 +278,9 @@ export async function updatePersonalWorkoutResult({
 
   if (isMultiRound && roundScores) {
     const encoded = encodeWorkoutResultRounds(roundScores, scheme, scoreType)
+    if (encoded.rounds.length !== roundScores.length) {
+      throw new Error("Every round must be a valid score")
+    }
     const result = normalizeEncodedPersonalWorkoutResult(
       encoded.aggregated,
       scheme,

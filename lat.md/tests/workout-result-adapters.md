@@ -5,7 +5,7 @@ lat:
 
 # Workout-result Adapter Characterization
 
-These tests freeze context-specific competition write semantics while adapters move through the shared workout-result module.
+These tests freeze context-specific write semantics while personal and competition adapters move through the shared workout-result module.
 
 ## Video ignores declared CAP below threshold
 
@@ -90,3 +90,35 @@ Judge entry aggregates rounds, derives parent and per-round CAP status, rejects 
 ## Judge score-round transaction and stale rounds
 
 Judge entry atomically upserts and reads the score before replacing supplied rounds, but leaves existing rounds untouched when no rounds are supplied.
+
+## Personal padded sort-key storage
+
+Personal normalization emits the shared 38-digit sort-key representation so textual database ordering matches numeric ordering across personal and competition results.
+
+## Personal strict round validation
+
+Personal submit and update reject a multi-round result when any supplied round cannot be encoded, before score or round persistence begins.
+
+## Judge rounds-reps parts consistency
+
+Judge rounds-reps input uses supplied parts for both the aggregate and persisted round rows, with the score string as the fallback when parts are absent.
+
+## Judge shared competition normalization
+
+Judge normalization delegates valid scoring semantics to the competition normalizer while retaining its route-specific invalid-round error type.
+
+## Review invalidation ordering
+
+Invalidating a reviewed result stores the null-value worst-place sort key so leaderboard fallbacks cannot rank the zeroed score first.
+
+## Review complete round replacement
+
+A review adjustment may replace rounds only with a unique, contiguous, complete restatement of the existing round breakdown.
+
+## Manual review strict score validation
+
+Manual review entry rejects a malformed non-empty primary score, including when the client explicitly declares CAP.
+
+## Self-entry CAP and tiebreak ordering
+
+Athlete self-entry includes valid secondary reps and tiebreak values in the sort key so otherwise-tied capped results rank correctly.

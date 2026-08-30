@@ -21,6 +21,18 @@ export interface NormalizedWorkoutResultRound {
   status: "scored" | "cap" | null
 }
 
+function getWorkoutResultRoundScore(
+  round: WorkoutResultRoundInput,
+  scheme: WorkoutScheme,
+  roundsRepsInput: "parts" | "score",
+): string {
+  if (scheme === "rounds-reps" && roundsRepsInput === "parts" && round.parts) {
+    return `${round.parts[0]}+${round.parts[1]}`
+  }
+
+  return round.score
+}
+
 interface BuildWorkoutResultScoringInput {
   value: number | null
   status: ScoreStatus
@@ -48,9 +60,18 @@ export function encodeWorkoutResultRounds(
   rounds: WorkoutResultRoundInput[],
   scheme: WorkoutScheme,
   scoreType: ScoreType,
+  options: {
+    roundsRepsInput?: "parts" | "score"
+  } = {},
 ) {
   return encodeRounds(
-    rounds.map((round) => ({ raw: round.score })),
+    rounds.map((round) => ({
+      raw: getWorkoutResultRoundScore(
+        round,
+        scheme,
+        options.roundsRepsInput ?? "score",
+      ),
+    })),
     scheme,
     scoreType,
   )
@@ -94,19 +115,11 @@ export function normalizeWorkoutResultRounds(
   },
 ): NormalizedWorkoutResultRound[] {
   return rounds.map((round, index) => {
-    let value: number
-
-    if (scheme === "rounds-reps") {
-      const parts =
-        options.roundsRepsInput === "score"
-          ? round.score.match(/^(\d+)[+.](\d+)$/)?.slice(1)
-          : round.parts
-      const roundsNumber = Number.parseInt(parts?.[0] ?? round.score, 10) || 0
-      const reps = Number.parseInt(parts?.[1] ?? "0", 10) || 0
-      value = roundsNumber * 100000 + reps
-    } else {
-      value = encodeScore(round.score, scheme) ?? 0
-    }
+    const value =
+      encodeScore(
+        getWorkoutResultRoundScore(round, scheme, options.roundsRepsInput),
+        scheme,
+      ) ?? 0
 
     return {
       roundNumber: index + 1,

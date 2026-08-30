@@ -82,6 +82,17 @@ export function normalizeAthleteSelfEntryWorkoutResult(
     status: input.status,
     scheme,
     scoreType,
+    timeCap:
+      input.status === "cap" && timeCapMs !== null && secondaryValue !== null
+        ? { ms: timeCapMs, secondaryValue }
+        : undefined,
+    tiebreak:
+      tiebreakValue !== null && input.workout.tiebreakScheme
+        ? {
+            scheme: input.workout.tiebreakScheme as TiebreakScheme,
+            value: tiebreakValue,
+          }
+        : undefined,
   })
 
   return {

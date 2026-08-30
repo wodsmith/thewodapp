@@ -83,10 +83,6 @@ function createWriteDb(options: WriteDbOptions = {}) {
   const scoreUpdates: Array<Record<string, unknown>> = []
   const roundInserts: Array<Array<Record<string, unknown>>> = []
   const finalScoreWhereCalls: unknown[] = []
-  const rootSelectResults: QueryResult[] = [
-    [{ competitionType: "in-person" }],
-    [{ ownerTeamId: "owner-team" }],
-  ]
 
   const tx = {
     insert: vi.fn((table: unknown) => {
@@ -143,9 +139,15 @@ function createWriteDb(options: WriteDbOptions = {}) {
   }
 
   const db = {
-    select: vi.fn(() =>
-      createSelectChain(rootSelectResults.shift() ?? []),
-    ),
+    select: vi.fn((selection?: Record<string, unknown>) => {
+      if (selection && "competitionType" in selection) {
+        return createSelectChain([{ competitionType: "in-person" }])
+      }
+      if (selection && "ownerTeamId" in selection) {
+        return createSelectChain([{ ownerTeamId: "owner-team" }])
+      }
+      throw new Error("Unexpected root select shape")
+    }),
     transaction: vi.fn(
       async (callback: (transaction: typeof tx) => Promise<unknown>) => {
         operations.push("transaction-start")
@@ -370,8 +372,8 @@ describe("saveCompetitionScoreFn write characterization", () => {
     expect(key & SEGMENT_MAX).toBe(SEGMENT_MAX - 17n)
   })
 
-  // @lat: [[competition-score-writes#Competition Score Write Characterization#Explicit multi-round CAP fields are ignored]]
-  it("ignores explicit per-round and parent CAP declarations when inferred rounds are clean", async () => {
+  // @lat: [[competition-score-writes#Competition Score Write Characterization#Unsupported multi-round CAP fields are stripped]]
+  it("strips unsupported per-round CAP fields and ignores parent CAP when inferred rounds are clean", async () => {
     const write = createWriteDb()
     mockDb = write.db
 

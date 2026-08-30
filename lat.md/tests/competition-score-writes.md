@@ -19,7 +19,7 @@ An explicit single-round time-cap result is clamped to the configured cap with i
 
 Multi-round results aggregate encoded rounds by score type, infer CAP when a round meets or exceeds the shared cap, and bit-pack the capped-round count into the sort key.
 
-## Explicit multi-round CAP fields are ignored
+## Unsupported multi-round CAP fields are stripped
 
 The current write schema strips per-round CAP fields and the handler overrides a non-terminal parent CAP declaration when all encoded rounds are below the inferred threshold.
 

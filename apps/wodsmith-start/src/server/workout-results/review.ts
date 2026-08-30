@@ -3,6 +3,7 @@ import type { Database } from "@/db"
 import { scoresTable } from "@/db/schemas/scores"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import {
+  computeSortKeyWithDirection,
   encodeScore,
   type ScoreType,
   sortKeyToString,
@@ -88,6 +89,22 @@ export function normalizeSubmissionScoreAdjustment(
       )
     }
     seen.add(round.roundNumber)
+  }
+
+  if (roundScores.some((round, index) => round.roundNumber !== index + 1)) {
+    throw new Error(
+      "adjustedRoundScores must contain contiguous roundNumber values starting at 1",
+    )
+  }
+
+  if (
+    roundScores.length > 0 &&
+    input.existingRoundStatuses.length > 0 &&
+    roundScores.length !== input.existingRoundStatuses.length
+  ) {
+    throw new Error(
+      `Expected exactly ${input.existingRoundStatuses.length} adjusted round scores`,
+    )
   }
 
   const hasRoundScores = roundScores.length > 0
@@ -184,11 +201,13 @@ export function normalizeSubmissionScoreAdjustment(
 }
 
 export function normalizeInvalidatedSubmissionWorkoutResult(): NormalizedReviewedSubmissionWorkoutResult {
+  const worstPlaceSortKey = computeSortKeyWithDirection(null, "scored", "asc")
+
   return {
     scoreValue: 0,
     status: "scored",
     statusOrder: 0,
-    sortKey: null,
+    sortKey: sortKeyToString(worstPlaceSortKey),
     secondaryValue: null,
     tiebreakValue: null,
     rounds: [],
@@ -301,6 +320,11 @@ export function normalizeManualSubmissionWorkoutResult(
       status = cappedRoundCount > 0 ? "cap" : "scored"
     }
   } else if (input.score) {
+    const encodedScore = encodeScore(input.score, scheme)
+    if (encodedScore === null) {
+      throw new Error("score must be a valid score")
+    }
+
     if (scheme === "time-with-cap" && status === "cap" && timeCapMs) {
       scoreValue = timeCapMs
       if (input.secondaryScore) {
@@ -308,7 +332,7 @@ export function normalizeManualSubmissionWorkoutResult(
         if (!Number.isNaN(parsed) && parsed >= 0) secondaryValue = parsed
       }
     } else {
-      scoreValue = encodeScore(input.score, scheme)
+      scoreValue = encodedScore
       if (
         scheme === "time-with-cap" &&
         timeCapMs &&
