@@ -45,7 +45,7 @@ Pick the model that matches how you source the merch:
 
 Athletes see included downloads and optional add-ons in the registration form, between the coupon field and the order summary. Optional products are added to the same checkout as the registration fee, and the form summarizes whether each selected item is downloaded after payment or picked up at the competition.
 
-After registration or payment completes, entitled PDFs appear on the checkout confirmation, the athlete's permanent registration page, and in **Settings → Downloads**. Each download request checks the athlete's active registration, active membership on a registered athlete team, or completed add-on purchase before serving the file.
+After registration or payment completes, entitled PDFs appear on the athlete's permanent registration page and in **Settings → Downloads**. Each download request checks the athlete's active registration, active membership on a registered athlete team, or completed add-on purchase before serving the file.
 
 Once a product has completed sales, its delivery type is locked so existing purchases keep the fulfillment method athletes bought. You can still update its name, description, visibility, and delivery-specific details.
 

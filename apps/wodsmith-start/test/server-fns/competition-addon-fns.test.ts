@@ -374,6 +374,7 @@ describe("competition-addon-fns", () => {
       )
     })
 
+    // @lat: [[commerce#Downloadable Competition Products#Lifecycle guard tests#Preserves included access with registrations]]
     it("preserves included access after active registrations exist", async () => {
       const includedProduct = {
         ...activeProduct,
@@ -419,6 +420,7 @@ describe("competition-addon-fns", () => {
       )
     })
 
+    // @lat: [[commerce#Downloadable Competition Products#Lifecycle guard tests#Preserves attached files with registrations]]
     it("preserves attached files after active registrations exist", async () => {
       const includedProduct = {
         ...activeProduct,
@@ -484,6 +486,7 @@ describe("competition-addon-fns", () => {
       )
     })
 
+    // @lat: [[commerce#Downloadable Competition Products#Lifecycle guard tests#Allows access changes before registration]]
     it("allows included access to change before registrations exist", async () => {
       const includedProduct = {
         ...activeProduct,
@@ -593,6 +596,7 @@ describe("competition-addon-fns", () => {
       expect(mockDb.update).not.toHaveBeenCalled()
     })
 
+    // @lat: [[commerce#Downloadable Competition Products#Lifecycle guard tests#Blocks archival with registrations]]
     it("does not archive an included download with active registrations", async () => {
       const includedProduct = {
         ...activeProduct,

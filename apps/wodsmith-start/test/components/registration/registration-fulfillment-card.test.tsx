@@ -64,6 +64,7 @@ describe("RegistrationFulfillmentCard", () => {
     )
   })
 
+  // @lat: [[commerce#Downloadable Competition Products#Registration fulfillment presentation tests#Hides empty fulfillment]]
   it("renders nothing when the registration has no fulfillment items", () => {
     const { container } = render(
       <RegistrationFulfillmentCard purchases={[]} downloads={[]} />,
