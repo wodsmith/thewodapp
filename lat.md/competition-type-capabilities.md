@@ -64,11 +64,11 @@ This test verifies the organizer create form keeps standard competition types av
 
 ## Benchmark Rollout Gates
 
-Benchmark rollout uses a team entitlement for organizer creation and a separate PostHog flag for public navigation visibility.
+Benchmark organizer rollout uses a team entitlement, while public benchmark discovery is available to everyone.
 
 [[apps/wodsmith-start/src/server/benchmark-creation-access.ts#assertBenchmarkCreationAccess]] requires the organizing team to have the `create_benchmarks` feature before [[apps/wodsmith-start/src/server-fns/competition-fns.ts#createCompetitionFn]] creates a benchmark competition. Create and update mutations first require an authenticated site admin or a member with `MANAGE_COMPETITIONS`; changing an existing competition to benchmark repeats the entitlement check, and denied creation returns the typed `FORBIDDEN` application error. [[apps/wodsmith-start/src/server-fns/team-fns.ts#getOrganizerTeamsFn]] exposes that entitlement to the create form so Benchmark is offered only for eligible teams. The feature catalog remains manageable through the generic admin entitlement page.
 
-The public Benchmarks link is independent of organizer entitlement. [[apps/wodsmith-start/src/components/compete-nav.tsx#CompeteNav]] reads PostHog flag `benchmark-comp-type` through [[apps/wodsmith-start/src/lib/posthog/hooks.ts#useFeatureFlagEnabled]], fails closed while flags load, and passes the result to the mobile nav. Direct benchmark URLs remain available.
+The public Benchmarks link is independent of organizer entitlement. [[apps/wodsmith-start/src/components/compete-nav.tsx#CompeteNav]] and [[apps/wodsmith-start/src/components/compete-mobile-nav.tsx#CompeteMobileNav]] always link to `/benchmarks` for authenticated and anonymous visitors.
 
 ### Server Creation Entitlement
 
@@ -82,9 +82,9 @@ This test verifies the organizer create picker exposes Benchmark when the select
 
 This test verifies the seed catalogs `create_benchmarks` and grants it to the CrossFit Box One organizer team owned by `admin@example.com`.
 
-### Navigation Feature Flag
+### Always-visible Navigation
 
-This test verifies desktop and mobile Benchmarks navigation visibility follows the PostHog `benchmark-comp-type` flag.
+This test verifies desktop and mobile Benchmarks navigation is always visible without a client-side feature flag.
 
 ## Additive Tier Context
 
