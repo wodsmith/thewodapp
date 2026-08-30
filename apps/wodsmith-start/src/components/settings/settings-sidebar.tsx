@@ -4,6 +4,7 @@ import { Link, useLocation } from "@tanstack/react-router"
 import {
   Calendar,
   CreditCard,
+  Download,
   LayoutDashboard,
   LogOut,
   Medal,
@@ -58,6 +59,7 @@ const navGroups: SidebarNavGroup[] = [
     items: [
       { title: "Sessions", href: "/settings/sessions", icon: Smartphone },
       { title: "Billing", href: "/settings/billing", icon: CreditCard },
+      { title: "Downloads", href: "/settings/downloads", icon: Download },
     ],
   },
 ]

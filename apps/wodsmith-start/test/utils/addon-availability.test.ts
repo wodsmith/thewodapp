@@ -22,6 +22,20 @@ describe("isAddonPurchasable", () => {
     ).toBe(true)
   })
 
+  // @lat: [[commerce#Downloadable Competition Products#Checkout authority]]
+  it("rejects products included with registration as optional selections", () => {
+    expect(
+      isAddonPurchasable(
+        {
+          status: "ACTIVE",
+          access: "INCLUDED_WITH_REGISTRATION",
+          availableUntil: null,
+        },
+        DENVER,
+      ),
+    ).toBe(false)
+  })
+
   it("treats a null deadline as always available", () => {
     expect(
       isAddonPurchasable(

@@ -30,7 +30,7 @@ Athletes enter WODsmith coupon codes before leaving for Stripe Checkout.
 
 ## Registration Add-ons
 
-Organizers sell merch (e.g., event tees with sizes) inside the registration flow. Selections become extra line items in the same Stripe Checkout Session and extra `ADDON` purchase rows; pickup is at the venue.
+Organizers offer physical merch and digital add-ons inside competition registration, with optional products settled as `ADDON` purchase rows.
 
 The catalog lives in [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductsTable]] and [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductVariantsTable]]. Each add-on line item is its own `commerce_purchases` row (with `variantId` + `quantity` columns) referencing a lazily created `commerce_products` row (`type=ADDON`, `resourceId` = catalog product id). Organizer CRUD, the athlete-facing catalog, and fulfillment reports (counts-by-variant + pickup list) live in `src/server-fns/competition-addon-fns.ts`. The organizer Revenue page and series revenue rollups stay registration-only (add-on purchases are excluded by their null divisionId); merch revenue is reported on the Merch page.
 
@@ -93,6 +93,72 @@ An add-on that loses the stock race is failed and refunded by its own amount wit
 #### One transaction fee per checkout
 
 The fee calculator applies Stripe's fixed processing component once to the complete Checkout Session and allocates it exactly across purchase rows.
+
+## Downloadable Competition Products
+
+Competition products can deliver PDFs either as optional registration add-ons or as benefits included with an active registration.
+
+### Product configuration
+
+Delivery and access are separate catalog concerns; fulfillment cannot change after checkout starts or when doing so would revoke an active registration entitlement.
+
+[[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductsTable]] stores `delivery` (`PICKUP` or `DOWNLOAD`) and `access` (`OPTIONAL_PURCHASE` or `INCLUDED_WITH_REGISTRATION`). [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFilesTable]] stores one or more PDF records for a downloadable product. Included products have a zero price; optional products retain the normal add-on checkout path. Once an active registration exists, an active included product cannot change access, hide, archive, or remove attached files. Registration insertion and these lifecycle changes lock the same competition row, so the empty-registration case cannot race a revoking edit.
+
+### Checkout authority
+
+Included products are registration entitlements, never client-selectable zero-dollar add-ons.
+
+[[apps/wodsmith-start/src/utils/addon-availability.ts#isAddonPurchasable]] rejects included products from optional selection, even if a client submits their product id directly. Optional downloads use the existing `ADDON` purchase row and Stripe settlement flow.
+
+### Download authorization
+
+Every file request re-derives access from current registration and purchase records instead of trusting a library-page link.
+
+[[apps/wodsmith-start/src/server/downloadable-products.ts#canUserAccessCompetitionProduct]] grants included files to active individual registrants and active members of a registered athlete team. Optional files require a completed `ADDON` purchase for that catalog product.
+
+### Private file delivery
+
+Download files live in a private R2 bucket and are streamed only through an authenticated application endpoint.
+
+The `competition-download` upload purpose requires an owned competition id, accepts PDFs up to 20 MB, and writes through `R2_DOWNLOADS_BUCKET`, which has no public domain. [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductFileClaimsTable]] is locked and consumed by attachment or cleanup, so cleanup cannot race a product save.
+
+[[apps/wodsmith-start/src/routes/api/downloads/$fileId.ts#Route]] returns the private R2 object only after entitlement validation and applies private, no-store response headers. Included products may be hidden or archived before registrations exist; afterward, transactional catalog guards preserve registration access. Completed purchases retain paid access.
+
+Products with recent pending or completed purchases cannot switch delivery; abandoned pending rows expire after the checkout lifetime. Checkout and catalog updates share a row lock, then revalidate product and variant fulfillment before purchases are inserted.
+
+### Lifecycle guard tests
+
+These tests preserve download entitlements once athletes rely on them while keeping pre-registration catalog edits available.
+
+#### Preserves included access with registrations
+
+An included download cannot become an optional purchase after an active competition registration exists.
+
+#### Preserves attached files with registrations
+
+Files attached to an included download cannot be removed after an active competition registration exists.
+
+#### Allows access changes before registration
+
+An included download may become an optional purchase while the competition has no active registrations.
+
+#### Blocks archival with registrations
+
+An included download cannot be archived after an active competition registration exists.
+
+### Athlete download library
+
+Athletes find all entitled digital products in one account-level library after registration or checkout completes.
+
+[[apps/wodsmith-start/src/server-fns/downloadable-product-fns.ts#getMyDownloadsFn]] powers `/settings/downloads`, grouping files by competition and labeling whether access came from registration or an optional purchase. Its client-safe RPC wrapper loads database-backed logic only inside the server handler. The registration form advertises included downloads before checkout without exposing storage keys and summarizes how each selected add-on will be delivered. [[apps/wodsmith-start/src/server-fns/registration-fulfillment-fns.ts#getMyCompetitionFulfillmentFn]] combines entitled files with the athlete's completed add-on purchase lines. [[apps/wodsmith-start/src/components/registration/registration-fulfillment-card.tsx#RegistrationFulfillmentCard]] exposes that receipt and fulfillment detail on the permanent registration overview and registration details pages, while every file link remains protected by the normal download authorization endpoint.
+
+### Registration fulfillment presentation tests
+
+These component tests keep registration fulfillment visible when present and omit empty receipt UI.
+
+#### Hides empty fulfillment
+
+The registration fulfillment card renders no container when there are no purchases or entitled downloads.
 
 ## Purchase Transfers
 
