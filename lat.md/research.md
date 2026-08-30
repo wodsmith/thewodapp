@@ -32,6 +32,8 @@ Benchmark competitions use a dense domain directory while every other competitio
 
 [[apps/wodsmith-start/src/server-fns/competition-workouts-page-fns.ts#getPublicWorkoutsPageDataFn]] includes viewer scores only when either public benchmark route opts in and queries only rendered top-level workouts. Focused tests cover classification, ordering, filtering, batching, authentication, and division isolation.
 
+Dense online score-submission panels reuse the same domain grouping through [[apps/wodsmith-start/src/components/compete/athlete-score-submission-panel.tsx#AthleteScoreSubmissionPanel]]. Lists with at least eight visible top-level workouts across multiple domains start category-collapsed, keep canonical domain and workout order, and show submitted/total progress per category. Parent events count their score-bearing children rather than the parent container.
+
 ## Benchmark Workout Directory Test
 
 These tests lock the benchmark directory's category mapping, ordering, filtering, and result-label behavior.
@@ -55,6 +57,22 @@ This test verifies search covers workout names, domains, result formats, tags, a
 ### Result Labels
 
 This test verifies result schemes use explicit directory labels.
+
+## Benchmark Score Submission Group Test
+
+These tests lock when score-panel grouping activates and how category progress treats score-bearing child events.
+
+### Dense List Activation
+
+This test verifies short or single-category score lists stay flat while dense multi-category benchmark lists use grouped progressive disclosure, counting child score rows toward density.
+
+### Default Collapsed Interaction
+
+This test verifies dense benchmark categories start collapsed, expose accessible progress in their controls, and reveal workout rows on demand, even when many score rows belong to a few parent events.
+
+### Category Submission Progress
+
+This test verifies category progress counts submitted score leaves, including child events, without counting their parent container.
 
 ## Benchmark Viewer Score Test
 

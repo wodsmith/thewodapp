@@ -13,6 +13,10 @@ import {
   Trophy,
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  type BenchmarkWorkoutDomain,
+  groupBenchmarkWorkouts,
+} from "@/components/benchmark-workout-directory"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -53,14 +57,18 @@ interface UserDivision {
   division: Division | null
 }
 
-interface WorkoutInfo {
+export interface WorkoutInfo {
   id: string
   workoutId: string
   trackOrder: number
   parentEventId: string | null
+  benchmarkCategory?: string | null
   workout: {
     name: string
     scheme: string
+    scoreType?: string | null
+    movements?: readonly { name: string }[]
+    tags?: readonly { name: string }[]
     description?: string | null
   }
 }
@@ -76,6 +84,37 @@ interface WorkoutSubmission {
   verificationStatus: string | null
   canSubmit: boolean
   windowStatus: "open" | "not_yet_open" | "closed" | "no_window"
+}
+
+type SubmissionPresence = Pick<WorkoutSubmission, "hasScore" | "hasVideo">
+
+export const MIN_GROUPED_SCORE_WORKOUTS = 8
+
+export function shouldGroupScoreSubmissionWorkouts(
+  workouts: readonly WorkoutInfo[],
+  groupCount = groupBenchmarkWorkouts(workouts).length,
+  scoreEntryCount = workouts.length,
+): boolean {
+  return scoreEntryCount >= MIN_GROUPED_SCORE_WORKOUTS && groupCount > 1
+}
+
+export function getScoreSubmissionGroupProgress(
+  workouts: readonly WorkoutInfo[],
+  childEventsMap: ReadonlyMap<string, readonly WorkoutInfo[]>,
+  submissionMap: ReadonlyMap<string, SubmissionPresence>,
+): { submittedCount: number; totalCount: number } {
+  const scoreIds = workouts.flatMap((workout) => {
+    const children = childEventsMap.get(workout.id)
+    return children?.length ? children.map((child) => child.id) : [workout.id]
+  })
+
+  return {
+    submittedCount: scoreIds.filter((id) => {
+      const submission = submissionMap.get(id)
+      return submission?.hasScore || submission?.hasVideo
+    }).length,
+    totalCount: scoreIds.length,
+  }
 }
 
 interface EventDivisionMappings {
@@ -261,12 +300,101 @@ export function AthleteScoreSubmissionPanel({
       .catch(() => {})
   }, [competitionId, registration?.id, division?.id, trackWorkoutIds])
 
-  const submissionMap = new Map(submissions.map((s) => [s.trackWorkoutId, s]))
+  const submissionMap = useMemo(
+    () => new Map(submissions.map((s) => [s.trackWorkoutId, s])),
+    [submissions],
+  )
 
   const totalSubmittable = trackWorkoutIds.length
   const submittedCount = submissions.filter(
     (s) => s.hasScore || s.hasVideo,
   ).length
+
+  const workoutGroups = useMemo(
+    () => groupBenchmarkWorkouts(filteredParents),
+    [filteredParents],
+  )
+  const groupByCategory = shouldGroupScoreSubmissionWorkouts(
+    filteredParents,
+    workoutGroups.length,
+    trackWorkoutIds.length,
+  )
+  const eventPositions = useMemo(
+    () =>
+      new Map(
+        filteredParents.map((event, idx) => [event.id, idx + 1] as const),
+      ),
+    [filteredParents],
+  )
+  const [expandedCategories, setExpandedCategories] = useState(
+    () => new Set<BenchmarkWorkoutDomain>(),
+  )
+
+  function toggleCategory(domain: BenchmarkWorkoutDomain) {
+    setExpandedCategories((current) => {
+      const next = new Set(current)
+      if (next.has(domain)) next.delete(domain)
+      else next.add(domain)
+      return next
+    })
+  }
+
+  function renderWorkout(event: WorkoutInfo) {
+    const position = eventPositions.get(event.id) ?? 0
+    const children = filteredChildEventsMap.get(event.id)
+
+    if (children && children.length > 0) {
+      return (
+        <div key={event.id} className="space-y-1">
+          <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+            <NumberBadge value={String(position).padStart(2, "0")} />
+            <span className="text-sm font-semibold truncate">
+              {event.workout.name}
+            </span>
+          </div>
+          <div className="ml-[22px] space-y-1 border-l-2 border-border/40 pl-0">
+            {children.map((child, childIdx) => {
+              const sub = submissionMap.get(child.id)
+              const letter = String.fromCharCode(65 + childIdx)
+              return (
+                <WorkoutRow
+                  key={`${child.id}:${division?.id ?? "none"}`}
+                  event={child}
+                  submission={sub ?? null}
+                  slug={slug}
+                  competitionId={competitionId}
+                  timezone={timezone}
+                  division={division ?? null}
+                  divisionDescriptions={
+                    divisionDescriptionsMap?.[child.workoutId]
+                  }
+                  parentEventId={event.id}
+                  badge={letter}
+                  onScoreSubmitted={refreshSubmissions}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )
+    }
+
+    const sub = submissionMap.get(event.id)
+    return (
+      <WorkoutRow
+        key={`${event.id}:${division?.id ?? "none"}`}
+        event={event}
+        submission={sub ?? null}
+        slug={slug}
+        competitionId={competitionId}
+        timezone={timezone}
+        division={division ?? null}
+        divisionDescriptions={divisionDescriptionsMap?.[event.workoutId]}
+        badge={String(position).padStart(2, "0")}
+        onScoreSubmitted={refreshSubmissions}
+      />
+    )
+  }
 
   return (
     <Card className="overflow-hidden border-primary/30 bg-primary/5 dark:border-primary/20 dark:bg-primary/5">
@@ -319,67 +447,61 @@ export function AthleteScoreSubmissionPanel({
           <p className="text-sm text-destructive py-4 text-center">
             Failed to load submissions. Please try refreshing.
           </p>
-        ) : (
-          filteredParents.map((event, idx) => {
-            const position = idx + 1
-            const children = filteredChildEventsMap.get(event.id)
+        ) : groupByCategory ? (
+          workoutGroups.map(({ domain, workouts: categoryWorkouts }) => {
+            const expanded = expandedCategories.has(domain)
+            const progress = getScoreSubmissionGroupProgress(
+              categoryWorkouts,
+              filteredChildEventsMap,
+              submissionMap,
+            )
+            const sectionId = `score-category-${domain
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")}`
 
-            if (children && children.length > 0) {
-              return (
-                <div key={event.id} className="space-y-1">
-                  {/* Parent group label */}
-                  <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
-                    <NumberBadge value={String(position).padStart(2, "0")} />
-                    <span className="text-sm font-semibold truncate">
-                      {event.workout.name}
-                    </span>
-                  </div>
-                  {/* Sub-event rows with left accent */}
-                  <div className="ml-[22px] border-l-2 border-border/40 pl-0 space-y-1">
-                    {children.map((child, childIdx) => {
-                      const sub = submissionMap.get(child.id)
-                      const letter = String.fromCharCode(65 + childIdx)
-                      return (
-                        <WorkoutRow
-                          key={`${child.id}:${division?.id ?? "none"}`}
-                          event={child}
-                          submission={sub ?? null}
-                          slug={slug}
-                          competitionId={competitionId}
-                          timezone={timezone}
-                          division={division ?? null}
-                          divisionDescriptions={
-                            divisionDescriptionsMap?.[child.workoutId]
-                          }
-                          parentEventId={event.id}
-                          badge={letter}
-                          onScoreSubmitted={refreshSubmissions}
-                        />
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            }
-
-            const sub = submissionMap.get(event.id)
             return (
-              <WorkoutRow
-                key={`${event.id}:${division?.id ?? "none"}`}
-                event={event}
-                submission={sub ?? null}
-                slug={slug}
-                competitionId={competitionId}
-                timezone={timezone}
-                division={division ?? null}
-                divisionDescriptions={
-                  divisionDescriptionsMap?.[event.workoutId]
-                }
-                badge={String(position).padStart(2, "0")}
-                onScoreSubmitted={refreshSubmissions}
-              />
+              <section
+                key={domain}
+                className="overflow-hidden rounded-lg border border-border/70 bg-background/60"
+              >
+                <h3>
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(domain)}
+                    aria-expanded={expanded}
+                    aria-controls={`${sectionId}-workouts`}
+                    className="group/category grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold">
+                        {domain}
+                      </span>
+                      <span className="mt-0.5 block text-xs tabular-nums text-muted-foreground">
+                        {progress.submittedCount} of {progress.totalCount}{" "}
+                        scores submitted
+                      </span>
+                    </span>
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={cn(
+                        "size-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none",
+                        expanded && "rotate-180",
+                      )}
+                    />
+                  </button>
+                </h3>
+                <div
+                  id={`${sectionId}-workouts`}
+                  hidden={!expanded}
+                  className="space-y-2 border-t border-border/60 p-2"
+                >
+                  {categoryWorkouts.map(renderWorkout)}
+                </div>
+              </section>
             )
           })
+        ) : (
+          filteredParents.map(renderWorkout)
         )}
       </CardContent>
     </Card>

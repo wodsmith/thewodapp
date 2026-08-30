@@ -36,9 +36,11 @@ export interface BenchmarkDirectoryWorkout {
   }
 }
 
-export interface BenchmarkWorkoutGroup {
+export interface BenchmarkWorkoutGroup<
+  TWorkout extends BenchmarkDirectoryWorkout = BenchmarkDirectoryWorkout,
+> {
   domain: BenchmarkWorkoutDomain
-  workouts: BenchmarkDirectoryWorkout[]
+  workouts: TWorkout[]
 }
 
 interface BenchmarkWorkoutDirectoryProps {
@@ -163,10 +165,10 @@ export function getBenchmarkWorkoutDomain(
   return DOMAIN_BY_CATEGORY_KEY[categoryKey] ?? humanizeCategoryKey(categoryKey)
 }
 
-export function groupBenchmarkWorkouts(
-  workouts: readonly BenchmarkDirectoryWorkout[],
-): BenchmarkWorkoutGroup[] {
-  const grouped = new Map<BenchmarkWorkoutDomain, BenchmarkDirectoryWorkout[]>()
+export function groupBenchmarkWorkouts<
+  TWorkout extends BenchmarkDirectoryWorkout,
+>(workouts: readonly TWorkout[]): BenchmarkWorkoutGroup<TWorkout>[] {
+  const grouped = new Map<BenchmarkWorkoutDomain, TWorkout[]>()
 
   for (const workout of workouts) {
     const domain = getBenchmarkWorkoutDomain(workout)

@@ -157,9 +157,13 @@ function CompetitionOverviewPage() {
         workoutId: w.workoutId,
         trackOrder: w.trackOrder,
         parentEventId: w.parentEventId,
+        benchmarkCategory: w.benchmarkCategory,
         workout: {
           name: w.workout.name,
           scheme: w.workout.scheme,
+          scoreType: w.workout.scoreType,
+          movements: w.workout.movements,
+          tags: w.workout.tags,
           description: w.workout.description,
         },
       })),

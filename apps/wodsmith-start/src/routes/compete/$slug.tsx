@@ -280,7 +280,7 @@ function CompetitionDetailLayout() {
             alt=""
             className={`absolute inset-0 h-full w-full object-cover ${profileImage ? "hidden md:block" : ""}`}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/60 to-slate-900/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/40" />
         </div>
       )}
 
