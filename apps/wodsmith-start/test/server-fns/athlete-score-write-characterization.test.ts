@@ -8,6 +8,10 @@ vi.mock("@/db", () => ({
   getDb: vi.fn(() => mockDb),
 }))
 
+vi.mock("@/server/benchmark-submissions", () => ({
+  isBenchmarkCompetition: vi.fn(async () => false),
+}))
+
 vi.mock("@/utils/auth", () => ({
   getSessionFromCookie: vi.fn(async () => ({ userId: "athlete-1" })),
 }))

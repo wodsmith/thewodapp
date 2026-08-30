@@ -36,14 +36,21 @@ import {
   videoSubmissionsTable,
 } from "@/db/schemas/video-submissions"
 import { videoVotesTable } from "@/db/schemas/video-votes"
+import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
 import {
+  computeSortKey,
   decodeScore,
+  encodeRounds,
+  encodeScore,
   formatScore,
   getDefaultScoreType,
+  parseScore,
   type ScoreType,
+  STATUS_ORDER,
+  sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
 import type { BenchmarkVariant } from "@/schemas/benchmark.schema"
@@ -103,6 +110,20 @@ type SubmitVideoInput = z.infer<typeof submitVideoInputSchema>
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Map status to the simplified type for scores table.
+ */
+function getStatusOrder(status: "scored" | "cap"): number {
+  switch (status) {
+    case "scored":
+      return STATUS_ORDER.scored
+    case "cap":
+      return STATUS_ORDER.cap
+    default:
+      return STATUS_ORDER.scored
+  }
+}
 
 /**
  * Check if current time is within the event's submission window.
