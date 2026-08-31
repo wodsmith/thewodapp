@@ -29,7 +29,6 @@ const applyTheme = (newTheme: Theme) => {
 
 export function DarkModeToggle() {
   const [theme, setTheme] = useState<Theme>("light")
-  const [mounted, setMounted] = useState(false)
 
   // Load theme from localStorage on mount
   useEffect(() => {
@@ -41,7 +40,6 @@ export function DarkModeToggle() {
     const initialTheme = savedTheme || (prefersDark ? "dark" : "light")
     setTheme(initialTheme)
     applyTheme(initialTheme)
-    setMounted(true)
   }, [])
 
   const toggleTheme = () => {
@@ -51,16 +49,6 @@ export function DarkModeToggle() {
     localStorage.setItem("theme", newTheme)
     setThemeCookie(newTheme)
     applyTheme(newTheme)
-  }
-
-  // Prevent layout shift during SSR/hydration by showing a default icon
-  if (!mounted) {
-    return (
-      <Button variant="outline" size="icon" disabled aria-label="Toggle theme">
-        <Sun className="h-[1.2rem] w-[1.2rem]" />
-        <span className="sr-only">Toggle theme</span>
-      </Button>
-    )
   }
 
   return (

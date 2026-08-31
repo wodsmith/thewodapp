@@ -23,6 +23,18 @@ The root document permits one intentional root-attribute difference, while all s
 
 PostHog may restore persisted feature flags before a streamed route boundary hydrates. [[apps/wodsmith-start/src/lib/posthog/hooks.ts#useFeatureFlagEnabled]] therefore starts from the same fail-closed value on the server and the first client render, then applies the browser value in an effect. Direct feature-gated routes likewise start from `undefined` on both sides, render nothing until explicitly enabled, and resolve the flag after hydration. `apps/wodsmith-start/test/lib/posthog/hooks-hydration.test.tsx` simulates the persisted-flag race and verifies React can hydrate before inserting the enabled navigation link.
 
+#### Stable Toggle Markup
+
+Theme toggles render the same icon tree before and after mounting so streamed hydration never encounters a changed child structure.
+
+[[apps/wodsmith-start/src/components/nav/dark-mode-toggle.tsx#DarkModeToggle]] always renders both the sun and moon icons; the root `dark` class selects the visible icon with CSS. Browser state may update the label and theme after mount, but it does not insert another icon. `apps/wodsmith-start/test/components/ssr-hydration-stability.test.tsx` hydrates the SSR toggle and requires the same two-icon tree without recoverable React errors.
+
+#### Deferred Analytics Initialization
+
+PostHog initializes only after document load and a browser idle turn so its exception-autocapture script cannot mutate the body during streamed hydration.
+
+[[apps/wodsmith-start/src/lib/posthog/provider.tsx#PostHogProvider]] records the initial route immediately but defers analytics initialization and its first pageview. `apps/wodsmith-start/test/lib/posthog/provider-hydration.test.tsx` verifies neither runs before both load and idle signals.
+
 ### Feature-Gated Route Hydration
 
 Feature-gated routes remain blank while their PostHog value is unresolved, render only when explicitly enabled, and redirect only when explicitly disabled.
