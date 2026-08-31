@@ -112,7 +112,7 @@ function SeriesDivisionsPage() {
     }
   }, [flagEnabled, groupId, navigate])
 
-  if (flagEnabled === false) return null
+  if (flagEnabled !== true) return null
 
   const refreshData = async () => {
     await router.invalidate()

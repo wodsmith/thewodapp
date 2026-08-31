@@ -872,7 +872,7 @@ function InvitesPage() {
     })
   }
 
-  if (flagEnabled === false) return null
+  if (flagEnabled !== true) return null
 
   return (
     <div className="space-y-6">

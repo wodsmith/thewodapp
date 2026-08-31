@@ -21,7 +21,13 @@ The root document permits one intentional root-attribute difference, while all s
 
 [[apps/wodsmith-start/src/routes/__root.tsx#RootDocument]] renders the cookie-derived theme for SSR, then its inline script resolves local storage and system color preference before paint. The `<html>` element suppresses only that root-class warning; it cannot suppress structural descendant mismatches. `apps/wodsmith-start/e2e/organizer-hydration.spec.ts` forces the class correction and verifies a clean organizer reload.
 
-PostHog may restore persisted feature flags before a streamed route boundary hydrates. [[apps/wodsmith-start/src/lib/posthog/hooks.ts#useFeatureFlagEnabled]] therefore starts from the same fail-closed value on the server and the first client render, then applies the browser value in an effect. Direct feature-gated routes likewise start from `undefined` on both sides and resolve the flag after hydration. `apps/wodsmith-start/test/lib/posthog/hooks-hydration.test.tsx` simulates the persisted-flag race and verifies React can hydrate before inserting the enabled navigation link.
+PostHog may restore persisted feature flags before a streamed route boundary hydrates. [[apps/wodsmith-start/src/lib/posthog/hooks.ts#useFeatureFlagEnabled]] therefore starts from the same fail-closed value on the server and the first client render, then applies the browser value in an effect. Direct feature-gated routes likewise start from `undefined` on both sides, render nothing until explicitly enabled, and resolve the flag after hydration. `apps/wodsmith-start/test/lib/posthog/hooks-hydration.test.tsx` simulates the persisted-flag race and verifies React can hydrate before inserting the enabled navigation link.
+
+### Feature-Gated Route Hydration
+
+Feature-gated routes remain blank while their PostHog value is unresolved, render only when explicitly enabled, and redirect only when explicitly disabled.
+
+This tri-state contract keeps SSR and the first client render identical without flashing gated content. `apps/wodsmith-start/test/routes/compete/feature-flag-route-gates.test.ts` pins the contract for invites plus public and organizer series routes.
 
 ### Organizer Date Hydration
 

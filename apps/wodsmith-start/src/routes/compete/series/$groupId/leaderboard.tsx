@@ -37,7 +37,7 @@ function SeriesLeaderboardPage() {
     }
   }, [flagEnabled, groupId, navigate])
 
-  if (flagEnabled === false) return null
+  if (flagEnabled !== true) return null
 
   return (
     <div className="container mx-auto px-4 py-8">

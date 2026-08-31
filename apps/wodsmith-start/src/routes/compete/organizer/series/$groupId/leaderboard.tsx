@@ -39,7 +39,7 @@ function OrganizerSeriesLeaderboardPage() {
     }
   }, [flagEnabled, groupId, navigate])
 
-  if (flagEnabled === false) return null
+  if (flagEnabled !== true) return null
 
   return <SeriesLeaderboardPageContent groupId={groupId} />
 }
