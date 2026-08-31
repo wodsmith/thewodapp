@@ -39,7 +39,7 @@ Defined in `competitionGroupsTable`. Slugs are unique per organizing team, not g
 
 A competition contains one or more events, each linking a workout to the competition for scheduling and scoring.
 
-Defined in `competitionEventsTable`. Each event references a `workoutId` and belongs to a `competitionId`. Events can have their own resources and judging sheets.
+The event identity is the `track_workouts` row that links a workout to the competition's programming track. `competitionEventsTable` belongs to a `competitionId` and references that row through `trackWorkoutId` for per-event settings such as submission windows. Creating an event persists the workout, track link, and settings row together.
 
 ### Divisions
 

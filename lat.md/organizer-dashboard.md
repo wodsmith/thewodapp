@@ -38,6 +38,12 @@ Events link workouts to the competition. Each event represents a workout athlete
 
 Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerEventManager` for creating, editing, reordering, and deleting events. Events can have per-division workout descriptions, attached resources, and judging sheets. Supports parent/sub-event hierarchy for multi-workout events. Publishing or unpublishing a parent event cascades to all its child sub-events via [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/quick-actions-events.tsx]].
 
+### Draft Event Creation
+
+Pending organizers can build complete private draft events while their application is under review.
+
+[[apps/wodsmith-start/src/server-fns/competition-workouts-fns.ts#createWorkoutAndAddToCompetitionFn]] requires the organizing team's `MANAGE_COMPETITIONS` permission and verifies that the requested competition belongs to that team. It locks the competition and atomically creates or resolves its programming track, private workout, `track_workouts` link, tags and movements, and `competition_events` settings row. This avoids cross-team writes and read-after-write gaps across Cloudflare/PlanetScale connections. `apps/wodsmith-start/e2e/competition-organizer.spec.ts` covers the pending-organizer flow and verifies all three event records persist.
+
 ### Grouping Existing Events Under a Parent
 
 Organizers who created multi-part events (Part A / Part B) as separate top-level events can retroactively group them under a new parent event so they're scheduled together as one event.
@@ -437,7 +443,9 @@ Shows `DeleteCompetitionForm` with registration count warning. Deletion requires
 
 The application flow for teams to become competition organizers.
 
-At `/compete/organizer/onboard/`, teams submit an organizer request. Includes inline auth for unauthenticated users. After submission, the pending page shows request status. Admin approval is required before teams can create competitions.
+At `/compete/organizer/onboard/`, teams submit an organizer request. Includes inline auth for unauthenticated users. After submission, the pending page shows request status. Admin approval is required before draft competitions can be published.
+
+Submitting a request grants `HOST_COMPETITIONS` immediately with `max_published_competitions = 0`. Pending teams can create and fully configure private draft competitions, including divisions and events; approval is required to publish, not to build the draft.
 
 The Compete header shows `HOST A COMP` only before one of the user's teams has an organizer request. Hosting entitlements alone do not switch the header to `MANAGE COMPETITIONS`, and the desktop CTA is separated from `COMPETITIONS` by the standard header divider.
 

@@ -1,4 +1,5 @@
 import {expect, test} from '@playwright/test'
+import {createConnection, type RowDataPacket} from 'mysql2/promise'
 import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 
 test.describe('Competition Organizer', () => {
@@ -8,7 +9,28 @@ test.describe('Competition Organizer', () => {
   test('should create competition, add division, and add event', async ({
     page,
   }) => {
+    const setupConnection = await createConnection(process.env.DATABASE_URL!)
+    try {
+      await setupConnection.execute(
+        `INSERT INTO team_entitlement_overrides
+           (id, team_id, type, \`key\`, value, reason, created_at, updated_at, update_counter)
+         VALUES (?, ?, 'limit', 'max_published_competitions', '0', ?, NOW(), NOW(), 0)
+         ON DUPLICATE KEY UPDATE value = '0', updated_at = NOW()`,
+        [
+          'e2e_pending_organizer_limit',
+          'e2e_test_team',
+          'Pending organizer regression',
+        ],
+      )
+    } finally {
+      await setupConnection.end()
+    }
+
     await loginAsTestUser(page)
+
+    await page.goto('/compete/organizer')
+    await waitForHydration(page)
+    await expect(page.getByText('Application pending:')).toBeVisible()
 
     const uniqueName = `E2E Comp ${Date.now()}`
     const slug = `e2e-comp-${Date.now()}`
@@ -111,5 +133,32 @@ test.describe('Competition Organizer', () => {
 
     // Verify event appears
     await expect(page.getByText('Event 1 - Fran')).toBeVisible({timeout: 10000})
+
+    // The organizer mutation must persist the workout, its track entry, and the
+    // competition-event settings row as one complete event.
+    const competitionId = compDetailPath?.split('/').at(-1)
+    expect(competitionId).toBeTruthy()
+    const connection = await createConnection(process.env.DATABASE_URL!)
+    try {
+      const [rows] = await connection.query<RowDataPacket[]>(
+        `SELECT w.id AS workoutId,
+                tw.id AS trackWorkoutId,
+                ce.id AS competitionEventId
+           FROM competition_events ce
+           JOIN track_workouts tw ON tw.id = ce.track_workout_id
+           JOIN workouts w ON w.id = tw.workout_id
+          WHERE ce.competition_id = ? AND w.name = ?`,
+        [competitionId, 'Event 1 - Fran'],
+      )
+
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({
+        workoutId: expect.any(String),
+        trackWorkoutId: expect.any(String),
+        competitionEventId: expect.any(String),
+      })
+    } finally {
+      await connection.end()
+    }
   })
 })

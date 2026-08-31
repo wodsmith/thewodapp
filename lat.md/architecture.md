@@ -15,6 +15,12 @@ TanStack Start (React + Vite) deployed to Cloudflare Workers, with PlanetScale (
 - **Deployment**: Alchemy IaC to Cloudflare Workers, Vite build pipeline
 - **Testing**: Vitest (unit/integration), Playwright (E2E), Testing Library (components)
 
+### SSR Theme Hydration
+
+The root document permits one intentional hydration difference: the blocking theme script may adjust the root HTML class before React starts.
+
+[[apps/wodsmith-start/src/routes/__root.tsx#RootDocument]] renders the cookie-derived theme for SSR, then its inline script resolves local storage and system color preference before paint. The `<html>` element suppresses that single attribute warning so the correction does not produce React hydration error #418; descendants still hydrate normally. `apps/wodsmith-start/e2e/organizer-hydration.spec.ts` forces the class correction and verifies a clean organizer reload.
+
 ## Monorepo Structure
 
 The monorepo uses Turborepo with pnpm workspaces. The main app lives in `apps/wodsmith-start/`.
