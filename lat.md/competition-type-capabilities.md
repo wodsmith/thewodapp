@@ -86,6 +86,12 @@ This test verifies the seed catalogs `create_benchmarks` and grants it to the Cr
 
 This test verifies desktop and mobile Benchmarks navigation visibility follows the PostHog `benchmark-comp-type` flag.
 
+### Hydration-Stable Navigation Flag
+
+This test verifies a persisted browser flag cannot change Benchmarks navigation markup until after React hydrates the server-rendered tree.
+
+[[apps/wodsmith-start/test/lib/posthog/hooks-hydration.test.tsx]] renders the disabled SSR shape, enables the mocked persisted flag before `hydrateRoot`, and expects no recoverable hydration error while still showing the enabled link after effects run.
+
 ## Additive Tier Context
 
 Benchmark tier data enriches the leaderboard and stats as display context; ranking always uses the online algorithm (forced at save and read time), not a mutually exclusive tier-scoring mode.

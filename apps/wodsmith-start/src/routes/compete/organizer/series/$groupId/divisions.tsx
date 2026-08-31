@@ -92,15 +92,14 @@ function SeriesDivisionsPage() {
   const setTemplateFnHook = useServerFn(setSeriesTemplateFn)
   const createTemplateFnHook = useServerFn(createSeriesTemplateFn)
 
-  const [flagEnabled, setFlagEnabled] = useState(() =>
-    posthog.isFeatureEnabled("competition-global-leaderboard"),
-  )
+  const [flagEnabled, setFlagEnabled] = useState<boolean | undefined>(undefined)
 
   useEffect(() => {
-    const unsubscribe = posthog.onFeatureFlags(() => {
+    const updateFlag = () => {
       setFlagEnabled(posthog.isFeatureEnabled("competition-global-leaderboard"))
-    })
-    return unsubscribe
+    }
+    updateFlag()
+    return posthog.onFeatureFlags(updateFlag)
   }, [posthog])
 
   useEffect(() => {

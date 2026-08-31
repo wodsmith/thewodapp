@@ -283,14 +283,13 @@ function InvitesPage() {
   const router = useRouter()
   const { posthog } = usePostHog()
   const navigate = useNavigate()
-  const [flagEnabled, setFlagEnabled] = useState(() =>
-    posthog.isFeatureEnabled("competition-invites"),
-  )
+  const [flagEnabled, setFlagEnabled] = useState<boolean | undefined>(undefined)
   useEffect(() => {
-    const unsubscribe = posthog.onFeatureFlags(() => {
+    const updateFlag = () => {
       setFlagEnabled(posthog.isFeatureEnabled("competition-invites"))
-    })
-    return unsubscribe
+    }
+    updateFlag()
+    return posthog.onFeatureFlags(updateFlag)
   }, [posthog])
   useEffect(() => {
     if (flagEnabled === false) {

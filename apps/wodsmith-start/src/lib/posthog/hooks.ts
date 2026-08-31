@@ -7,9 +7,7 @@ export { usePostHog } from "./provider"
 
 export function useFeatureFlagEnabled(flagKey: string): boolean {
   const { posthog } = usePostHog()
-  const [enabled, setEnabled] = useState(
-    () => posthog.isFeatureEnabled(flagKey) === true,
-  )
+  const [enabled, setEnabled] = useState(false)
 
   useEffect(() => {
     setEnabled(posthog.isFeatureEnabled(flagKey) === true)

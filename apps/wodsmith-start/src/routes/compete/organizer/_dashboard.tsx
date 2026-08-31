@@ -21,7 +21,11 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
     const session = await getSessionFromCookie()
     const hasOrganizerApplication = await hasCurrentUserOrganizerRequestFn()
 
-    return { session, hasOrganizerApplication }
+    return {
+      session,
+      hasOrganizerApplication,
+      currentYear: new Date().getUTCFullYear(),
+    }
   },
 )
 
@@ -29,8 +33,9 @@ export const Route = createFileRoute("/compete/organizer/_dashboard")({
   component: DashboardLayout,
   staleTime: 30_000, // Cache for 30 seconds - nav data changes infrequently
   loader: async () => {
-    const { session, hasOrganizerApplication } = await getCompeteNavDataFn()
-    return { session, hasOrganizerApplication }
+    const { session, hasOrganizerApplication, currentYear } =
+      await getCompeteNavDataFn()
+    return { session, hasOrganizerApplication, currentYear }
   },
 })
 
@@ -38,7 +43,8 @@ function DashboardLayout() {
   const { entitlements } = Route.useRouteContext() as {
     entitlements?: { isPendingApproval?: boolean }
   }
-  const { session, hasOrganizerApplication } = Route.useLoaderData()
+  const { session, hasOrganizerApplication, currentYear } =
+    Route.useLoaderData()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -58,7 +64,7 @@ function DashboardLayout() {
       <footer className="border-black border-t-2 p-4">
         <div className="container mx-auto">
           <p className="text-center">
-            &copy; {new Date().getFullYear()} WODsmith. All rights reserved.
+            &copy; {currentYear} WODsmith. All rights reserved.
           </p>
         </div>
       </footer>
