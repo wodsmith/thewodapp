@@ -61,7 +61,7 @@ export type SaveScoreFn = (params: {
   scoreStatus: string
   tieBreakScore: string | null
   secondaryScore: string | null
-  roundScores?: Array<{ score: string }>
+  roundScores?: Array<{ score: string; status?: "scored" | "cap" }>
   workout: {
     scheme: string
     scoreType: string | null

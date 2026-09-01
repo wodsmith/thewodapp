@@ -154,7 +154,7 @@ export function normalizeSubmittedPersonalWorkoutResult({
   }
 }
 
-// @lat: [[domain#Domain Model#Scoring#Workout-result module]]
+// @lat: [[domain#Domain Model#Scoring#Personal training logs]]
 export async function submitPersonalWorkoutResult({
   db,
   userId,

@@ -64,9 +64,9 @@ import {
   saveBenchmarkScoreInTransaction,
 } from "@/server/benchmark-submissions"
 import {
-  normalizeSubmittedVideoWorkoutResult,
-  persistSubmittedVideoWorkoutResult,
-} from "@/server/workout-results"
+  divisionScopeFromId,
+  recordCompetitionResult,
+} from "@/server/competition-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { requireSubmissionReviewAccess } from "@/utils/team-auth"
@@ -102,7 +102,15 @@ const submitVideoInputSchema = z.object({
   secondaryScore: z.string().optional(),
   tiebreakScore: z.string().optional(),
   // Per-round scores for multi-round workouts
-  roundScores: z.array(z.object({ score: z.string() })).optional(),
+  roundScores: z
+    .array(
+      z.object({
+        score: z.string(),
+        status: z.enum(["scored", "cap"]).optional(),
+        secondaryScore: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
 })
 
 type SubmitVideoInput = z.infer<typeof submitVideoInputSchema>
@@ -1801,46 +1809,24 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     // Save claimed score (score is validated as required above)
     if (hasScore) {
-      // Get workout details for encoding
-      const workout = await getWorkoutDetails(data.trackWorkoutId)
-
-      if (!workout) {
-        throw new Error("Workout not found")
-      }
-
-      const result = normalizeSubmittedVideoWorkoutResult({
-        score: data.score,
-        scoreStatus: data.scoreStatus,
-        secondaryScore: data.secondaryScore,
-        tiebreakScore: data.tiebreakScore,
-        roundScores: data.roundScores,
-        workout,
-      })
-
-      // Get teamId from track
-      const [track] = await db
-        .select({
-          ownerTeamId: programmingTracksTable.ownerTeamId,
-        })
-        .from(programmingTracksTable)
-        .where(eq(programmingTracksTable.id, workout.trackId))
-        .limit(1)
-
-      if (!track?.ownerTeamId) {
-        throw new Error("Could not determine team ownership")
-      }
-
-      await persistSubmittedVideoWorkoutResult({
+      await recordCompetitionResult({
         db,
-        target: {
-          userId: session.userId,
-          teamId: track.ownerTeamId,
-          workoutId: workout.workoutId,
+        command: {
+          type: "record",
+          source: "video-submission",
+          actorUserId: session.userId,
+          athleteUserId: session.userId,
           trackWorkoutId: data.trackWorkoutId,
-          divisionId: registration.divisionId,
+          divisionScope: divisionScopeFromId(registration.divisionId),
+          recordedAt: now,
+          claim: {
+            score: data.score,
+            status: data.scoreStatus ?? "scored",
+            secondaryScore: data.secondaryScore,
+            tiebreakScore: data.tiebreakScore,
+            roundScores: data.roundScores,
+          },
         },
-        result,
-        recordedAt: now,
       })
     }
 

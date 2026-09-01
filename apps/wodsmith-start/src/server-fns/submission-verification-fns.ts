@@ -35,7 +35,7 @@ import {
   normalizeManualSubmissionWorkoutResult,
   normalizeSubmissionScoreAdjustment,
   updateReviewedSubmissionWorkoutResult,
-} from "@/server/workout-results"
+} from "@/server/competition-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { requireSubmissionReviewAccess } from "@/utils/team-auth"
@@ -225,6 +225,8 @@ const verifySubmissionScoreInputSchema = z.object({
       z.object({
         roundNumber: z.number().int().min(1),
         score: z.string().min(1),
+        status: z.enum(["scored", "cap"]).optional(),
+        secondaryScore: z.string().nullable().optional(),
       }),
     )
     .optional(),
@@ -594,6 +596,8 @@ const enterSubmissionScoreInputSchema = z.object({
       z.object({
         roundNumber: z.number().int().min(1),
         score: z.string().min(1),
+        status: z.enum(["scored", "cap"]).optional(),
+        secondaryScore: z.string().nullable().optional(),
       }),
     )
     .optional(),

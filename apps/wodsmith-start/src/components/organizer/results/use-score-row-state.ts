@@ -33,6 +33,7 @@ export interface ScoreEntryData {
   // Multi-round support: array of scores when roundsToScore > 1
   roundScores?: Array<{
     score: string
+    status?: "scored" | "cap"
   }>
 }
 
@@ -52,6 +53,7 @@ export interface ScoreInputSubject {
       setNumber: number
       score: number | null
       reps: number | null
+      status: string | null
     }>
   } | null
 }
@@ -164,7 +166,7 @@ export function useScoreRowState({
       return value.roundScores.map((rs, index) => ({
         roundNumber: index + 1,
         score: rs.score,
-        timeCapped: false,
+        timeCapped: rs.status === "cap",
       }))
     }
 
@@ -191,7 +193,7 @@ export function useScoreRowState({
             return {
               roundNumber: index + 1,
               score: scoreStr,
-              timeCapped: false,
+              timeCapped: set.status === "cap",
             }
           }
           return { roundNumber: index + 1, score: "", timeCapped: false }
@@ -401,7 +403,13 @@ export function useScoreRowState({
       formattedScore: parseResult?.formatted || finalScore,
       rawValue: parseResult?.rawValue,
       roundScores: isMultiRound
-        ? roundScores.map((rs) => ({ score: rs.score }))
+        ? roundScores.map((rs, index) => ({
+            score: rs.score,
+            status:
+              roundParseResults[index]?.scoreStatus === "cap"
+                ? "cap"
+                : "scored",
+          }))
         : undefined,
     })
   }

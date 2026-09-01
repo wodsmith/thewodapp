@@ -17,7 +17,7 @@ import {
   normalizeSubmittedPersonalWorkoutResult,
   submitPersonalWorkoutResult,
   updatePersonalWorkoutResult,
-} from "@/server/workout-results"
+} from "@/server/training-logs"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // Input validation schema

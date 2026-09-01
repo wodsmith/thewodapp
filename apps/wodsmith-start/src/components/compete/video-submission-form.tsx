@@ -786,15 +786,11 @@ export function VideoSubmissionForm({
     if (isMultiRound) {
       const filledRounds = roundScoreInputs.filter((s) => s.trim())
       if (filledRounds.length === 0) {
-        setError(
-          `Please enter scores for all ${roundsToScore} rounds`,
-        )
+        setError(`Please enter scores for all ${roundsToScore} rounds`)
         return
       }
       if (filledRounds.length < roundsToScore) {
-        setError(
-          `Please enter scores for all ${roundsToScore} rounds`,
-        )
+        setError(`Please enter scores for all ${roundsToScore} rounds`)
         return
       }
       if (workout) {
@@ -838,8 +834,22 @@ export function VideoSubmissionForm({
       // Build round scores array for multi-round workouts
       const roundScoresPayload = isMultiRound
         ? roundScoreInputs
-            .filter((s) => s.trim())
-            .map((s) => ({ score: s.trim() }))
+            .map((score, index) => ({
+              score,
+              parsed: roundParseResults[index],
+            }))
+            .filter(({ score }) => score.trim())
+            .map(({ score, parsed }) => ({
+              score: score.trim(),
+              status:
+                workout?.scheme === "time-with-cap" &&
+                workout.timeCap &&
+                parsed?.encoded !== null &&
+                parsed?.encoded !== undefined &&
+                parsed.encoded >= workout.timeCap * 1000
+                  ? ("cap" as const)
+                  : ("scored" as const),
+            }))
         : undefined
 
       const submissionSlots = shouldSubmitScoreOnly

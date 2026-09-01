@@ -62,9 +62,9 @@ import {
   sortKeyToString,
 } from "@/lib/scoring"
 import {
-  normalizeCompetitionWorkoutResult,
-  replaceCompetitionWorkoutResult,
-} from "@/server/workout-results"
+  divisionScopeFromId,
+  recordCompetitionResult,
+} from "@/server/competition-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -77,6 +77,8 @@ export interface RoundScoreData {
   score: string
   /** For rounds+reps format: [rounds, reps] */
   parts?: [string, string]
+  status?: "scored" | "cap"
+  secondaryScore?: string | null
 }
 
 /** Existing set data from the score_rounds table */
@@ -84,6 +86,7 @@ export interface ExistingSetData {
   setNumber: number
   score: number | null
   reps: number | null
+  status: string | null
 }
 
 /** Team member info for team competitions */
@@ -252,6 +255,8 @@ const getEventScoreEntryDataInputSchema = z.object({
 const roundScoreSchema = z.object({
   score: z.string(),
   parts: z.tuple([z.string(), z.string()]).optional(),
+  status: z.enum(["scored", "cap"]).optional(),
+  secondaryScore: z.string().nullable().optional(),
 })
 
 /** Schema for workout info needed for proper score processing */
@@ -497,7 +502,12 @@ function buildScoreEntryAthletes({
 }: {
   registrations: ScoreEntryRegistrationRow[]
   existingScores: (typeof scoresTable.$inferSelect)[]
-  existingRounds: Array<{ scoreId: string; roundNumber: number; value: number }>
+  existingRounds: Array<{
+    scoreId: string
+    roundNumber: number
+    value: number
+    status: string | null
+  }>
   membersByTeamId: Map<string, ScoreEntryTeamMember[]>
 }): EventScoreEntryAthlete[] {
   // Group rounds by scoreId and convert to legacy format
@@ -533,6 +543,7 @@ function buildScoreEntryAthletes({
       setNumber: round.roundNumber,
       score,
       reps,
+      status: round.status,
     })
     setsByScoreId.set(round.scoreId, existing)
   }
@@ -762,6 +773,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
               scoreId: scoreRoundsTable.scoreId,
               roundNumber: scoreRoundsTable.roundNumber,
               value: scoreRoundsTable.value,
+              status: scoreRoundsTable.status,
             })
             .from(scoreRoundsTable)
             .where(inArray(scoreRoundsTable.scoreId, scoreIds))
@@ -1017,6 +1029,7 @@ export const getEventScoreEntryDataWithHeatsBatchFn = createServerFn({
                   scoreId: scoreRoundsTable.scoreId,
                   roundNumber: scoreRoundsTable.roundNumber,
                   value: scoreRoundsTable.value,
+                  status: scoreRoundsTable.status,
                 })
                 .from(scoreRoundsTable)
                 .where(inArray(scoreRoundsTable.scoreId, scoreIds))
@@ -1188,44 +1201,26 @@ async function saveCompetitionScore(
     )
   }
 
-  // Normalize before resolving ownership to preserve the legacy validation
-  // order while keeping result rules inside the workout-result module.
-  const result = normalizeCompetitionWorkoutResult({
-    score: data.score,
-    scoreStatus: data.scoreStatus,
-    tieBreakScore: data.tieBreakScore,
-    secondaryScore: data.secondaryScore,
-    roundScores: data.roundScores,
-    workout: data.workout,
-  })
-
-  const [teamResult] = await db
-    .select({
-      ownerTeamId: programmingTracksTable.ownerTeamId,
-    })
-    .from(trackWorkoutsTable)
-    .innerJoin(
-      programmingTracksTable,
-      eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
-    )
-    .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-    .limit(1)
-
-  if (!teamResult?.ownerTeamId) {
-    throw new Error("Could not determine team ownership for competition")
-  }
-
-  const scoreId = await replaceCompetitionWorkoutResult({
+  const receipt = await recordCompetitionResult({
     db,
-    target: {
-      userId: data.userId,
-      teamId: teamResult.ownerTeamId,
-      workoutId: data.workoutId,
+    command: {
+      type: "record",
+      source: "organizer-entry",
+      athleteUserId: data.userId,
       trackWorkoutId: data.trackWorkoutId,
-      divisionId: data.divisionId,
+      divisionScope: divisionScopeFromId(data.divisionId),
+      expectedWorkoutId: data.workoutId,
+      expectedOwnerTeamId: data.organizingTeamId,
+      claim: {
+        score: data.score,
+        status: data.scoreStatus,
+        tiebreakScore: data.tieBreakScore,
+        secondaryScore: data.secondaryScore,
+        roundScores: data.roundScores,
+      },
     },
-    result,
   })
+  const scoreId = receipt.scoreId
 
   addRequestContextAttribute("scoreId", scoreId)
   logEntityUpdated({
@@ -1263,7 +1258,10 @@ async function saveCompetitionScore(
     },
   })
 
-  return { success: true, data: { resultId: scoreId, isNew: true } }
+  return {
+    success: true,
+    data: { resultId: scoreId, isNew: receipt.isNew },
+  }
 }
 
 /**

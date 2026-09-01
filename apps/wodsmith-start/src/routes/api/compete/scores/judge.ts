@@ -32,19 +32,20 @@ import {
   competitionsTable,
 } from "@/db/schemas/competitions"
 
-import { SCORE_STATUS_VALUES, workouts } from "@/db/schemas/workouts"
+import { SCORE_STATUS_VALUES } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import {
-  InvalidJudgeRoundScoreError,
-  normalizeJudgeWorkoutResult,
-  persistJudgeWorkoutResult,
-} from "@/server/workout-results/judge"
-import type { NormalizedCompetitionWorkoutResult } from "@/server/workout-results/normalize"
+  CompetitionResultError,
+  divisionScopeFromId,
+  recordCompetitionResult,
+} from "@/server/competition-results"
 import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 
 const roundScoreSchema = z.object({
   score: z.string(),
   parts: z.tuple([z.string(), z.string()]).optional(),
+  status: z.enum(["scored", "cap"]).optional(),
+  secondaryScore: z.string().nullable().optional(),
 })
 
 const workoutInfoSchema = z.object({
@@ -128,31 +129,6 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
         const db = getDb()
 
         try {
-          // Get workout info if not provided
-          let workoutInfo = data.workout
-          if (!workoutInfo) {
-            const [workoutRow] = await db
-              .select({
-                scheme: workouts.scheme,
-                scoreType: workouts.scoreType,
-                tiebreakScheme: workouts.tiebreakScheme,
-                timeCap: workouts.timeCap,
-                repsPerRound: workouts.repsPerRound,
-                roundsToScore: workouts.roundsToScore,
-              })
-              .from(workouts)
-              .where(eq(workouts.id, data.workoutId))
-              .limit(1)
-
-            if (!workoutRow) {
-              return json(
-                { error: "Workout not found" },
-                { status: 404, headers },
-              )
-            }
-            workoutInfo = workoutRow
-          }
-
           // Check submission window
           const [competition] = await db
             .select({ competitionType: competitionsTable.competitionType })
@@ -192,35 +168,45 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
             }
           }
 
-          let result: NormalizedCompetitionWorkoutResult
+          let receipt: { scoreId: string; isNew: boolean }
           try {
-            result = normalizeJudgeWorkoutResult({
-              score: data.score,
-              scoreStatus: data.scoreStatus,
-              tieBreakScore: data.tieBreakScore,
-              secondaryScore: data.secondaryScore,
-              roundScores: data.roundScores,
-              workout: workoutInfo,
+            receipt = await recordCompetitionResult({
+              db,
+              command: {
+                type: "record",
+                source: "judge-entry",
+                actorUserId: session.userId,
+                athleteUserId: data.userId,
+                trackWorkoutId: data.trackWorkoutId,
+                divisionScope: divisionScopeFromId(data.divisionId),
+                expectedWorkoutId: data.workoutId,
+                expectedOwnerTeamId: data.organizingTeamId,
+                claim: {
+                  score: data.score,
+                  status: data.scoreStatus,
+                  tiebreakScore: data.tieBreakScore,
+                  secondaryScore: data.secondaryScore,
+                  roundScores: data.roundScores,
+                },
+              },
             })
           } catch (error) {
-            if (!(error instanceof InvalidJudgeRoundScoreError)) throw error
-            return json({ error: error.message }, { status: 422, headers })
+            if (!(error instanceof CompetitionResultError)) throw error
+            return json(
+              { error: error.message },
+              {
+                status:
+                  error.code === "programmed_workout_not_found" ? 404 : 422,
+                headers,
+              },
+            )
           }
 
-          const scoreId = await persistJudgeWorkoutResult({
-            db,
-            target: {
-              userId: data.userId,
-              teamId: data.organizingTeamId,
-              workoutId: data.workoutId,
-              trackWorkoutId: data.trackWorkoutId,
-              divisionId: data.divisionId,
-            },
-            result,
-          })
-
           return json(
-            { success: true, data: { resultId: scoreId, isNew: true } },
+            {
+              success: true,
+              data: { resultId: receipt.scoreId, isNew: receipt.isNew },
+            },
             { headers },
           )
         } catch (err) {

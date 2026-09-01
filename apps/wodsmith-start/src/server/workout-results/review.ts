@@ -1,20 +1,19 @@
 import { and, eq, isNull } from "drizzle-orm"
 import type { Database } from "@/db"
-import { scoresTable } from "@/db/schemas/scores"
+import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import {
   computeSortKeyWithDirection,
-  encodeScore,
   type ScoreType,
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
 import {
-  buildWorkoutResultScoring,
-  encodeWorkoutResultRounds,
-  resolveWorkoutResultScoreType,
-} from "./kernel"
-import { writeWorkoutResultRounds } from "./rounds"
+  type CompetitionResultRevision,
+  decideCompetitionResult,
+} from "../competition-results/decision"
+import { CompetitionResultError } from "../competition-results/domain"
+import { resolveWorkoutResultScoreType } from "./kernel"
 
 type DatabaseTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
 
@@ -34,6 +33,8 @@ type ReviewedScoreContext = Partial<
 interface NumberedRoundInput {
   roundNumber: number
   score: string
+  status?: "scored" | "cap"
+  secondaryScore?: string | null
 }
 
 interface ReviewWorkoutResultDefinition {
@@ -41,6 +42,7 @@ interface ReviewWorkoutResultDefinition {
   scoreType: string | null
   timeCapMs: number | null
   tiebreakScheme: string | null
+  roundsToScore?: number | null
 }
 
 export interface NormalizedReviewedSubmissionWorkoutResult {
@@ -53,7 +55,8 @@ export interface NormalizedReviewedSubmissionWorkoutResult {
   rounds: Array<{
     roundNumber: number
     value: number
-    status: "scored" | "cap" | null
+    status: "scored" | "cap"
+    secondaryValue: number | null
   }>
   replaceRounds: boolean
   isMultiRound: boolean
@@ -107,94 +110,45 @@ export function normalizeSubmissionScoreAdjustment(
     )
   }
 
-  const hasRoundScores = roundScores.length > 0
-  const isMultiRound = hasRoundScores || input.existingRoundStatuses.length > 1
-  let status = input.status
-  let scoreValue: number | null = null
-  let encodedRounds: number[] = []
-  const roundStatuses: Array<"scored" | "cap"> = []
-  let cappedRoundCount = 0
-
-  if (hasRoundScores) {
-    const encoded = encodeWorkoutResultRounds(roundScores, scheme, scoreType)
-    if (encoded.rounds.length !== roundScores.length) {
-      throw new Error(
-        "Every round in adjustedRoundScores must be a valid score",
-      )
-    }
-    scoreValue = encoded.aggregated
-    encodedRounds = encoded.rounds
-
-    if (scheme === "time-with-cap" && input.workout.timeCapMs) {
-      for (const roundValue of encodedRounds) {
-        const isCapped = roundValue >= input.workout.timeCapMs
-        roundStatuses.push(isCapped ? "cap" : "scored")
-        if (isCapped) cappedRoundCount++
-      }
-      status = cappedRoundCount > 0 ? "cap" : "scored"
-    }
-  } else if (input.score) {
-    // A direct override of a multi-round score intentionally leaves its old
-    // round rows in place and does not clamp an explicit CAP to timeCapMs.
-    scoreValue =
-      !isMultiRound && status === "cap" && input.workout.timeCapMs
-        ? input.workout.timeCapMs
-        : encodeScore(input.score, scheme)
-    cappedRoundCount = input.existingRoundStatuses.filter(
-      (roundStatus) => roundStatus === "cap",
-    ).length
-  }
-
-  let secondaryValue: number | null = null
-  if (!hasRoundScores && input.secondaryScore && status === "cap") {
-    const parsed = Number.parseInt(input.secondaryScore.trim(), 10)
-    if (!Number.isNaN(parsed) && parsed >= 0) secondaryValue = parsed
-  }
-
-  let tiebreakValue: number | null = null
-  if (input.tiebreakScore && input.workout.tiebreakScheme) {
-    try {
-      tiebreakValue = encodeScore(
-        input.tiebreakScore,
-        input.workout.tiebreakScheme as WorkoutScheme,
-      )
-    } catch {
-      // Verification historically ignores tiebreak encoding errors.
-    }
-  }
-
-  const scoring = buildWorkoutResultScoring({
-    value: scoreValue,
-    status,
-    scheme,
-    scoreType,
-    cappedRoundCount: isMultiRound ? cappedRoundCount : undefined,
-    timeCap:
-      status === "cap" && input.workout.timeCapMs && secondaryValue !== null
-        ? { ms: input.workout.timeCapMs, secondaryValue }
-        : undefined,
-    tiebreak:
-      tiebreakValue !== null && input.workout.tiebreakScheme
-        ? {
-            scheme: input.workout.tiebreakScheme as "time" | "reps",
-            value: tiebreakValue,
-          }
-        : undefined,
-  })
+  const revision = decideCompetitionResult(
+    {
+      score: input.score,
+      status: input.status,
+      secondaryScore: input.secondaryScore,
+      tiebreakScore: input.tiebreakScore,
+      roundScores: roundScores.map((round, index) => ({
+        score: round.score,
+        status:
+          round.status ??
+          (input.existingRoundStatuses[index] === "cap" ? "cap" : "scored"),
+        secondaryScore: round.secondaryScore,
+      })),
+    },
+    {
+      workoutId: "reviewed-score",
+      scheme,
+      scoreType,
+      roundsToScore:
+        input.workout.roundsToScore ??
+        (input.existingRoundStatuses.length || null),
+      timeCap: input.workout.timeCapMs ? input.workout.timeCapMs / 1000 : null,
+      tiebreakScheme: input.workout.tiebreakScheme,
+    },
+  )
+  const cappedRoundCount = revision.rounds.filter(
+    (round) => round.status === "cap",
+  ).length
+  const isMultiRound = revision.rounds.length > 1
 
   return {
-    scoreValue,
-    status,
-    statusOrder: scoring.statusOrder,
-    sortKey: scoring.sortKey ? sortKeyToString(scoring.sortKey) : null,
-    secondaryValue,
-    tiebreakValue,
-    rounds: roundScores.map((round, index) => ({
-      roundNumber: round.roundNumber,
-      value: encodedRounds[index] ?? 0,
-      status: roundStatuses[index] ?? null,
-    })),
-    replaceRounds: hasRoundScores,
+    scoreValue: revision.scoreValue,
+    status: revision.status as "scored" | "cap",
+    statusOrder: revision.statusOrder,
+    sortKey: revision.sortKey,
+    secondaryValue: revision.secondaryValue,
+    tiebreakValue: revision.tiebreakValue,
+    rounds: revision.rounds,
+    replaceRounds: true,
     isMultiRound,
     cappedRoundCount,
   }
@@ -211,13 +165,13 @@ export function normalizeInvalidatedSubmissionWorkoutResult(): NormalizedReviewe
     secondaryValue: null,
     tiebreakValue: null,
     rounds: [],
-    replaceRounds: false,
+    replaceRounds: true,
     isMultiRound: false,
     cappedRoundCount: 0,
   }
 }
 
-// @lat: [[domain#Domain Model#Scoring#Workout-result module]]
+// @lat: [[domain#Domain Model#Scoring#Competition-result commands]]
 export async function updateReviewedSubmissionWorkoutResult(input: {
   db: DatabaseTransaction
   scoreId: string
@@ -240,9 +194,20 @@ export async function updateReviewedSubmissionWorkoutResult(input: {
     .where(eq(scoresTable.id, scoreId))
 
   if (result.replaceRounds) {
-    await writeWorkoutResultRounds(db, scoreId, result.rounds, {
-      replaceExisting: true,
-    })
+    await db
+      .delete(scoreRoundsTable)
+      .where(eq(scoreRoundsTable.scoreId, scoreId))
+    if (result.rounds.length > 0) {
+      await db.insert(scoreRoundsTable).values(
+        result.rounds.map((round) => ({
+          scoreId,
+          roundNumber: round.roundNumber,
+          value: round.value,
+          status: round.status,
+          secondaryValue: round.secondaryValue,
+        })),
+      )
+    }
   }
 }
 
@@ -295,110 +260,58 @@ export function normalizeManualSubmissionWorkoutResult(
     }
   }
 
-  const timeCapMs = input.workout.timeCapMs
-  let status: "scored" | "cap" = input.status ?? "scored"
-  let scoreValue: number | null = null
-  let encodedRounds: number[] = []
-  const roundStatuses: Array<"scored" | "cap"> = []
-  let cappedRoundCount = 0
-  let secondaryValue: number | null = null
-
-  if (hasRoundScores) {
-    const encoded = encodeWorkoutResultRounds(roundScores, scheme, scoreType)
-    if (encoded.rounds.length !== roundScores.length) {
-      throw new Error("Every round in roundScores must be a valid score")
-    }
-    scoreValue = encoded.aggregated
-    encodedRounds = encoded.rounds
-
-    if (scheme === "time-with-cap" && timeCapMs) {
-      for (const roundValue of encodedRounds) {
-        const isCapped = roundValue >= timeCapMs
-        roundStatuses.push(isCapped ? "cap" : "scored")
-        if (isCapped) cappedRoundCount++
-      }
-      status = cappedRoundCount > 0 ? "cap" : "scored"
-    }
-  } else if (input.score) {
-    const encodedScore = encodeScore(input.score, scheme)
-    if (encodedScore === null) {
+  let revision: CompetitionResultRevision
+  try {
+    revision = decideCompetitionResult(
+      {
+        score: input.score,
+        status: input.status ?? "scored",
+        secondaryScore: input.secondaryScore,
+        tiebreakScore: input.tiebreakScore,
+        roundScores: roundScores.map((round) => ({
+          score: round.score,
+          status: round.status,
+          secondaryScore: round.secondaryScore,
+        })),
+      },
+      {
+        workoutId: "manual-review",
+        scheme,
+        scoreType,
+        roundsToScore: input.workout.roundsToScore,
+        timeCap: input.workout.timeCapMs
+          ? input.workout.timeCapMs / 1000
+          : null,
+        tiebreakScheme: input.workout.tiebreakScheme,
+      },
+    )
+  } catch (error) {
+    if (
+      error instanceof CompetitionResultError &&
+      error.code === "invalid_score"
+    ) {
       throw new Error("score must be a valid score")
     }
-
-    if (scheme === "time-with-cap" && status === "cap" && timeCapMs) {
-      scoreValue = timeCapMs
-      if (input.secondaryScore) {
-        const parsed = Number.parseInt(input.secondaryScore.trim(), 10)
-        if (!Number.isNaN(parsed) && parsed >= 0) secondaryValue = parsed
-      }
-    } else {
-      scoreValue = encodedScore
-      if (
-        scheme === "time-with-cap" &&
-        timeCapMs &&
-        scoreValue !== null &&
-        scoreValue >= timeCapMs
-      ) {
-        status = "cap"
-        scoreValue = timeCapMs
-        if (input.secondaryScore) {
-          const parsed = Number.parseInt(input.secondaryScore.trim(), 10)
-          if (!Number.isNaN(parsed) && parsed >= 0) secondaryValue = parsed
-        }
-      }
-    }
+    throw error
   }
-
-  let tiebreakValue: number | null = null
-  if (input.tiebreakScore && input.workout.tiebreakScheme) {
-    try {
-      tiebreakValue = encodeScore(
-        input.tiebreakScore,
-        input.workout.tiebreakScheme as WorkoutScheme,
-      )
-    } catch {
-      // Manual entry historically ignores tiebreak encoding errors.
-    }
-  }
-
-  const isMultiRound = encodedRounds.length > 1
-  const scoring = buildWorkoutResultScoring({
-    value: scoreValue,
-    status,
-    scheme,
-    scoreType,
-    cappedRoundCount: isMultiRound ? cappedRoundCount : undefined,
-    timeCap:
-      status === "cap" && timeCapMs && secondaryValue !== null
-        ? { ms: timeCapMs, secondaryValue }
-        : undefined,
-    tiebreak:
-      tiebreakValue !== null && input.workout.tiebreakScheme
-        ? {
-            scheme: input.workout.tiebreakScheme as "time" | "reps",
-            value: tiebreakValue,
-          }
-        : undefined,
-  })
+  const cappedRoundCount = revision.rounds.filter(
+    (round) => round.status === "cap",
+  ).length
+  const isMultiRound = revision.rounds.length > 1
 
   return {
     scheme,
     scoreType,
-    scoreValue,
-    status,
-    statusOrder: scoring.statusOrder,
-    sortKey: scoring.sortKey ? sortKeyToString(scoring.sortKey) : null,
-    tiebreakScheme:
-      (input.workout.tiebreakScheme as TiebreakScheme | null) ?? null,
-    tiebreakValue,
-    timeCapMs,
-    secondaryValue,
-    rounds: roundScores.map((round, index) => ({
-      roundNumber: round.roundNumber,
-      value: encodedRounds[index] ?? 0,
-      status: roundStatuses[index] ?? null,
-    })),
-    replaceRounds: false,
+    scoreValue: revision.scoreValue,
+    status: revision.status as "scored" | "cap",
+    statusOrder: revision.statusOrder,
+    sortKey: revision.sortKey,
+    tiebreakScheme: revision.tiebreakScheme,
+    tiebreakValue: revision.tiebreakValue,
+    timeCapMs: revision.timeCapMs,
+    secondaryValue: revision.secondaryValue,
+    rounds: revision.rounds,
+    replaceRounds: true,
     isMultiRound,
     cappedRoundCount,
   }
@@ -458,9 +371,15 @@ export async function insertManualSubmissionWorkoutResult(input: {
   if (!inserted) throw new Error("Failed to fetch inserted score")
 
   if (result.rounds.length > 0) {
-    await writeWorkoutResultRounds(db, inserted.id, result.rounds, {
-      replaceExisting: false,
-    })
+    await db.insert(scoreRoundsTable).values(
+      result.rounds.map((round) => ({
+        scoreId: inserted.id,
+        roundNumber: round.roundNumber,
+        value: round.value,
+        status: round.status,
+        secondaryValue: round.secondaryValue,
+      })),
+    )
   }
 
   return inserted.id

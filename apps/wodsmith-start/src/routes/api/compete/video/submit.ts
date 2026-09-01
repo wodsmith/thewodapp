@@ -29,22 +29,16 @@ import {
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
-  programmingTracksTable,
-  trackWorkoutsTable,
-} from "@/db/schemas/programming"
-import {
   createVideoSubmissionId,
   videoSubmissionsTable,
 } from "@/db/schemas/video-submissions"
-import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
 import {
-  InvalidMobileVideoScoreError,
-  normalizeMobileVideoWorkoutResult,
-  persistMobileVideoWorkoutResult,
-} from "@/server/workout-results/mobile-video"
-import type { NormalizedCompetitionWorkoutResult } from "@/server/workout-results/normalize"
+  CompetitionResultError,
+  divisionScopeFromId,
+  recordCompetitionResult,
+} from "@/server/competition-results"
 import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 
 const submitVideoSchema = z.object({
@@ -270,69 +264,36 @@ export const Route = createFileRoute("/api/compete/video/submit")({
 
           // Save claimed score if provided
           if (data.score) {
-            const [workoutRow] = await db
-              .select({
-                workoutId: workouts.id,
-                scheme: workouts.scheme,
-                scoreType: workouts.scoreType,
-                timeCap: workouts.timeCap,
-                tiebreakScheme: workouts.tiebreakScheme,
-                trackId: trackWorkoutsTable.trackId,
-              })
-              .from(trackWorkoutsTable)
-              .innerJoin(
-                workouts,
-                eq(trackWorkoutsTable.workoutId, workouts.id),
-              )
-              .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-              .limit(1)
-
-            if (!workoutRow) {
-              return json(
-                { error: "Workout not found" },
-                { status: 404, headers },
-              )
-            }
-
-            let result: NormalizedCompetitionWorkoutResult
             try {
-              result = normalizeMobileVideoWorkoutResult({
-                score: data.score,
-                scoreStatus: data.scoreStatus,
-                secondaryScore: data.secondaryScore,
-                tiebreakScore: data.tiebreakScore,
-                workout: workoutRow,
+              await recordCompetitionResult({
+                db,
+                command: {
+                  type: "record",
+                  source: "video-submission",
+                  actorUserId: userId,
+                  athleteUserId: userId,
+                  trackWorkoutId: data.trackWorkoutId,
+                  divisionScope: divisionScopeFromId(registration.divisionId),
+                  recordedAt: now,
+                  claim: {
+                    score: data.score,
+                    status: data.scoreStatus ?? "scored",
+                    secondaryScore: data.secondaryScore,
+                    tiebreakScore: data.tiebreakScore,
+                  },
+                },
               })
             } catch (error) {
-              if (!(error instanceof InvalidMobileVideoScoreError)) throw error
-              return json({ error: error.message }, { status: 422, headers })
-            }
-
-            const [track] = await db
-              .select({ ownerTeamId: programmingTracksTable.ownerTeamId })
-              .from(programmingTracksTable)
-              .where(eq(programmingTracksTable.id, workoutRow.trackId))
-              .limit(1)
-
-            if (!track?.ownerTeamId) {
+              if (!(error instanceof CompetitionResultError)) throw error
               return json(
-                { error: "Could not determine team ownership" },
-                { status: 500, headers },
+                { error: error.message },
+                {
+                  status:
+                    error.code === "programmed_workout_not_found" ? 404 : 422,
+                  headers,
+                },
               )
             }
-
-            await persistMobileVideoWorkoutResult({
-              db,
-              target: {
-                userId,
-                teamId: track.ownerTeamId,
-                workoutId: workoutRow.workoutId,
-                trackWorkoutId: data.trackWorkoutId,
-                divisionId: registration.divisionId,
-              },
-              result,
-              recordedAt: now,
-            })
           }
 
           return json(

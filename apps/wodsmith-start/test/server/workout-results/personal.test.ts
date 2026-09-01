@@ -4,7 +4,7 @@ import type { Database } from "@/db"
 import {
   normalizeSubmittedPersonalWorkoutResult,
   updatePersonalWorkoutResult,
-} from "@/server/workout-results"
+} from "@/server/training-logs"
 
 describe("personal workout-result normalization", () => {
   // @lat: [[workout-result-adapters#Workout-result Adapter Characterization#Personal padded sort-key storage]]

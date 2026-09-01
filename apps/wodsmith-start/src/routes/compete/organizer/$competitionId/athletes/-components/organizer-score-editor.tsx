@@ -199,11 +199,7 @@ export function OrganizerScoreEditor({
       }
     }
 
-    if (
-      tiebreakScheme &&
-      tiebreak.trim() &&
-      !tiebreakParseResult?.isValid
-    ) {
+    if (tiebreakScheme && tiebreak.trim() && !tiebreakParseResult?.isValid) {
       toast.error(tiebreakParseResult?.error ?? "Invalid tiebreak")
       return
     }
@@ -219,11 +215,7 @@ export function OrganizerScoreEditor({
           registrationId,
           userId,
           divisionId,
-          score: isTerminal
-            ? ""
-            : isMultiRound
-              ? ""
-              : scoreInput.trim(),
+          score: isTerminal ? "" : isMultiRound ? "" : scoreInput.trim(),
           scoreStatus: effectiveStatus,
           tieBreakScore: tiebreak.trim() || null,
           secondaryScore:
@@ -232,7 +224,17 @@ export function OrganizerScoreEditor({
               : null,
           roundScores:
             isMultiRound && !isTerminal
-              ? roundScoreInputs.map((s) => ({ score: s.trim() }))
+              ? roundScoreInputs.map((s, index) => ({
+                  score: s.trim(),
+                  status:
+                    scheme === "time-with-cap" &&
+                    timeCap &&
+                    roundParseResults[index]?.encoded !== null &&
+                    roundParseResults[index]?.encoded !== undefined &&
+                    (roundParseResults[index]?.encoded ?? 0) >= timeCap * 1000
+                      ? ("cap" as const)
+                      : ("scored" as const),
+                }))
               : undefined,
           workout: {
             scheme: event.scheme,

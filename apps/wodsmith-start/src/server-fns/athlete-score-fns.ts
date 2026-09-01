@@ -20,10 +20,7 @@ import {
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
-import {
-  programmingTracksTable,
-  trackWorkoutsTable,
-} from "@/db/schemas/programming"
+import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
@@ -39,16 +36,15 @@ import {
 import {
   decodeScore,
   formatScore,
-  parseScore,
   type ScoreStatus,
   type ScoreType,
   type WorkoutScheme,
 } from "@/lib/scoring"
 import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
 import {
-  normalizeAthleteSelfEntryWorkoutResult,
-  persistAthleteSelfEntryWorkoutResult,
-} from "@/server/workout-results"
+  divisionScopeFromId,
+  recordCompetitionResult,
+} from "@/server/competition-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { AppError } from "@/utils/errors"
 
@@ -621,89 +617,26 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
         throw new Error(windowStatus.reason || "Submission window is not open")
       }
 
-      // 3. Get workout info for proper encoding
-      const [trackWorkout] = await db
-        .select({
-          workoutId: trackWorkoutsTable.workoutId,
-          trackId: trackWorkoutsTable.trackId,
-        })
-        .from(trackWorkoutsTable)
-        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-        .limit(1)
-
-      if (!trackWorkout) {
-        throw new Error("Event not found")
-      }
-
-      const [workout] = await db
-        .select({
-          scheme: workouts.scheme,
-          scoreType: workouts.scoreType,
-          tiebreakScheme: workouts.tiebreakScheme,
-          timeCap: workouts.timeCap,
-        })
-        .from(workouts)
-        .where(eq(workouts.id, trackWorkout.workoutId))
-        .limit(1)
-
-      if (!workout) {
-        throw new Error("Workout not found")
-      }
-
-      const scheme = workout.scheme as WorkoutScheme
-
-      // 4. Parse and validate the score
-      const parseResult = parseScore(data.score, scheme)
-      if (!parseResult.isValid) {
-        logWarning({
-          message: "[AthleteScore] Invalid score format",
-          attributes: {
-            competitionId: data.competitionId,
-            trackWorkoutId: data.trackWorkoutId,
-            userId: session.userId,
-            score: data.score,
-            scheme,
-            error: parseResult.error,
-          },
-        })
-        throw new Error(
-          `Invalid score format: ${parseResult.error || "Please check your entry"}`,
-        )
-      }
-
-      const result = normalizeAthleteSelfEntryWorkoutResult({
-        score: data.score,
-        status: data.status,
-        secondaryScore: data.secondaryScore,
-        tiebreakScore: data.tiebreakScore,
-        workout,
-      })
-
-      // 5. Get teamId from track
-      const [track] = await db
-        .select({
-          ownerTeamId: programmingTracksTable.ownerTeamId,
-        })
-        .from(programmingTracksTable)
-        .where(eq(programmingTracksTable.id, trackWorkout.trackId))
-        .limit(1)
-
-      if (!track?.ownerTeamId) {
-        throw new Error("Could not determine team ownership")
-      }
-
-      // 6. Upsert the score and preserve the legacy exact-division re-read.
-      const finalScoreId = await persistAthleteSelfEntryWorkoutResult({
+      // The competition-result boundary loads the programmed workout and owner
+      // itself, then decides and persists the claim as one canonical command.
+      const receipt = await recordCompetitionResult({
         db,
-        target: {
-          userId: session.userId,
-          teamId: track.ownerTeamId,
-          workoutId: trackWorkout.workoutId,
+        command: {
+          type: "record",
+          source: "athlete-entry",
+          actorUserId: session.userId,
+          athleteUserId: session.userId,
           trackWorkoutId: data.trackWorkoutId,
-          divisionId: registration.divisionId,
+          divisionScope: divisionScopeFromId(registration.divisionId),
+          claim: {
+            score: data.score,
+            status: data.status,
+            secondaryScore: data.secondaryScore,
+            tiebreakScore: data.tiebreakScore,
+          },
         },
-        result,
       })
+      const finalScoreId = receipt.scoreId
 
       if (!finalScoreId) {
         logError({

@@ -406,7 +406,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
   })
 
   describe('saveCompetitionScoreFn', () => {
-    it('throws error when workout info is not provided', async () => {
+    it('loads workout info authoritatively when client metadata is absent', async () => {
       mockDbInstance = createDbMock({withSubmissionWindowCheck: true})
 
       await expect(
@@ -424,7 +424,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
             // No workout info provided
           },
         }),
-      ).rejects.toThrow('Workout info is required to save competition score')
+      ).rejects.toThrow('Workout not found')
     })
 
     it('continues in-person score saves past the submission-window gate', async () => {
@@ -447,7 +447,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
             scoreStatus: 'scored',
           },
         }),
-      ).rejects.toThrow('Workout info is required to save competition score')
+      ).rejects.toThrow('Workout not found')
     })
 
     it('blocks online score saves after the submission window closes', async () => {
@@ -488,6 +488,15 @@ describe('Competition Score Server Functions (TanStack)', () => {
 
     it('saves a time score correctly', async () => {
       const teamResult = {ownerTeamId: 'team-1'}
+      const programmedWorkout = {
+        workoutId: 'wod-1',
+        trackId: 'track-1',
+        scheme: 'time',
+        scoreType: 'min',
+        roundsToScore: 1,
+        timeCap: null,
+        tiebreakScheme: null,
+      }
       const finalScore = {id: 'score-new'}
 
       // Create insert/update mocks
@@ -504,11 +513,15 @@ describe('Competition Score Server Functions (TanStack)', () => {
           from: vi.fn().mockReturnValue({
             innerJoin: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValueOnce([teamResult]),
+                limit: vi.fn().mockResolvedValueOnce([programmedWorkout]),
               }),
             }),
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([finalScore]),
+              limit: vi
+                .fn()
+                .mockResolvedValueOnce([{competitionType: 'in-person'}])
+                .mockResolvedValueOnce([teamResult])
+                .mockResolvedValue([finalScore]),
             }),
           }),
         }),
@@ -547,6 +560,15 @@ describe('Competition Score Server Functions (TanStack)', () => {
 
     it('handles CAP status for time-with-cap workouts', async () => {
       const teamResult = {ownerTeamId: 'team-1'}
+      const programmedWorkout = {
+        workoutId: 'wod-1',
+        trackId: 'track-1',
+        scheme: 'time-with-cap',
+        scoreType: 'min',
+        roundsToScore: 1,
+        timeCap: 600,
+        tiebreakScheme: null,
+      }
       const finalScore = {id: 'score-cap'}
 
       let insertedValues: unknown = null
@@ -567,11 +589,15 @@ describe('Competition Score Server Functions (TanStack)', () => {
           from: vi.fn().mockReturnValue({
             innerJoin: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValueOnce([teamResult]),
+                limit: vi.fn().mockResolvedValueOnce([programmedWorkout]),
               }),
             }),
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([finalScore]),
+              limit: vi
+                .fn()
+                .mockResolvedValueOnce([{competitionType: 'in-person'}])
+                .mockResolvedValueOnce([teamResult])
+                .mockResolvedValue([finalScore]),
             }),
           }),
         }),

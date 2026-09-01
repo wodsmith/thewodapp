@@ -17,6 +17,7 @@ export interface ExistingSetData {
   setNumber: number
   score: number | null
   reps: number | null
+  status: string | null
 }
 
 /** Team member info for team competitions */
