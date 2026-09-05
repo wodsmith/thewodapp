@@ -221,7 +221,7 @@ The kiosk displays the server aggregate instead of recounting visible rows, reta
 
 ### Kiosk refreshes after local updates
 
-A successful check-in or waiver signature triggers one search refresh using the current query, updating aggregate progress alongside athlete rows.
+A successful check-in or waiver signature triggers one search refresh using the current query, updating aggregate progress alongside athlete rows. Tests wait for the matching search response before counting mutation-triggered refreshes.
 
 ### Toggling Check-In
 

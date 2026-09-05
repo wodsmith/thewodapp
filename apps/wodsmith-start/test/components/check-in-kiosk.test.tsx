@@ -106,15 +106,19 @@ describe("check-in kiosk totals", () => {
   it.each(["check-in", "waiver"])(
     "refetches aggregate once after a successful %s",
     async (action) => {
+      mocks.search.mockImplementation(async ({ data }) =>
+        response(data.query === "Alex" ? 66 : 60),
+      )
       render(<CheckInKiosk competitionId="competition" waivers={[waiver]} />)
       await screen.findByText("/ 120")
       fireEvent.change(
         screen.getByPlaceholderText("Search athlete name, email, or team…"),
         { target: { value: "Alex" } },
       )
-      const checkInButton = await screen.findByRole("button", {
-        name: "Check in",
-      })
+      // Rows can appear before the debounced search effect runs. Wait for
+      // its distinct response before measuring the mutation's one refresh.
+      await screen.findByText("(55%)")
+      const checkInButton = screen.getByRole("button", { name: "Check in" })
       const callsBefore = mocks.search.mock.calls.length
       mocks.search.mockResolvedValue(response(72, 0))
       if (action === "check-in") fireEvent.click(checkInButton)
