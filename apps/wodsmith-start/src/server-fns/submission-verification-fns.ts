@@ -290,6 +290,7 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
         .select({
           id: scoresTable.id,
           userId: scoresTable.userId,
+          scalingLevelId: scoresTable.scalingLevelId,
           scheme: scoresTable.scheme,
           scoreType: scoresTable.scoreType,
           tiebreakScheme: scoresTable.tiebreakScheme,
@@ -321,6 +322,9 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
           and(
             eq(competitionRegistrationsTable.eventId, data.competitionId),
             eq(competitionRegistrationsTable.userId, score.userId),
+            score.scalingLevelId
+              ? eq(competitionRegistrationsTable.divisionId, score.scalingLevelId)
+              : isNull(competitionRegistrationsTable.divisionId),
           ),
         )
         .limit(1)
