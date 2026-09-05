@@ -812,7 +812,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				scoreType: "min",
 			})
 			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -822,12 +821,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
-
-			// Video submission creation succeeds
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
 
 			await expect(
 				submitVideoFn({
@@ -840,6 +833,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					},
 				}),
 			).rejects.toThrow(/Invalid score format/)
+			expect(mockDb.insert).not.toHaveBeenCalled()
+			expect(mockDb.update).not.toHaveBeenCalled()
+			expect(mockDb.transaction).not.toHaveBeenCalled()
 		})
 
 		it("throws on invalid tiebreak score format", async () => {
@@ -853,7 +849,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 			const track = { ownerTeamId: "team-1" }
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -864,12 +859,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No existing submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
-
-			// Video submission creation succeeds
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
 
 			await expect(
 				submitVideoFn({
@@ -883,6 +872,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					},
 				}),
 			).rejects.toThrow(/Invalid tiebreak score format/)
+			expect(mockDb.insert).not.toHaveBeenCalled()
+			expect(mockDb.update).not.toHaveBeenCalled()
+			expect(mockDb.transaction).not.toHaveBeenCalled()
 		})
 
 		it("throws on invalid videoUrl format", async () => {
