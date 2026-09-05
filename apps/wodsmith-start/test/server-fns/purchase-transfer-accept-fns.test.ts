@@ -166,7 +166,6 @@ const mockPurchase = {
 beforeEach(() => {
   vi.clearAllMocks()
   mockDb.reset()
-  Object.assign(mockDb.getChainMock(), { for: vi.fn(() => mockDb.getChainMock()) })
 
   mockDb.registerTable('purchaseTransfersTable')
   mockDb.registerTable('commercePurchaseTable')

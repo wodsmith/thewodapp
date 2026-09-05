@@ -69,7 +69,7 @@ const cancel = cancelPurchaseTransferFn as unknown as (input: {
   data: { transferId: string }
 }) => Promise<{ success: boolean }>
 
-// An explicitly supplied Unix socket enables this suite. It creates/drops only
+// An explicitly supplied local MySQL endpoint enables this suite. It creates/drops only
 // its own random database; it never reads application connection credentials.
 const casing = new CasingCache("snake_case")
 const databaseName = `transfer_test_${randomUUID().replaceAll("-", "")}`
@@ -183,6 +183,11 @@ describe.skipIf(!mysqlTestConfig)(
             `CREATE TABLE \`${getTableName(table)}\` (${columns.join(",")}) ENGINE=InnoDB`,
           )
       }
+      await pool
+        .promise()
+        .query(
+          `ALTER TABLE \`${getTableName(competitionRegistrationsTable)}\` ADD UNIQUE INDEX competition_registrations_event_user_division_idx (event_id, user_id, division_id)`,
+        )
     }, 20_000)
 
     afterAll(async () => {
@@ -294,6 +299,57 @@ describe.skipIf(!mysqlTestConfig)(
       await expect(
         accept({ data: { transferId: "transfer" } }),
       ).resolves.toMatchObject({ success: true })
+    })
+
+    // @lat: [[commerce#Purchase Transfers#Inactive recipient registration rollback]]
+    it("restores an inactive recipient registration on rollback and replaces it on retry", async () => {
+      const inactiveRegistration = {
+        id: "inactive-registration",
+        userId: "target",
+        captainUserId: "target",
+        eventId: "competition",
+        divisionId: "division",
+        status: "removed",
+      }
+      await insert(competitionRegistrationsTable, inactiveRegistration)
+      // Assert the fixture enforces the production constraint before exercising
+      // the handler's delete-before-reassignment path.
+      await expect(
+        insert(competitionRegistrationsTable, {
+          ...inactiveRegistration,
+          id: "duplicate-registration",
+        }),
+      ).rejects.toThrow("Duplicate entry")
+      const before = await snapshot()
+      await pool
+        .promise()
+        .query(
+          `CREATE TRIGGER reject_waiver BEFORE INSERT ON \`${getTableName(waiverSignaturesTable)}\` FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'fixture waiver failure'`,
+        )
+      try {
+        await expect(
+          accept({
+            data: {
+              transferId: "transfer",
+              waiverSignatures: [{ waiverId: "waiver" }],
+            },
+          }),
+        ).rejects.toThrow("fixture waiver failure")
+        expect(await snapshot()).toEqual(before)
+      } finally {
+        await pool.promise().query("DROP TRIGGER reject_waiver")
+      }
+      const purchaseBefore = await rows(commercePurchaseTable)
+      await expect(
+        accept({ data: { transferId: "transfer" } }),
+      ).resolves.toMatchObject({ success: true })
+      expect(await rows(competitionRegistrationsTable)).toMatchObject([
+        { id: "registration", user_id: "target", status: "active" },
+      ])
+      expect(await rows(commercePurchaseTable)).toEqual(purchaseBefore)
+      expect(await rows(purchaseTransfersTable)).toMatchObject([
+        { transfer_state: "COMPLETED" },
+      ])
     })
 
     // @lat: [[commerce#Purchase Transfers#Individual and team acceptance]]

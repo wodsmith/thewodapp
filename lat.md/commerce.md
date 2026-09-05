@@ -174,6 +174,10 @@ Cancellation's conditional pending-to-cancelled update takes the same row lock. 
 
 A late database failure during waiver insertion must roll back all prior handler writes and the transfer state, then permit a successful retry.
 
+### Inactive recipient registration rollback
+
+The production registration uniqueness constraint remains enforced: a failed acceptance restores an inactive recipient registration, and a successful retry removes it before reassigning the active registration without changing the payer.
+
 ### Individual and team acceptance
 
 Individual and team transfers reassign registration and membership, replace answers, clear heat assignments and old scores, preserve teammates, and retain the original purchase payer.
@@ -194,11 +198,19 @@ Acceptance waiting behind a cancellation lock must read the newly committed canc
 
 Simultaneous accepts serialize on the transfer row so only one succeeds and only one replacement membership is created.
 
+### Invalid integration port
+
+An explicit MySQL test port outside the integer range 1–65535 fails configuration before a connection can be attempted.
+
+### Valid integration port
+
+MySQL tests accept both valid port boundaries and ordinary ports, and default to port 3306 when no override is supplied.
+
 ### MySQL integration verification
 
 Database integration tests exercise actual handlers against isolated MySQL tables, including rollback and contention, independently of mocked unit tests.
 
-Run `pnpm --filter wodsmith-start test:db-integration` with `WODSMITH_TEST_MYSQL_SOCKET` for a local Unix socket, or `WODSMITH_TEST_MYSQL_HOST=127.0.0.1` plus optional `WODSMITH_TEST_MYSQL_PORT`, `WODSMITH_TEST_MYSQL_USER`, and `WODSMITH_TEST_MYSQL_PASSWORD`. The command fails if no test connection is configured; ordinary unit runs skip these opt-in suites. The dedicated `start-db-integration.yml` workflow runs them with a MySQL 8 service and Node 24. Each suite creates and drops only its own random test database; connection configuration rejects non-loopback hosts and never falls back to application credentials. The transfer fixture uses production column types and InnoDB locking with nullable unrelated fields, rather than a complete production migration.
+Run `pnpm --filter wodsmith-start test:db-integration` with `WODSMITH_TEST_MYSQL_SOCKET` for a local Unix socket, or `WODSMITH_TEST_MYSQL_HOST=127.0.0.1` plus optional `WODSMITH_TEST_MYSQL_PORT`, `WODSMITH_TEST_MYSQL_USER`, and `WODSMITH_TEST_MYSQL_PASSWORD`. The command fails if no test connection is configured; ordinary unit runs skip these opt-in suites. The dedicated `start-db-integration.yml` workflow runs them with a MySQL 8 service and Node 24. Each suite creates and drops only its own random test database; connection configuration rejects non-loopback hosts and never falls back to application credentials. The transfer fixture uses production column types, registration uniqueness, and InnoDB locking with nullable unrelated fields, rather than a complete production migration. Explicit ports must be integers from 1 to 65535. The runner currently supports Linux and macOS; Windows command resolution is not yet supported.
 
 ## Entitlements
 
