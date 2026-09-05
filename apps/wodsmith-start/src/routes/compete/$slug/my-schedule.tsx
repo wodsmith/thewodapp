@@ -196,6 +196,7 @@ function MySchedulePage() {
             events={events}
             shifts={shifts}
             competitionName={competition.name}
+            timezone={competition.timezone ?? "America/Denver"}
             volunteerMetadata={volunteerMetadata}
             membershipId={membership.id}
             competitionSlug={slug}

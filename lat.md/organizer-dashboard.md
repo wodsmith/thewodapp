@@ -281,6 +281,24 @@ When the selected event has no athlete heats, the judge assignment and rotation 
 
 The volunteers/judges and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
+### Volunteer schedule timezone
+
+The personal volunteer schedule displays shifts, heat times, and heat day groups in the competition's stored IANA timezone, with America/Denver as the legacy fallback.
+
+[[apps/wodsmith-start/src/routes/compete/$slug/my-schedule.tsx#MySchedulePage]] passes the timezone through ScheduleView, EventSection, ShiftCard, and RotationCard. [[apps/wodsmith-start/src/lib/volunteer-schedule-time.ts#formatScheduleTimeRange]] formats shift ranges and server rotation windows consistently, including both dates when a range crosses event-local midnight. Heat groups use [[apps/wodsmith-start/src/lib/volunteer-schedule-time.ts#getScheduleDayKey]] rather than the browser date. Stored timestamps and rotation scheduling rules are unchanged.
+
+### Volunteer schedule server timezone
+
+Server-preformatted rotation windows use the stored competition timezone even when the server runs in another timezone, including ranges spanning midnight.
+
+### Volunteer schedule local day groups
+
+The rendered personal schedule passes the event timezone to shifts and heat rows, splitting heat groups when the event-local calendar day changes.
+
+### Volunteer schedule same local day
+
+Ranges crossing UTC midnight stay on one date when both endpoints fall on the same event-local day; daylight-saving offsets apply independently to each endpoint.
+
 ### Judge Schedule Printouts
 
 The authenticated print center produces a master lane grid and paper run sheets for every assigned judge, so event-day staff can work from paper.
