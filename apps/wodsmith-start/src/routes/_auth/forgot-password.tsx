@@ -41,6 +41,8 @@ function ForgotPasswordPage() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [captchaReady, setCaptchaReady] = useState(false)
+  const [captchaAttempt, setCaptchaAttempt] = useState(0)
 
   // Use the server function hook for client-side calls
   const forgotPassword = useServerFn(forgotPasswordFn)
@@ -70,6 +72,9 @@ function ForgotPasswordPage() {
       setError(errorMessage)
       console.error("Forgot password error:", err)
     } finally {
+      form.setValue("captchaToken", undefined)
+      setCaptchaReady(false)
+      setCaptchaAttempt((attempt) => attempt + 1)
       setIsLoading(false)
     }
   }
@@ -147,6 +152,8 @@ function ForgotPasswordPage() {
 
               <div className="flex flex-col justify-center items-center space-y-4">
                 <Captcha
+                  key={captchaAttempt}
+                  onReadyChange={setCaptchaReady}
                   onSuccess={(token: string) =>
                     form.setValue("captchaToken", token)
                   }
@@ -156,7 +163,7 @@ function ForgotPasswordPage() {
                 <Button
                   type="submit"
                   className="w-full font-mono uppercase"
-                  disabled={isLoading}
+                  disabled={isLoading || !captchaReady}
                 >
                   {isLoading ? "Sending..." : "Send reset instructions"}
                 </Button>

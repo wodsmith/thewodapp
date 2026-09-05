@@ -39,6 +39,8 @@ export function InviteSignUpForm({
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [captchaReady, setCaptchaReady] = useState(false)
+  const [captchaAttempt, setCaptchaAttempt] = useState(0)
 
   // Use useServerFn for client-side calls
   const signUp = useServerFn(signUpFn)
@@ -73,6 +75,9 @@ export function InviteSignUpForm({
       setError(errorMessage)
       console.error("Sign-up error:", err)
     } finally {
+      form.setValue("captchaToken", undefined)
+      setCaptchaReady(false)
+      setCaptchaAttempt((attempt) => attempt + 1)
       setIsLoading(false)
     }
   }
@@ -156,6 +161,8 @@ export function InviteSignUpForm({
 
         <div className="flex flex-col items-center gap-4 pt-2">
           <Captcha
+            key={captchaAttempt}
+            onReadyChange={setCaptchaReady}
             onSuccess={(token: string) => form.setValue("captchaToken", token)}
             validationError={form.formState.errors.captchaToken?.message}
           />
@@ -164,7 +171,7 @@ export function InviteSignUpForm({
             type="submit"
             className="w-full"
             size="lg"
-            disabled={isLoading}
+            disabled={isLoading || !captchaReady}
           >
             {isLoading ? (
               <>
