@@ -30,6 +30,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { Captcha } from "@/components/captcha"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -148,6 +149,7 @@ const CREATE_NEW_TEAM = "__create_new__"
 const formSchema = z.object({
   teamId: z.string().min(1, "Please select a team"),
   newTeamName: z.string().optional(),
+  captchaToken: z.string().optional(),
   reason: z
     .string()
     .min(10, "Please provide more detail about why you want to organize")
@@ -235,8 +237,8 @@ function OrganizerOnboardPage() {
             Host Your Next Competition
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            Everything you need to run professional Functional Fitness competitions. From
-            registration to results, we've got you covered.
+            Everything you need to run professional Functional Fitness
+            competitions. From registration to results, we've got you covered.
           </p>
         </div>
       </div>
@@ -322,6 +324,17 @@ function OrganizerOnboardPage() {
 function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
   const router = useRouter()
   const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+  const [createdTeams, setCreatedTeams] = useState<
+    Pick<TeamInfo, "id" | "name">[]
+  >([])
+  const selectableTeams = [
+    ...teams,
+    ...createdTeams.filter(
+      (created) => !teams.some((team) => team.id === created.id),
+    ),
+  ]
+  const [captchaReady, setCaptchaReady] = useState(false)
+  const [captchaAttempt, setCaptchaAttempt] = useState(0)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -359,11 +372,19 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
         })
 
         if (teamResult?.data?.teamId) {
+          // Team creation has committed even if the application fails. Keep it
+          // selected so a renewed challenge retries the request for this team.
+          setCreatedTeams((created) => [
+            ...created,
+            { id: teamResult.data.teamId, name: teamResult.data.name },
+          ])
+          form.setValue("teamId", teamResult.data.teamId)
           // Submit the organizer request with the new team
           await submitRequest({
             data: {
               teamId: teamResult.data.teamId,
               reason: data.reason,
+              captchaToken: data.captchaToken,
             },
           })
           toast.success("Application submitted successfully!")
@@ -376,6 +397,7 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
           data: {
             teamId: data.teamId,
             reason: data.reason,
+            captchaToken: data.captchaToken,
           },
         })
         toast.success("Application submitted successfully!")
@@ -389,6 +411,9 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
       toast.error(errorMessage)
       setIsCreatingTeam(false)
     } finally {
+      form.setValue("captchaToken", undefined)
+      setCaptchaReady(false)
+      setCaptchaAttempt((attempt) => attempt + 1)
       setIsSubmitting(false)
     }
   }
@@ -405,14 +430,19 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Organizing Team</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              {/* Remount the native select when creation adds its selected option. */}
+              <Select
+                key={createdTeams.length}
+                onValueChange={field.onChange}
+                value={field.value}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a team" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {teams.map((team) => (
+                  {selectableTeams.map((team) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
                     </SelectItem>
@@ -442,7 +472,10 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
               <FormItem>
                 <FormLabel>Team Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Functional Fitness Downtown" {...field} />
+                  <Input
+                    placeholder="e.g., Functional Fitness Downtown"
+                    {...field}
+                  />
                 </FormControl>
                 <FormDescription>
                   This will be your organizing team's name
@@ -476,6 +509,13 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
           )}
         />
 
+        <Captcha
+          key={captchaAttempt}
+          onReadyChange={setCaptchaReady}
+          onSuccess={(token) => form.setValue("captchaToken", token)}
+          validationError={form.formState.errors.captchaToken?.message}
+        />
+
         {/* Submit */}
         <div className="flex justify-end gap-4 pt-4">
           <Button
@@ -486,7 +526,7 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending || !captchaReady}>
             {isPending ? "Submitting..." : "Submit application"}
           </Button>
         </div>
@@ -645,6 +685,8 @@ function SignUpForm() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [captchaReady, setCaptchaReady] = useState(false)
+  const [captchaAttempt, setCaptchaAttempt] = useState(0)
 
   // PostHog tracking hooks
   const trackEvent = useTrackEvent()
@@ -696,6 +738,9 @@ function SignUpForm() {
         source: "organizer_onboard",
       })
     } finally {
+      form.setValue("captchaToken", undefined)
+      setCaptchaReady(false)
+      setCaptchaAttempt((attempt) => attempt + 1)
       setIsLoading(false)
     }
   }
@@ -781,7 +826,18 @@ function SignUpForm() {
             )}
           />
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Captcha
+            key={captchaAttempt}
+            onReadyChange={setCaptchaReady}
+            onSuccess={(token) => form.setValue("captchaToken", token)}
+            validationError={form.formState.errors.captchaToken?.message}
+          />
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading || !captchaReady}
+          >
             {isLoading ? "Creating account..." : "Create account"}
           </Button>
         </form>

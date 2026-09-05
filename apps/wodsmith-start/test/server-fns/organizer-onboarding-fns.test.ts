@@ -166,7 +166,8 @@ describe('organizer-onboarding-fns', () => {
       ).rejects.toThrow('Invalid captcha')
     })
 
-    it('should skip captcha validation if token not provided', async () => {
+    // @lat: [[auth#CAPTCHA tests#Organizer requests always validate]]
+    it('should ask the server validator to enforce policy even when token is omitted', async () => {
       const {validateTurnstileToken} = await import('@/utils/validate-captcha')
       const inputWithoutCaptcha = {
         teamId: 'team-123',
@@ -175,7 +176,7 @@ describe('organizer-onboarding-fns', () => {
 
       await submitOrganizerRequestFn({data: inputWithoutCaptcha})
 
-      expect(validateTurnstileToken).not.toHaveBeenCalled()
+      expect(validateTurnstileToken).toHaveBeenCalledWith(undefined)
     })
 
     it('should reject request when user is not authenticated', async () => {

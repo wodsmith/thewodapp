@@ -178,16 +178,14 @@ export const signUpFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Validate CAPTCHA token if provided
-    if (data.captchaToken) {
-      const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
-      if (!isValidCaptcha) {
-        logWarning({
-          message: "[Auth] Sign-up failed - CAPTCHA verification failed",
-          attributes: { email: data.email },
-        })
-        throw new Error("CAPTCHA verification failed. Please try again.")
-      }
+    // The server decides whether CAPTCHA is required, even when omitted.
+    const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+    if (!isValidCaptcha) {
+      logWarning({
+        message: "[Auth] Sign-up failed - CAPTCHA verification failed",
+        attributes: { email: data.email },
+      })
+      throw new Error("CAPTCHA verification failed. Please try again.")
     }
 
     // Check if email is disposable
@@ -758,15 +756,13 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Validate CAPTCHA token if provided
-    if (data.captchaToken) {
-      const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
-      if (!isValidCaptcha) {
-        logWarning({
-          message: "[Auth] Password reset - CAPTCHA verification failed",
-        })
-        throw new Error("CAPTCHA verification failed. Please try again.")
-      }
+    // The server decides whether CAPTCHA is required, even when omitted.
+    const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+    if (!isValidCaptcha) {
+      logWarning({
+        message: "[Auth] Password reset - CAPTCHA verification failed",
+      })
+      throw new Error("CAPTCHA verification failed. Please try again.")
     }
 
     try {

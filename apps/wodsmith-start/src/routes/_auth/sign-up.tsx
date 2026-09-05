@@ -94,6 +94,8 @@ function SignUpPage() {
   const routeData = Route.useRouteContext()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [captchaReady, setCaptchaReady] = useState(false)
+  const [captchaAttempt, setCaptchaAttempt] = useState(0)
   const [needsVerification, setNeedsVerification] = useState(false)
 
   // PostHog tracking hooks
@@ -186,6 +188,9 @@ function SignUpPage() {
       // Track failed sign-up attempt
       trackEvent("user_signed_up_failed", { error_message: errorMessage })
     } finally {
+      form.setValue("captchaToken", undefined)
+      setCaptchaReady(false)
+      setCaptchaAttempt((attempt) => attempt + 1)
       setIsLoading(false)
     }
   }
@@ -359,13 +364,19 @@ function SignUpPage() {
 
               <div className="flex flex-col justify-center items-center space-y-4 pt-2">
                 <Captcha
+                  key={captchaAttempt}
+                  onReadyChange={setCaptchaReady}
                   onSuccess={(token: string) =>
                     form.setValue("captchaToken", token)
                   }
                   validationError={form.formState.errors.captchaToken?.message}
                 />
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading || !captchaReady}
+                >
                   {isLoading
                     ? "Creating account..."
                     : claim && claimValid

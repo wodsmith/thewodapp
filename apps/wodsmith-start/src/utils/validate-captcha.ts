@@ -1,4 +1,4 @@
-import { getTurnstileSecretKey } from "@/lib/env"
+import { getTurnstileConfig, getTurnstileSecretKey } from "@/lib/env"
 
 interface TurnstileResponse {
   success: boolean
@@ -7,10 +7,19 @@ interface TurnstileResponse {
 
 /**
  * Validate a Turnstile CAPTCHA token.
- * Always validates when a token is provided - the caller is responsible
- * for only calling this when CAPTCHA is enabled on the client side.
+ * Only a development server without a secret may disable CAPTCHA.
+ * Call for every protected request, including requests without a token.
  */
-export async function validateTurnstileToken(token: string) {
+export async function validateTurnstileToken(token?: string) {
+  const config = getTurnstileConfig()
+  if (!config.enabled) return true
+
+  const secret = getTurnstileSecretKey()
+  if (!secret || !config.siteKey) {
+    throw new Error("CAPTCHA is temporarily unavailable. Please try again.")
+  }
+  if (!token?.trim()) return false
+
   const response = await fetch(
     "https://challenges.cloudflare.com/turnstile/v0/siteverify",
     {
@@ -19,13 +28,14 @@ export async function validateTurnstileToken(token: string) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        secret: getTurnstileSecretKey(),
+        secret,
         response: token,
       }),
     },
   )
 
+  if (!response.ok) return false
   const data = (await response.json()) as TurnstileResponse
 
-  return data.success
+  return data.success === true
 }
