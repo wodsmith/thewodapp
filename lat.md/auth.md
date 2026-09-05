@@ -115,3 +115,93 @@ Cohost access checks query active DB memberships directly so accepted invites wo
 Organizers can manually register athletes who don't yet have accounts, creating placeholder user records.
 
 Placeholder users receive a claim URL with a token. When they visit the link, they create an account and claim the existing registration. The manual registration workflow lives in `src/workflows/manual-registration-workflow.ts`.
+
+## CAPTCHA protection
+
+Signup, password-reset email requests, and organizer applications always apply the server-owned CAPTCHA policy before creating accounts, sending mail, or saving applications.
+
+[[apps/wodsmith-start/src/lib/env.ts#getTurnstileConfig]] enables CAPTCHA when the runtime secret is configured or the runtime/build is production. A development server without a secret explicitly disables it. Enabled deployments require a runtime secret and public site key; missing configuration fails closed. The public key comes from `TURNSTILE_SITE_KEY`, with the build-time public key as a fallback.
+
+[[apps/wodsmith-start/src/lib/env.ts#getTurnstileConfigFn]] exposes only the public key and enabled status to [[apps/wodsmith-start/src/components/captcha.tsx#Captcha]]. The widget shows loading or configuration-error states and reports readiness to the form. Incomplete enabled configuration makes the public-config request fail, so forms show an error before asking the user to solve a futile challenge. Signup, reset, invite-signup, and organizer forms wait for readiness; challenge expiry, errors, and timeout disable submission. Each submitted attempt resets the token and widget before retrying.
+
+[[apps/wodsmith-start/src/utils/validate-captcha.ts#validateTurnstileToken]] runs even when a request omits its token. Enabled requests require a nonblank token and a successful HTTP response with boolean `success: true`. Provider errors stop the handler. Client input never decides whether validation is enabled; sign-in and volunteer-specific signup policies remain unchanged.
+
+## CAPTCHA tests
+
+Focused server and component tests cover trusted configuration, challenge enforcement, and organizer flows without contacting Turnstile or sending real mail.
+
+### Trusted configuration
+
+The public config uses the runtime site key without returning secret material, and tests cover explicitly disabled development plus missing production configuration.
+
+### Missing and rejected challenges
+
+Signup, reset-email, and organizer-request handlers reject missing or unsuccessful challenges before account, session, email, or application side effects.
+
+### Provider failures
+
+An unavailable CAPTCHA provider prevents protected handlers from continuing, including the normally enumeration-safe password-reset email flow.
+
+### Public configuration and readiness
+
+The widget waits for trusted configuration and a successful challenge; expiry, errors, and timeout return the form to an unready state.
+
+### Organizer challenge submission
+
+The organizer application form passes its challenge token and requires a fresh challenge after a failed attempt.
+
+### Inline signup challenge
+
+The inline organizer signup form renders a CAPTCHA and includes its token when creating an account.
+
+### Disabled development
+
+A development server without a CAPTCHA secret allows protected requests without contacting the provider.
+
+### Missing production secret
+
+Runtime production and production builds reject incomplete CAPTCHA configuration before exposing a usable widget configuration.
+
+### Missing public site key
+
+An enabled deployment without a public site key fails closed instead of presenting a challenge that cannot validate.
+
+### Missing token validation
+
+Missing, empty, and whitespace-only tokens fail validation when CAPTCHA is enabled without calling the external provider.
+
+### Successful provider result
+
+An enabled request is accepted only after the provider returns a successful HTTP response with boolean success.
+
+### Rejected provider result
+
+False and malformed success values are rejected rather than treated as truthy provider approval.
+
+### Failed provider HTTP status
+
+A failing provider HTTP status is rejected even if its response body claims success.
+
+### Rejected handler challenges
+
+All protected handlers reject unsuccessful provider challenges before persistence or email side effects.
+
+### Successful reset email challenge
+
+A valid challenge allows password-reset email delivery and reset-token persistence.
+
+### Successful signup challenge
+
+A valid challenge allows account and personal-team creation followed by a signed-in session.
+
+### Disabled widget readiness
+
+A server-disabled local configuration hides the widget and allows the form to submit.
+
+### Unavailable widget configuration
+
+A configuration-fetch failure shows an error while keeping form submission disabled.
+
+### Organizer requests always validate
+
+The organizer handler always calls the server validator, including when the client omits the optional token field.
