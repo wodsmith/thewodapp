@@ -149,6 +149,25 @@ export const getTurnstileSecretKey = createServerOnlyFn(
   },
 )
 
+/** Shared server-owned CAPTCHA policy; this shape contains no secret material. */
+export const getTurnstileConfig = createServerOnlyFn(() => {
+  const secret = getTurnstileSecretKey()
+  const enabled =
+    Boolean(secret) ||
+    extendedEnv.NODE_ENV === "production" ||
+    import.meta.env.PROD
+  const siteKey =
+    getTurnstileSiteKey() || import.meta.env.VITE_TURNSTILE_SITE_KEY || ""
+  if (enabled && (!secret || !siteKey)) {
+    throw new Error("CAPTCHA is temporarily unavailable. Please try again.")
+  }
+  return { enabled, siteKey }
+})
+
+export const getTurnstileConfigFn = createServerFn({ method: "GET" }).handler(
+  async () => getTurnstileConfig(),
+)
+
 // Environment detection accessors
 
 /**

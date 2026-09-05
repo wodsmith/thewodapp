@@ -287,12 +287,9 @@ export const submitOrganizerRequestFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => submitOrganizerRequestSchema.parse(data))
   .handler(
     async ({ data }): Promise<{ success: boolean; data: OrganizerRequest }> => {
-      // Validate turnstile token if provided
-      if (data.captchaToken) {
-        const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
-        if (!isValidCaptcha) {
-          throw new Error("Invalid captcha. Please try again.")
-        }
+      const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+      if (!isValidCaptcha) {
+        throw new Error("Invalid captcha. Please try again.")
       }
 
       const session = await getSessionFromCookie()
