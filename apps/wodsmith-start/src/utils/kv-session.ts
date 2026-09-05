@@ -10,6 +10,10 @@ import { getIP } from "./get-IP"
 
 const SESSION_PREFIX = "session:"
 
+function getSessionRevocationKey(userId: string): string {
+  return `session-revoked-before:${userId}`
+}
+
 export function getSessionKey(userId: string, sessionId: string): string {
   return `${SESSION_PREFIX}${userId}:${sessionId}`
 }
@@ -103,6 +107,7 @@ export interface CreateKVSessionParams
   extends Omit<KVSession, "id" | "createdAt" | "expiresAt"> {
   sessionId: string
   expiresAt: Date
+  authenticatedAt?: number
 }
 
 export async function createKVSession({
@@ -113,6 +118,7 @@ export async function createKVSession({
   authenticationType,
   passkeyCredentialId,
   teams,
+  authenticatedAt = Date.now(),
 }: CreateKVSessionParams): Promise<KVSession> {
   const kv = await getKV()
 
@@ -140,7 +146,7 @@ export async function createKVSession({
     id: sessionId,
     userId,
     expiresAt: expiresAt.getTime(),
-    createdAt: Date.now(),
+    createdAt: authenticatedAt,
     country: cfCountry,
     city: cfCity,
     continent: cfContinent,
@@ -202,6 +208,18 @@ export async function getKVSession(
   if (!sessionStr) return null
 
   const session = JSON.parse(sessionStr) as KVSession
+
+  // A refresh can rewrite an old record after deletion. Keep its immutable
+  // authentication timestamp behind a persistent cutoff so it stays revoked.
+  const revokedBefore = await kv.get(getSessionRevocationKey(userId))
+  if (
+    revokedBefore !== null &&
+    (!Number.isFinite(session.createdAt) ||
+      !Number.isFinite(Number(revokedBefore)) ||
+      session.createdAt <= Number(revokedBefore))
+  ) {
+    return null
+  }
 
   if (session?.user?.createdAt) {
     session.user.createdAt = new Date(session.user.createdAt)
@@ -298,14 +316,46 @@ export async function getAllSessionIdsOfUser(userId: string) {
     throw new Error("Can't connect to KV store")
   }
 
-  const sessions = await kv.list({ prefix: getSessionKey(userId, "") })
+  const sessions: Array<{ key: string; absoluteExpiration: Date | undefined }> =
+    []
+  let cursor: string | undefined
+  do {
+    const page = await kv.list({ prefix: getSessionKey(userId, ""), cursor })
+    sessions.push(
+      ...page.keys.map((session) => ({
+        key: session.name,
+        absoluteExpiration: session.expiration
+          ? new Date(session.expiration * 1000)
+          : undefined,
+      })),
+    )
+    cursor = page.list_complete ? undefined : page.cursor
+  } while (cursor)
+  return sessions
+}
 
-  return sessions.keys.map((session) => ({
-    key: session.name,
-    absoluteExpiration: session.expiration
-      ? new Date(session.expiration * 1000)
-      : undefined,
-  }))
+/** Revoke authentication; entitlement refresh deliberately remains separate. */
+export async function revokeUserAuthentication(userId: string): Promise<void> {
+  const kv = getKV()
+  if (!kv) throw new Error("Can't connect to KV store")
+
+  const revokedBefore = Date.now()
+  // No TTL: a late session refresh must never outlive the revocation marker.
+  await kv.put(getSessionRevocationKey(userId), String(revokedBefore))
+
+  // Collect every page before deleting so pagination does not move under us.
+  const sessions = await getAllSessionIdsOfUser(userId)
+  for (const { key } of sessions) {
+    const stored = await kv.get(key)
+    if (!stored) continue
+    const session = JSON.parse(stored) as KVSession
+    if (
+      !Number.isFinite(session.createdAt) ||
+      session.createdAt <= revokedBefore
+    ) {
+      await kv.delete(key)
+    }
+  }
 }
 
 /**

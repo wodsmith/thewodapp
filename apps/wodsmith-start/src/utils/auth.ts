@@ -37,6 +37,7 @@ import {
   deleteKVSession,
   getKVSession,
   type KVSession,
+  revokeUserAuthentication,
   updateKVSession,
 } from "./kv-session"
 import { getInitials } from "./name-initials"
@@ -100,7 +101,7 @@ function decodeSessionCookie(
 interface CreateSessionParams
   extends Pick<
     CreateKVSessionParams,
-    "authenticationType" | "passkeyCredentialId" | "userId"
+    "authenticationType" | "passkeyCredentialId" | "userId" | "authenticatedAt"
   > {
   token: string
 }
@@ -279,6 +280,7 @@ export async function createSession({
   userId,
   authenticationType,
   passkeyCredentialId,
+  authenticatedAt = Date.now(),
 }: CreateSessionParams): Promise<KVSession> {
   const sessionId = await generateSessionId(token)
   const expiresAt = new Date(Date.now() + getSessionLength())
@@ -299,6 +301,7 @@ export async function createSession({
     authenticationType,
     passkeyCredentialId,
     teams: teamsWithPermissions,
+    authenticatedAt,
   })
 }
 
@@ -306,6 +309,7 @@ export async function createAndStoreSession(
   userId: string,
   authenticationType?: CreateKVSessionParams["authenticationType"],
   passkeyCredentialId?: CreateKVSessionParams["passkeyCredentialId"],
+  authenticatedAt?: number,
 ) {
   const sessionToken = generateSessionToken()
   const session = await createSession({
@@ -313,6 +317,7 @@ export async function createAndStoreSession(
     userId,
     authenticationType,
     passkeyCredentialId,
+    authenticatedAt,
   })
   await setSessionTokenCookie({
     token: sessionToken,
@@ -532,6 +537,21 @@ interface SessionCacheStore {
 }
 
 const sessionCacheStorage = new AsyncLocalStorage<SessionCacheStore>()
+
+/** Revoke all devices and discard the recovering user's cached browser session. */
+export async function revokeAllUserSessions(userId: string): Promise<void> {
+  try {
+    await revokeUserAuthentication(userId)
+  } finally {
+    const cookie = getCookie(SESSION_COOKIE_NAME)
+    if (cookie && decodeSessionCookie(cookie)?.userId === userId) {
+      const cache = sessionCacheStorage.getStore()
+      if (cache) cache.session = Promise.resolve(null)
+      await deleteSessionTokenCookie()
+      await deleteActiveTeamCookie()
+    }
+  }
+}
 
 export function withSessionCache<T>(fn: () => T): T {
   return sessionCacheStorage.run({}, fn)

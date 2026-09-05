@@ -48,6 +48,7 @@ import {
   deleteSessionTokenCookie,
   getSessionFromCookie,
   invalidateSession,
+  revokeAllUserSessions,
 } from "@/utils/auth"
 import {
   createToken,
@@ -89,6 +90,7 @@ const forgotPasswordInputSchema = z.object({
 export const signInFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => signInSchema.parse(data))
   .handler(async ({ data }) => {
+    const authenticatedAt = Date.now()
     logInfo({
       message: "[Auth] Sign-in attempt",
       attributes: { email: data.email.toLowerCase() },
@@ -150,7 +152,7 @@ export const signInFn = createServerFn({ method: "POST" })
     }
 
     // Create session and set cookie
-    await createAndStoreSession(user.id, "password")
+    await createAndStoreSession(user.id, "password", undefined, authenticatedAt)
 
     // Update request context with user info for downstream logs
     updateRequestContext({ userId: user.id })
@@ -625,6 +627,9 @@ export const resetPasswordFn = createServerFn({ method: "POST" })
       .update(userTable)
       .set({ passwordHash })
       .where(eq(userTable.id, resetToken.userId))
+
+    // Keep the reset token retryable if revocation fails after the password write.
+    await revokeAllUserSessions(resetToken.userId)
 
     // Delete the used token
     await env.KV_SESSION.delete(getResetTokenKey(data.token))

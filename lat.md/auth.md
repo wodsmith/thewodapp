@@ -22,6 +22,38 @@ Multiple calls within the same request lifecycle (e.g. handler + nested `require
 
 Custom Worker handlers that run before TanStack Start installs its request context must not call `getSessionFromCookie()`. They validate the raw `Cookie` header with [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromRequestCookie]] instead, which uses the same session token validation without depending on Start's `AsyncLocalStorage`.
 
+### Password recovery revocation
+
+Password recovery revokes every pre-recovery browser and mobile session, including sessions rewritten by a late refresh.
+
+[[apps/wodsmith-start/src/server-fns/auth-fns.ts#resetPasswordFn]] updates the password, awaits [[apps/wodsmith-start/src/utils/auth.ts#revokeAllUserSessions]], then consumes the reset token. A revocation failure returns an error and leaves the token available for retry, even if the password update already succeeded. Only the recovering user's current request cache and cookies are cleared.
+
+[[apps/wodsmith-start/src/utils/kv-session.ts#revokeUserAuthentication]] writes a persistent per-user KV cutoff, then removes pre-cutoff session records across every page returned by [[apps/wodsmith-start/src/utils/kv-session.ts#getAllSessionIdsOfUser]]. The marker has no TTL so a late refresh cannot outlive it. Sessions issued after the cutoff are retained during cleanup.
+
+[[apps/wodsmith-start/src/utils/kv-session.ts#getKVSession]] rejects authentication timestamps at or before the cutoff, including legacy records without a timestamp once that user has a cutoff. Both browser and bearer validation use this gate. Reading the cutoff adds one KV lookup for a found session and fails closed if KV errors. KV propagation is eventually consistent: an already-running request or a region with stale KV data may temporarily retain access; once the cutoff converges, rewriting an old session cannot restore access.
+
+The existing `createdAt` field is the immutable authentication start time. Password sign-in and mobile token issuance capture it before verifying credentials; bearer token rotation carries it forward, so neither an in-flight old-password login nor rotation can bypass a later cutoff. Entitlement refresh continues to preserve it and remains separate from authentication revocation.
+
+## Recovery tests
+
+Focused recovery tests exercise the actual password hashing, session helpers, and API handlers with local database and KV fixtures.
+
+### Existing sessions and new login
+
+Recovery invalidates browser, raw-cookie, and bearer sessions across paginated KV keys while preserving unrelated users and allowing a subsequent login with the new password.
+
+### Late refresh stays revoked
+
+An old session rewritten after recovery remains rejected, including legacy records without an authentication timestamp.
+
+### Recovery failures remain retryable
+
+Marker, listing, and deletion failures return errors without consuming the reset token so recovery can be retried after the password write.
+
+### In-flight authentication and token rotation
+
+Password authentication begun before recovery and bearer rotation based on stale KV data retain their original timestamp and cannot authenticate after the cutoff converges.
+
 ## Authorization
 
 Route-level auth is enforced by the `_protected` layout route. Server function auth uses middleware that validates the session and injects the current user.
