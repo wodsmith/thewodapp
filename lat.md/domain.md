@@ -256,13 +256,65 @@ Athletes registered in multiple divisions see a division picker on the submissio
 
 Switching divisions fetches that division's submission data via [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]] with the `divisionId` parameter. Scores and video submissions are scoped per-division so each registration gets its own submission state — see [[lat.md/domain#Domain Model#Scoring#One score per athlete per event per division]] for the unique-key and write/read contracts that make this hold when a workout is shared across divisions. The picker lives in [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]]. When event-division mappings are configured, the division picker is filtered to only show divisions mapped to the current event — the route computes `filteredRegisteredDivisions` using the same mapping logic as the division tabs. The route loader uses `loaderDeps` to pass the URL `?division=` search param into the loader, so the initial submission data is fetched for the URL-selected division rather than always defaulting to the first registered division. The loader also passes the event-mapped division set to the batched submission fn, preventing fallback to an unrelated registration when no registered division is mapped to the event. This ensures team divisions (teamSize > 1) initialize the form with the correct number of video slots. The form accepts an `initialDivisionId` prop and syncs its internal state directly from the loader-provided `initialData` when the URL division changes — no redundant fetch is needed because the loader already re-runs via `loaderDeps`.
 
+### Submission Drafts
+
+Athlete submission drafts stay in memory while switching divisions, events, or panel rows, keyed by competition, event, registration, and division.
+
+[[apps/wodsmith-start/src/components/compete/athlete-score-submission-panel.tsx#AthleteScoreSubmissionPanel]] owns drafts above keyed workout rows. The standalone [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] owns its own map above a keyed editor; the event loader includes registration IDs with division labels. Other form consumers use an instance-local scope when no registration ID is supplied. Drafts contain video slots and notes, score, cap reps, tiebreak, per-round inputs, explicit round cap flags, and round reps. Reloading or leaving the owning surface discards them; nothing is written to browser storage.
+
+Input handlers store drafts synchronously so row unmounts cannot lose the latest edit. A fresh division starts from its own persisted submission, then restores a matching draft if present. Superseded fetch responses and same-identity loader refreshes cannot overwrite current edits. A successful save clears only the submitted draft revision; failures and newer edits survive. Successful replacement previews show pending review and clear old reviewer notes, matching the server's evidence-reset contract.
+
+#### Late save preserves current division
+
+A save completing after its editor unmounts clears only the matching saved draft and cannot overwrite the newly selected division's summary.
+
+#### Single-score division drafts
+
+Switching away and back restores a division's video, notes, score, cap reps, and tiebreak without mixing in another division's draft or persisted values.
+
+#### Panel partner-round drafts
+
+Partner video slots, per-video notes, round scores, explicit cap flags and reps, and tiebreak survive keyed panel-row unmounts when switching divisions.
+
+#### Round cap division drafts
+
+Each division restores its own explicit round cap flags, canonical cap times, and reps; submitting a restored draft sends those exact round facts.
+
+#### Persisted round cap initialization
+
+A first visit initializes explicit round cap flags and reps from persisted round results, keeping capped time inputs disabled.
+
+#### Late save retains newer revision
+
+When a draft is reopened and edited during an earlier save, that save cannot clear the newer revision or replace its visible inputs.
+
+#### Event and registration isolation
+
+Changing events or registrations selects an independent draft, and returning to the previous identity restores its own values.
+
+#### Successful save clears only its draft
+
+After a successful save, returning to that division reloads persisted data while another division's unsaved changes remain available.
+
+#### Failed save retains its draft
+
+A rejected save preserves input values across leaving and returning so the athlete can retry without re-entering their result.
+
+#### Late fetch preserves current edits
+
+A late division response cannot replace a newer route selection's edited values, and refreshing loader data for the same identity does not reset a dirty form.
+
+#### Saved preview requires review
+
+Replacing a reviewed submission immediately shows pending review with fresh status timing and no old reviewer notes in the local preview.
+
 ### Sub-Event Submissions
 
 Events with sub-events (parent/child hierarchy) show a separate submission form per child event on the parent workout page.
 
 The loader in [[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx#Route]] fetches video submissions for the event and all child events in one batched call via [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getBatchEventVideoSubmissionsFn]], which resolves the athlete's registration context once and returns per-`trackWorkoutId` results identical to what [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]] returns for a single event (the latter still serves the division-switch refetch in the form). Each child renders its own [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] with the child's `trackWorkoutId`. Team divisions get the same multi-video slot behavior per sub-event. The parent event itself has no submission form when children exist — all scoring is per sub-event.
 
-The [[apps/wodsmith-start/src/components/compete/athlete-score-submission-panel.tsx#AthleteScoreSubmissionPanel]] also respects this hierarchy. For parents with children, it renders a compact parent header with individual child rows beneath it. Submission data is fetched for child IDs (not the parent). Each submittable row is a collapsible dropdown: expanding it lazily fetches [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]] for that row's `trackWorkoutId` + selected division and renders [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] inline, above a quick reference of the division-specific workout description (from `divisionDescriptionsMap`, falling back to the base workout description) and a secondary "View full workout" link to the event page (child rows link to the parent event). The form's `onSubmitSuccess` callback silently refetches [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getAthleteDivisionSubmissionsFn]] so row score/status badges update without collapsing the open form. Rows are keyed by `trackWorkoutId + divisionId`, so switching the panel's division picker resets fetched form data. The panel filters events by event-division mappings: if a parent is mapped to specific divisions and the selected division isn't included, the entire group (parent + children) is excluded. Children without explicit mappings inherit their parent's mapping visibility. On mobile the panel renders above the registration sidebar; on desktop it appears in the main content column.
+The [[apps/wodsmith-start/src/components/compete/athlete-score-submission-panel.tsx#AthleteScoreSubmissionPanel]] also respects this hierarchy. For parents with children, it renders a compact parent header with individual child rows beneath it. Submission data is fetched for child IDs (not the parent). Each submittable row is a collapsible dropdown: expanding it lazily fetches [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]] for that row's `trackWorkoutId` + selected division and renders [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] inline, above a quick reference of the division-specific workout description (from `divisionDescriptionsMap`, falling back to the base workout description) and a secondary "View full workout" link to the event page (child rows link to the parent event). The form's `onSubmitSuccess` callback silently refetches [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getAthleteDivisionSubmissionsFn]] so row score/status badges update without collapsing the open form. Rows are keyed by event, registration, and division. Switching the panel's division picker resets fetched form data while [[domain#Domain Model#Video Submissions#Submission Drafts]] retain unsaved inputs above the rows. The panel filters events by event-division mappings: if a parent is mapped to specific divisions and the selected division isn't included, the entire group (parent + children) is excluded. Children without explicit mappings inherit their parent's mapping visibility. On mobile the panel renders above the registration sidebar; on desktop it appears in the main content column.
 
 The organizer-side [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/video-submissions-section.tsx#VideoSubmissionsSection]] follows the same rule. Events are grouped by `parentTrackWorkoutId` (returned from [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#getOrganizerAthleteDetailFn]], sourced from `trackWorkoutsTable.parentEventId`): standalone events render a single card, while parents with children render a wrapper card whose header shows only the parent workout name and a "Scored per sub-event below" note — no score or video editor on the parent itself — with one nested card per child.
 

@@ -210,12 +210,22 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
     const event = pageData.event
 
     // Resolve athlete's registered divisions with labels
-    const athleteRegisteredDivisions = athleteRegisteredDivisionIds
-      .map((divId) => {
-        const div = divisions.find((d) => d.id === divId)
-        return div ? { divisionId: div.id, label: div.label } : null
-      })
-      .filter((d): d is { divisionId: string; label: string } => d !== null)
+    const athleteRegisteredDivisions = userRegistrations.flatMap(
+      (registration) => {
+        const div = divisions.find(
+          (division) => division.id === registration.divisionId,
+        )
+        return div
+          ? [
+              {
+                registrationId: registration.id,
+                divisionId: div.id,
+                label: div.label,
+              },
+            ]
+          : []
+      },
+    )
 
     const { childEvents, initialSubmissionDivisionId } =
       resolveSubmissionContext(pageData)
