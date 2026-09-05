@@ -17,12 +17,17 @@ export function formatScheduleDay(date: Date, timezone: string): string {
   }).format(date)
 }
 
-export function formatScheduleTime(date: Date, timezone: string): string {
+export function formatScheduleTime(
+  date: Date,
+  timezone: string,
+  includeTimezone = false,
+): string {
   return new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    ...(includeTimezone ? { timeZoneName: "short" as const } : {}),
   }).format(date)
 }
 
@@ -32,8 +37,17 @@ export function formatScheduleTimeRange(
   timezone: string,
   includeDay = false,
 ): string {
-  const startTime = formatScheduleTime(start, timezone)
-  const endTime = formatScheduleTime(end, timezone)
+  const offsetFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    timeZoneName: "shortOffset",
+  })
+  const offsetAt = (date: Date) =>
+    offsetFormatter
+      .formatToParts(date)
+      .find((part) => part.type === "timeZoneName")?.value
+  const changesOffset = offsetAt(start) !== offsetAt(end)
+  const startTime = formatScheduleTime(start, timezone, changesOffset)
+  const endTime = formatScheduleTime(end, timezone, changesOffset)
   if (getScheduleDayKey(start, timezone) !== getScheduleDayKey(end, timezone)) {
     return `${formatScheduleDay(start, timezone)} ${startTime} - ${formatScheduleDay(end, timezone)} ${endTime}`
   }

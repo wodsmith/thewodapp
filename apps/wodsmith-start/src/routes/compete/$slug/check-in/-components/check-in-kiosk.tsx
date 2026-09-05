@@ -77,9 +77,9 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
   }, [query])
 
   const fetchRegistrations = useMemo(
-    () => async (q: string) => {
+    () => async (q: string, background = false) => {
       const searchId = ++latestSearchIdRef.current
-      setIsLoading(true)
+      if (!background) setIsLoading(true)
       try {
         const result = await search({
           data: { competitionId, query: q || undefined },
@@ -173,7 +173,7 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
           ? `Checked in ${registrationLabel(registration)}`
           : `Reverted check-in for ${registrationLabel(registration)}`,
       )
-      await fetchRegistrations(latestQueryRef.current)
+      await fetchRegistrations(latestQueryRef.current, true)
       router.invalidate()
     } catch (err) {
       toast.error(
@@ -211,7 +211,7 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
       ),
     )
     setWaiverModal(null)
-    void fetchRegistrations(latestQueryRef.current)
+    void fetchRegistrations(latestQueryRef.current, true)
   }
 
   const showResults = !!debouncedQuery

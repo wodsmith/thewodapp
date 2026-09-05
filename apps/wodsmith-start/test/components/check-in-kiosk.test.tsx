@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -101,6 +102,45 @@ describe("check-in kiosk totals", () => {
     ).toBeInTheDocument()
     expect(screen.getByText("Matching · Checked In")).toBeInTheDocument()
   })
+
+  // @lat: [[registration#Day-of Check-In#Kiosk keeps rows during background refresh]]
+  it.each(["check-in", "waiver"])(
+    "keeps athlete rows mounted while refreshing after %s",
+    async (action) => {
+      mocks.search.mockImplementation(async ({ data }) =>
+        response(data.query === "Alex" ? 66 : 60),
+      )
+      render(<CheckInKiosk competitionId="competition" waivers={[waiver]} />)
+      await screen.findByText("/ 120")
+      fireEvent.change(
+        screen.getByPlaceholderText("Search athlete name, email, or team…"),
+        { target: { value: "Alex" } },
+      )
+      await screen.findByText("(55%)")
+      const athleteName = screen.getByText("Alex Jones")
+      let resolveRefresh!: (result: ReturnType<typeof response>) => void
+      mocks.search.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveRefresh = resolve
+        }),
+      )
+      const callsBefore = mocks.search.mock.calls.length
+      if (action === "check-in") {
+        fireEvent.click(screen.getByRole("button", { name: "Check in" }))
+      } else {
+        fireEvent.click(screen.getByRole("button", { name: "Sign on iPad" }))
+        fireEvent.click(screen.getByRole("button", { name: "Complete waiver" }))
+      }
+      await waitFor(() =>
+        expect(mocks.search).toHaveBeenCalledTimes(callsBefore + 1),
+      )
+      expect(screen.getByText("Alex Jones")).toBe(athleteName)
+      expect(screen.getByText("(55%)")).toBeInTheDocument()
+      await act(async () => resolveRefresh(response(72, 0)))
+      expect(screen.getByText("(60%)")).toBeInTheDocument()
+      expect(screen.getByText("Alex Jones")).toBe(athleteName)
+    },
+  )
 
   // @lat: [[registration#Day-of Check-In#Kiosk refreshes after local updates]]
   it.each(["check-in", "waiver"])(

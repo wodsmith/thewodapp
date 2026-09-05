@@ -311,6 +311,10 @@ The rendered personal schedule passes the event timezone to shifts and heat rows
 
 Ranges crossing UTC midnight stay on one date when both endpoints fall on the same event-local day.
 
+### Volunteer schedule repeated hour
+
+A range spanning the fall daylight-saving transition labels each endpoint with its zone abbreviation so repeated local times remain distinguishable.
+
 ### Volunteer schedule daylight-saving offsets
 
 A shift crossing a daylight-saving change formats each endpoint using the competition timezone's offset at that instant.

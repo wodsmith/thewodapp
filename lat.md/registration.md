@@ -197,7 +197,7 @@ Once a registration is checked in, the row swaps the action button for an emeral
 
 Sort order: not-checked-in athletes first, then athletes still missing required waivers, then alphabetical by name.
 
-The server summary supplies total, checked-in, pending, percent-complete, and registrations missing required waivers. Missing-waiver totals count each registration once if any current member lacks a required waiver; optional waivers do not affect readiness. A truncation hint asks volunteers to narrow searches with more than 50 matches. Successful check-in and waiver actions refetch the current query once so both the aggregate and visible rows reflect the saved state.
+The server summary supplies total, checked-in, pending, percent-complete, and registrations missing required waivers. Missing-waiver totals count each registration once if any current member lacks a required waiver; optional waivers do not affect readiness. A truncation hint asks volunteers to narrow searches with more than 50 matches. Successful check-in and waiver actions refetch the current query once in the background so both the aggregate and visible rows reflect the saved state without replacing the rows with loading skeletons.
 
 ### Complete check-in summary
 
@@ -218,6 +218,10 @@ A competition with no registrations or a query with no matches returns zero tota
 ### Kiosk uses server summary
 
 The kiosk displays the server aggregate instead of recounting visible rows, retains the search-only interface, and explains truncated results.
+
+### Kiosk keeps rows during background refresh
+
+Check-in and waiver actions keep athlete rows mounted during a pending background fetch, preserving the visible list while the response updates aggregate progress.
 
 ### Kiosk refreshes after local updates
 

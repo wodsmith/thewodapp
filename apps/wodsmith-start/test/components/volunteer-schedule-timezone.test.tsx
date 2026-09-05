@@ -108,5 +108,16 @@ it("applies the event timezone's daylight-saving offset to each endpoint", () =>
       new Date("2026-03-08T10:30:00Z"),
       "America/Los_Angeles",
     ),
-  ).toBe("1:30 AM - 3:30 AM")
+  ).toBe("1:30 AM PST - 3:30 AM PDT")
+})
+
+// @lat: [[organizer-dashboard#Volunteers#Volunteer schedule repeated hour]]
+it("distinguishes both occurrences of an hour during the fall daylight-saving transition", () => {
+  expect(
+    formatScheduleTimeRange(
+      new Date("2026-11-01T08:30:00Z"),
+      new Date("2026-11-01T09:30:00Z"),
+      "America/Los_Angeles",
+    ),
+  ).toBe("1:30 AM PDT - 1:30 AM PST")
 })
