@@ -39,6 +39,7 @@ import { cn } from "@/utils/cn"
 import { RotationCard } from "./rotation-card"
 
 interface EventSectionProps {
+  timezone: string
   event: EventWithRotations
 }
 
@@ -46,7 +47,7 @@ interface EventSectionProps {
  * Displays a single event with its workout details and all judge rotations.
  * Division selection is synchronized between the event overview and rotation cards.
  */
-export function EventSection({ event }: EventSectionProps) {
+export function EventSection({ event, timezone }: EventSectionProps) {
   const {
     eventName,
     eventNotes,
@@ -225,6 +226,7 @@ export function EventSection({ event }: EventSectionProps) {
           <RotationCard
             key={rotation.rotation.id}
             rotation={rotation}
+            timezone={timezone}
             onDivisionClick={handleDivisionSelect}
             selectedDivisionId={selectedDivisionId}
           />

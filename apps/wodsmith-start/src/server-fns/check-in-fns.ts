@@ -144,6 +144,14 @@ export interface CheckInRegistration {
   }>
 }
 
+export interface CheckInSummary {
+  total: number
+  checkedIn: number
+  pending: number
+  waiversMissing: number
+  percent: number
+}
+
 export interface CheckInWaiver {
   id: string
   title: string
@@ -164,14 +172,19 @@ const searchInputSchema = z.object({
 /**
  * Returns up to 50 registrations for a competition, optionally filtered by a
  * substring match against team name, member name, member email, or pending
- * teammate email. Empty/short query returns all registrations.
+ * teammate email. Summary counts cover every match, before limiting rows.
  */
 export const searchCompetitionRegistrationsFn = createServerFn({
   method: "GET",
 })
   .inputValidator((data: unknown) => searchInputSchema.parse(data))
   .handler(
-    async ({ data }): Promise<{ registrations: CheckInRegistration[] }> => {
+    async ({
+      data,
+    }): Promise<{
+      registrations: CheckInRegistration[]
+      summary: CheckInSummary
+    }> => {
       const { competition } = await requireCheckInAccess(data.competitionId)
 
       const db = getDb()
@@ -234,7 +247,7 @@ export const searchCompetitionRegistrationsFn = createServerFn({
 
       const competitionWaivers = await db.query.waiversTable.findMany({
         where: eq(waiversTable.competitionId, competition.id),
-        columns: { id: true },
+        columns: { id: true, required: true },
       })
       const waiverIds = competitionWaivers.map((w) => w.id)
 
@@ -345,7 +358,27 @@ export const searchCompetitionRegistrationsFn = createServerFn({
         return registrationLabel(a).localeCompare(registrationLabel(b))
       })
 
-      return { registrations: filtered.slice(0, 50) }
+      const requiredWaiverIds = competitionWaivers
+        .filter((w) => w.required)
+        .map((w) => w.id)
+      const checkedIn = filtered.filter((reg) => reg.checkedInAt).length
+      const waiversMissing = filtered.filter((reg) =>
+        reg.members.some((member) =>
+          requiredWaiverIds.some((id) => !member.signedWaivers[id]),
+        ),
+      ).length
+      const total = filtered.length
+
+      return {
+        registrations: filtered.slice(0, 50),
+        summary: {
+          total,
+          checkedIn,
+          pending: total - checkedIn,
+          waiversMissing,
+          percent: total === 0 ? 0 : Math.round((checkedIn / total) * 100),
+        },
+      }
     },
   )
 

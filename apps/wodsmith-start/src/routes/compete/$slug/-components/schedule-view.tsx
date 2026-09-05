@@ -13,6 +13,7 @@ import { VolunteerProfileCard } from "./volunteer-profile-card"
 interface ScheduleViewProps {
   events: EventWithRotations[]
   shifts: VolunteerShiftData[]
+  timezone: string
   competitionName: string
   volunteerMetadata: VolunteerMembershipMetadata | null
   membershipId: string
@@ -39,6 +40,7 @@ function hasJudgeRole(metadata: VolunteerMembershipMetadata | null): boolean {
 export function ScheduleView({
   events,
   shifts,
+  timezone,
   competitionName,
   volunteerMetadata,
   membershipId,
@@ -127,13 +129,17 @@ export function ScheduleView({
         competitionSlug={competitionSlug}
       />
 
+      <p className="text-sm text-muted-foreground">
+        All times shown in {timezone}.
+      </p>
+
       {/* My Shifts Section */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">My Shifts</h2>
         {hasShifts ? (
           <div className="space-y-3">
             {shifts.map((shift) => (
-              <ShiftCard key={shift.id} shift={shift} />
+              <ShiftCard key={shift.id} shift={shift} timezone={timezone} />
             ))}
           </div>
         ) : (
@@ -147,7 +153,11 @@ export function ScheduleView({
       {hasEvents && (
         <div className="space-y-8">
           {events.map((event) => (
-            <EventSection key={event.trackWorkoutId} event={event} />
+            <EventSection
+              key={event.trackWorkoutId}
+              event={event}
+              timezone={timezone}
+            />
           ))}
         </div>
       )}

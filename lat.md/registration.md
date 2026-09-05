@@ -175,7 +175,7 @@ Organizer entry points: the organizer sidebar ("Check-in" under Run Competition)
 
 ### Searching Registrations
 
-[[apps/wodsmith-start/src/server-fns/check-in-fns.ts#searchCompetitionRegistrationsFn]] returns up to 50 active registrations, optionally filtered by a substring query.
+[[apps/wodsmith-start/src/server-fns/check-in-fns.ts#searchCompetitionRegistrationsFn]] returns up to 50 active registrations, optionally filtered by a substring query, alongside a summary covering every matching registration before that limit.
 
 The query matches team name, member first/last name, member email, or pending-teammate email — see [[apps/wodsmith-start/src/server-fns/check-in-fns.ts#matchesQuery]]. This means a volunteer can find a partner-format team by typing any partner's name. Results are sorted with not-yet-checked-in registrations first. Each result includes every member with a per-waiver `signedWaivers` map so the UI can show which athletes still need waivers.
 
@@ -183,7 +183,7 @@ The query matches team name, member first/last name, member email, or pending-te
 
 The kiosk is **athlete-first and search-only**: there is no default list of registrations. The volunteer types an athlete (or team) name, the kiosk shows matching athletes with their per-athlete waiver status and a one-tap check-in button.
 
-A scoreboard banner sits at the top with `checked-in / total` registrations in large tabular numerals, a percent-complete progress bar, and (when the competition has required waivers) a `teams missing waivers` summary. When a search query is active, the scoreboard relabels to `Matching · Checked In` and reflects the filtered slice — that's intentional, the volunteer is reading "X of these matches are already in."
+A scoreboard banner sits at the top with `checked-in / total` registrations in large tabular numerals, a percent-complete progress bar, and (when the competition has required waivers) a `teams missing waivers` summary. When a search query is active, the scoreboard relabels to `Matching · Checked In` and reflects all matching registrations, including those beyond the 50 returned rows — that's intentional, the volunteer is reading "X of these matches are already in."
 
 Below the scoreboard, a single large search input is the entry point. With no query, the kiosk shows an empty prompt (`Search for an athlete to check them in`) plus the pending and waivers-missing counts — never a list of athletes.
 
@@ -196,6 +196,36 @@ For multi-member registrations, each row has a collapsible `N teammates` strip t
 Once a registration is checked in, the row swaps the action button for an emerald `Checked in` badge and shows a timestamp strip with an inline `Undo` button at the bottom of the card — undoing calls [[apps/wodsmith-start/src/server-fns/check-in-fns.ts#checkInRegistrationFn]] with `checkedIn: false`. If the competition has zero registrations, the empty prompt becomes "No registrations for this competition yet" instead of the search guidance.
 
 Sort order: not-checked-in athletes first, then athletes still missing required waivers, then alphabetical by name.
+
+The server summary supplies total, checked-in, pending, percent-complete, and registrations missing required waivers. Missing-waiver totals count each registration once if any current member lacks a required waiver; optional waivers do not affect readiness. A truncation hint asks volunteers to narrow searches with more than 50 matches. Successful check-in and waiver actions refetch the current query once in the background so both the aggregate and visible rows reflect the saved state without replacing the rows with loading skeletons.
+
+### Complete check-in summary
+
+Summary counts include checked-in registrations and registrations missing waivers beyond the first 50 returned rows.
+
+### Filtered check-in summary
+
+Search summaries cover every matching registration before truncation, and optional waivers never count as missing required waivers.
+
+### Team check-in waiver summary
+
+A team with multiple members missing required waivers counts as one registration needing attention, rather than one count per unsigned teammate.
+
+### Empty check-in summary
+
+A competition with no registrations or a query with no matches returns zero totals and zero percent, without division by zero.
+
+### Kiosk uses server summary
+
+The kiosk displays the server aggregate instead of recounting visible rows, retains the search-only interface, and explains truncated results.
+
+### Kiosk keeps rows during background refresh
+
+Check-in and waiver actions keep athlete rows mounted during a pending background fetch, preserving the visible list while the response updates aggregate progress.
+
+### Kiosk refreshes after local updates
+
+A successful check-in or waiver signature triggers one search refresh using the current query, updating aggregate progress alongside athlete rows. Tests wait for the matching search response before counting mutation-triggered refreshes.
 
 ### Toggling Check-In
 

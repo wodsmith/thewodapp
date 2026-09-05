@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { Waiver } from "@/db/schemas/waivers"
 import {
   type CheckInRegistration,
+  type CheckInSummary,
   type CheckInTeammate,
   checkInRegistrationFn,
   searchCompetitionRegistrationsFn,
@@ -52,6 +53,14 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [registrations, setRegistrations] = useState<CheckInRegistration[]>([])
+  const [stats, setStats] = useState<CheckInSummary>({
+    total: 0,
+    checkedIn: 0,
+    pending: 0,
+    waiversMissing: 0,
+    percent: 0,
+  })
+  const latestQueryRef = useRef("")
   const [pendingCheckInId, setPendingCheckInId] = useState<string | null>(null)
   // Keyed by registration + athlete so expanding one athlete's teammate strip
   // doesn't expand every row of the same team in the search results.
@@ -68,15 +77,16 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
   }, [query])
 
   const fetchRegistrations = useMemo(
-    () => async (q: string) => {
+    () => async (q: string, background = false) => {
       const searchId = ++latestSearchIdRef.current
-      setIsLoading(true)
+      if (!background) setIsLoading(true)
       try {
         const result = await search({
           data: { competitionId, query: q || undefined },
         })
         if (searchId !== latestSearchIdRef.current) return
         setRegistrations(result.registrations)
+        setStats(result.summary)
       } catch (err) {
         if (searchId !== latestSearchIdRef.current) return
         toast.error(
@@ -93,6 +103,7 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
 
   // Always fetch the unfiltered list for stats; refetch with query when searching.
   useEffect(() => {
+    latestQueryRef.current = debouncedQuery
     void fetchRegistrations(debouncedQuery)
   }, [debouncedQuery, fetchRegistrations])
 
@@ -100,33 +111,6 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
     () => waivers.filter((w) => w.required),
     [waivers],
   )
-
-  // Stats are computed off the current result set. When a query is present,
-  // these reflect the filtered slice — that's intentional, the volunteer is
-  // looking at "X / Y of these matches are checked in."
-  const stats = useMemo(() => {
-    let checkedIn = 0
-    let waiversMissing = 0
-    for (const r of registrations) {
-      if (r.checkedInAt) checkedIn += 1
-      const totalRequired = r.members.length * requiredWaivers.length
-      let signed = 0
-      for (const m of r.members) {
-        for (const w of requiredWaivers) {
-          if (m.signedWaivers[w.id]) signed += 1
-        }
-      }
-      if (totalRequired > 0 && signed < totalRequired) waiversMissing += 1
-    }
-    const total = registrations.length
-    return {
-      total,
-      checkedIn,
-      pending: total - checkedIn,
-      waiversMissing,
-      percent: total === 0 ? 0 : Math.round((checkedIn / total) * 100),
-    }
-  }, [registrations, requiredWaivers])
 
   // Flatten registrations into per-athlete rows when searching.
   const athleteRows = useMemo<AthleteRowData[]>(() => {
@@ -189,6 +173,7 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
           ? `Checked in ${registrationLabel(registration)}`
           : `Reverted check-in for ${registrationLabel(registration)}`,
       )
+      await fetchRegistrations(latestQueryRef.current, true)
       router.invalidate()
     } catch (err) {
       toast.error(
@@ -226,6 +211,7 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
       ),
     )
     setWaiverModal(null)
+    void fetchRegistrations(latestQueryRef.current, true)
   }
 
   const showResults = !!debouncedQuery
@@ -293,6 +279,12 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
               {athleteRows.length}{" "}
               {athleteRows.length === 1 ? "athlete" : "athletes"} found
             </p>
+            {stats.total > registrations.length && (
+              <p className="text-sm text-muted-foreground">
+                Showing {registrations.length} of {stats.total} matching
+                registrations. Narrow your search to find more athletes.
+              </p>
+            )}
             {athleteRows.map((row) => {
               const rowKey = `${row.registration.id}:${row.athlete.userId}`
               return (
