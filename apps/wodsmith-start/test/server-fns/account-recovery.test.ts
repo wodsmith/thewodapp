@@ -12,6 +12,7 @@ const db = vi.hoisted(() => ({
     teamMembershipTable: { findMany: vi.fn() },
   },
   update: vi.fn(),
+  transaction: vi.fn(),
 }))
 vi.mock("cloudflare:workers", () => ({ env: { KV_SESSION: kv } }))
 vi.mock("@/db", () => ({ getDb: () => db }))
@@ -45,7 +46,7 @@ vi.mock("@tanstack/react-start", () => ({
 }))
 
 import { getCookie, setCookie } from "@tanstack/react-start/server"
-import { SESSION_COOKIE_NAME } from "@/constants"
+import { MAX_SESSIONS_PER_USER, SESSION_COOKIE_NAME } from "@/constants"
 import { Route as TokenRoute } from "@/routes/api/auth/token"
 import { Route as RefreshRoute } from "@/routes/api/auth/token/refresh"
 import { resetPasswordFn, signInFn } from "@/server-fns/auth-fns"
@@ -58,8 +59,10 @@ import {
 import { getResetTokenKey } from "@/utils/auth-utils"
 import { getSessionFromBearer } from "@/utils/bearer-auth"
 import {
+  deleteKVSession,
   getKVSession,
   getSessionKey,
+  revokeUserAuthentication,
   updateAllSessionsOfUser,
 } from "@/utils/kv-session"
 import { hashPassword, verifyPassword } from "@/utils/password-hasher"
@@ -80,6 +83,7 @@ const resetData = {
   password: newPassword,
   confirmPassword: newPassword,
 }
+const lockRow = vi.fn()
 let now: number
 let stored: Map<string, string>
 let user: {
@@ -123,6 +127,19 @@ describe("password recovery session revocation", () => {
       emailVerified: new Date(now - 1000),
       passwordHash: await hashPassword({ password: oldPassword }),
     }
+    let previousTransaction = Promise.resolve()
+    db.transaction.mockImplementation(async (run) => {
+      let release!: () => void
+      const predecessor = previousTransaction
+      previousTransaction = new Promise<void>((resolve) => { release = resolve })
+      await predecessor
+      try {
+        return await run({
+          select: () => ({ from: () => ({ where: () => ({ for: lockRow }) }) }),
+        })
+      } finally { release() }
+    })
+    lockRow.mockResolvedValue([{ id: userId }])
     db.query.userTable.findFirst.mockImplementation(async () => ({ ...user }))
     db.query.teamMembershipTable.findMany.mockResolvedValue([])
     db.update.mockImplementation(() => ({
@@ -212,6 +229,7 @@ describe("password recovery session revocation", () => {
     expect(await getSessionFromBearer(bearerRequest())).toBeNull()
   })
 
+  // @lat: [[auth#Recovery tests#Password write failure]]
   it("does not revoke sessions or consume the token if the password write fails", async () => {
     db.update.mockImplementationOnce(() => ({
       set: () => ({ where: async () => { throw new Error("Database unavailable") } }),
@@ -222,6 +240,7 @@ describe("password recovery session revocation", () => {
     expect(await getSessionFromBearer(bearerRequest())).not.toBeNull()
   })
 
+  // @lat: [[auth#Recovery tests#New login during cleanup]]
   it("preserves a new login issued after the cutoff while cleanup is still running", async () => {
     const normalList = kv.list.getMockImplementation()!
     kv.list.mockImplementationOnce(async (options) => {
@@ -234,6 +253,7 @@ describe("password recovery session revocation", () => {
     expect(await getSessionFromBearer(bearerRequest("new-during-cleanup"))).not.toBeNull()
   })
 
+  // @lat: [[auth#Recovery tests#Cutoff read failure]]
   it("fails closed when the revocation marker cannot be read", async () => {
     kv.get.mockImplementation(async (key: string) => {
       if (key.startsWith("session-revoked-before:")) throw new Error("KV read failed")
@@ -242,6 +262,7 @@ describe("password recovery session revocation", () => {
     await expect(getSessionFromBearer(bearerRequest())).rejects.toThrow("KV read failed")
   })
 
+  // @lat: [[auth#Recovery tests#Unrelated browser session]]
   it("preserves another user's current request cache and cookie during recovery", async () => {
     await createSession({ token: "other-token", userId: "other-user" })
     vi.mocked(getCookie).mockReturnValue("other-user:other-token")
@@ -253,7 +274,7 @@ describe("password recovery session revocation", () => {
     expect(setCookie).not.toHaveBeenCalled()
   })
 
-  // @lat: [[auth#Recovery tests#In-flight authentication and token rotation]]
+  // @lat: [[auth#Recovery tests#In-flight password authentication]]
   it.each(["web", "mobile"])("rejects a %s old-password login started before recovery", async (client) => {
     const oldUser = { ...user }
     let reached!: () => void
@@ -285,6 +306,68 @@ describe("password recovery session revocation", () => {
     }
   })
 
+  // @lat: [[auth#Recovery tests#Conservative millisecond boundary]]
+  it("rejects authentication at the cutoff millisecond and accepts it one millisecond later", async () => {
+    await reset()
+    const sameMillisecond = await createSession({ token: "same-ms", userId })
+    expect(await getKVSession(sameMillisecond.id, userId)).toBeNull()
+    now += 1
+    const later = await createSession({ token: "later-ms", userId })
+    expect(await getKVSession(later.id, userId)).not.toBeNull()
+  })
+
+  // @lat: [[auth#Recovery tests#Concurrent cutoff writes]]
+  it("serializes overlapping cutoff writes and timestamps the next one only after its lock", async () => {
+    const write = kv.put.getMockImplementation()!
+    let entered!: () => void
+    const started = new Promise<void>((resolve) => { entered = resolve })
+    let release!: () => void
+    const delayed = new Promise<void>((resolve) => { release = resolve })
+    kv.put.mockImplementationOnce(async (...args) => {
+      entered()
+      await delayed
+      return write(...args)
+    })
+    const first = revokeUserAuthentication(userId)
+    await started
+    now += 1000
+    const second = revokeUserAuthentication(userId)
+    await Promise.resolve()
+    expect(lockRow).toHaveBeenCalledTimes(1)
+    now += 1000
+    release()
+    await Promise.all([first, second])
+    expect(lockRow).toHaveBeenCalledTimes(2)
+    expect(lockRow).toHaveBeenCalledWith("update")
+    expect(stored.get(`session-revoked-before:${userId}`)).toBe(String(now))
+  })
+
+  // @lat: [[auth#Recovery tests#Revoked session cleanup]]
+  it("deletes a revoked ghost key without validating it first", async () => {
+    const original = await getSessionFromBearer(bearerRequest())
+    await reset()
+    const key = getSessionKey(userId, original!.id)
+    stored.set(key, JSON.stringify(original))
+    expect(await getKVSession(original!.id, userId)).toBeNull()
+    kv.get.mockClear()
+    await deleteKVSession(original!.id, userId)
+    expect(stored.has(key)).toBe(false)
+    expect(kv.get).not.toHaveBeenCalled()
+  })
+
+  // @lat: [[auth#Recovery tests#Session limit evicts revoked records]]
+  it("evicts a revoked ghost record when a new login reaches the session limit", async () => {
+    const original = await getSessionFromBearer(bearerRequest())
+    await reset()
+    for (let index = 0; index < MAX_SESSIONS_PER_USER; index += 1) {
+      stored.set(getSessionKey(userId, `ghost-${index}`), JSON.stringify(original))
+    }
+    now += 1000
+    await createSession({ token: "quota-login", userId })
+    expect([...stored.keys()].filter((key) => key.startsWith(`session:${userId}:`))).toHaveLength(MAX_SESSIONS_PER_USER)
+  })
+
+  // @lat: [[auth#Recovery tests#Bearer rotation preserves authentication age]]
   it("rotates a bearer token without moving its authentication timestamp past a reset", async () => {
     const original = await getSessionFromBearer(bearerRequest())
     await reset()

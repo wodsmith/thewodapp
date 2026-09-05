@@ -3,7 +3,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server"
 import { eq } from "drizzle-orm"
 import { MAX_SESSIONS_PER_USER } from "@/constants"
 import { getDb } from "@/db"
-import { teamMembershipTable } from "@/db/schema"
+import { teamMembershipTable, userTable } from "@/db/schema"
 import { getUserEntitlements } from "@/server/entitlements"
 import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth"
 import { getIP } from "./get-IP"
@@ -297,9 +297,6 @@ export async function deleteKVSession(
   sessionId: string,
   userId: string,
 ): Promise<void> {
-  const session = await getKVSession(sessionId, userId)
-  if (!session) return
-
   const kv = await getKV()
 
   if (!kv) {
@@ -339,9 +336,21 @@ export async function revokeUserAuthentication(userId: string): Promise<void> {
   const kv = getKV()
   if (!kv) throw new Error("Can't connect to KV store")
 
-  const revokedBefore = Date.now()
-  // No TTL: a late session refresh must never outlive the revocation marker.
-  await kv.put(getSessionRevocationKey(userId), String(revokedBefore))
+  // Serialize only marker writes. The password update is already committed,
+  // so concurrent login cannot read the old password after this cutoff.
+  const revokedBefore = await getDb().transaction(async (tx) => {
+    const [user] = await tx
+      .select({ id: userTable.id })
+      .from(userTable)
+      .where(eq(userTable.id, userId))
+      .for("update")
+    if (!user) throw new Error("User not found")
+
+    const cutoff = Date.now()
+    // No TTL: a late session refresh must never outlive the revocation marker.
+    await kv.put(getSessionRevocationKey(userId), String(cutoff))
+    return cutoff
+  })
 
   // Collect every page before deleting so pagination does not move under us.
   const sessions = await getAllSessionIdsOfUser(userId)
