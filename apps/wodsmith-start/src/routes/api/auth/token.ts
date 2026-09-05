@@ -39,6 +39,7 @@ export const Route = createFileRoute("/api/auth/token")({
       },
 
       POST: async ({ request }) => {
+        const authenticatedAt = Date.now()
         const origin = request.headers.get("Origin")
         const headers = {
           "Content-Type": "application/json",
@@ -89,6 +90,7 @@ export const Route = createFileRoute("/api/auth/token")({
           token,
           userId: user.id,
           authenticationType: "password",
+          authenticatedAt,
         })
 
         return json(

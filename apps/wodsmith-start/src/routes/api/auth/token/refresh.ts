@@ -48,6 +48,8 @@ export const Route = createFileRoute("/api/auth/token/refresh")({
           token,
           userId: session.userId,
           authenticationType: session.authenticationType,
+          // Token rotation must not renew authentication past a password reset.
+          authenticatedAt: session.createdAt ?? 0,
         })
 
         return json(
