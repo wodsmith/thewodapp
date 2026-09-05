@@ -150,6 +150,10 @@ The widget waits for trusted configuration and a successful challenge; expiry, e
 
 The organizer application form passes its challenge token and requires a fresh challenge after a failed attempt.
 
+### Created team survives challenge rejection
+
+After creating a team, the organizer form selects and displays it before submitting the application. A rejected challenge preserves that team and the reason; retry requires a fresh challenge and does not create another team.
+
 ### Inline signup challenge
 
 The inline organizer signup form renders a CAPTCHA and includes its token when creating an account.

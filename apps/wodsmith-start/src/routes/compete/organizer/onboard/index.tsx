@@ -324,6 +324,15 @@ function OrganizerOnboardPage() {
 function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
   const router = useRouter()
   const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+  const [createdTeams, setCreatedTeams] = useState<
+    Pick<TeamInfo, "id" | "name">[]
+  >([])
+  const selectableTeams = [
+    ...teams,
+    ...createdTeams.filter(
+      (created) => !teams.some((team) => team.id === created.id),
+    ),
+  ]
   const [captchaReady, setCaptchaReady] = useState(false)
   const [captchaAttempt, setCaptchaAttempt] = useState(0)
 
@@ -363,6 +372,13 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
         })
 
         if (teamResult?.data?.teamId) {
+          // Team creation has committed even if the application fails. Keep it
+          // selected so a renewed challenge retries the request for this team.
+          setCreatedTeams((created) => [
+            ...created,
+            { id: teamResult.data.teamId, name: teamResult.data.name },
+          ])
+          form.setValue("teamId", teamResult.data.teamId)
           // Submit the organizer request with the new team
           await submitRequest({
             data: {
@@ -414,14 +430,19 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Organizing Team</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              {/* Remount the native select when creation adds its selected option. */}
+              <Select
+                key={createdTeams.length}
+                onValueChange={field.onChange}
+                value={field.value}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a team" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {teams.map((team) => (
+                  {selectableTeams.map((team) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
                     </SelectItem>

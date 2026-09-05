@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const loadConfig = vi.hoisted(() => vi.fn())
 const signup = vi.hoisted(() => vi.fn())
 const submitRequest = vi.hoisted(() => vi.fn())
+const createTeam = vi.hoisted(() => vi.fn())
 const navigate = vi.hoisted(() => vi.fn())
 const loader = vi.hoisted(() => ({
   isAuthenticated: true,
@@ -26,7 +27,7 @@ vi.mock("@/server-fns/organizer-onboarding-fns", () => ({
   hasPendingOrganizerRequest: vi.fn(),
   isApprovedOrganizer: vi.fn(),
 }))
-vi.mock("@/server-fns/team-settings-fns", () => ({ createTeamFn: vi.fn() }))
+vi.mock("@/server-fns/team-settings-fns", () => ({ createTeamFn: createTeam }))
 vi.mock("@/lib/posthog/hooks", () => ({
   useTrackEvent: () => vi.fn(),
   useIdentifyUser: () => vi.fn(),
@@ -117,6 +118,39 @@ describe("organizer CAPTCHA forms", () => {
     } }))
     await waitFor(() => expect(submit).toBeDisabled())
     expect(loadConfig).toHaveBeenCalledTimes(2)
+  })
+
+  // @lat: [[auth#CAPTCHA tests#Created team survives challenge rejection]]
+  it("reuses the created team and retained reason after a rejected challenge", async () => {
+    createTeam.mockResolvedValue({ success: true, data: { teamId: "created-team", name: "New Gym" } })
+    submitRequest.mockRejectedValueOnce(new Error("Challenge expired"))
+      .mockResolvedValueOnce({ success: true })
+    render(<Onboarding />)
+    await screen.findByTestId("challenge")
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Organizing Team" }), { key: "ArrowDown" })
+    fireEvent.click(await screen.findByRole("option", { name: "Create new team" }))
+    fireEvent.change(screen.getByRole("textbox", { name: "Team Name" }), { target: { value: "New Gym" } })
+    const reason = screen.getByRole("textbox", { name: /Why do you want/ })
+    fireEvent.change(reason, { target: { value: "Host a local community competition" } })
+    fireEvent.click(screen.getByRole("button", { name: "Complete challenge" }))
+    fireEvent.click(screen.getByRole("button", { name: "Submit application" }))
+    await waitFor(() => expect(submitRequest).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.getByRole("button", { name: "Submit application" })).toBeDisabled())
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Organizing Team" })).toHaveTextContent("New Gym"))
+    expect(screen.queryByRole("textbox", { name: "Team Name" })).not.toBeInTheDocument()
+    expect(reason).toHaveValue("Host a local community competition")
+    expect(createTeam).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(loadConfig).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole("button", { name: "Complete challenge" }))
+    fireEvent.click(screen.getByRole("button", { name: "Submit application" }))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/compete/organizer/onboard/pending" }))
+    expect(createTeam).toHaveBeenCalledTimes(1)
+    expect(submitRequest).toHaveBeenCalledTimes(2)
+    for (const call of submitRequest.mock.calls) {
+      expect(call[0]).toEqual({ data: {
+        teamId: "created-team", reason: "Host a local community competition", captchaToken: "challenge-token",
+      } })
+    }
   })
 
   // @lat: [[auth#CAPTCHA tests#Inline signup challenge]]
