@@ -9,6 +9,7 @@
     "build": "vite build",
     "serve": "vite preview",
     "test": "vitest run",
+    "test:db-integration": "node scripts/test-db-integration.mjs",
     "preview": "pnpm run build && vite preview",
     "lint": "biome lint .",
     "format": "biome format --write . --no-errors-on-unmatched .",

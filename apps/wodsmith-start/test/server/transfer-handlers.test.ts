@@ -36,6 +36,8 @@ vi.mock('@tanstack/react-start', () => ({
 
 import {handleCompetitionRegistrationTransfer} from '@/server/commerce/transfer-handlers'
 
+const transferDb = mockDb as unknown as Parameters<typeof handleCompetitionRegistrationTransfer>[0]
+
 // Test data
 const sourceUserId = 'user-source-123'
 const targetUserId = 'user-target-456'
@@ -112,7 +114,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
   it('transfers registration from source to target user', async () => {
     setupHappyPath()
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -134,7 +136,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
     }
 
     await expect(
-      handleCompetitionRegistrationTransfer({
+      handleCompetitionRegistrationTransfer(transferDb, {
         purchaseId: testPurchaseId,
         sourceUserId,
         targetUserId,
@@ -153,7 +155,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
     }
 
     await expect(
-      handleCompetitionRegistrationTransfer({
+      handleCompetitionRegistrationTransfer(transferDb, {
         purchaseId: testPurchaseId,
         sourceUserId,
         targetUserId,
@@ -180,7 +182,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
 
     mockDb.setMockReturnValue([{id: 'event-1'}])
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -194,7 +196,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
   it('deactivates source team membership and creates new one for target', async () => {
     setupHappyPath()
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -210,7 +212,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
   it('saves new registration answers when provided', async () => {
     setupHappyPath()
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -228,7 +230,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
   it('saves waiver signatures when provided', async () => {
     setupHappyPath()
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -252,7 +254,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
       },
     ])
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -272,7 +274,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
       findMany: vi.fn().mockResolvedValue([]),
     }
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -290,7 +292,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
     // Return multiple competition events
     mockDb.setMockReturnValue([{id: 'evt-1'}, {id: 'evt-2'}, {id: 'evt-3'}])
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -313,7 +315,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
     // Return empty events array
     mockDb.setMockReturnValue([])
 
-    await handleCompetitionRegistrationTransfer({
+    await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,

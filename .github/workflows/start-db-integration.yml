@@ -1,0 +1,52 @@
+name: WODsmith Start Database Integration
+
+on:
+  pull_request:
+    paths:
+      - 'apps/wodsmith-start/**'
+      - 'packages/wodsmith-db/**'
+      - 'packages/test-utils/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/start-db-integration.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/wodsmith-start/**'
+      - 'packages/wodsmith-db/**'
+      - 'packages/test-utils/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/start-db-integration.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  database-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testroot
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ptestroot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      WODSMITH_TEST_MYSQL_HOST: 127.0.0.1
+      WODSMITH_TEST_MYSQL_PASSWORD: testroot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter wodsmith-start test:db-integration

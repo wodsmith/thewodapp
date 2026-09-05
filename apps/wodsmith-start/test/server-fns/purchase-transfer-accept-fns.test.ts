@@ -166,6 +166,7 @@ const mockPurchase = {
 beforeEach(() => {
   vi.clearAllMocks()
   mockDb.reset()
+  Object.assign(mockDb.getChainMock(), { for: vi.fn(() => mockDb.getChainMock()) })
 
   mockDb.registerTable('purchaseTransfersTable')
   mockDb.registerTable('commercePurchaseTable')
@@ -304,7 +305,7 @@ describe('acceptPurchaseTransferFn', () => {
     expect(result.competitionSlug).toBe('summer-throwdown-2026')
 
     // Verify handler was called with correct args
-    expect(mockHandleCompetitionRegistrationTransfer).toHaveBeenCalledWith({
+    expect(mockHandleCompetitionRegistrationTransfer).toHaveBeenCalledWith(mockDb.getChainMock(), {
       purchaseId: testPurchaseId,
       sourceUserId,
       targetUserId,
@@ -393,6 +394,7 @@ describe('acceptPurchaseTransferFn', () => {
 
     expect(result.success).toBe(true)
     expect(mockHandleCompetitionRegistrationTransfer).toHaveBeenCalledWith(
+      mockDb.getChainMock(),
       expect.objectContaining({
         answers: undefined,
         waiverSignatures: undefined,

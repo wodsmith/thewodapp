@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm"
-import { getDb } from "@/db"
+import type { Database } from "@/db"
 import {
   competitionEventsTable,
   competitionHeatAssignmentsTable,
@@ -20,11 +20,12 @@ interface TransferContext {
   waiverSignatures?: Array<{ waiverId: string }>
 }
 
+type TransferTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
+
 export async function handleCompetitionRegistrationTransfer(
+  db: TransferTransaction,
   ctx: TransferContext,
 ) {
-  const db = getDb()
-
   // 1. Find the registration linked to this purchase
   const registration = await db.query.competitionRegistrationsTable.findFirst({
     where: and(
