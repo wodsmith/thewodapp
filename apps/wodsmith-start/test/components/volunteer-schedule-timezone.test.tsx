@@ -100,6 +100,7 @@ it("keeps UTC-midnight ranges together when they are one event-local day", () =>
   ).toBe("Sun, Sep 6 4:30 PM - 5:30 PM")
 })
 
+// @lat: [[organizer-dashboard#Volunteers#Volunteer schedule daylight-saving offsets]]
 it("applies the event timezone's daylight-saving offset to each endpoint", () => {
   expect(
     formatScheduleTimeRange(

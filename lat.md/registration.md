@@ -207,6 +207,10 @@ Summary counts include checked-in registrations and registrations missing waiver
 
 Search summaries cover every matching registration before truncation, and optional waivers never count as missing required waivers.
 
+### Team check-in waiver summary
+
+A team with multiple members missing required waivers counts as one registration needing attention, rather than one count per unsigned teammate.
+
 ### Empty check-in summary
 
 A competition with no registrations or a query with no matches returns zero totals and zero percent, without division by zero.
