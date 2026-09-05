@@ -535,6 +535,11 @@ describe("Video Submission Server Functions (TanStack)", () => {
 	})
 
 	describe("submitVideoFn", () => {
+		beforeEach(() => {
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock.mockResolvedValue([{ id: "score-default" }])
+		})
+
 		it("throws when not authenticated", async () => {
 			setMockSession(null)
 
@@ -1317,6 +1322,11 @@ describe("Video Submission Server Functions (TanStack)", () => {
 	})
 
 	describe("submitVideoFn — multi-division", () => {
+		beforeEach(() => {
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock.mockResolvedValue([{ id: "score-default" }])
+		})
+
 		it("throws when non-captain tries to submit", async () => {
 			const memberRegistration = createTestRegistration({
 				userId: "test-user-123",

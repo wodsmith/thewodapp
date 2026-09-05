@@ -8,24 +8,16 @@ import { and, asc, desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
-import {
-  createScoreId,
-  type ScoreStatusNew,
-  scoreRoundsTable,
-  scoresTable,
-} from "@/db/schemas/scores"
+import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
+import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
 import {
-  computeSortKey,
-  decodeScore,
-  encodeRounds,
-  encodeScore,
-  getDefaultScoreType,
-  parseScore as libParseScore,
-  type ScoreType,
-  type WorkoutScheme,
-} from "@/lib/scoring"
+  createPersonalWorkoutResult,
+  normalizeSubmittedPersonalWorkoutResult,
+  submitPersonalWorkoutResult,
+  updatePersonalWorkoutResult,
+} from "@/server/training-logs"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // Input validation schema
@@ -48,14 +40,6 @@ const submitLogInputSchema = z.object({
 })
 
 type SubmitLogInput = z.infer<typeof submitLogInputSchema>
-
-// Status order mapping for sorting
-const STATUS_ORDER: Record<ScoreStatusNew, number> = {
-  scored: 0,
-  cap: 1,
-  dq: 2,
-  withdrawn: 3,
-}
 
 /**
  * Submit a workout log/score
@@ -89,59 +73,11 @@ export const submitLogFn = createServerFn({ method: "POST" })
       throw new Error("Workout not found")
     }
 
-    const scheme = workout.scheme as WorkoutScheme
-    const scoreType = (workout.scoreType ||
-      getDefaultScoreType(scheme)) as ScoreType
-
-    // Determine if this is a multi-round submission
-    const isMultiRound =
-      validatedData.roundScores && validatedData.roundScores.length > 0
-
-    let scoreValue: number | null = null
-    let formattedScore = ""
-
-    if (isMultiRound) {
-      // Multi-round: encode each round and aggregate
-      const roundInputs =
-        validatedData.roundScores?.map((rs) => ({
-          raw: rs.score,
-        })) ?? []
-      const result = encodeRounds(roundInputs, scheme, scoreType)
-      scoreValue = result.aggregated
-      // Format the aggregated score for display
-      formattedScore =
-        scoreValue !== null ? decodeScore(scoreValue, scheme) : ""
-    } else {
-      // Single score: parse and encode directly
-      if (!validatedData.score?.trim()) {
-        throw new Error("Score is required")
-      }
-      const parseResult = libParseScore(validatedData.score, scheme, {
-        timePrecision: "seconds",
-      })
-
-      if (!parseResult.isValid) {
-        throw new Error(parseResult.error || "Invalid score")
-      }
-
-      scoreValue = parseResult.encoded
-      formattedScore = parseResult.formatted || ""
-    }
-
-    const status: ScoreStatusNew = "scored"
-    const statusOrder = STATUS_ORDER[status]
-
-    // Compute sort key
-    let sortKey: string | null = null
-    if (scoreValue !== null || status !== "scored") {
-      const sortKeyBigInt = computeSortKey({
-        value: scoreValue,
-        status,
-        scheme,
-        scoreType,
-      })
-      sortKey = sortKeyBigInt.toString()
-    }
+    const result = normalizeSubmittedPersonalWorkoutResult({
+      workout,
+      score: validatedData.score,
+      roundScores: validatedData.roundScores,
+    })
 
     // Resolve scaling level if not provided
     let scalingLevelId = validatedData.scalingLevelId
@@ -177,69 +113,17 @@ export const submitLogFn = createServerFn({ method: "POST" })
       throw new Error("No scaling level available")
     }
 
-    // Parse date
-    const recordedAt = new Date(validatedData.date)
-
-    // Insert score
-    const scoreId = createScoreId()
-    await db.insert(scoresTable).values({
-      id: scoreId,
+    return submitPersonalWorkoutResult({
+      db,
       userId: session.userId,
       teamId: validatedData.teamId,
       workoutId: validatedData.workoutId,
-      scheme,
-      scoreType,
-      scoreValue,
-      status,
-      statusOrder,
-      sortKey,
       scalingLevelId,
+      result,
       asRx: validatedData.asRx,
-      notes: validatedData.notes || null,
-      recordedAt,
-      timeCapMs: workout.timeCap ? workout.timeCap * 1000 : null,
+      notes: validatedData.notes,
+      recordedAt: new Date(validatedData.date),
     })
-
-    // Insert round scores for multi-round workouts
-    if (isMultiRound && validatedData.roundScores) {
-      const roundsToInsert = validatedData.roundScores.map((round, index) => {
-        let roundValue: number
-
-        if (scheme === "rounds-reps") {
-          // Parse rounds+reps format (e.g., "5+12" or "5.12")
-          const match = round.score.match(/^(\d+)[+.](\d+)$/)
-          if (match) {
-            const rounds = Number.parseInt(match[1], 10) || 0
-            const reps = Number.parseInt(match[2], 10) || 0
-            roundValue = rounds * 100000 + reps
-          } else {
-            // Try as plain number (just rounds)
-            roundValue = (Number.parseInt(round.score, 10) || 0) * 100000
-          }
-        } else {
-          // For other schemes, encode directly
-          roundValue = encodeScore(round.score, scheme) ?? 0
-        }
-
-        return {
-          scoreId,
-          roundNumber: index + 1,
-          value: roundValue,
-          status: null,
-        }
-      })
-
-      // Insert all rounds
-      if (roundsToInsert.length > 0) {
-        await db.insert(scoreRoundsTable).values(roundsToInsert)
-      }
-    }
-
-    return {
-      success: true,
-      scoreId,
-      formatted: formattedScore,
-    }
   })
 
 /**
@@ -586,51 +470,21 @@ export const createLogFn = createServerFn({ method: "POST" })
       throw new Error("Not authorized to create logs for other users")
     }
 
-    // Get score type from scheme if not provided
-    const scheme = data.scheme as WorkoutScheme
-    const scoreType = getDefaultScoreType(scheme) as ScoreType
-
-    // Compute sort key if we have a score value
-    let sortKey: string | null = null
-    if (data.scoreValue !== null) {
-      const sortKeyBigInt = computeSortKey({
-        value: data.scoreValue,
-        status: "scored",
-        scheme,
-        scoreType,
-      })
-      sortKey = sortKeyBigInt.toString()
-    }
-
-    // Create the score
-    const scoreId = createScoreId()
-    await db.insert(scoresTable).values({
-      id: scoreId,
+    const score = await createPersonalWorkoutResult({
+      db,
       userId: data.userId,
       teamId: data.teamId,
       workoutId: data.workoutId,
       scoreValue: data.scoreValue,
-      scheme,
-      scoreType,
+      scheme: data.scheme,
       asRx: data.asRx,
-      scalingLevelId: data.scalingLevelId ?? null,
-      notes: data.notes ?? null,
-      scheduledWorkoutInstanceId: data.scheduledWorkoutInstanceId ?? null,
-      recordedAt: data.recordedAt ?? new Date(),
-      status: "scored",
-      statusOrder: 0,
-      sortKey,
+      scalingLevelId: data.scalingLevelId,
+      notes: data.notes,
+      scheduledWorkoutInstanceId: data.scheduledWorkoutInstanceId,
+      recordedAt: data.recordedAt,
     })
 
-    const newScore = await db.query.scoresTable.findFirst({
-      where: eq(scoresTable.id, scoreId),
-    })
-
-    if (!newScore) {
-      throw new Error("Failed to create log")
-    }
-
-    return { score: newScore }
+    return { score }
   })
 
 /**
@@ -721,130 +575,17 @@ export const updateLogFn = createServerFn({ method: "POST" })
       throw new Error("Not authorized to update this score")
     }
 
-    const scheme = existingScore.scheme as WorkoutScheme
-    const scoreType = (existingScore.scoreType ||
-      getDefaultScoreType(scheme)) as ScoreType
-
-    // Determine if this is a multi-round update
-    const isMultiRound = data.roundScores && data.roundScores.length > 0
-
-    // Build the update object with only provided fields
-    const updateData: {
-      scoreValue?: number | null
-      notes?: string | null
-      asRx?: boolean
-      scalingLevelId?: string | null
-      sortKey?: string | null
-      recordedAt?: Date
-      updatedAt: Date
-    } = {
-      updatedAt: new Date(),
-    }
-
-    if (isMultiRound) {
-      // Multi-round: encode each round and aggregate
-      const roundInputs =
-        data.roundScores?.map((rs) => ({
-          raw: rs.score,
-        })) ?? []
-      const result = encodeRounds(roundInputs, scheme, scoreType)
-      updateData.scoreValue = result.aggregated
-
-      // Recompute sort key
-      if (result.aggregated !== null) {
-        const sortKeyBigInt = computeSortKey({
-          value: result.aggregated,
-          status: "scored",
-          scheme,
-          scoreType,
-        })
-        updateData.sortKey = sortKeyBigInt.toString()
-      } else {
-        updateData.sortKey = null
-      }
-    } else if (data.scoreValue !== undefined) {
-      updateData.scoreValue = data.scoreValue
-
-      // Recompute sort key if score value changed
-      if (data.scoreValue !== null) {
-        const sortKeyBigInt = computeSortKey({
-          value: data.scoreValue,
-          status: "scored",
-          scheme,
-          scoreType,
-        })
-        updateData.sortKey = sortKeyBigInt.toString()
-      } else {
-        updateData.sortKey = null
-      }
-    }
-
-    if (data.notes !== undefined) {
-      updateData.notes = data.notes || null
-    }
-    if (data.asRx !== undefined) {
-      updateData.asRx = data.asRx
-    }
-    if (data.scalingLevelId !== undefined) {
-      updateData.scalingLevelId = data.scalingLevelId || null
-    }
-    if (data.date !== undefined) {
-      updateData.recordedAt = new Date(data.date)
-    }
-
-    // Update the score
-    await db
-      .update(scoresTable)
-      .set(updateData)
-      .where(eq(scoresTable.id, data.id))
-
-    const updatedScore = await db.query.scoresTable.findFirst({
-      where: eq(scoresTable.id, data.id),
+    const score = await updatePersonalWorkoutResult({
+      db,
+      scoreId: data.id,
+      existing: existingScore,
+      scoreValue: data.scoreValue,
+      notes: data.notes,
+      asRx: data.asRx,
+      scalingLevelId: data.scalingLevelId,
+      date: data.date,
+      roundScores: data.roundScores,
     })
 
-    if (!updatedScore) {
-      throw new Error("Failed to update score")
-    }
-
-    // Handle multi-round updates: delete old rounds and insert new ones
-    if (isMultiRound && data.roundScores) {
-      // Delete existing rounds
-      await db
-        .delete(scoreRoundsTable)
-        .where(eq(scoreRoundsTable.scoreId, data.id))
-
-      // Insert new rounds
-      const roundsToInsert = data.roundScores.map((round, index) => {
-        let roundValue: number
-
-        if (scheme === "rounds-reps") {
-          // Parse rounds+reps format (e.g., "5+12" or "5.12")
-          const match = round.score.match(/^(\d+)[+.](\d+)$/)
-          if (match) {
-            const rounds = Number.parseInt(match[1], 10) || 0
-            const reps = Number.parseInt(match[2], 10) || 0
-            roundValue = rounds * 100000 + reps
-          } else {
-            // Try as plain number (just rounds)
-            roundValue = (Number.parseInt(round.score, 10) || 0) * 100000
-          }
-        } else {
-          // For other schemes, encode directly
-          roundValue = encodeScore(round.score, scheme) ?? 0
-        }
-
-        return {
-          scoreId: data.id,
-          roundNumber: index + 1,
-          value: roundValue,
-          status: null,
-        }
-      })
-
-      if (roundsToInsert.length > 0) {
-        await db.insert(scoreRoundsTable).values(roundsToInsert)
-      }
-    }
-
-    return { score: updatedScore }
+    return { score }
   })

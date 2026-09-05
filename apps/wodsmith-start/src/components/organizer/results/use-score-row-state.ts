@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react"
+import type { RoundCapValue } from "@/components/compete/round-cap-fields"
 import type {
   ScoreStatus,
   ScoreType,
@@ -33,6 +34,8 @@ export interface ScoreEntryData {
   // Multi-round support: array of scores when roundsToScore > 1
   roundScores?: Array<{
     score: string
+    status?: "scored" | "cap"
+    secondaryScore?: string | null
   }>
 }
 
@@ -40,6 +43,7 @@ interface RoundScoreState {
   roundNumber: number
   score: string
   timeCapped?: boolean
+  secondaryScore?: string
 }
 
 export interface ScoreInputSubject {
@@ -52,6 +56,8 @@ export interface ScoreInputSubject {
       setNumber: number
       score: number | null
       reps: number | null
+      status: string | null
+      secondaryValue?: number | null
     }>
   } | null
 }
@@ -72,6 +78,7 @@ export interface UseScoreRowStateArgs {
 
 export interface UseScoreRowStateResult {
   // refs
+  inputGroupRef: MutableRefObject<HTMLDivElement | null>
   scoreInputRef: MutableRefObject<HTMLInputElement | null>
   roundInputRefs: MutableRefObject<Map<number, HTMLInputElement>>
   tieBreakInputRef: MutableRefObject<HTMLInputElement | null>
@@ -84,6 +91,7 @@ export interface UseScoreRowStateResult {
     roundNumber: number
     score: string
     timeCapped?: boolean
+    secondaryScore?: string
   }>
   tieBreakValue: string
   setTieBreakValue: (v: string) => void
@@ -110,6 +118,7 @@ export interface UseScoreRowStateResult {
   // handlers
   handleInputChange: (newValue: string) => void
   handleRoundScoreChange: (roundIndex: number, newValue: string) => void
+  handleRoundCapChange: (roundIndex: number, value: RoundCapValue) => void
   handleTieBreakChange: (newValue: string) => void
   suppressNextBlurSubmit: () => void
   handleBlur: (field: "score" | "tieBreak" | "secondary" | "round") => void
@@ -138,6 +147,7 @@ export function useScoreRowState({
   onChange,
   onTabNext,
 }: UseScoreRowStateArgs): UseScoreRowStateResult {
+  const inputGroupRef = useRef<HTMLDivElement | null>(null)
   const numRounds = roundsToScore || 1
   const isPassFail = workoutScheme === "pass-fail"
   const isTimeCapped = workoutScheme === "time-with-cap"
@@ -159,12 +169,14 @@ export function useScoreRowState({
     roundNumber: number
     score: string
     timeCapped?: boolean
+    secondaryScore?: string
   }> => {
     if (value?.roundScores && value.roundScores.length === numRounds) {
       return value.roundScores.map((rs, index) => ({
         roundNumber: index + 1,
         score: rs.score,
-        timeCapped: false,
+        timeCapped: rs.status === "cap",
+        secondaryScore: rs.secondaryScore ?? "",
       }))
     }
 
@@ -191,7 +203,8 @@ export function useScoreRowState({
             return {
               roundNumber: index + 1,
               score: scoreStr,
-              timeCapped: false,
+              timeCapped: set.status === "cap",
+              secondaryScore: set.secondaryValue?.toString() ?? "",
             }
           }
           return { roundNumber: index + 1, score: "", timeCapped: false }
@@ -239,7 +252,7 @@ export function useScoreRowState({
   >(() =>
     initialRoundScores.map((rs) => {
       if (rs.score.trim())
-        return parseScore(rs.score, workoutScheme, timeCap, tiebreakScheme)
+        return parseScore(rs.score, workoutScheme, undefined, tiebreakScheme)
       return null
     }),
   )
@@ -316,7 +329,7 @@ export function useScoreRowState({
         updated[roundIndex] = parseScore(
           newValue,
           workoutScheme,
-          timeCap,
+          undefined,
           tiebreakScheme,
         )
       } else {
@@ -324,6 +337,25 @@ export function useScoreRowState({
       }
       return updated
     })
+  }
+
+  const handleRoundCapChange = (roundIndex: number, value: RoundCapValue) => {
+    if (value.status === "cap" && timeCap != null)
+      handleRoundScoreChange(
+        roundIndex,
+        decodeScore(timeCap * 1000, workoutScheme),
+      )
+    setRoundScores((prev) =>
+      prev.map((round, index) =>
+        index === roundIndex
+          ? {
+              ...round,
+              timeCapped: value.status === "cap",
+              secondaryScore: value.secondaryScore,
+            }
+          : round,
+      ),
+    )
   }
 
   const effectiveScoreType = scoreTypeProp ?? getDefaultScoreType(workoutScheme)
@@ -401,7 +433,11 @@ export function useScoreRowState({
       formattedScore: parseResult?.formatted || finalScore,
       rawValue: parseResult?.rawValue,
       roundScores: isMultiRound
-        ? roundScores.map((rs) => ({ score: rs.score }))
+        ? roundScores.map((rs) => ({
+            score: rs.score,
+            status: rs.timeCapped ? "cap" : "scored",
+            secondaryScore: rs.timeCapped ? rs.secondaryScore || null : null,
+          }))
         : undefined,
     })
   }
@@ -415,6 +451,8 @@ export function useScoreRowState({
 
       const activeEl = document.activeElement
       const isMovingToRelatedField =
+        (activeEl instanceof HTMLInputElement &&
+          inputGroupRef.current?.contains(activeEl)) ||
         activeEl === scoreInputRef.current ||
         activeEl === tieBreakInputRef.current ||
         activeEl === secondaryInputRef.current ||
@@ -564,6 +602,7 @@ export function useScoreRowState({
   }
 
   return {
+    inputGroupRef,
     scoreInputRef,
     roundInputRefs,
     tieBreakInputRef,
@@ -592,6 +631,7 @@ export function useScoreRowState({
     effectiveScoreType,
     handleInputChange,
     handleRoundScoreChange,
+    handleRoundCapChange,
     handleTieBreakChange,
     suppressNextBlurSubmit,
     handleBlur,

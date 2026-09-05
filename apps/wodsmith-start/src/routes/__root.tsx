@@ -139,7 +139,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const { ssrTheme } = Route.useRouteContext()
 
   return (
-    <html lang="en" className={ssrTheme === "dark" ? "group dark" : "group"}>
+    <html
+      lang="en"
+      className={ssrTheme === "dark" ? "group dark" : "group"}
+      suppressHydrationWarning
+    >
       <head>
         {/* Blocking script to prevent FOUC - runs before React hydrates.
 			    This corrects for 'system' preference which SSR can't detect.

@@ -3,6 +3,10 @@ import { useServerFn } from "@tanstack/react-start"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
+  RoundCapFields,
+  type RoundCapValue,
+} from "@/components/compete/round-cap-fields"
+import {
   getSchemeLabel,
   getScoreHelpText,
   getScorePlaceholder,
@@ -56,7 +60,12 @@ interface ScoreEditorExisting {
   scoreStatus: string
   tieBreakScore: number | null
   secondaryScore?: number | null
-  scoreRounds?: { roundIndex: number; scoreValue: number }[]
+  scoreRounds?: {
+    roundIndex: number
+    scoreValue: number
+    status?: string | null
+    secondaryValue?: number | null
+  }[]
 }
 
 interface OrganizerScoreEditorProps {
@@ -118,6 +127,15 @@ export function OrganizerScoreEditor({
     Array.from({ length: roundsToScore }, (_, i) =>
       safeDecode(existingRoundsByIndex.get(i + 1), scheme),
     ),
+  )
+  const [roundCaps, setRoundCaps] = useState<RoundCapValue[]>(() =>
+    Array.from({ length: roundsToScore }, (_, i) => {
+      const round = existing?.scoreRounds?.find((r) => r.roundIndex === i + 1)
+      return {
+        status: round?.status === "cap" ? "cap" : "scored",
+        secondaryScore: round?.secondaryValue?.toString() ?? "",
+      }
+    }),
   )
   const [scoreStatus, setScoreStatus] = useState<ScoreStatus>(
     (existing?.scoreStatus as ScoreStatus) ?? "scored",
@@ -199,11 +217,7 @@ export function OrganizerScoreEditor({
       }
     }
 
-    if (
-      tiebreakScheme &&
-      tiebreak.trim() &&
-      !tiebreakParseResult?.isValid
-    ) {
+    if (tiebreakScheme && tiebreak.trim() && !tiebreakParseResult?.isValid) {
       toast.error(tiebreakParseResult?.error ?? "Invalid tiebreak")
       return
     }
@@ -219,11 +233,7 @@ export function OrganizerScoreEditor({
           registrationId,
           userId,
           divisionId,
-          score: isTerminal
-            ? ""
-            : isMultiRound
-              ? ""
-              : scoreInput.trim(),
+          score: isTerminal ? "" : isMultiRound ? "" : scoreInput.trim(),
           scoreStatus: effectiveStatus,
           tieBreakScore: tiebreak.trim() || null,
           secondaryScore:
@@ -232,7 +242,14 @@ export function OrganizerScoreEditor({
               : null,
           roundScores:
             isMultiRound && !isTerminal
-              ? roundScoreInputs.map((s) => ({ score: s.trim() }))
+              ? roundScoreInputs.map((s, index) => ({
+                  score: s.trim(),
+                  status: roundCaps[index]?.status ?? "scored",
+                  secondaryScore:
+                    roundCaps[index]?.status === "cap"
+                      ? roundCaps[index].secondaryScore || null
+                      : null,
+                }))
               : undefined,
           workout: {
             scheme: event.scheme,
@@ -287,8 +304,28 @@ export function OrganizerScoreEditor({
                       (hasAttemptedSubmit && !input.trim())) &&
                       "border-destructive",
                   )}
-                  disabled={isSaving}
+                  disabled={isSaving || roundCaps[i]?.status === "cap"}
                 />
+                {scheme === "time-with-cap" && timeCap != null && (
+                  <RoundCapFields
+                    roundNumber={i + 1}
+                    value={roundCaps[i]}
+                    disabled={isSaving}
+                    onChange={(value) => {
+                      setRoundCaps((prev) =>
+                        prev.map((cap, index) => (index === i ? value : cap)),
+                      )
+                      if (value.status === "cap")
+                        setRoundScoreInputs((prev) =>
+                          prev.map((score, index) =>
+                            index === i
+                              ? decodeScore(timeCap * 1000, scheme)
+                              : score,
+                          ),
+                        )
+                    }}
+                  />
+                )}
                 {roundResult?.isValid && (
                   <p className="text-xs text-green-600 dark:text-green-400">
                     Parsed as: {roundResult.formatted}
@@ -309,7 +346,8 @@ export function OrganizerScoreEditor({
           )}
           {scheme === "time-with-cap" && timeCap ? (
             <p className="text-[11px] text-muted-foreground">
-              Status is derived per round from the time vs the per-round cap.
+              Mark capped rounds explicitly and enter the reps completed at the
+              cap.
             </p>
           ) : null}
         </div>

@@ -1,11 +1,10 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react"
+import { Check, ChevronDown, ChevronRight, Layers, Plus } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import type { Movement, Sponsor } from "@/db/schema"
 import type {
   ScoreType,
@@ -76,6 +75,32 @@ interface OrganizerEventManagerProps {
   overrides?: EventManagerOverrides
   /** Base route for event detail links (defaults to organizer route) */
   eventDetailRoute?: string
+}
+
+function EventGroupingCheckbox({
+  checked,
+  label,
+  onCheckedChange,
+}: {
+  checked: boolean
+  label: string
+  onCheckedChange: () => void
+}) {
+  return (
+    <label className="relative mx-0.5 h-4 w-4 shrink-0">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onCheckedChange}
+        aria-label={label}
+        className="peer absolute inset-0 h-4 w-4 appearance-none rounded-sm border border-primary ring-offset-background checked:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      />
+      <Check
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-4 w-4 text-primary-foreground opacity-0 peer-checked:opacity-100"
+      />
+    </label>
+  )
 }
 
 export function OrganizerEventManager({
@@ -570,11 +595,10 @@ export function OrganizerEventManager({
                       )}
                     </button>
                   ) : (
-                    <Checkbox
+                    <EventGroupingCheckbox
                       checked={selectedForGrouping.has(event.id)}
                       onCheckedChange={() => toggleEventSelection(event.id)}
-                      aria-label={`Select ${event.workout.name} to group under a parent event`}
-                      className="mx-0.5"
+                      label={`Select ${event.workout.name} to group under a parent event`}
                     />
                   )}
                   <div className="flex-1">

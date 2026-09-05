@@ -20,12 +20,8 @@ import {
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
-import {
-  programmingTracksTable,
-  trackWorkoutsTable,
-} from "@/db/schemas/programming"
+import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
-import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
@@ -38,19 +34,17 @@ import {
   updateRequestContext,
 } from "@/lib/logging"
 import {
-  computeSortKey,
   decodeScore,
-  encodeScore,
   formatScore,
-  getDefaultScoreType,
-  parseScore,
   type ScoreStatus,
   type ScoreType,
-  STATUS_ORDER,
-  sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
 import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
+import {
+  divisionScopeFromId,
+  recordCompetitionResult,
+} from "@/server/competition-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { AppError } from "@/utils/errors"
 
@@ -120,20 +114,6 @@ const getSubmissionWindowInputSchema = z.object({
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/**
- * Map status to the simplified type for scores table.
- */
-function getStatusOrder(status: "scored" | "cap"): number {
-  switch (status) {
-    case "scored":
-      return STATUS_ORDER.scored
-    case "cap":
-      return STATUS_ORDER.cap
-    default:
-      return STATUS_ORDER.scored
-  }
-}
 
 /**
  * Check if current time is within the event's submission window.
@@ -637,169 +617,25 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
         throw new Error(windowStatus.reason || "Submission window is not open")
       }
 
-      // 3. Get workout info for proper encoding
-      const [trackWorkout] = await db
-        .select({
-          workoutId: trackWorkoutsTable.workoutId,
-          trackId: trackWorkoutsTable.trackId,
-        })
-        .from(trackWorkoutsTable)
-        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-        .limit(1)
-
-      if (!trackWorkout) {
-        throw new Error("Event not found")
-      }
-
-      const [workout] = await db
-        .select({
-          scheme: workouts.scheme,
-          scoreType: workouts.scoreType,
-          tiebreakScheme: workouts.tiebreakScheme,
-          timeCap: workouts.timeCap,
-        })
-        .from(workouts)
-        .where(eq(workouts.id, trackWorkout.workoutId))
-        .limit(1)
-
-      if (!workout) {
-        throw new Error("Workout not found")
-      }
-
-      const scheme = workout.scheme as WorkoutScheme
-      const scoreType =
-        (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
-
-      // 4. Parse and validate the score
-      const parseResult = parseScore(data.score, scheme)
-      if (!parseResult.isValid) {
-        logWarning({
-          message: "[AthleteScore] Invalid score format",
-          attributes: {
-            competitionId: data.competitionId,
-            trackWorkoutId: data.trackWorkoutId,
-            userId: session.userId,
+      // The competition-result boundary loads the programmed workout and owner
+      // itself, then decides and persists the claim as one canonical command.
+      const receipt = await recordCompetitionResult({
+        db,
+        command: {
+          athleteUserId: session.userId,
+          trackWorkoutId: data.trackWorkoutId,
+          divisionScope: divisionScopeFromId(registration.divisionId),
+          claim: {
             score: data.score,
-            scheme,
-            error: parseResult.error,
-          },
-        })
-        throw new Error(
-          `Invalid score format: ${parseResult.error || "Please check your entry"}`,
-        )
-      }
-
-      // Encode the score
-      let encodedValue: number | null = encodeScore(data.score, scheme)
-
-      // Handle CAP status for time-with-cap workouts
-      if (
-        data.status === "cap" &&
-        scheme === "time-with-cap" &&
-        workout.timeCap
-      ) {
-        encodedValue = workout.timeCap * 1000 // Time cap in milliseconds
-      }
-
-      // Parse secondary score (reps at cap)
-      let secondaryValue: number | null = null
-      if (data.secondaryScore && data.status === "cap") {
-        const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
-        if (!Number.isNaN(parsed) && parsed >= 0) {
-          secondaryValue = parsed
-        }
-      }
-
-      // Parse tiebreak score
-      let tiebreakValue: number | null = null
-      if (data.tiebreakScore && workout.tiebreakScheme) {
-        tiebreakValue = encodeScore(
-          data.tiebreakScore,
-          workout.tiebreakScheme as WorkoutScheme,
-        )
-      }
-
-      // Time cap in milliseconds
-      const timeCapMs = workout.timeCap ? workout.timeCap * 1000 : null
-
-      // Compute sort key
-      const sortKey =
-        encodedValue !== null
-          ? computeSortKey({
-              value: encodedValue,
-              status: data.status,
-              scheme,
-              scoreType,
-            })
-          : null
-
-      // 5. Get teamId from track
-      const [track] = await db
-        .select({
-          ownerTeamId: programmingTracksTable.ownerTeamId,
-        })
-        .from(programmingTracksTable)
-        .where(eq(programmingTracksTable.id, trackWorkout.trackId))
-        .limit(1)
-
-      if (!track?.ownerTeamId) {
-        throw new Error("Could not determine team ownership")
-      }
-
-      // 6. Upsert the score
-      await db
-        .insert(scoresTable)
-        .values({
-          userId: session.userId,
-          teamId: track.ownerTeamId,
-          workoutId: trackWorkout.workoutId,
-          competitionEventId: data.trackWorkoutId,
-          scheme,
-          scoreType,
-          scoreValue: encodedValue,
-          status: data.status,
-          statusOrder: getStatusOrder(data.status),
-          sortKey: sortKey ? sortKeyToString(sortKey) : null,
-          tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
-          tiebreakValue,
-          timeCapMs,
-          secondaryValue,
-          scalingLevelId: registration.divisionId,
-          asRx: true,
-          recordedAt: new Date(),
-        })
-        .onDuplicateKeyUpdate({
-          set: {
-            scoreValue: encodedValue,
             status: data.status,
-            statusOrder: getStatusOrder(data.status),
-            sortKey: sortKey ? sortKeyToString(sortKey) : null,
-            tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
-            tiebreakValue,
-            timeCapMs,
-            secondaryValue,
-            scalingLevelId: registration.divisionId,
-            updatedAt: new Date(),
+            secondaryScore: data.secondaryScore,
+            tiebreakScore: data.tiebreakScore,
           },
-        })
+        },
+      })
+      const finalScoreId = receipt.scoreId
 
-      // Get the final score ID — scope by division to match the 3-col unique
-      // key. Null divisionId is its own scope (isNull), not a wildcard, so we
-      // never accidentally pick up a sibling division's row.
-      const finalScoreConditions = [
-        eq(scoresTable.competitionEventId, data.trackWorkoutId),
-        eq(scoresTable.userId, session.userId),
-        registration.divisionId
-          ? eq(scoresTable.scalingLevelId, registration.divisionId)
-          : isNull(scoresTable.scalingLevelId),
-      ]
-      const [finalScore] = await db
-        .select({ id: scoresTable.id })
-        .from(scoresTable)
-        .where(and(...finalScoreConditions))
-        .limit(1)
-
-      if (!finalScore) {
+      if (!finalScoreId) {
         logError({
           message: "[AthleteScore] Failed to retrieve score after upsert",
           attributes: {
@@ -811,10 +647,10 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
         throw new Error("Failed to save score")
       }
 
-      addRequestContextAttribute("scoreId", finalScore.id)
+      addRequestContextAttribute("scoreId", finalScoreId)
       logEntityUpdated({
         entity: "athleteScore",
-        id: finalScore.id,
+        id: finalScoreId,
         attributes: {
           competitionId: data.competitionId,
           trackWorkoutId: data.trackWorkoutId,
@@ -827,7 +663,7 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
       logInfo({
         message: "[AthleteScore] Score submitted successfully",
         attributes: {
-          scoreId: finalScore.id,
+          scoreId: finalScoreId,
           competitionId: data.competitionId,
           trackWorkoutId: data.trackWorkoutId,
           userId: session.userId,
@@ -837,7 +673,7 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 
       return {
         success: true,
-        scoreId: finalScore.id,
+        scoreId: finalScoreId,
         message: "Score submitted successfully",
       }
     },

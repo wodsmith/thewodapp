@@ -1,3 +1,4 @@
+import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 /**
  * Video Submission API
  *
@@ -29,28 +30,15 @@ import {
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
-  programmingTracksTable,
-  trackWorkoutsTable,
-} from "@/db/schemas/programming"
-import { scoresTable } from "@/db/schemas/scores"
-import {
   createVideoSubmissionId,
   videoSubmissionsTable,
 } from "@/db/schemas/video-submissions"
-import type { TiebreakScheme } from "@/db/schemas/workouts"
-import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
-import {
-  computeSortKey,
-  encodeScore,
-  getDefaultScoreType,
-  parseScore,
-  type ScoreType,
-  STATUS_ORDER,
-  sortKeyToString,
-  type WorkoutScheme,
-} from "@/lib/scoring"
 import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
+import {
+  CompetitionResultError,
+  divisionScopeFromId,
+} from "@/server/competition-results"
 import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 
 const submitVideoSchema = z.object({
@@ -246,192 +234,74 @@ export const Route = createFileRoute("/api/compete/video/submit")({
             )
             .limit(1)
 
-          const now = new Date()
-          let submissionId: string
+          return await db.transaction(async (tx) => {
+            const now = new Date()
+            let submissionId: string
 
-          if (existingSubmission) {
-            await db
-              .update(videoSubmissionsTable)
-              .set({
+            if (existingSubmission) {
+              await tx
+                .update(videoSubmissionsTable)
+                .set({
+                  videoUrl: data.videoUrl,
+                  notes: data.notes ?? null,
+                  submittedAt: now,
+                  updatedAt: now,
+                })
+                .where(eq(videoSubmissionsTable.id, existingSubmission.id))
+              submissionId = existingSubmission.id
+            } else {
+              const id = createVideoSubmissionId()
+              await tx.insert(videoSubmissionsTable).values({
+                id,
+                registrationId: registration.id,
+                trackWorkoutId: data.trackWorkoutId,
+                userId,
                 videoUrl: data.videoUrl,
                 notes: data.notes ?? null,
                 submittedAt: now,
-                updatedAt: now,
               })
-              .where(eq(videoSubmissionsTable.id, existingSubmission.id))
-            submissionId = existingSubmission.id
-          } else {
-            const id = createVideoSubmissionId()
-            await db.insert(videoSubmissionsTable).values({
-              id,
-              registrationId: registration.id,
-              trackWorkoutId: data.trackWorkoutId,
-              userId,
-              videoUrl: data.videoUrl,
-              notes: data.notes ?? null,
-              submittedAt: now,
-            })
-            submissionId = id
-          }
-
-          // Save claimed score if provided
-          if (data.score) {
-            const [workoutRow] = await db
-              .select({
-                workoutId: workouts.id,
-                scheme: workouts.scheme,
-                scoreType: workouts.scoreType,
-                timeCap: workouts.timeCap,
-                tiebreakScheme: workouts.tiebreakScheme,
-                trackId: trackWorkoutsTable.trackId,
-              })
-              .from(trackWorkoutsTable)
-              .innerJoin(
-                workouts,
-                eq(trackWorkoutsTable.workoutId, workouts.id),
-              )
-              .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-              .limit(1)
-
-            if (!workoutRow) {
-              return json(
-                { error: "Workout not found" },
-                { status: 404, headers },
-              )
+              submissionId = id
             }
 
-            const scheme = workoutRow.scheme as WorkoutScheme
-            const scoreType =
-              (workoutRow.scoreType as ScoreType) || getDefaultScoreType(scheme)
-
-            const parseResult = parseScore(data.score, scheme)
-            if (!parseResult.isValid) {
-              return json(
-                {
-                  error: `Invalid score format: ${parseResult.error || "Please check your entry"}`,
-                },
-                { status: 422, headers },
-              )
-            }
-
-            let encodedValue: number | null = encodeScore(data.score, scheme)
-            let status: "scored" | "cap" = data.scoreStatus ?? "scored"
-            let secondaryValue: number | null = null
-
-            if (
-              scheme === "time-with-cap" &&
-              workoutRow.timeCap &&
-              encodedValue !== null
-            ) {
-              const capMs = workoutRow.timeCap * 1000
-              if (encodedValue >= capMs) {
-                status = "cap"
-                encodedValue = capMs
-                if (data.secondaryScore) {
-                  const p = Number.parseInt(data.secondaryScore.trim(), 10)
-                  if (!Number.isNaN(p) && p >= 0) secondaryValue = p
-                }
-              }
-            } else if (status === "cap" && data.secondaryScore) {
-              const p = Number.parseInt(data.secondaryScore.trim(), 10)
-              if (!Number.isNaN(p) && p >= 0) secondaryValue = p
-            }
-
-            let tiebreakValue: number | null = null
-            if (data.tiebreakScore && workoutRow.tiebreakScheme) {
-              tiebreakValue = encodeScore(
-                data.tiebreakScore,
-                workoutRow.tiebreakScheme as WorkoutScheme,
-              )
-            }
-
-            const timeCapMs = workoutRow.timeCap
-              ? workoutRow.timeCap * 1000
-              : null
-
-            const sortKey =
-              encodedValue !== null
-                ? computeSortKey({
-                    value: encodedValue,
-                    status,
-                    scheme,
-                    scoreType,
-                    timeCap:
-                      status === "cap" && secondaryValue !== null
-                        ? { ms: timeCapMs ?? 0, secondaryValue }
-                        : undefined,
-                    tiebreak:
-                      tiebreakValue !== null && workoutRow.tiebreakScheme
-                        ? {
-                            scheme: workoutRow.tiebreakScheme as
-                              | "time"
-                              | "reps",
-                            value: tiebreakValue,
-                          }
-                        : undefined,
-                  })
-                : null
-
-            const [track] = await db
-              .select({ ownerTeamId: programmingTracksTable.ownerTeamId })
-              .from(programmingTracksTable)
-              .where(eq(programmingTracksTable.id, workoutRow.trackId))
-              .limit(1)
-
-            if (!track?.ownerTeamId) {
-              return json(
-                { error: "Could not determine team ownership" },
-                { status: 500, headers },
-              )
-            }
-
-            const statusOrder =
-              status === "cap" ? STATUS_ORDER.cap : STATUS_ORDER.scored
-
-            await db
-              .insert(scoresTable)
-              .values({
-                userId,
-                teamId: track.ownerTeamId,
-                workoutId: workoutRow.workoutId,
-                competitionEventId: data.trackWorkoutId,
-                scheme,
-                scoreType,
-                scoreValue: encodedValue,
-                status,
-                statusOrder,
-                sortKey: sortKey ? sortKeyToString(sortKey) : null,
-                tiebreakScheme:
-                  (workoutRow.tiebreakScheme as TiebreakScheme) ?? null,
-                tiebreakValue,
-                timeCapMs,
-                secondaryValue,
-                scalingLevelId: registration.divisionId,
-                asRx: true,
-                recordedAt: now,
-              })
-              .onDuplicateKeyUpdate({
-                set: {
-                  scoreValue: encodedValue,
-                  status,
-                  statusOrder,
-                  sortKey: sortKey ? sortKeyToString(sortKey) : null,
-                  tiebreakScheme:
-                    (workoutRow.tiebreakScheme as TiebreakScheme) ?? null,
-                  tiebreakValue,
-                  timeCapMs,
-                  secondaryValue,
-                  scalingLevelId: registration.divisionId,
-                  updatedAt: now,
+            // Save claimed score if provided
+            if (data.score) {
+              await recordCompetitionResultInTransaction({
+                db: tx,
+                command: {
+                  athleteUserId: userId,
+                  trackWorkoutId: data.trackWorkoutId,
+                  divisionScope: divisionScopeFromId(registration.divisionId),
+                  recordedAt: now,
+                  claim: {
+                    score: data.score,
+                    status: data.scoreStatus ?? "scored",
+                    secondaryScore: data.secondaryScore,
+                    tiebreakScore: data.tiebreakScore,
+                  },
                 },
               })
-          }
+            }
 
-          return json(
-            { success: true, submissionId, isUpdate: !!existingSubmission },
-            { headers },
-          )
+            return json(
+              { success: true, submissionId, isUpdate: !!existingSubmission },
+              { headers },
+            )
+          })
         } catch (err) {
+          if (err instanceof CompetitionResultError) {
+            return json(
+              { error: err.message },
+              {
+                status:
+                  err.code === "programmed_workout_not_found"
+                    ? 404
+                    : err.code === "persistence_failed"
+                      ? 500
+                      : 422,
+                headers,
+              },
+            )
+          }
           console.error("[API] /api/compete/video/submit error:", err)
           return json(
             { error: "Internal server error" },

@@ -38,6 +38,12 @@ Events link workouts to the competition. Each event represents a workout athlete
 
 Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerEventManager` for creating, editing, reordering, and deleting events. Events can have per-division workout descriptions, attached resources, and judging sheets. Supports parent/sub-event hierarchy for multi-workout events. Publishing or unpublishing a parent event cascades to all its child sub-events via [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/quick-actions-events.tsx]].
 
+### Draft Event Creation
+
+Pending organizers can build complete private draft events while their application is under review.
+
+[[apps/wodsmith-start/src/server-fns/competition-workouts-fns.ts#createWorkoutAndAddToCompetitionFn]] requires the organizing team's `MANAGE_COMPETITIONS` permission and verifies that the requested competition belongs to that team. It locks the competition and atomically creates or resolves its programming track, private workout, `track_workouts` link, tags and movements, and `competition_events` settings row. This avoids cross-team writes and read-after-write gaps across Cloudflare/PlanetScale connections. `apps/wodsmith-start/e2e/competition-organizer.spec.ts` covers the pending-organizer flow and verifies all three event records persist.
+
 ### Grouping Existing Events Under a Parent
 
 Organizers who created multi-part events (Part A / Part B) as separate top-level events can retroactively group them under a new parent event so they're scheduled together as one event.
@@ -45,6 +51,12 @@ Organizers who created multi-part events (Part A / Part B) as separate top-level
 Standalone event rows in [[apps/wodsmith-start/src/components/events/organizer-event-manager.tsx#OrganizerEventManager]] show a selection checkbox (parents with children show the collapse chevron instead, since sub-events can't nest deeper than one level). Selecting one or more events reveals a banner explaining that selected events can be wrapped in a parent event for scheduling, with a "Group as one event" action enabled at two or more selections. The action opens [[apps/wodsmith-start/src/components/events/group-events-dialog.tsx#GroupEventsDialog]], which collects the parent event name and lists the events that will become sub-events.
 
 The core logic lives in [[apps/wodsmith-start/src/server/group-competition-events.ts#groupCompetitionEvents]], shared by the organizer fn [[apps/wodsmith-start/src/server-fns/competition-workouts-fns.ts#groupCompetitionEventsFn]] (requires `MANAGE_PROGRAMMING` plus a check that the team actually organizes the competition, preventing cross-team grouping with a forged teamId/competitionId pair) and the cohost fn [[apps/wodsmith-start/src/server-fns/cohost/cohost-workout-fns.ts#cohostGroupEventsFn]] (requires `editEvents`; the parent workout is still owned by the organizing team). Validation rejects sub-events, events that already have sub-events, events with scheduled heats (heats reference `trackWorkoutId` and are only scheduled for top-level events, so grouping would orphan them — organizers must delete those heats first), and selections over 99 events (`trackOrder` is decimal(6,2), so a 100th child would collide with the next top-level slot). In one transaction it creates a private parent container workout (scheme borrowed from the earliest selected event, `scoreType` null), inserts the parent track workout at the earliest selected event's integer slot, re-parents the selected events with decimal `trackOrder` values (N.01, N.02, ...) preserving their relative order, and renumbers the remaining top-level events sequentially (shifting their children) to close gaps. The parent's `eventStatus`/`heatStatus` is published only when every grouped event was already published, and the parent's `eventStatus` cascades to the grouped children so a draft parent can't leave previously published sub-events visible in public queries; existing scores stay on the grouped events, matching the per-sub-event scoring model. Validation rules and the re-parenting transaction are covered by tests in `apps/wodsmith-start/test/server/group-competition-events.test.ts`.
+
+#### Grouping Checkbox Hydration
+
+Event grouping selectors outside forms use native checkboxes whose SSR and client trees are identical.
+
+Radix Checkbox 1.3.x initially emits a hidden form input during SSR, then removes it after discovering on the client that the control is outside a form. The event manager avoids that unstable form bridge for these non-form selectors while retaining native checkbox semantics, state, focus styling, and Space-key activation. `apps/wodsmith-start/test/components/ssr-hydration-stability.test.tsx` hydrates three organizer event rows and requires the same child topology with no hidden inputs or recoverable React errors.
 
 ### Event-Division Mappings
 
@@ -437,7 +449,9 @@ Shows `DeleteCompetitionForm` with registration count warning. Deletion requires
 
 The application flow for teams to become competition organizers.
 
-At `/compete/organizer/onboard/`, teams submit an organizer request. Includes inline auth for unauthenticated users. After submission, the pending page shows request status. Admin approval is required before teams can create competitions.
+At `/compete/organizer/onboard/`, teams submit an organizer request. Includes inline auth for unauthenticated users. After submission, the pending page shows request status. Admin approval is required before draft competitions can be published.
+
+Submitting a request grants `HOST_COMPETITIONS` immediately with `max_published_competitions = 0`. Pending teams can create and fully configure private draft competitions, including divisions and events; approval is required to publish, not to build the draft.
 
 The Compete header shows `HOST A COMP` only before one of the user's teams has an organizer request. Hosting entitlements alone do not switch the header to `MANAGE COMPETITIONS`, and the desktop CTA is separated from `COMPETITIONS` by the standard header divider.
 

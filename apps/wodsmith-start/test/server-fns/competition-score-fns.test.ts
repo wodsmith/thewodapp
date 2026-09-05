@@ -1,10 +1,10 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest'
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
   getEventScoreEntryDataFn,
   getEventScoreEntryDataWithHeatsFn,
   saveCompetitionScoreFn,
   saveCompetitionScoresFn,
-} from '@/server-fns/competition-score-fns'
+} from "@/server-fns/competition-score-fns"
 
 // Create mock database
 function createDbMock(config: {
@@ -41,7 +41,7 @@ function createDbMock(config: {
     workout: null,
     finalScore: null,
     // Default to in-person competition (bypasses submission window check)
-    competition: {competitionType: 'in-person'},
+    competition: { competitionType: "in-person" },
     competitionEvent: null,
     withSubmissionWindowCheck: false,
     ...config,
@@ -49,29 +49,26 @@ function createDbMock(config: {
 
   let queryCount = 0
   let whereCount = 0
-  let selectCallCount = 0
 
   const createChain = (): Record<string, unknown> => {
     const chain: Record<string, unknown> = {}
 
     chain.select = vi.fn(() => {
-      selectCallCount++
       return chain
     })
     chain.from = vi.fn(() => chain)
     chain.innerJoin = vi.fn(() => chain)
     chain.leftJoin = vi.fn(() => chain)
-    chain.transaction = vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-      return fn(chain)
-    })
     chain.where = vi.fn(() => {
       whereCount++
       return chain
     })
     chain.orderBy = vi.fn(() => chain)
-    chain.transaction = vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-      return fn(chain)
-    })
+    chain.transaction = vi.fn(
+      async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        return fn(chain)
+      },
+    )
     chain.limit = vi.fn(() => {
       queryCount++
 
@@ -121,7 +118,8 @@ function createDbMock(config: {
       return Promise.resolve([])
     })
 
-    // Make chain thenable for awaiting
+    // Drizzle query builders are thenable; the mock preserves their await behavior.
+    // biome-ignore lint/suspicious/noThenProperty: models the database query API
     chain.then = (
       resolve: (value: unknown) => void,
       _reject?: (err: unknown) => void,
@@ -151,12 +149,12 @@ function createDbMock(config: {
 
 let mockDbInstance: ReturnType<typeof createDbMock>
 
-vi.mock('@/db', () => ({
+vi.mock("@/db", () => ({
   getDb: vi.fn(() => mockDbInstance),
 }))
 
 // Mock TanStack createServerFn to make server functions directly callable in tests
-vi.mock('@tanstack/react-start', () => ({
+vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     let handlerFn: ReturnType<typeof vi.fn>
     return {
@@ -176,36 +174,36 @@ vi.mock('@tanstack/react-start', () => ({
   },
 }))
 
-describe('Competition Score Server Functions (TanStack)', () => {
+describe("Competition Score Server Functions (TanStack)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  describe('getEventScoreEntryDataFn', () => {
-    it('returns event not found error when track workout does not exist', async () => {
-      mockDbInstance = createDbMock({trackWorkout: null})
+  describe("getEventScoreEntryDataFn", () => {
+    it("returns event not found error when track workout does not exist", async () => {
+      mockDbInstance = createDbMock({ trackWorkout: null })
 
       await expect(
         getEventScoreEntryDataFn({
           data: {
-            competitionId: 'comp-1',
-            organizingTeamId: 'team-1',
-            trackWorkoutId: 'tw-nonexistent',
+            competitionId: "comp-1",
+            organizingTeamId: "team-1",
+            trackWorkoutId: "tw-nonexistent",
           },
         }),
-      ).rejects.toThrow('Event not found')
+      ).rejects.toThrow("Event not found")
     })
 
-    it('returns event data with empty athletes when no registrations', async () => {
+    it("returns event data with empty athletes when no registrations", async () => {
       const trackWorkout = {
-        trackWorkoutId: 'tw-1',
+        trackWorkoutId: "tw-1",
         trackOrder: 1,
         pointsMultiplier: 100,
-        workoutId: 'wod-1',
-        workoutName: 'Test Workout',
-        workoutDescription: 'Test description',
-        workoutScheme: 'time',
-        workoutScoreType: 'min',
+        workoutId: "wod-1",
+        workoutName: "Test Workout",
+        workoutDescription: "Test description",
+        workoutScheme: "time",
+        workoutScoreType: "min",
         workoutTiebreakScheme: null,
         workoutTimeCap: 600,
         workoutRepsPerRound: null,
@@ -219,30 +217,30 @@ describe('Competition Score Server Functions (TanStack)', () => {
 
       const result = await getEventScoreEntryDataFn({
         data: {
-          competitionId: 'comp-1',
-          organizingTeamId: 'team-1',
-          trackWorkoutId: 'tw-1',
+          competitionId: "comp-1",
+          organizingTeamId: "team-1",
+          trackWorkoutId: "tw-1",
         },
       })
 
       expect(result.event).toBeDefined()
-      expect(result.event.id).toBe('tw-1')
-      expect(result.event.workout.name).toBe('Test Workout')
-      expect(result.event.workout.scheme).toBe('time')
+      expect(result.event.id).toBe("tw-1")
+      expect(result.event.workout.name).toBe("Test Workout")
+      expect(result.event.workout.scheme).toBe("time")
       expect(result.athletes).toEqual([])
       expect(result.divisions).toEqual([])
     })
 
-    it('returns athletes with existing scores', async () => {
+    it("returns athletes with existing scores", async () => {
       const trackWorkout = {
-        trackWorkoutId: 'tw-1',
+        trackWorkoutId: "tw-1",
         trackOrder: 1,
         pointsMultiplier: 100,
-        workoutId: 'wod-1',
-        workoutName: 'Test Workout',
-        workoutDescription: 'Test description',
-        workoutScheme: 'time',
-        workoutScoreType: 'min',
+        workoutId: "wod-1",
+        workoutName: "Test Workout",
+        workoutDescription: "Test description",
+        workoutScheme: "time",
+        workoutScoreType: "min",
         workoutTiebreakScheme: null,
         workoutTimeCap: 600,
         workoutRepsPerRound: null,
@@ -252,21 +250,21 @@ describe('Competition Score Server Functions (TanStack)', () => {
       const registrations = [
         {
           registration: {
-            id: 'reg-1',
-            divisionId: 'div-1',
+            id: "reg-1",
+            divisionId: "div-1",
             athleteTeamId: null,
             captainUserId: null,
             teamName: null,
           },
           user: {
-            id: 'user-1',
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'john@test.com',
+            id: "user-1",
+            firstName: "John",
+            lastName: "Doe",
+            email: "john@test.com",
           },
           division: {
-            id: 'div-1',
-            label: 'RX',
+            id: "div-1",
+            label: "RX",
             position: 1,
           },
         },
@@ -274,12 +272,12 @@ describe('Competition Score Server Functions (TanStack)', () => {
 
       const existingScores = [
         {
-          id: 'score-1',
-          userId: 'user-1',
-          scalingLevelId: 'div-1',
+          id: "score-1",
+          userId: "user-1",
+          scalingLevelId: "div-1",
           scoreValue: 300000, // 5:00 in milliseconds
-          status: 'scored',
-          scheme: 'time',
+          status: "scored",
+          scheme: "time",
           tiebreakScheme: null,
           tiebreakValue: null,
           secondaryValue: null,
@@ -291,35 +289,35 @@ describe('Competition Score Server Functions (TanStack)', () => {
         registrations,
         existingScores,
         existingRounds: [],
-        divisions: [{id: 'div-1', label: 'RX', position: 1}],
+        divisions: [{ id: "div-1", label: "RX", position: 1 }],
       })
 
       const result = await getEventScoreEntryDataFn({
         data: {
-          competitionId: 'comp-1',
-          organizingTeamId: 'team-1',
-          trackWorkoutId: 'tw-1',
+          competitionId: "comp-1",
+          organizingTeamId: "team-1",
+          trackWorkoutId: "tw-1",
         },
       })
 
       expect(result.athletes).toHaveLength(1)
-      expect(result.athletes[0]?.firstName).toBe('John')
-      expect(result.athletes[0]?.lastName).toBe('Doe')
-      expect(result.athletes[0]?.divisionLabel).toBe('RX')
+      expect(result.athletes[0]?.firstName).toBe("John")
+      expect(result.athletes[0]?.lastName).toBe("Doe")
+      expect(result.athletes[0]?.divisionLabel).toBe("RX")
       expect(result.athletes[0]?.existingResult).toBeDefined()
-      expect(result.athletes[0]?.existingResult?.resultId).toBe('score-1')
+      expect(result.athletes[0]?.existingResult?.resultId).toBe("score-1")
     })
 
-    it('sorts athletes by division then by name', async () => {
+    it("sorts athletes by division then by name", async () => {
       const trackWorkout = {
-        trackWorkoutId: 'tw-1',
+        trackWorkoutId: "tw-1",
         trackOrder: 1,
         pointsMultiplier: 100,
-        workoutId: 'wod-1',
-        workoutName: 'Test Workout',
-        workoutDescription: 'Test description',
-        workoutScheme: 'time',
-        workoutScoreType: 'min',
+        workoutId: "wod-1",
+        workoutName: "Test Workout",
+        workoutDescription: "Test description",
+        workoutScheme: "time",
+        workoutScoreType: "min",
         workoutTiebreakScheme: null,
         workoutTimeCap: null,
         workoutRepsPerRound: null,
@@ -329,51 +327,51 @@ describe('Competition Score Server Functions (TanStack)', () => {
       const registrations = [
         {
           registration: {
-            id: 'reg-3',
-            divisionId: 'div-2',
+            id: "reg-3",
+            divisionId: "div-2",
             athleteTeamId: null,
             captainUserId: null,
             teamName: null,
           },
           user: {
-            id: 'user-3',
-            firstName: 'Alice',
-            lastName: 'Adams',
-            email: 'alice@test.com',
+            id: "user-3",
+            firstName: "Alice",
+            lastName: "Adams",
+            email: "alice@test.com",
           },
-          division: {id: 'div-2', label: 'Scaled'},
+          division: { id: "div-2", label: "Scaled" },
         },
         {
           registration: {
-            id: 'reg-1',
-            divisionId: 'div-1',
+            id: "reg-1",
+            divisionId: "div-1",
             athleteTeamId: null,
             captainUserId: null,
             teamName: null,
           },
           user: {
-            id: 'user-1',
-            firstName: 'Bob',
-            lastName: 'Brown',
-            email: 'bob@test.com',
+            id: "user-1",
+            firstName: "Bob",
+            lastName: "Brown",
+            email: "bob@test.com",
           },
-          division: {id: 'div-1', label: 'RX'},
+          division: { id: "div-1", label: "RX" },
         },
         {
           registration: {
-            id: 'reg-2',
-            divisionId: 'div-1',
+            id: "reg-2",
+            divisionId: "div-1",
             athleteTeamId: null,
             captainUserId: null,
             teamName: null,
           },
           user: {
-            id: 'user-2',
-            firstName: 'Charlie',
-            lastName: 'Anderson',
-            email: 'charlie@test.com',
+            id: "user-2",
+            firstName: "Charlie",
+            lastName: "Anderson",
+            email: "charlie@test.com",
           },
-          division: {id: 'div-1', label: 'RX'},
+          division: { id: "div-1", label: "RX" },
         },
       ]
 
@@ -381,80 +379,80 @@ describe('Competition Score Server Functions (TanStack)', () => {
         trackWorkout,
         registrations,
         divisions: [
-          {id: 'div-1', label: 'RX', position: 1},
-          {id: 'div-2', label: 'Scaled', position: 2},
+          { id: "div-1", label: "RX", position: 1 },
+          { id: "div-2", label: "Scaled", position: 2 },
         ],
       })
 
       const result = await getEventScoreEntryDataFn({
         data: {
-          competitionId: 'comp-1',
-          organizingTeamId: 'team-1',
-          trackWorkoutId: 'tw-1',
+          competitionId: "comp-1",
+          organizingTeamId: "team-1",
+          trackWorkoutId: "tw-1",
         },
       })
 
       // Should be sorted: RX (Anderson, Brown), then Scaled (Adams)
       expect(result.athletes).toHaveLength(3)
-      expect(result.athletes[0]?.divisionLabel).toBe('RX')
-      expect(result.athletes[0]?.lastName).toBe('Anderson') // Charlie
-      expect(result.athletes[1]?.divisionLabel).toBe('RX')
-      expect(result.athletes[1]?.lastName).toBe('Brown') // Bob
-      expect(result.athletes[2]?.divisionLabel).toBe('Scaled')
-      expect(result.athletes[2]?.lastName).toBe('Adams') // Alice
+      expect(result.athletes[0]?.divisionLabel).toBe("RX")
+      expect(result.athletes[0]?.lastName).toBe("Anderson") // Charlie
+      expect(result.athletes[1]?.divisionLabel).toBe("RX")
+      expect(result.athletes[1]?.lastName).toBe("Brown") // Bob
+      expect(result.athletes[2]?.divisionLabel).toBe("Scaled")
+      expect(result.athletes[2]?.lastName).toBe("Adams") // Alice
     })
   })
 
-  describe('saveCompetitionScoreFn', () => {
-    it('throws error when workout info is not provided', async () => {
-      mockDbInstance = createDbMock({withSubmissionWindowCheck: true})
+  describe("saveCompetitionScoreFn", () => {
+    it("loads workout info authoritatively when client metadata is absent", async () => {
+      mockDbInstance = createDbMock({ withSubmissionWindowCheck: true })
 
       await expect(
         saveCompetitionScoreFn({
           data: {
-            competitionId: 'comp-1',
-            organizingTeamId: 'team-1',
-            trackWorkoutId: 'tw-1',
-            workoutId: 'wod-1',
-            registrationId: 'reg-1',
-            userId: 'user-1',
-            divisionId: 'div-1',
-            score: '5:00',
-            scoreStatus: 'scored',
+            competitionId: "comp-1",
+            organizingTeamId: "team-1",
+            trackWorkoutId: "tw-1",
+            workoutId: "wod-1",
+            registrationId: "reg-1",
+            userId: "user-1",
+            divisionId: "div-1",
+            score: "5:00",
+            scoreStatus: "scored",
             // No workout info provided
           },
         }),
-      ).rejects.toThrow('Workout info is required to save competition score')
+      ).rejects.toThrow("Workout not found")
     })
 
-    it('continues in-person score saves past the submission-window gate', async () => {
+    it("continues in-person score saves past the submission-window gate", async () => {
       mockDbInstance = createDbMock({
         withSubmissionWindowCheck: true,
-        competition: {competitionType: 'in-person'},
+        competition: { competitionType: "in-person" },
       })
 
       await expect(
         saveCompetitionScoreFn({
           data: {
-            competitionId: 'comp-1',
-            organizingTeamId: 'team-1',
-            trackWorkoutId: 'tw-1',
-            workoutId: 'wod-1',
-            registrationId: 'reg-1',
-            userId: 'user-1',
-            divisionId: 'div-1',
-            score: '5:00',
-            scoreStatus: 'scored',
+            competitionId: "comp-1",
+            organizingTeamId: "team-1",
+            trackWorkoutId: "tw-1",
+            workoutId: "wod-1",
+            registrationId: "reg-1",
+            userId: "user-1",
+            divisionId: "div-1",
+            score: "5:00",
+            scoreStatus: "scored",
           },
         }),
-      ).rejects.toThrow('Workout info is required to save competition score')
+      ).rejects.toThrow("Workout not found")
     })
 
-    it('blocks online score saves after the submission window closes', async () => {
+    it("blocks online score saves after the submission window closes", async () => {
       const now = new Date()
       mockDbInstance = createDbMock({
         withSubmissionWindowCheck: true,
-        competition: {competitionType: 'online'},
+        competition: { competitionType: "online" },
         competitionEvent: {
           submissionOpensAt: new Date(now.getTime() - 7200000),
           submissionClosesAt: new Date(now.getTime() - 3600000),
@@ -464,18 +462,18 @@ describe('Competition Score Server Functions (TanStack)', () => {
       await expect(
         saveCompetitionScoreFn({
           data: {
-            competitionId: 'comp-1',
-            organizingTeamId: 'team-1',
-            trackWorkoutId: 'tw-1',
-            workoutId: 'wod-1',
-            registrationId: 'reg-1',
-            userId: 'user-1',
-            divisionId: 'div-1',
-            score: '5:00',
-            scoreStatus: 'scored',
+            competitionId: "comp-1",
+            organizingTeamId: "team-1",
+            trackWorkoutId: "tw-1",
+            workoutId: "wod-1",
+            registrationId: "reg-1",
+            userId: "user-1",
+            divisionId: "div-1",
+            score: "5:00",
+            scoreStatus: "scored",
             workout: {
-              scheme: 'time',
-              scoreType: 'min',
+              scheme: "time",
+              scoreType: "min",
               repsPerRound: null,
               roundsToScore: 1,
               timeCap: null,
@@ -486,9 +484,18 @@ describe('Competition Score Server Functions (TanStack)', () => {
       ).rejects.toThrow(/Submission window closed at/)
     })
 
-    it('saves a time score correctly', async () => {
-      const teamResult = {ownerTeamId: 'team-1'}
-      const finalScore = {id: 'score-new'}
+    it("saves a time score correctly", async () => {
+      const teamResult = { ownerTeamId: "team-1" }
+      const programmedWorkout = {
+        workoutId: "wod-1",
+        trackId: "track-1",
+        scheme: "time",
+        scoreType: "min",
+        roundsToScore: 1,
+        timeCap: null,
+        tiebreakScheme: null,
+      }
+      const finalScore = { id: "score-new" }
 
       // Create insert/update mocks
       const insertMock: Record<string, unknown> = {
@@ -504,34 +511,40 @@ describe('Competition Score Server Functions (TanStack)', () => {
           from: vi.fn().mockReturnValue({
             innerJoin: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValueOnce([teamResult]),
+                limit: vi.fn().mockResolvedValueOnce([programmedWorkout]),
               }),
             }),
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([finalScore]),
+              limit: vi
+                .fn()
+                .mockResolvedValueOnce([{ competitionType: "in-person" }])
+                .mockResolvedValueOnce([teamResult])
+                .mockResolvedValue([finalScore]),
             }),
           }),
         }),
-        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-          return fn(insertMock)
-        }),
+        transaction: vi.fn(
+          async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+            return fn(insertMock)
+          },
+        ),
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
       const result = await saveCompetitionScoreFn({
         data: {
-          competitionId: 'comp-1',
-          organizingTeamId: 'team-1',
-          trackWorkoutId: 'tw-1',
-          workoutId: 'wod-1',
-          registrationId: 'reg-1',
-          userId: 'user-1',
-          divisionId: 'div-1',
-          score: '5:00',
-          scoreStatus: 'scored',
+          competitionId: "comp-1",
+          organizingTeamId: "team-1",
+          trackWorkoutId: "tw-1",
+          workoutId: "wod-1",
+          registrationId: "reg-1",
+          userId: "user-1",
+          divisionId: "div-1",
+          score: "5:00",
+          scoreStatus: "scored",
           workout: {
-            scheme: 'time',
-            scoreType: 'min',
+            scheme: "time",
+            scoreType: "min",
             repsPerRound: null,
             roundsToScore: 1,
             timeCap: null,
@@ -541,13 +554,22 @@ describe('Competition Score Server Functions (TanStack)', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.data.resultId).toBe('score-new')
+      expect(result.data.resultId).toBe("score-new")
       expect(insertMock.insert).toHaveBeenCalled()
     })
 
-    it('handles CAP status for time-with-cap workouts', async () => {
-      const teamResult = {ownerTeamId: 'team-1'}
-      const finalScore = {id: 'score-cap'}
+    it("handles CAP status for time-with-cap workouts", async () => {
+      const teamResult = { ownerTeamId: "team-1" }
+      const programmedWorkout = {
+        workoutId: "wod-1",
+        trackId: "track-1",
+        scheme: "time-with-cap",
+        scoreType: "min",
+        roundsToScore: 1,
+        timeCap: 600,
+        tiebreakScheme: null,
+      }
+      const finalScore = { id: "score-cap" }
 
       let insertedValues: unknown = null
 
@@ -567,35 +589,41 @@ describe('Competition Score Server Functions (TanStack)', () => {
           from: vi.fn().mockReturnValue({
             innerJoin: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValueOnce([teamResult]),
+                limit: vi.fn().mockResolvedValueOnce([programmedWorkout]),
               }),
             }),
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([finalScore]),
+              limit: vi
+                .fn()
+                .mockResolvedValueOnce([{ competitionType: "in-person" }])
+                .mockResolvedValueOnce([teamResult])
+                .mockResolvedValue([finalScore]),
             }),
           }),
         }),
-        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-          return fn(insertMock)
-        }),
+        transaction: vi.fn(
+          async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+            return fn(insertMock)
+          },
+        ),
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
       const result = await saveCompetitionScoreFn({
         data: {
-          competitionId: 'comp-1',
-          organizingTeamId: 'team-1',
-          trackWorkoutId: 'tw-1',
-          workoutId: 'wod-1',
-          registrationId: 'reg-1',
-          userId: 'user-1',
-          divisionId: 'div-1',
-          score: '',
-          scoreStatus: 'cap',
-          secondaryScore: '150', // 150 reps completed
+          competitionId: "comp-1",
+          organizingTeamId: "team-1",
+          trackWorkoutId: "tw-1",
+          workoutId: "wod-1",
+          registrationId: "reg-1",
+          userId: "user-1",
+          divisionId: "div-1",
+          score: "",
+          scoreStatus: "cap",
+          secondaryScore: "150", // 150 reps completed
           workout: {
-            scheme: 'time-with-cap',
-            scoreType: 'min',
+            scheme: "time-with-cap",
+            scoreType: "min",
             repsPerRound: null,
             roundsToScore: 1,
             timeCap: 600, // 10 min cap
@@ -607,100 +635,98 @@ describe('Competition Score Server Functions (TanStack)', () => {
       expect(result.success).toBe(true)
       // Verify the score was saved with cap status and secondary value
       expect(insertedValues).toBeDefined()
-      expect((insertedValues as {status: string}).status).toBe('cap')
-      expect((insertedValues as {secondaryValue: number}).secondaryValue).toBe(
-        150,
-      )
+      expect((insertedValues as { status: string }).status).toBe("cap")
+      expect(
+        (insertedValues as { secondaryValue: number }).secondaryValue,
+      ).toBe(150)
       // Time cap should be converted to milliseconds
-      expect((insertedValues as {scoreValue: number}).scoreValue).toBe(600000)
+      expect((insertedValues as { scoreValue: number }).scoreValue).toBe(600000)
     })
   })
 
-  describe('saveCompetitionScoresFn', () => {
-    it('saves multiple scores and reports count', async () => {
+  describe("saveCompetitionScoresFn", () => {
+    it("saves multiple scores and reports count", async () => {
       const workout = {
-        scheme: 'reps',
-        scoreType: 'max',
+        scheme: "reps",
+        scoreType: "max",
         repsPerRound: null,
         roundsToScore: 1,
         timeCap: null,
         tiebreakScheme: null,
       }
 
-      // Create mocks that handle multiple save calls
-      let saveCallCount = 0
-      const batchMock = {
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([workout]),
-            }),
-            innerJoin: vi.fn().mockReturnValue({
-              where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockImplementation(() => {
-                  saveCallCount++
-                  if (saveCallCount <= 2) {
-                    return Promise.resolve([{ownerTeamId: 'team-1'}])
-                  }
-                  return Promise.resolve([{id: `score-${saveCallCount - 2}`}])
-                }),
-              }),
-            }),
-          }),
-        }),
-        insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
-          }),
-        }),
-        delete: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue(undefined),
-        }),
+      const chain: Record<string, ReturnType<typeof vi.fn>> = {}
+      for (const method of [
+        "select",
+        "from",
+        "where",
+        "innerJoin",
+        "insert",
+        "values",
+        "delete",
+      ])
+        chain[method] = vi.fn(() => chain)
+      chain.transaction = vi.fn(async (run) => run(chain))
+      chain.onDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
+      // Window + definition for batch, then window/definition/owner/existing/current per athlete.
+      chain.limit = vi
+        .fn()
+        .mockResolvedValueOnce([{ competitionType: "in-person" }])
+        .mockResolvedValueOnce([workout])
+      for (let index = 1; index <= 2; index++) {
+        chain.limit
+          .mockResolvedValueOnce([{ competitionType: "in-person" }])
+          .mockResolvedValueOnce([
+            { ...workout, workoutId: "wod-1", trackId: "track-1" },
+          ])
+          .mockResolvedValueOnce([{ ownerTeamId: "team-1" }])
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ id: `score-${index}` }])
       }
-      mockDbInstance = batchMock as unknown as ReturnType<typeof createDbMock>
+      mockDbInstance = chain as unknown as ReturnType<typeof createDbMock>
 
       const result = await saveCompetitionScoresFn({
         data: {
-          competitionId: 'comp-1',
-          organizingTeamId: 'team-1',
-          trackWorkoutId: 'tw-1',
-          workoutId: 'wod-1',
+          competitionId: "comp-1",
+          organizingTeamId: "team-1",
+          trackWorkoutId: "tw-1",
+          workoutId: "wod-1",
           scores: [
             {
-              registrationId: 'reg-1',
-              userId: 'user-1',
-              divisionId: 'div-1',
-              score: '100',
-              scoreStatus: 'scored',
+              registrationId: "reg-1",
+              userId: "user-1",
+              divisionId: "div-1",
+              score: "100",
+              scoreStatus: "scored",
             },
             {
-              registrationId: 'reg-2',
-              userId: 'user-2',
-              divisionId: 'div-1',
-              score: '95',
-              scoreStatus: 'scored',
+              registrationId: "reg-2",
+              userId: "user-2",
+              divisionId: "div-1",
+              score: "95",
+              scoreStatus: "scored",
             },
           ],
         },
       })
 
       expect(result.success).toBe(true)
-      // Note: Due to mock complexity, savedCount may vary
-      // The important thing is the function completes without error
+      expect(result.data).toEqual({ savedCount: 2, errors: [] })
+      expect(chain.transaction).toHaveBeenCalledTimes(2)
     })
   })
 
-  describe('getEventScoreEntryDataWithHeatsFn', () => {
-    it('returns base data with heats and unassigned registrations', async () => {
+  describe("getEventScoreEntryDataWithHeatsFn", () => {
+    it("returns base data with heats and unassigned registrations", async () => {
       const trackWorkout = {
-        trackWorkoutId: 'tw-1',
+        trackWorkoutId: "tw-1",
         trackOrder: 1,
         pointsMultiplier: 100,
-        workoutId: 'wod-1',
-        workoutName: 'Test Workout',
-        workoutDescription: 'Test description',
-        workoutScheme: 'time',
-        workoutScoreType: 'min',
+        workoutId: "wod-1",
+        workoutName: "Test Workout",
+        workoutDescription: "Test description",
+        workoutScheme: "time",
+        workoutScoreType: "min",
         workoutTiebreakScheme: null,
         workoutTimeCap: null,
         workoutRepsPerRound: null,
@@ -710,33 +736,33 @@ describe('Competition Score Server Functions (TanStack)', () => {
       const registrations = [
         {
           registration: {
-            id: 'reg-1',
+            id: "reg-1",
             divisionId: null,
             athleteTeamId: null,
             captainUserId: null,
             teamName: null,
           },
           user: {
-            id: 'user-1',
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'john@test.com',
+            id: "user-1",
+            firstName: "John",
+            lastName: "Doe",
+            email: "john@test.com",
           },
           division: null,
         },
         {
           registration: {
-            id: 'reg-2',
+            id: "reg-2",
             divisionId: null,
             athleteTeamId: null,
             captainUserId: null,
             teamName: null,
           },
           user: {
-            id: 'user-2',
-            firstName: 'Jane',
-            lastName: 'Smith',
-            email: 'jane@test.com',
+            id: "user-2",
+            firstName: "Jane",
+            lastName: "Smith",
+            email: "jane@test.com",
           },
           division: null,
         },
@@ -744,9 +770,9 @@ describe('Competition Score Server Functions (TanStack)', () => {
 
       const heats = [
         {
-          id: 'heat-1',
+          id: "heat-1",
           heatNumber: 1,
-          scheduledTime: new Date('2025-01-15T09:00:00Z'),
+          scheduledTime: new Date("2025-01-15T09:00:00Z"),
           venueId: null,
           divisionId: null,
         },
@@ -754,9 +780,9 @@ describe('Competition Score Server Functions (TanStack)', () => {
 
       const heatAssignments = [
         {
-          heatId: 'heat-1',
+          heatId: "heat-1",
           laneNumber: 1,
-          registrationId: 'reg-1', // reg-1 is assigned
+          registrationId: "reg-1", // reg-1 is assigned
         },
       ]
 
@@ -802,18 +828,18 @@ describe('Competition Score Server Functions (TanStack)', () => {
       try {
         const result = await getEventScoreEntryDataWithHeatsFn({
           data: {
-            competitionId: 'comp-1',
-            organizingTeamId: 'team-1',
-            trackWorkoutId: 'tw-1',
+            competitionId: "comp-1",
+            organizingTeamId: "team-1",
+            trackWorkoutId: "tw-1",
           },
         })
 
         // Verify structure
-        expect(result).toHaveProperty('event')
-        expect(result).toHaveProperty('athletes')
-        expect(result).toHaveProperty('divisions')
-        expect(result).toHaveProperty('heats')
-        expect(result).toHaveProperty('unassignedRegistrationIds')
+        expect(result).toHaveProperty("event")
+        expect(result).toHaveProperty("athletes")
+        expect(result).toHaveProperty("divisions")
+        expect(result).toHaveProperty("heats")
+        expect(result).toHaveProperty("unassignedRegistrationIds")
       } catch (_error) {
         // Function structure is correct even if mock data doesn't fully satisfy queries
         expect(true).toBe(true)

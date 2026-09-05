@@ -48,15 +48,50 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
   const router = useRouter()
   const previousPathRef = useRef<string>("")
 
-  // Initialize PostHog on mount (client-side only)
+  // PostHog exception autocapture inserts a script into the document. Defer
+  // initialization until the streamed document has loaded and React has had an
+  // idle turn to hydrate lazy boundaries before third-party code mutates it.
   useEffect(() => {
-    initPostHog()
+    let idleCallbackId: number | undefined
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    let cancelled = false
 
-    // Capture initial pageview
-    capturePageview()
-
-    // Store initial path
     previousPathRef.current = window.location.pathname
+
+    const initialize = () => {
+      if (cancelled) return
+
+      initPostHog()
+      capturePageview()
+    }
+
+    const scheduleInitialization = () => {
+      if ("requestIdleCallback" in window) {
+        idleCallbackId = window.requestIdleCallback(initialize, {
+          timeout: 2_000,
+        })
+      } else {
+        timeoutId = setTimeout(initialize, 0)
+      }
+    }
+
+    if (document.readyState === "complete") {
+      scheduleInitialization()
+    } else {
+      window.addEventListener("load", scheduleInitialization, { once: true })
+    }
+
+    return () => {
+      cancelled = true
+      window.removeEventListener("load", scheduleInitialization)
+
+      if (idleCallbackId !== undefined) {
+        window.cancelIdleCallback(idleCallbackId)
+      }
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId)
+      }
+    }
   }, [])
 
   // Track route changes

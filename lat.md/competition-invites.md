@@ -110,7 +110,7 @@ The per-source breakdown chips still read their `allocated` value from a loader-
 
 Both the sidebar link and the route page are gated on the PostHog feature flag `competition-invites`. When disabled the link is hidden from [[apps/wodsmith-start/src/components/competition-sidebar.tsx]] and the route component redirects to the competition overview.
 
-Pattern mirrors the existing `competition-global-leaderboard` gate in [[apps/wodsmith-start/src/routes/compete/organizer/series/$groupId/leaderboard.tsx]] — `posthog.isFeatureEnabled()` seeds state, `posthog.onFeatureFlags()` subscribes to flag updates. The gate only compares `=== true` / `=== false` so the `undefined` pre-load state neither shows the link nor triggers a redirect, avoiding flicker.
+Pattern mirrors the existing `competition-global-leaderboard` gate in [[apps/wodsmith-start/src/routes/compete/organizer/series/$groupId/leaderboard.tsx]]: state starts `undefined` on SSR and the first client render, then an effect reads `posthog.isFeatureEnabled()` and subscribes with `posthog.onFeatureFlags()`. The route renders nothing unless the value is explicitly `true`; only explicit `false` redirects, so unresolved state neither exposes gated content nor navigates prematurely.
 
 ## Invites schema
 

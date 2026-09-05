@@ -1,6 +1,10 @@
 import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
+import {
+  RoundCapFields,
+  type RoundCapValue,
+} from "@/components/compete/round-cap-fields"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -16,8 +20,8 @@ import type { ParseResult, WorkoutScheme } from "@/lib/scoring"
 import { parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import {
-  enterSubmissionScoreFn,
   type EventDetails,
+  enterSubmissionScoreFn,
 } from "@/server-fns/submission-verification-fns"
 import {
   getSchemeLabel,
@@ -39,7 +43,7 @@ interface EnterScoreFormProps {
  * route invalidates and the standard `VerificationControls` takes over.
  *
  * Mirrors the score-entry UX of `video-submission-form.tsx` — schema-aware
- * parsing, auto-derived cap status for time-with-cap, tiebreak input — so
+ * parsing, explicit per-round caps, tiebreak input — so
  * reviewers enter scores through the same validation path as athletes.
  */
 export function EnterScoreForm({
@@ -61,6 +65,12 @@ export function EnterScoreForm({
   const [roundScoreInputs, setRoundScoreInputs] = useState<string[]>(() =>
     Array.from({ length: roundsToScore }, () => ""),
   )
+  const [roundCaps, setRoundCaps] = useState<RoundCapValue[]>(() =>
+    Array.from({ length: roundsToScore }, () => ({
+      status: "scored",
+      secondaryScore: "",
+    })),
+  )
   const [secondaryScore, setSecondaryScore] = useState("")
   const [tiebreakInput, setTiebreakInput] = useState("")
   const [reviewerNotes, setReviewerNotes] = useState("")
@@ -70,9 +80,7 @@ export function EnterScoreForm({
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
 
   const parseResult: ParseResult | null =
-    !isMultiRound && scoreInput.trim()
-      ? parseScore(scoreInput, scheme)
-      : null
+    !isMultiRound && scoreInput.trim() ? parseScore(scoreInput, scheme) : null
 
   const roundParseResults: (ParseResult | null)[] = isMultiRound
     ? roundScoreInputs.map((s) => (s.trim() ? parseScore(s, scheme) : null))
@@ -134,7 +142,11 @@ export function EnterScoreForm({
       }
     }
 
-    if (tiebreakScheme && tiebreakInput.trim() && !tiebreakParseResult?.isValid) {
+    if (
+      tiebreakScheme &&
+      tiebreakInput.trim() &&
+      !tiebreakParseResult?.isValid
+    ) {
       setError(tiebreakParseResult?.error ?? "Invalid tiebreak")
       return
     }
@@ -150,6 +162,8 @@ export function EnterScoreForm({
             roundScores: roundScoreInputs.map((s, i) => ({
               roundNumber: i + 1,
               score: s.trim(),
+              status: roundCaps[i].status,
+              secondaryScore: roundCaps[i].secondaryScore || null,
             })),
             tieBreakScore: tiebreakInput.trim() || undefined,
             reviewerNotes: reviewerNotes.trim() || undefined,
@@ -191,9 +205,9 @@ export function EnterScoreForm({
       <CardHeader>
         <CardTitle>Enter Score</CardTitle>
         <CardDescription>
-          The athlete uploaded a video without filling in the score field.
-          Watch the video and enter what they actually scored — this creates
-          the missing scores row and marks the submission reviewed.
+          The athlete uploaded a video without filling in the score field. Watch
+          the video and enter what they actually scored — this creates the
+          missing scores row and marks the submission reviewed.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -231,8 +245,26 @@ export function EnterScoreForm({
                         (hasAttemptedSubmit && !input.trim())) &&
                         "border-destructive",
                     )}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || roundCaps[i].status === "cap"}
                   />
+                  {scheme === "time-with-cap" && timeCap != null && (
+                    <RoundCapFields
+                      roundNumber={i + 1}
+                      value={roundCaps[i]}
+                      disabled={isSubmitting}
+                      onChange={(value) => {
+                        setRoundCaps((prev) =>
+                          prev.map((cap, index) => (index === i ? value : cap)),
+                        )
+                        if (value.status === "cap")
+                          setRoundScoreInputs((prev) =>
+                            prev.map((score, index) =>
+                              index === i ? String(timeCap) : score,
+                            ),
+                          )
+                      }}
+                    />
+                  )}
                   {roundResult?.isValid && (
                     <p className="text-xs text-green-600 dark:text-green-400">
                       Parsed as: {roundResult.formatted}
@@ -253,7 +285,8 @@ export function EnterScoreForm({
             )}
             {scheme === "time-with-cap" && timeCap ? (
               <p className="text-[11px] text-muted-foreground">
-                Status is derived per round from the time vs the per-round cap.
+                Mark capped rounds explicitly and enter the reps completed at
+                the cap.
               </p>
             ) : null}
           </div>

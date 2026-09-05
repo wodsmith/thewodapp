@@ -25,20 +25,17 @@ import {
 } from "@/db/schemas/scores"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
-import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { getEvlog } from "@/lib/evlog"
 import { logInfo } from "@/lib/logging"
+import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
 import {
-  computeSortKey,
-  decodeScore,
-  encodeRounds,
-  encodeScore,
-  getDefaultScoreType,
-  type ScoreType,
-  sortKeyToString,
-  type WorkoutScheme,
-} from "@/lib/scoring"
+  insertManualSubmissionWorkoutResult,
+  normalizeInvalidatedSubmissionWorkoutResult,
+  normalizeManualSubmissionWorkoutResult,
+  normalizeSubmissionScoreAdjustment,
+  updateReviewedSubmissionWorkoutResult,
+} from "@/server/competition-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { requireSubmissionReviewAccess } from "@/utils/team-auth"
@@ -228,6 +225,8 @@ const verifySubmissionScoreInputSchema = z.object({
       z.object({
         roundNumber: z.number().int().min(1),
         score: z.string().min(1),
+        status: z.enum(["scored", "cap"]).optional(),
+        secondaryScore: z.string().nullable().optional(),
       }),
     )
     .optional(),
@@ -387,26 +386,14 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 
       // action === "invalid" — zero the workout score
       if (data.action === "invalid") {
-        // Compute sort key for an invalidated score (ranks last)
-        // Use null value so it sorts last within status group regardless of direction
-        const scheme = score.scheme as WorkoutScheme
-        const zeroSortKey = computeSortKey({
-          value: null,
-          status: "scored",
-          scheme,
-          scoreType: (score.scoreType as "max" | "min") ?? "max",
-        })
+        const invalidResult = normalizeInvalidatedSubmissionWorkoutResult()
 
         await db.transaction(async (tx) => {
-          await tx
-            .update(scoresTable)
-            .set({
-              scoreValue: 0,
-              secondaryValue: null,
-              tiebreakValue: null,
-              status: "scored",
-              statusOrder: 0,
-              sortKey: zeroSortKey ? sortKeyToString(zeroSortKey) : null,
+          await updateReviewedSubmissionWorkoutResult({
+            db: tx,
+            scoreId: data.scoreId,
+            result: invalidResult,
+            context: {
               verificationStatus: "invalid",
               verifiedAt: now,
               verifiedByUserId: session.userId,
@@ -414,8 +401,8 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
               penaltyPercentage: null,
               noRepCount: data.noRepCount ?? null,
               updatedAt: now,
-            })
-            .where(eq(scoresTable.id, data.scoreId))
+            },
+          })
 
           await tx.insert(scoreVerificationLogsTable).values({
             scoreId: data.scoreId,
@@ -427,8 +414,8 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
             originalStatus: score.status,
             originalSecondaryValue: score.secondaryValue,
             originalTiebreakValue: score.tiebreakValue,
-            newScoreValue: 0,
-            newStatus: "scored",
+            newScoreValue: invalidResult.scoreValue,
+            newStatus: invalidResult.status,
             noRepCount: data.noRepCount ?? null,
             performedByUserId: session.userId,
             performedAt: now,
@@ -479,147 +466,33 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
         )
       }
 
-      // Normalize multi-round payload: sort by roundNumber and reject
-      // duplicates so the per-round rewrite below can't silently drop or
-      // double-count a round. Order-sensitive scoreTypes (first/last) also
-      // depend on this being sorted ascending.
-      if (data.adjustedRoundScores && hasAdjustedRoundScores) {
-        const sorted = [...data.adjustedRoundScores].sort(
-          (a, b) => a.roundNumber - b.roundNumber,
-        )
-        const seen = new Set<number>()
-        for (const round of sorted) {
-          if (seen.has(round.roundNumber)) {
-            throw new Error(
-              "adjustedRoundScores must contain unique roundNumber values",
-            )
-          }
-          seen.add(round.roundNumber)
-        }
-        data.adjustedRoundScores = sorted
-      }
-
-      const scheme = score.scheme as WorkoutScheme
-      let newStatus = data.adjustedScoreStatus
-      const resolvedScoreType =
-        (score.scoreType as ScoreType | null) ?? getDefaultScoreType(scheme)
-
-      // Pull existing rounds so we can either thread the previously-derived
-      // cap count through the sort key (no per-round inputs supplied) or
-      // delete them before re-inserting fresh ones (per-round inputs
-      // supplied — see followups doc #3 / #4).
+      // Preserve numbered round facts for aggregate-only adjudication and
+      // default omitted cap fields when replacing the complete round set.
       const existingRounds = await db
         .select({
+          roundNumber: scoreRoundsTable.roundNumber,
           status: scoreRoundsTable.status,
+          secondaryValue: scoreRoundsTable.secondaryValue,
         })
         .from(scoreRoundsTable)
         .where(eq(scoreRoundsTable.scoreId, data.scoreId))
 
-      const isMultiRound = hasAdjustedRoundScores || existingRounds.length > 1
+      const adjustedResult = normalizeSubmissionScoreAdjustment({
+        score: data.adjustedScore,
+        status: data.adjustedScoreStatus,
+        secondaryScore: data.secondaryScore,
+        tiebreakScore: data.tieBreakScore,
+        roundScores: data.adjustedRoundScores,
+        workout: {
+          scheme: score.scheme,
+          scoreType: score.scoreType,
+          timeCapMs: score.timeCapMs,
+          tiebreakScheme: score.tiebreakScheme,
+        },
+        existingRounds,
+      })
 
-      let encodedValue: number | null = null
-      let encodedAdjustedRounds: number[] = []
-      const roundStatuses: Array<"scored" | "cap"> = []
-      let cappedRoundCount = 0
-
-      if (hasAdjustedRoundScores && data.adjustedRoundScores) {
-        // Multi-round adjust with per-round inputs: encode each round and
-        // derive cap status server-side, mirroring submitVideoFn /
-        // saveCompetitionScoreFn so the parent total + tiebreaker stay
-        // consistent.
-        const roundInputs = data.adjustedRoundScores.map((rs) => ({
-          raw: rs.score,
-        }))
-        const result = encodeRounds(roundInputs, scheme, resolvedScoreType)
-        // `encodeRounds` silently drops rounds that fail to encode, which
-        // would misalign roundStatuses with the per-round rows we rewrite
-        // below. Reject here so the caller fixes the input.
-        if (result.rounds.length !== data.adjustedRoundScores.length) {
-          throw new Error(
-            "Every round in adjustedRoundScores must be a valid score",
-          )
-        }
-        encodedValue = result.aggregated
-        encodedAdjustedRounds = result.rounds
-
-        if (scheme === "time-with-cap" && score.timeCapMs) {
-          const capMs = score.timeCapMs
-          for (const roundValue of result.rounds) {
-            const isCapped = roundValue >= capMs
-            roundStatuses.push(isCapped ? "cap" : "scored")
-            if (isCapped) cappedRoundCount++
-          }
-          // Server derivation wins over the client-declared status.
-          newStatus = cappedRoundCount > 0 ? "cap" : "scored"
-        }
-      } else if (data.adjustedScore) {
-        // Legacy single-value path (single-round, or multi-round penalty
-        // direct override that doesn't restate per-round values).
-        if (!isMultiRound && newStatus === "cap" && score.timeCapMs) {
-          encodedValue = score.timeCapMs
-        } else {
-          encodedValue = encodeScore(data.adjustedScore, scheme)
-        }
-        cappedRoundCount = existingRounds.filter(
-          (r) => r.status === "cap",
-        ).length
-      }
-
-      // Parse secondary value (reps at cap). Only meaningful for the
-      // single-value path — when per-round inputs are supplied the
-      // breakdown encodes any cap penalty already.
-      let secondaryValue: number | null = null
-      if (
-        !hasAdjustedRoundScores &&
-        data.secondaryScore &&
-        newStatus === "cap"
-      ) {
-        const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
-        if (!Number.isNaN(parsed) && parsed >= 0) {
-          secondaryValue = parsed
-        }
-      }
-
-      // Encode tiebreak if provided
-      let tiebreakValue: number | null = null
-      if (data.tieBreakScore && score.tiebreakScheme) {
-        try {
-          tiebreakValue = encodeScore(
-            data.tieBreakScore,
-            score.tiebreakScheme as WorkoutScheme,
-          )
-        } catch {
-          // Ignore tiebreak encoding errors
-        }
-      }
-
-      // Compute sort key
-      const statusOrder = newStatus === "cap" ? 1 : 0
-      const sortKey =
-        encodedValue !== null
-          ? computeSortKey({
-              value: encodedValue,
-              status: newStatus,
-              scheme,
-              scoreType: resolvedScoreType,
-              cappedRoundCount: isMultiRound ? cappedRoundCount : undefined,
-              timeCap:
-                newStatus === "cap" &&
-                score.timeCapMs &&
-                secondaryValue !== null
-                  ? { ms: score.timeCapMs, secondaryValue }
-                  : undefined,
-              tiebreak:
-                tiebreakValue !== null && score.tiebreakScheme
-                  ? {
-                      scheme: score.tiebreakScheme as "time" | "reps",
-                      value: tiebreakValue,
-                    }
-                  : undefined,
-            })
-          : null
-
-      if (isMultiRound) {
+      if (adjustedResult.isMultiRound) {
         logInfo({
           message: hasAdjustedRoundScores
             ? "[Score] Multi-round adjust applied with per-round inputs — rounds rewritten"
@@ -631,9 +504,9 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
             roundCount: hasAdjustedRoundScores
               ? (data.adjustedRoundScores?.length ?? 0)
               : existingRounds.length,
-            cappedRoundCount,
-            newStatus,
-            encodedValue,
+            cappedRoundCount: adjustedResult.cappedRoundCount,
+            newStatus: adjustedResult.status,
+            encodedValue: adjustedResult.scoreValue,
           },
         })
       }
@@ -642,15 +515,11 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
       const videoReviewStatus = data.penaltyType ? "penalized" : "adjusted"
 
       await db.transaction(async (tx) => {
-        await tx
-          .update(scoresTable)
-          .set({
-            scoreValue: encodedValue,
-            status: newStatus,
-            statusOrder,
-            sortKey: sortKey ? sortKeyToString(sortKey) : null,
-            secondaryValue,
-            tiebreakValue,
+        await updateReviewedSubmissionWorkoutResult({
+          db: tx,
+          scoreId: data.scoreId,
+          result: adjustedResult,
+          context: {
             verificationStatus: "adjusted",
             verifiedAt: now,
             verifiedByUserId: session.userId,
@@ -658,33 +527,8 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
             penaltyPercentage: data.penaltyPercentage ?? null,
             noRepCount: data.noRepCount ?? null,
             updatedAt: now,
-          })
-          .where(eq(scoresTable.id, data.scoreId))
-
-        // Per-round inputs supplied → rewrite the round breakdown.
-        // Delete + insert (rather than update) so the leaderboard
-        // cap-count tiebreaker stays consistent with the new parent total
-        // even if the organizer changed the number of rounds.
-        if (hasAdjustedRoundScores && data.adjustedRoundScores) {
-          await tx
-            .delete(scoreRoundsTable)
-            .where(eq(scoreRoundsTable.scoreId, data.scoreId))
-
-          // Reuse the already-encoded round values from `encodeRounds` so
-          // roundStatuses (also derived from that output) lines up with the
-          // rows we write. The length guard above guarantees 1:1 alignment
-          // with data.adjustedRoundScores.
-          const roundsToInsert = data.adjustedRoundScores.map(
-            (round, index) => ({
-              scoreId: data.scoreId,
-              roundNumber: round.roundNumber,
-              value: encodedAdjustedRounds[index] ?? 0,
-              status: roundStatuses[index] ?? null,
-            }),
-          )
-
-          await tx.insert(scoreRoundsTable).values(roundsToInsert)
-        }
+          },
+        })
 
         await tx.insert(scoreVerificationLogsTable).values({
           scoreId: data.scoreId,
@@ -696,10 +540,10 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
           originalStatus: score.status,
           originalSecondaryValue: score.secondaryValue,
           originalTiebreakValue: score.tiebreakValue,
-          newScoreValue: encodedValue,
-          newStatus,
-          newSecondaryValue: secondaryValue,
-          newTiebreakValue: tiebreakValue,
+          newScoreValue: adjustedResult.scoreValue,
+          newStatus: adjustedResult.status,
+          newSecondaryValue: adjustedResult.secondaryValue,
+          newTiebreakValue: adjustedResult.tiebreakValue,
           penaltyType: data.penaltyType ?? null,
           penaltyPercentage: data.penaltyPercentage ?? null,
           noRepCount: data.noRepCount ?? null,
@@ -733,8 +577,8 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
           scoreId: data.scoreId,
           competitionId: data.competitionId,
           verifiedByUserId: session.userId,
-          newStatus,
-          encodedValue,
+          newStatus: adjustedResult.status,
+          encodedValue: adjustedResult.scoreValue,
         },
       })
 
@@ -752,6 +596,8 @@ const enterSubmissionScoreInputSchema = z.object({
       z.object({
         roundNumber: z.number().int().min(1),
         score: z.string().min(1),
+        status: z.enum(["scored", "cap"]).optional(),
+        secondaryScore: z.string().nullable().optional(),
       }),
     )
     .optional(),
@@ -778,241 +624,134 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     enterSubmissionScoreInputSchema.parse(data),
   )
-  .handler(
-    async ({ data }): Promise<{ success: boolean; scoreId: string }> => {
-      const session = await getSessionFromCookie()
-      if (!session?.userId) {
-        throw new Error("Not authenticated")
-      }
+  .handler(async ({ data }): Promise<{ success: boolean; scoreId: string }> => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
 
-      await requireSubmissionReviewAccess(data.competitionId)
+    await requireSubmissionReviewAccess(data.competitionId)
 
-      const db = getDb()
+    const db = getDb()
 
-      await verifyEventBelongsToCompetition(
-        db,
-        data.competitionId,
-        data.trackWorkoutId,
+    await verifyEventBelongsToCompetition(
+      db,
+      data.competitionId,
+      data.trackWorkoutId,
+    )
+
+    const [submission] = await db
+      .select({
+        id: videoSubmissionsTable.id,
+        registrationId: videoSubmissionsTable.registrationId,
+        trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+      })
+      .from(videoSubmissionsTable)
+      .where(eq(videoSubmissionsTable.id, data.videoSubmissionId))
+      .limit(1)
+
+    if (!submission || submission.trackWorkoutId !== data.trackWorkoutId) {
+      throw new Error("Video submission not found for this event")
+    }
+
+    const [registration] = await db
+      .select({
+        id: competitionRegistrationsTable.id,
+        userId: competitionRegistrationsTable.userId,
+        captainUserId: competitionRegistrationsTable.captainUserId,
+        divisionId: competitionRegistrationsTable.divisionId,
+        eventId: competitionRegistrationsTable.eventId,
+      })
+      .from(competitionRegistrationsTable)
+      .where(eq(competitionRegistrationsTable.id, submission.registrationId))
+      .limit(1)
+
+    if (!registration || registration.eventId !== data.competitionId) {
+      throw new Error("Registration not found for this competition")
+    }
+
+    // Score is owned by the captain (or the lone individual athlete).
+    const scoreUserId = registration.captainUserId ?? registration.userId
+
+    // Bail if a score already exists — this fn is for first-time entry only.
+    // Scope to the registration's division so the athlete's score in a
+    // different division (shared-workout case) isn't mistaken for this one.
+    const existingScoreConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      eq(scoresTable.userId, scoreUserId),
+      registration.divisionId
+        ? eq(scoresTable.scalingLevelId, registration.divisionId)
+        : isNull(scoresTable.scalingLevelId),
+    ]
+    const [existingScore] = await db
+      .select({ id: scoresTable.id })
+      .from(scoresTable)
+      .where(and(...existingScoreConditions))
+      .limit(1)
+
+    if (existingScore) {
+      throw new Error(
+        "A score already exists for this submission. Use the adjust action to change it.",
       )
+    }
 
-      const [submission] = await db
-        .select({
-          id: videoSubmissionsTable.id,
-          registrationId: videoSubmissionsTable.registrationId,
-          trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-        })
-        .from(videoSubmissionsTable)
-        .where(eq(videoSubmissionsTable.id, data.videoSubmissionId))
-        .limit(1)
+    const [trackWorkout] = await db
+      .select({
+        id: trackWorkoutsTable.id,
+        trackId: trackWorkoutsTable.trackId,
+        workoutId: workouts.id,
+        scheme: workouts.scheme,
+        scoreType: workouts.scoreType,
+        timeCap: workouts.timeCap,
+        roundsToScore: workouts.roundsToScore,
+        tiebreakScheme: workouts.tiebreakScheme,
+      })
+      .from(trackWorkoutsTable)
+      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+      .limit(1)
 
-      if (!submission || submission.trackWorkoutId !== data.trackWorkoutId) {
-        throw new Error("Video submission not found for this event")
-      }
+    if (!trackWorkout) {
+      throw new Error("Workout not found for this event")
+    }
 
-      const [registration] = await db
-        .select({
-          id: competitionRegistrationsTable.id,
-          userId: competitionRegistrationsTable.userId,
-          captainUserId: competitionRegistrationsTable.captainUserId,
-          divisionId: competitionRegistrationsTable.divisionId,
-          eventId: competitionRegistrationsTable.eventId,
-        })
-        .from(competitionRegistrationsTable)
-        .where(eq(competitionRegistrationsTable.id, submission.registrationId))
-        .limit(1)
+    const [track] = await db
+      .select({ ownerTeamId: programmingTracksTable.ownerTeamId })
+      .from(programmingTracksTable)
+      .where(eq(programmingTracksTable.id, trackWorkout.trackId))
+      .limit(1)
 
-      if (!registration || registration.eventId !== data.competitionId) {
-        throw new Error("Registration not found for this competition")
-      }
+    if (!track?.ownerTeamId) {
+      throw new Error("Could not determine team ownership")
+    }
+    const ownerTeamId = track.ownerTeamId
 
-      // Score is owned by the captain (or the lone individual athlete).
-      const scoreUserId = registration.captainUserId ?? registration.userId
+    const hasRoundScores = !!data.roundScores && data.roundScores.length > 0
 
-      // Bail if a score already exists — this fn is for first-time entry only.
-      // Scope to the registration's division so the athlete's score in a
-      // different division (shared-workout case) isn't mistaken for this one.
-      const existingScoreConditions = [
-        eq(scoresTable.competitionEventId, data.trackWorkoutId),
-        eq(scoresTable.userId, scoreUserId),
-        registration.divisionId
-          ? eq(scoresTable.scalingLevelId, registration.divisionId)
-          : isNull(scoresTable.scalingLevelId),
-      ]
-      const [existingScore] = await db
-        .select({ id: scoresTable.id })
-        .from(scoresTable)
-        .where(and(...existingScoreConditions))
-        .limit(1)
+    if (!data.score && !hasRoundScores) {
+      throw new Error("A score (or roundScores) is required")
+    }
 
-      if (existingScore) {
-        throw new Error(
-          "A score already exists for this submission. Use the adjust action to change it.",
-        )
-      }
+    const timeCapMs = trackWorkout.timeCap ? trackWorkout.timeCap * 1000 : null
+    const manualResult = normalizeManualSubmissionWorkoutResult({
+      score: data.score,
+      status: data.scoreStatus,
+      secondaryScore: data.secondaryScore,
+      tiebreakScore: data.tieBreakScore,
+      roundScores: data.roundScores,
+      workout: {
+        scheme: trackWorkout.scheme,
+        scoreType: trackWorkout.scoreType,
+        timeCapMs,
+        roundsToScore: trackWorkout.roundsToScore,
+        tiebreakScheme: trackWorkout.tiebreakScheme,
+      },
+    })
 
-      const [trackWorkout] = await db
-        .select({
-          id: trackWorkoutsTable.id,
-          trackId: trackWorkoutsTable.trackId,
-          workoutId: workouts.id,
-          scheme: workouts.scheme,
-          scoreType: workouts.scoreType,
-          timeCap: workouts.timeCap,
-          roundsToScore: workouts.roundsToScore,
-          tiebreakScheme: workouts.tiebreakScheme,
-        })
-        .from(trackWorkoutsTable)
-        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-        .limit(1)
+    const now = new Date()
 
-      if (!trackWorkout) {
-        throw new Error("Workout not found for this event")
-      }
-
-      const [track] = await db
-        .select({ ownerTeamId: programmingTracksTable.ownerTeamId })
-        .from(programmingTracksTable)
-        .where(eq(programmingTracksTable.id, trackWorkout.trackId))
-        .limit(1)
-
-      if (!track?.ownerTeamId) {
-        throw new Error("Could not determine team ownership")
-      }
-      const ownerTeamId = track.ownerTeamId
-
-      const scheme = trackWorkout.scheme as WorkoutScheme
-      const resolvedScoreType =
-        (trackWorkout.scoreType as ScoreType | null) ??
-        getDefaultScoreType(scheme)
-
-      const hasRoundScores =
-        !!data.roundScores && data.roundScores.length > 0
-
-      if (!data.score && !hasRoundScores) {
-        throw new Error("A score (or roundScores) is required")
-      }
-
-      let encodedValue: number | null = null
-      let encodedRounds: number[] = []
-      const roundStatuses: Array<"scored" | "cap"> = []
-      let cappedRoundCount = 0
-      let status: "scored" | "cap" = data.scoreStatus ?? "scored"
-      let secondaryValue: number | null = null
-      const timeCapMs = trackWorkout.timeCap ? trackWorkout.timeCap * 1000 : null
-
-      if (hasRoundScores && data.roundScores) {
-        const expectedRoundCount = trackWorkout.roundsToScore ?? 1
-        if (expectedRoundCount <= 1) {
-          throw new Error(
-            "roundScores is only valid for multi-round workouts",
-          )
-        }
-        const sorted = [...data.roundScores].sort(
-          (a, b) => a.roundNumber - b.roundNumber,
-        )
-        const seen = new Set<number>()
-        for (const round of sorted) {
-          if (seen.has(round.roundNumber)) {
-            throw new Error("roundScores must contain unique roundNumber values")
-          }
-          seen.add(round.roundNumber)
-        }
-        if (
-          sorted.length !== expectedRoundCount ||
-          sorted.some((round, index) => round.roundNumber !== index + 1)
-        ) {
-          throw new Error(
-            `Expected exactly ${expectedRoundCount} contiguous round scores (1..${expectedRoundCount})`,
-          )
-        }
-        const result = encodeRounds(
-          sorted.map((rs) => ({ raw: rs.score })),
-          scheme,
-          resolvedScoreType,
-        )
-        if (result.rounds.length !== sorted.length) {
-          throw new Error("Every round in roundScores must be a valid score")
-        }
-        encodedValue = result.aggregated
-        encodedRounds = result.rounds
-        data.roundScores = sorted
-
-        if (scheme === "time-with-cap" && timeCapMs) {
-          for (const roundValue of encodedRounds) {
-            const isCapped = roundValue >= timeCapMs
-            roundStatuses.push(isCapped ? "cap" : "scored")
-            if (isCapped) cappedRoundCount++
-          }
-          status = cappedRoundCount > 0 ? "cap" : "scored"
-        }
-      } else if (data.score) {
-        if (scheme === "time-with-cap" && status === "cap" && timeCapMs) {
-          encodedValue = timeCapMs
-          if (data.secondaryScore) {
-            const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
-            if (!Number.isNaN(parsed) && parsed >= 0) {
-              secondaryValue = parsed
-            }
-          }
-        } else {
-          encodedValue = encodeScore(data.score, scheme)
-          if (
-            scheme === "time-with-cap" &&
-            timeCapMs &&
-            encodedValue !== null &&
-            encodedValue >= timeCapMs
-          ) {
-            status = "cap"
-            encodedValue = timeCapMs
-            if (data.secondaryScore) {
-              const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
-              if (!Number.isNaN(parsed) && parsed >= 0) {
-                secondaryValue = parsed
-              }
-            }
-          }
-        }
-      }
-
-      let tiebreakValue: number | null = null
-      if (data.tieBreakScore && trackWorkout.tiebreakScheme) {
-        try {
-          tiebreakValue = encodeScore(
-            data.tieBreakScore,
-            trackWorkout.tiebreakScheme as WorkoutScheme,
-          )
-        } catch {
-          // Ignore tiebreak encoding errors
-        }
-      }
-
-      const isMultiRound = encodedRounds.length > 1
-      const sortKey =
-        encodedValue !== null
-          ? computeSortKey({
-              value: encodedValue,
-              status,
-              scheme,
-              scoreType: resolvedScoreType,
-              cappedRoundCount: isMultiRound ? cappedRoundCount : undefined,
-              timeCap:
-                status === "cap" && timeCapMs && secondaryValue !== null
-                  ? { ms: timeCapMs, secondaryValue }
-                  : undefined,
-              tiebreak:
-                tiebreakValue !== null && trackWorkout.tiebreakScheme
-                  ? {
-                      scheme: trackWorkout.tiebreakScheme as "time" | "reps",
-                      value: tiebreakValue,
-                    }
-                  : undefined,
-            })
-          : null
-
-      const now = new Date()
-
-      const newScoreId = await db.transaction(async (tx) => {
+    const newScoreId = await db
+      .transaction(async (tx) => {
         // Re-check inside the transaction to narrow the TOCTOU window from
         // the pre-transaction existence check above. A duplicate-key error
         // from the unique index is still possible under concurrent inserts
@@ -1036,65 +775,24 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
           )
         }
 
-        const insertValues: typeof scoresTable.$inferInsert = {
-          userId: scoreUserId,
-          teamId: ownerTeamId,
-          workoutId: trackWorkout.workoutId,
-          competitionEventId: data.trackWorkoutId,
-          scheme,
-          scoreType: resolvedScoreType,
-          scoreValue: encodedValue,
-          status,
-          statusOrder: status === "cap" ? 1 : 0,
-          sortKey: sortKey ? sortKeyToString(sortKey) : null,
-          tiebreakScheme:
-            (trackWorkout.tiebreakScheme as TiebreakScheme | null) ?? null,
-          tiebreakValue,
-          timeCapMs,
-          secondaryValue,
-          scalingLevelId: registration.divisionId,
-          asRx: true,
+        const insertedId = await insertManualSubmissionWorkoutResult({
+          db: tx,
+          target: {
+            userId: scoreUserId,
+            teamId: ownerTeamId,
+            workoutId: trackWorkout.workoutId,
+            trackWorkoutId: data.trackWorkoutId,
+            divisionId: registration.divisionId,
+          },
+          result: manualResult,
           recordedAt: now,
-          verificationStatus: "adjusted",
-          verifiedAt: now,
-          verifiedByUserId: session.userId,
-          noRepCount: data.noRepCount ?? null,
-        }
-        await tx.insert(scoresTable).values(insertValues)
-
-        // The id is generated by `$defaultFn(createScoreId)` so re-fetch it by
-        // the natural key (user + event + division). Division must be part of
-        // the key because an athlete can have a separate row per division for
-        // a workout shared across divisions.
-        const insertedConditions = [
-          eq(scoresTable.competitionEventId, data.trackWorkoutId),
-          eq(scoresTable.userId, scoreUserId),
-          registration.divisionId
-            ? eq(scoresTable.scalingLevelId, registration.divisionId)
-            : isNull(scoresTable.scalingLevelId),
-        ]
-        const [inserted] = await tx
-          .select({ id: scoresTable.id })
-          .from(scoresTable)
-          .where(and(...insertedConditions))
-          .limit(1)
-
-        if (!inserted) {
-          throw new Error("Failed to fetch inserted score")
-        }
-
-        const insertedId = inserted.id
-
-        if (encodedRounds.length > 0 && data.roundScores) {
-          await tx.insert(scoreRoundsTable).values(
-            data.roundScores.map((round, index) => ({
-              scoreId: insertedId,
-              roundNumber: round.roundNumber,
-              value: encodedRounds[index] ?? 0,
-              status: roundStatuses[index] ?? null,
-            })),
-          )
-        }
+          context: {
+            verificationStatus: "adjusted",
+            verifiedAt: now,
+            verifiedByUserId: session.userId,
+            noRepCount: data.noRepCount ?? null,
+          },
+        })
 
         await tx.insert(scoreVerificationLogsTable).values({
           scoreId: insertedId,
@@ -1108,10 +806,10 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
           originalStatus: null,
           originalSecondaryValue: null,
           originalTiebreakValue: null,
-          newScoreValue: encodedValue,
-          newStatus: status,
-          newSecondaryValue: secondaryValue,
-          newTiebreakValue: tiebreakValue,
+          newScoreValue: manualResult.scoreValue,
+          newStatus: manualResult.status,
+          newSecondaryValue: manualResult.secondaryValue,
+          newTiebreakValue: manualResult.tiebreakValue,
           noRepCount: data.noRepCount ?? null,
           performedByUserId: session.userId,
           performedAt: now,
@@ -1134,7 +832,8 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
           )
 
         return insertedId
-      }).catch((err: unknown) => {
+      })
+      .catch((err: unknown) => {
         // The `idx_scores_competition_user_unique` unique index catches
         // concurrent inserts that slip past the SELECT checks — rethrow
         // the friendly message so the caller sees a consistent error.
@@ -1150,22 +849,21 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
         throw err
       })
 
-      logInfo({
-        message: "[Score] Organizer entered initial score for missing submission",
-        attributes: {
-          scoreId: newScoreId,
-          competitionId: data.competitionId,
-          trackWorkoutId: data.trackWorkoutId,
-          videoSubmissionId: data.videoSubmissionId,
-          performedByUserId: session.userId,
-          status,
-          encodedValue,
-        },
-      })
+    logInfo({
+      message: "[Score] Organizer entered initial score for missing submission",
+      attributes: {
+        scoreId: newScoreId,
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        videoSubmissionId: data.videoSubmissionId,
+        performedByUserId: session.userId,
+        status: manualResult.status,
+        encodedValue: manualResult.scoreValue,
+      },
+    })
 
-      return { success: true, scoreId: newScoreId }
-    },
-  )
+    return { success: true, scoreId: newScoreId }
+  })
 
 /**
  * Get a single submission detail for verification

@@ -61,7 +61,7 @@ export type SaveScoreFn = (params: {
   scoreStatus: string
   tieBreakScore: string | null
   secondaryScore: string | null
-  roundScores?: Array<{ score: string }>
+  roundScores?: ScoreEntryData["roundScores"]
   workout: {
     scheme: string
     scoreType: string | null
@@ -501,7 +501,13 @@ export function ResultsEntryForm({
                   <>
                     <span className="mx-2 text-muted-foreground">•</span>
                     <span className="text-muted-foreground">
-                      Type <strong>CAP</strong> for{" "}
+                      {(event.workout.roundsToScore ?? 1) > 1 ? (
+                        "Mark capped rounds for"
+                      ) : (
+                        <>
+                          Type <strong>CAP</strong> for
+                        </>
+                      )}{" "}
                       {timeCap ? formatTimeCap(timeCap) : "time cap"}
                     </span>
                   </>
@@ -541,7 +547,14 @@ export function ResultsEntryForm({
                   <li>• Time formats: 3:45, 12:30, or 1:05:30 for hours</li>
                   {isTimeCapped && (
                     <li>
-                      • Type <strong>CAP</strong> if the athlete hit the{" "}
+                      •{" "}
+                      {(event.workout.roundsToScore ?? 1) > 1 ? (
+                        "Mark the round capped if the athlete hit the"
+                      ) : (
+                        <>
+                          Type <strong>CAP</strong> if the athlete hit the
+                        </>
+                      )}{" "}
                       {timeCap ? formatTimeCap(timeCap) : "time"} cap
                     </li>
                   )}

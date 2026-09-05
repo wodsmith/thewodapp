@@ -17,15 +17,14 @@ function SeriesLeaderboardPage() {
   const { groupId } = Route.useParams()
   const { posthog } = usePostHog()
   const navigate = useNavigate()
-  const [flagEnabled, setFlagEnabled] = useState(() =>
-    posthog.isFeatureEnabled("competition-global-leaderboard"),
-  )
+  const [flagEnabled, setFlagEnabled] = useState<boolean | undefined>(undefined)
 
   useEffect(() => {
-    const unsubscribe = posthog.onFeatureFlags(() => {
+    const updateFlag = () => {
       setFlagEnabled(posthog.isFeatureEnabled("competition-global-leaderboard"))
-    })
-    return unsubscribe
+    }
+    updateFlag()
+    return posthog.onFeatureFlags(updateFlag)
   }, [posthog])
 
   useEffect(() => {
@@ -38,7 +37,7 @@ function SeriesLeaderboardPage() {
     }
   }, [flagEnabled, groupId, navigate])
 
-  if (flagEnabled === false) return null
+  if (flagEnabled !== true) return null
 
   return (
     <div className="container mx-auto px-4 py-8">

@@ -19,15 +19,14 @@ function OrganizerSeriesLeaderboardPage() {
   const { groupId } = Route.useParams()
   const { posthog } = usePostHog()
   const navigate = useNavigate()
-  const [flagEnabled, setFlagEnabled] = useState(() =>
-    posthog.isFeatureEnabled("competition-global-leaderboard"),
-  )
+  const [flagEnabled, setFlagEnabled] = useState<boolean | undefined>(undefined)
 
   useEffect(() => {
-    const unsubscribe = posthog.onFeatureFlags(() => {
+    const updateFlag = () => {
       setFlagEnabled(posthog.isFeatureEnabled("competition-global-leaderboard"))
-    })
-    return unsubscribe
+    }
+    updateFlag()
+    return posthog.onFeatureFlags(updateFlag)
   }, [posthog])
 
   useEffect(() => {
@@ -40,7 +39,7 @@ function OrganizerSeriesLeaderboardPage() {
     }
   }, [flagEnabled, groupId, navigate])
 
-  if (flagEnabled === false) return null
+  if (flagEnabled !== true) return null
 
   return <SeriesLeaderboardPageContent groupId={groupId} />
 }

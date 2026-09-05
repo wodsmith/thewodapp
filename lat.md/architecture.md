@@ -15,6 +15,38 @@ TanStack Start (React + Vite) deployed to Cloudflare Workers, with PlanetScale (
 - **Deployment**: Alchemy IaC to Cloudflare Workers, Vite build pipeline
 - **Testing**: Vitest (unit/integration), Playwright (E2E), Testing Library (components)
 
+### SSR Theme Hydration
+
+The root document permits one intentional root-attribute difference, while all structural client state must match SSR on the first render.
+
+[[apps/wodsmith-start/src/routes/__root.tsx#RootDocument]] renders the cookie-derived theme for SSR, then its inline script resolves local storage and system color preference before paint. The `<html>` element suppresses only that root-class warning; it cannot suppress structural descendant mismatches. `apps/wodsmith-start/e2e/organizer-hydration.spec.ts` forces the class correction and verifies a clean organizer reload.
+
+PostHog may restore persisted feature flags before a streamed route boundary hydrates. [[apps/wodsmith-start/src/lib/posthog/hooks.ts#useFeatureFlagEnabled]] therefore starts from the same fail-closed value on the server and the first client render, then applies the browser value in an effect. Direct feature-gated routes likewise start from `undefined` on both sides, render nothing until explicitly enabled, and resolve the flag after hydration. `apps/wodsmith-start/test/lib/posthog/hooks-hydration.test.tsx` simulates the persisted-flag race and verifies React can hydrate before inserting the enabled navigation link.
+
+#### Stable Toggle Markup
+
+Theme toggles render the same icon tree before and after mounting so streamed hydration never encounters a changed child structure.
+
+[[apps/wodsmith-start/src/components/nav/dark-mode-toggle.tsx#DarkModeToggle]] always renders both the sun and moon icons; the root `dark` class selects the visible icon with CSS. Browser state may update the label and theme after mount, but it does not insert another icon. `apps/wodsmith-start/test/components/ssr-hydration-stability.test.tsx` hydrates the SSR toggle and requires the same two-icon tree without recoverable React errors.
+
+#### Deferred Analytics Initialization
+
+PostHog initializes only after document load and a browser idle turn so its exception-autocapture script cannot mutate the body during streamed hydration.
+
+[[apps/wodsmith-start/src/lib/posthog/provider.tsx#PostHogProvider]] records the initial route immediately but defers analytics initialization and its first pageview. `apps/wodsmith-start/test/lib/posthog/provider-hydration.test.tsx` verifies neither runs before both load and idle signals.
+
+### Feature-Gated Route Hydration
+
+Feature-gated routes remain blank while their PostHog value is unresolved, render only when explicitly enabled, and redirect only when explicitly disabled.
+
+This tri-state contract keeps SSR and the first client render identical without flashing gated content. `apps/wodsmith-start/test/routes/compete/feature-flag-route-gates.test.ts` pins the contract for invites plus public and organizer series routes.
+
+### Organizer Date Hydration
+
+Organizer list dates use UTC calendar formatting so Cloudflare SSR and browsers in other timezones render identical text.
+
+[[apps/wodsmith-start/src/components/organizer-competitions-list.tsx#formatDateFull]] pins `timeZone: "UTC"`, matching the list's UTC same-day comparison. The organizer layout also receives its footer year in serialized server loader data instead of recomputing it during hydration. `apps/wodsmith-start/test/components/organizer-competitions-list-date.test.tsx` runs in America/Boise and verifies a midnight-UTC competition remains September 1 instead of shifting to August 31.
+
 ## Monorepo Structure
 
 The monorepo uses Turborepo with pnpm workspaces. The main app lives in `apps/wodsmith-start/`.
