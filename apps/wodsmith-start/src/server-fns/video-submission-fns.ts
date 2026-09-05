@@ -15,6 +15,7 @@ import {
   isNotNull,
   isNull,
   ne,
+  or,
 } from "drizzle-orm"
 import { z } from "zod"
 import { type Database, getDb } from "@/db"
@@ -1785,6 +1786,15 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       throw new Error("A score is required when submitting")
     }
 
+    const pendingScoreReview = {
+      verificationStatus: null,
+      verifiedAt: null,
+      verifiedByUserId: null,
+      penaltyType: null,
+      penaltyPercentage: null,
+      noRepCount: null,
+    }
+
     return db.transaction(async (tx) => {
       // Save or update video submission
       let submissionId: string
@@ -1798,6 +1808,11 @@ export const submitVideoFn = createServerFn({ method: "POST" })
             notes: data.notes ?? null,
             submittedAt: now,
             updatedAt: now,
+            reviewStatus: "pending",
+            statusUpdatedAt: now,
+            reviewedAt: null,
+            reviewedBy: null,
+            reviewerNotes: null,
           })
           .where(eq(videoSubmissionsTable.id, existingSubmission.id))
 
@@ -1821,7 +1836,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
       // Save claimed score (score is validated as required above)
       if (hasScore) {
-        await recordCompetitionResultInTransaction({
+        const receipt = await recordCompetitionResultInTransaction({
           db: tx,
           command: {
             athleteUserId: session.userId,
@@ -1837,6 +1852,28 @@ export const submitVideoFn = createServerFn({ method: "POST" })
             },
           },
         })
+        await tx
+          .update(scoresTable)
+          .set(pendingScoreReview)
+          .where(eq(scoresTable.id, receipt.scoreId))
+      } else {
+        // Invalid review zeroes the score; new evidence alone cannot restore it.
+        await tx
+          .update(scoresTable)
+          .set(pendingScoreReview)
+          .where(
+            and(
+              eq(scoresTable.userId, session.userId),
+              eq(scoresTable.competitionEventId, data.trackWorkoutId),
+              registration.divisionId
+                ? eq(scoresTable.scalingLevelId, registration.divisionId)
+                : isNull(scoresTable.scalingLevelId),
+              or(
+                isNull(scoresTable.verificationStatus),
+                ne(scoresTable.verificationStatus, "invalid"),
+              ),
+            ),
+          )
       }
 
       return {
