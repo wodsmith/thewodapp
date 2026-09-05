@@ -6,7 +6,7 @@ lat:
 
 Online athlete submissions persist evidence, scores, and rounds together; replacements require fresh review, and reviewer actions stay in the score's division.
 
-[[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]] uses the canonical competition-result service to validate and persist score and round facts in the same transaction as video updates. Invalid input rolls back the whole submission. Replacing a video resets its current review fields and the shared score's verification and penalty fields while retaining historical verification logs. A partner video-only replacement preserves score values and rounds while reopening shared-score review; other video slots and divisions remain untouched. The dedicated benchmark transaction and best-score retention rules are unchanged.
+[[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]] uses the canonical competition-result service to validate and persist score and round facts in the same transaction as video updates. Invalid input rolls back the whole submission. Replacing a video resets its current review fields and the shared score's verification and penalty fields while retaining historical verification logs. A partner video-only replacement preserves score values and rounds while reopening shared-score review, except that an invalid score remains excluded until a valid replacement score arrives. Other video slots and divisions remain untouched. The dedicated benchmark transaction and best-score retention rules are unchanged.
 
 [[apps/wodsmith-start/src/server-fns/submission-verification-fns.ts#verifySubmissionScoreFn]] resolves the video's registration from the selected score's user and scaling level. Null scaling levels explicitly match null registration divisions. Verify, adjust, and invalidate share this registration scope.
 
@@ -27,6 +27,10 @@ Replacing verified, adjusted, or invalid athlete evidence clears current verific
 ## Partner evidence resets shared review
 
 A partner video-only replacement clears the shared score's review metadata without changing its value or rounds, another video slot, another division, or past review logs.
+
+## Invalid score stays excluded without a replacement score
+
+A partner video-only replacement leaves a zeroed invalid score and its review metadata untouched so it stays excluded from public ranking. A later valid score payload reopens score review without deleting audit history.
 
 ## Review stays in the score division
 

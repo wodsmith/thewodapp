@@ -333,7 +333,7 @@ describe.skipIf(!mysqlTestConfig)("submission integrity on MySQL", () => {
       success: true,
     })
     expect(await rows(scoresTable)).toMatchObject([
-      { score_value: 840000, status: "cap" },
+      { score_value: 840000, status: "cap", secondary_value: 42 },
     ])
     expect(await rows(scoreRoundsTable)).toEqual(
       expect.arrayContaining([
@@ -346,6 +346,7 @@ describe.skipIf(!mysqlTestConfig)("submission integrity on MySQL", () => {
           round_number: 2,
           value: 600000,
           status: "cap",
+          secondary_value: 42,
         }),
       ]),
     )
@@ -411,6 +412,34 @@ describe.skipIf(!mysqlTestConfig)("submission integrity on MySQL", () => {
       ),
     ).toEqual(videos.filter((row) => row.id !== "partner-slot"))
     expect(await rows(scoreRoundsTable)).toEqual(rounds)
+    expect(await rows(scoreVerificationLogsTable)).toEqual(logs)
+  })
+
+  // @lat: [[submission-integrity#Submission Integrity#Invalid score stays excluded without a replacement score]]
+  it("keeps a zeroed invalid score excluded after replacing only a partner video, until a valid score replaces it", async () => {
+    await seedSubmission({ divisionId: "partner", suffix: "partner" })
+    await insert(videoSubmissionsTable, {
+      id: "partner-slot", registrationId: "registration-partner", trackWorkoutId: "event-workout", videoIndex: 1,
+      userId: "athlete", videoUrl: "https://www.youtube.com/watch?v=partner-old", reviewStatus: "verified",
+    })
+    await verifySubmissionScoreFn({ data: {
+      competitionId: "competition", trackWorkoutId: "event-workout", scoreId: "score-partner", action: "invalid", noRepCount: 7,
+    } })
+    const invalidScore = await rows(scoresTable)
+    const logs = await rows(scoreVerificationLogsTable)
+    expect(invalidScore).toMatchObject([{ score_value: 0, verification_status: "invalid" }])
+
+    await submitVideoFn({ data: { ...replacement, divisionId: "partner", videoIndex: 1, roundScores: undefined } })
+    expect(await rows(scoresTable)).toEqual(invalidScore)
+    expect((await rows(videoSubmissionsTable)).find((row) => row.id === "partner-slot")).toMatchObject(pendingVideoReview)
+    const [eligibleScores] = await pool.promise().query<RowDataPacket[]>(
+      "SELECT id FROM scores WHERE verification_status IS NULL OR verification_status != 'invalid'",
+    )
+    expect(eligibleScores).toEqual([])
+    expect(await rows(scoreVerificationLogsTable)).toEqual(logs)
+
+    await submitVideoFn({ data: { ...replacement, divisionId: "partner" } })
+    expect(await rows(scoresTable)).toMatchObject([{ ...pendingScoreReview, score_value: 840000, status: "cap" }])
     expect(await rows(scoreVerificationLogsTable)).toEqual(logs)
   })
 
