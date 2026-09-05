@@ -297,7 +297,11 @@ The rendered personal schedule passes the event timezone to shifts and heat rows
 
 ### Volunteer schedule same local day
 
-Ranges crossing UTC midnight stay on one date when both endpoints fall on the same event-local day; daylight-saving offsets apply independently to each endpoint.
+Ranges crossing UTC midnight stay on one date when both endpoints fall on the same event-local day.
+
+### Volunteer schedule daylight-saving offsets
+
+A shift crossing a daylight-saving change formats each endpoint using the competition timezone's offset at that instant.
 
 ### Judge Schedule Printouts
 

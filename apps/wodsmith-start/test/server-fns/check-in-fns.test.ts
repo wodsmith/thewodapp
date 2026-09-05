@@ -131,6 +131,7 @@ describe("check-in search summaries", () => {
     },
   )
 
+  // @lat: [[registration#Day-of Check-In#Team check-in waiver summary]]
   it("counts a team once when multiple teammates lack required waivers", async () => {
     const [reg] = registrations(1)
     db.query.competitionRegistrationsTable.findMany.mockResolvedValue([
