@@ -1,3 +1,7 @@
+import {
+  RoundCapFields,
+  type RoundCapValue,
+} from "@/components/compete/round-cap-fields"
 /**
  * Organizer Video Submission Review Detail Route
  *
@@ -14,6 +18,7 @@ import {
 import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
+  ArrowDownUp,
   ArrowLeft,
   Ban,
   Calendar,
@@ -22,7 +27,6 @@ import {
   Clock,
   ExternalLink,
   MessageSquare,
-  ArrowDownUp,
   Pencil,
   ThumbsDown,
   ThumbsUp,
@@ -33,10 +37,17 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { z } from "zod"
+import { EnterScoreForm } from "@/components/compete/enter-score-form"
+import { OrganizerVideoLinksEditor } from "@/components/compete/organizer-video-links-editor"
 import {
-  VideoPlayerEmbed,
-  supportsInteractivePlayer,
+  getSchemeLabel,
+  getScoreHelpText,
+  getScorePlaceholder,
+} from "@/components/compete/score-entry-helpers"
+import {
   getVideoPlatformName,
+  supportsInteractivePlayer,
+  VideoPlayerEmbed,
   type VideoPlayerRef,
 } from "@/components/compete/video-player-embed"
 import {
@@ -71,7 +82,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  DOWNVOTE_REASON_LABELS,
+  type DownvoteReason,
+} from "@/db/schemas/video-votes"
 import {
   decodeScore,
   type ParseResult,
@@ -80,24 +96,6 @@ import {
 } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import {
-  getSchemeLabel,
-  getScoreHelpText,
-  getScorePlaceholder,
-} from "@/components/compete/score-entry-helpers"
-import {
-  type EventDetails,
-  getEventDetailsForVerificationFn,
-  getSubmissionDetailFn,
-  getVerificationLogsFn,
-  type SubmissionDetail,
-  type VerificationLogEntry,
-  verifySubmissionScoreFn,
-  deleteVerificationLogFn,
-} from "@/server-fns/submission-verification-fns"
-import { EnterScoreForm } from "@/components/compete/enter-score-form"
-import { OrganizerVideoLinksEditor } from "@/components/compete/organizer-video-links-editor"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
   createReviewNoteFn,
   deleteReviewNoteFn,
   getReviewNotesForRegistrationFn,
@@ -105,16 +103,22 @@ import {
   updateReviewNoteFn,
 } from "@/server-fns/review-note-fns"
 import {
+  deleteVerificationLogFn,
+  type EventDetails,
+  getEventDetailsForVerificationFn,
+  getSubmissionDetailFn,
+  getVerificationLogsFn,
+  type SubmissionDetail,
+  type VerificationLogEntry,
+  verifySubmissionScoreFn,
+} from "@/server-fns/submission-verification-fns"
+import {
   getOrganizerSubmissionDetailFn,
   getSiblingSubmissionsFn,
   markSubmissionReviewedFn,
   unmarkSubmissionReviewedFn,
 } from "@/server-fns/video-submission-fns"
 import { getSubmissionVoteDetailsFn } from "@/server-fns/video-vote-fns"
-import {
-  DOWNVOTE_REASON_LABELS,
-  type DownvoteReason,
-} from "@/db/schemas/video-votes"
 import { isSafeUrl } from "@/utils/url"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -304,6 +308,7 @@ interface VerificationControlsProps {
     value: number
     displayScore: string | null
     status?: string | null
+    secondaryValue?: number | null
   }> | null
   submissionReviewerNotes?: string | null
 }
@@ -342,6 +347,13 @@ function VerificationControls({
   )
   const [penaltyRoundScores, setPenaltyRoundScores] =
     useState<string[]>(initialRoundInputs)
+  const [penaltyRoundCaps, setPenaltyRoundCaps] = useState<RoundCapValue[]>(
+    () =>
+      sortedRoundScores.map((round) => ({
+        status: round.status === "cap" ? "cap" : "scored",
+        secondaryScore: round.secondaryValue?.toString() ?? "",
+      })),
+  )
   const [penaltySecondaryScore, setPenaltySecondaryScore] = useState(
     submission.score.secondaryValue !== null
       ? String(submission.score.secondaryValue)
@@ -361,23 +373,14 @@ function VerificationControls({
       : null
 
   const penaltyRoundParseResults: (ParseResult | null)[] = isMultiRound
-    ? penaltyRoundScores.map((s) =>
-        s.trim() ? parseScore(s, scheme) : null,
-      )
+    ? penaltyRoundScores.map((s) => (s.trim() ? parseScore(s, scheme) : null))
     : []
 
   // Auto-derive cap status from parsed time vs the time cap for single-round
   // workouts. Multi-round status is derived server-side per round.
   const penaltyStatus: "scored" | "cap" = (() => {
     if (isMultiRound) {
-      return penaltyRoundParseResults.some(
-        (r) =>
-          r?.isValid &&
-          r.encoded !== null &&
-          scheme === "time-with-cap" &&
-          timeCap &&
-          r.encoded >= timeCap * 1000,
-      )
+      return penaltyRoundCaps.some((round) => round.status === "cap")
         ? "cap"
         : "scored"
     }
@@ -461,6 +464,8 @@ function VerificationControls({
             adjustedRoundScores: penaltyRoundScores.map((score, i) => ({
               roundNumber: i + 1,
               score: score.trim(),
+              status: penaltyRoundCaps[i]?.status ?? "scored",
+              secondaryScore: penaltyRoundCaps[i]?.secondaryScore || null,
             })),
             adjustedScoreStatus: penaltyStatus,
             tieBreakScore: penaltyTiebreakScore.trim() || undefined,
@@ -732,10 +737,7 @@ function VerificationControls({
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="none" id="penalty-none" />
-                  <Label
-                    htmlFor="penalty-none"
-                    className="text-xs font-normal"
-                  >
+                  <Label htmlFor="penalty-none" className="text-xs font-normal">
                     None
                   </Label>
                 </div>
@@ -812,6 +814,25 @@ function VerificationControls({
                             )}
                           />
                         </div>
+                        {scheme === "time-with-cap" && timeCap != null && (
+                          <RoundCapFields
+                            roundNumber={i + 1}
+                            value={penaltyRoundCaps[i]}
+                            onChange={(cap) => {
+                              setPenaltyRoundCaps((prev) =>
+                                prev.map((value, index) =>
+                                  index === i ? cap : value,
+                                ),
+                              )
+                              if (cap.status === "cap")
+                                setPenaltyRoundScores((prev) =>
+                                  prev.map((score, index) =>
+                                    index === i ? String(timeCap) : score,
+                                  ),
+                                )
+                            }}
+                          />
+                        )}
                         {roundResult?.isValid && (
                           <p className="pl-10 text-[11px] text-green-600 dark:text-green-400">
                             Parsed as: {roundResult.formatted}
@@ -898,8 +919,8 @@ function VerificationControls({
             {tiebreakScheme && (
               <div className="space-y-2">
                 <Label htmlFor="penalty-tiebreak" className="text-xs">
-                  Tiebreak (
-                  {tiebreakScheme === "time" ? "Time" : "Reps/Weight"})
+                  Tiebreak ({tiebreakScheme === "time" ? "Time" : "Reps/Weight"}
+                  )
                 </Label>
                 <Input
                   id="penalty-tiebreak"
@@ -1299,9 +1320,7 @@ function AuditLogEntry({
         </p>
       )}
       {log.noRepCount !== null && log.penaltyPercentage === null && (
-        <p className="text-muted-foreground">
-          {log.noRepCount} no-reps
-        </p>
+        <p className="text-muted-foreground">{log.noRepCount} no-reps</p>
       )}
       {submissionReviewerNotes && (
         <p className="text-muted-foreground italic">

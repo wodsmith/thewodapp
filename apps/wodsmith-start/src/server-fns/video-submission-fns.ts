@@ -1,3 +1,4 @@
+import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 /**
  * Video Submission Server Functions for TanStack Start
  * Handles athlete video submissions for online competition events.
@@ -63,10 +64,7 @@ import {
   resetBenchmarkVideoReviewState,
   saveBenchmarkScoreInTransaction,
 } from "@/server/benchmark-submissions"
-import {
-  divisionScopeFromId,
-  recordCompetitionResult,
-} from "@/server/competition-results"
+import { divisionScopeFromId } from "@/server/competition-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { requireSubmissionReviewAccess } from "@/utils/team-auth"
@@ -825,6 +823,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         value: number
         displayScore: string | null
         status: string | null
+        secondaryValue: number | null
       }>
     } | null = null
 
@@ -846,6 +845,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         value: number
         displayScore: string | null
         status: string | null
+        secondaryValue: number | null
       }> = []
 
       if (workout && (workout.roundsToScore ?? 1) > 1) {
@@ -855,6 +855,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
             roundNumber: scoreRoundsTable.roundNumber,
             value: scoreRoundsTable.value,
             status: scoreRoundsTable.status,
+            secondaryValue: scoreRoundsTable.secondaryValue,
           })
           .from(scoreRoundsTable)
           .where(eq(scoreRoundsTable.scoreId, score.id))
@@ -869,6 +870,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
               })
             : null,
           status: r.status,
+          secondaryValue: r.secondaryValue,
         }))
       }
 
@@ -1248,7 +1250,12 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
 
       const roundsByScoreId = new Map<
         string,
-        Array<{ roundNumber: number; value: number; status: string | null }>
+        Array<{
+          roundNumber: number
+          value: number
+          status: string | null
+          secondaryValue: number | null
+        }>
       >()
       if (multiRoundScoreIds.length > 0) {
         const dbRounds = getDb()
@@ -1258,6 +1265,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
             roundNumber: scoreRoundsTable.roundNumber,
             value: scoreRoundsTable.value,
             status: scoreRoundsTable.status,
+            secondaryValue: scoreRoundsTable.secondaryValue,
           })
           .from(scoreRoundsTable)
           .where(inArray(scoreRoundsTable.scoreId, multiRoundScoreIds))
@@ -1269,6 +1277,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
             roundNumber: r.roundNumber,
             value: r.value,
             status: r.status,
+            secondaryValue: r.secondaryValue,
           })
           roundsByScoreId.set(r.scoreId, list)
         }
@@ -1369,6 +1378,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
             value: number
             displayScore: string | null
             status: string | null
+            secondaryValue: number | null
           }>
         } | null = null
 
@@ -1392,6 +1402,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
                   })
                 : null,
               status: r.status,
+              secondaryValue: r.secondaryValue,
             }),
           )
 
@@ -1774,67 +1785,66 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       throw new Error("A score is required when submitting")
     }
 
-    // Save or update video submission
-    let submissionId: string
+    return db.transaction(async (tx) => {
+      // Save or update video submission
+      let submissionId: string
 
-    if (existingSubmission) {
-      // Update existing submission
-      await db
-        .update(videoSubmissionsTable)
-        .set({
-          videoUrl: data.videoUrl,
+      if (existingSubmission) {
+        // Update existing submission
+        await tx
+          .update(videoSubmissionsTable)
+          .set({
+            videoUrl: data.videoUrl,
+            notes: data.notes ?? null,
+            submittedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(videoSubmissionsTable.id, existingSubmission.id))
+
+        submissionId = existingSubmission.id
+      } else {
+        // Create new submission
+        const id = createVideoSubmissionId()
+        await tx.insert(videoSubmissionsTable).values({
+          id,
+          registrationId: registration.id,
+          trackWorkoutId: data.trackWorkoutId,
+          videoIndex: data.videoIndex,
+          userId: session.userId,
+          videoUrl: submissionVideoUrl,
           notes: data.notes ?? null,
           submittedAt: now,
-          updatedAt: now,
         })
-        .where(eq(videoSubmissionsTable.id, existingSubmission.id))
 
-      submissionId = existingSubmission.id
-    } else {
-      // Create new submission
-      const id = createVideoSubmissionId()
-      await db.insert(videoSubmissionsTable).values({
-        id,
-        registrationId: registration.id,
-        trackWorkoutId: data.trackWorkoutId,
-        videoIndex: data.videoIndex,
-        userId: session.userId,
-        videoUrl: submissionVideoUrl,
-        notes: data.notes ?? null,
-        submittedAt: now,
-      })
+        submissionId = id
+      }
 
-      submissionId = id
-    }
-
-    // Save claimed score (score is validated as required above)
-    if (hasScore) {
-      await recordCompetitionResult({
-        db,
-        command: {
-          type: "record",
-          source: "video-submission",
-          actorUserId: session.userId,
-          athleteUserId: session.userId,
-          trackWorkoutId: data.trackWorkoutId,
-          divisionScope: divisionScopeFromId(registration.divisionId),
-          recordedAt: now,
-          claim: {
-            score: data.score,
-            status: data.scoreStatus ?? "scored",
-            secondaryScore: data.secondaryScore,
-            tiebreakScore: data.tiebreakScore,
-            roundScores: data.roundScores,
+      // Save claimed score (score is validated as required above)
+      if (hasScore) {
+        await recordCompetitionResultInTransaction({
+          db: tx,
+          command: {
+            athleteUserId: session.userId,
+            trackWorkoutId: data.trackWorkoutId,
+            divisionScope: divisionScopeFromId(registration.divisionId),
+            recordedAt: now,
+            claim: {
+              score: data.score,
+              status: data.scoreStatus ?? "scored",
+              secondaryScore: data.secondaryScore,
+              tiebreakScore: data.tiebreakScore,
+              roundScores: data.roundScores,
+            },
           },
-        },
-      })
-    }
+        })
+      }
 
-    return {
-      success: true,
-      submissionId,
-      isUpdate: !!existingSubmission,
-    }
+      return {
+        success: true,
+        submissionId,
+        isUpdate: !!existingSubmission,
+      }
+    })
   })
 
 /**
@@ -1909,6 +1919,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
       value: number
       displayScore: string | null
       status: string | null
+      secondaryValue: number | null
     }
 
     const scoresMap: Record<
@@ -1948,6 +1959,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
             roundNumber: scoreRoundsTable.roundNumber,
             value: scoreRoundsTable.value,
             status: scoreRoundsTable.status,
+            secondaryValue: scoreRoundsTable.secondaryValue,
           })
           .from(scoreRoundsTable)
           .where(inArray(scoreRoundsTable.scoreId, scoreIds))
@@ -1964,6 +1976,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
               ? decodeScore(r.value, scheme, { compact: false })
               : null,
             status: r.status,
+            secondaryValue: r.secondaryValue,
           })
           roundsByScoreId.set(r.scoreId, list)
         }
@@ -2374,6 +2387,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
       value: number
       displayScore: string | null
       status: string | null
+      secondaryValue: number | null
     }> = []
     if (score?.id && score?.scheme) {
       const rounds = await db
@@ -2381,6 +2395,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
           roundNumber: scoreRoundsTable.roundNumber,
           value: scoreRoundsTable.value,
           status: scoreRoundsTable.status,
+          secondaryValue: scoreRoundsTable.secondaryValue,
         })
         .from(scoreRoundsTable)
         .where(eq(scoreRoundsTable.scoreId, score.id))
@@ -2393,6 +2408,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
           compact: false,
         }),
         status: r.status,
+        secondaryValue: r.secondaryValue,
       }))
     }
 

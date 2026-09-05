@@ -3,6 +3,10 @@
 import { useServerFn } from "@tanstack/react-start"
 import { AlertCircle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  RoundCapFields,
+  type RoundCapValue,
+} from "@/components/compete/round-cap-fields"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -98,6 +102,7 @@ interface VideoSubmissionInitialData {
       value: number
       displayScore: string | null
       status?: string | null
+      secondaryValue?: number | null
     }>
   } | null
 }
@@ -345,6 +350,17 @@ export function VideoSubmissionForm({
       return existing?.displayScore ?? ""
     })
   })
+  const [roundCaps, setRoundCaps] = useState<RoundCapValue[]>(() =>
+    Array.from({ length: currentData?.workout?.roundsToScore ?? 1 }, (_, i) => {
+      const round = currentData?.existingScore?.roundScores?.find(
+        (r) => r.roundNumber === i + 1,
+      )
+      return {
+        status: round?.status === "cap" ? "cap" : "scored",
+        secondaryScore: round?.secondaryValue?.toString() ?? "",
+      }
+    }),
+  )
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const submitVideo = useServerFn(submitVideoFn)
   const fetchSubmission = useServerFn(getVideoSubmissionFn)
@@ -400,6 +416,15 @@ export function VideoSubmissionForm({
         if (newRoundsToScore > 1) {
           const existingRounds: ExistingRoundScore[] =
             result.existingScore?.roundScores ?? []
+          setRoundCaps(
+            Array.from({ length: newRoundsToScore }, (_, i) => {
+              const round = existingRounds.find((r) => r.roundNumber === i + 1)
+              return {
+                status: round?.status === "cap" ? "cap" : "scored",
+                secondaryScore: round?.secondaryValue?.toString() ?? "",
+              }
+            }),
+          )
           setRoundScoreInputs(
             Array.from({ length: newRoundsToScore }, (_, i) => {
               const existing = existingRounds.find(
@@ -410,6 +435,7 @@ export function VideoSubmissionForm({
           )
         } else {
           setRoundScoreInputs([])
+          setRoundCaps([])
         }
         setHasSubmitted(subs.length > 0)
         setIsEditing(subs.length === 0)
@@ -456,6 +482,15 @@ export function VideoSubmissionForm({
         const newRoundsToScore = initialData.workout?.roundsToScore ?? 1
         if (newRoundsToScore > 1) {
           const existingRounds = initialData.existingScore?.roundScores ?? []
+          setRoundCaps(
+            Array.from({ length: newRoundsToScore }, (_, i) => {
+              const round = existingRounds.find((r) => r.roundNumber === i + 1)
+              return {
+                status: round?.status === "cap" ? "cap" : "scored",
+                secondaryScore: round?.secondaryValue?.toString() ?? "",
+              }
+            }),
+          )
           setRoundScoreInputs(
             Array.from({ length: newRoundsToScore }, (_, i) => {
               const existing = existingRounds.find(
@@ -466,6 +501,7 @@ export function VideoSubmissionForm({
           )
         } else {
           setRoundScoreInputs([])
+          setRoundCaps([])
         }
         setHasSubmitted(subs.length > 0)
         setIsEditing(subs.length === 0)
@@ -833,23 +869,14 @@ export function VideoSubmissionForm({
 
       // Build round scores array for multi-round workouts
       const roundScoresPayload = isMultiRound
-        ? roundScoreInputs
-            .map((score, index) => ({
-              score,
-              parsed: roundParseResults[index],
-            }))
-            .filter(({ score }) => score.trim())
-            .map(({ score, parsed }) => ({
-              score: score.trim(),
-              status:
-                workout?.scheme === "time-with-cap" &&
-                workout.timeCap &&
-                parsed?.encoded !== null &&
-                parsed?.encoded !== undefined &&
-                parsed.encoded >= workout.timeCap * 1000
-                  ? ("cap" as const)
-                  : ("scored" as const),
-            }))
+        ? roundScoreInputs.map((score, index) => ({
+            score: score.trim(),
+            status: roundCaps[index]?.status ?? "scored",
+            secondaryScore:
+              roundCaps[index]?.status === "cap"
+                ? roundCaps[index].secondaryScore || null
+                : null,
+          }))
         : undefined
 
       const submissionSlots = shouldSubmitScoreOnly
@@ -949,19 +976,19 @@ export function VideoSubmissionForm({
           const scoreType =
             (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
           const roundInputs = roundScoresPayload.map((rs) => ({
-            raw: rs.score,
+            raw:
+              rs.status === "cap" && workout.timeCap != null
+                ? String(workout.timeCap)
+                : rs.score,
           }))
           const { rounds: encodedRounds, aggregated } = encodeRounds(
             roundInputs,
             scheme,
             scoreType,
           )
-          const capMs =
-            scheme === "time-with-cap" && workout.timeCap
-              ? workout.timeCap * 1000
-              : null
-          const anyRoundCapped =
-            capMs !== null && encodedRounds.some((v) => v >= capMs)
+          const anyRoundCapped = roundScoresPayload.some(
+            (round) => round.status === "cap",
+          )
           const optimisticStatus: "scored" | "cap" = anyRoundCapped
             ? "cap"
             : "scored"
@@ -974,7 +1001,14 @@ export function VideoSubmissionForm({
             scoreValue: aggregated,
             displayScore: optimisticDisplay,
             status: optimisticStatus,
-            secondaryValue: null,
+            secondaryValue: roundScoresPayload.some(
+              (round) => round.secondaryScore != null,
+            )
+              ? roundScoresPayload.reduce(
+                  (total, round) => total + Number(round.secondaryScore ?? 0),
+                  0,
+                )
+              : null,
             tiebreakValue: tiebreakScore
               ? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
               : null,
@@ -982,7 +1016,10 @@ export function VideoSubmissionForm({
               roundNumber: i + 1,
               value,
               displayScore: decodeScore(value, scheme, { compact: false }),
-              status: capMs !== null && value >= capMs ? "cap" : "scored",
+              status: roundScoresPayload[i]?.status ?? "scored",
+              secondaryValue: roundScoresPayload[i]?.secondaryScore
+                ? Number(roundScoresPayload[i].secondaryScore)
+                : null,
             })),
           })
         } else if (scoreInput.trim() && workout && parseResult) {
@@ -1108,8 +1145,48 @@ export function VideoSubmissionForm({
                               (hasAttemptedSubmit && !input.trim())) &&
                               "border-destructive",
                           )}
-                          disabled={isSubmitting}
+                          disabled={
+                            isSubmitting || roundCaps[i]?.status === "cap"
+                          }
                         />
+                        {workout.scheme === "time-with-cap" &&
+                          workout.timeCap != null && (
+                            <RoundCapFields
+                              roundNumber={i + 1}
+                              value={
+                                roundCaps[i] ?? {
+                                  status: "scored",
+                                  secondaryScore: "",
+                                }
+                              }
+                              disabled={isSubmitting}
+                              onChange={(value) => {
+                                setRoundCaps((prev) =>
+                                  Array.from(
+                                    { length: roundsToScore },
+                                    (_, index) =>
+                                      index === i
+                                        ? value
+                                        : (prev[index] ?? {
+                                            status: "scored",
+                                            secondaryScore: "",
+                                          }),
+                                  ),
+                                )
+                                if (value.status === "cap")
+                                  setRoundScoreInputs((prev) =>
+                                    prev.map((score, index) =>
+                                      index === i
+                                        ? decodeScore(
+                                            (workout.timeCap ?? 0) * 1000,
+                                            "time-with-cap",
+                                          )
+                                        : score,
+                                    ),
+                                  )
+                              }}
+                            />
+                          )}
                         {roundResult?.isValid && (
                           <p className="text-xs text-green-600 dark:text-green-400">
                             Parsed as: {roundResult.formatted}

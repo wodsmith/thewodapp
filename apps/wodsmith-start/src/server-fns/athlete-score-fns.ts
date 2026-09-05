@@ -622,9 +622,6 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
       const receipt = await recordCompetitionResult({
         db,
         command: {
-          type: "record",
-          source: "athlete-entry",
-          actorUserId: session.userId,
           athleteUserId: session.userId,
           trackWorkoutId: data.trackWorkoutId,
           divisionScope: divisionScopeFromId(registration.divisionId),

@@ -12,7 +12,7 @@ import {
 import {
   buildWorkoutResultScoring,
   resolveWorkoutResultScoreType,
-} from "@/server/workout-results/kernel"
+} from "@/lib/scoring/result"
 import { type CompetitionResultClaim, CompetitionResultError } from "./domain"
 
 export interface ProgrammedWorkoutDefinition {
@@ -58,13 +58,13 @@ function persistedStatus(
   }
 }
 
-function parseSecondaryScore(
+export function parseSecondaryScore(
   raw: string | null | undefined,
   context: string,
 ): number | null {
   if (raw == null || raw.trim() === "") return null
   const normalized = raw.trim()
-  if (!/^\d+$/.test(normalized)) {
+  if (!/^\d+$/.test(normalized) || !Number.isSafeInteger(Number(normalized))) {
     throw new CompetitionResultError(
       "invalid_cap",
       `${context} must be a non-negative whole number`,
@@ -101,6 +101,18 @@ export function decideCompetitionResult(
   let cappedRoundCount = 0
   const rounds: CompetitionResultRevision["rounds"] = []
 
+  if (
+    (workout.roundsToScore ?? 1) > 1 &&
+    !roundClaims &&
+    status !== "dq" &&
+    status !== "withdrawn"
+  ) {
+    throw new CompetitionResultError(
+      "incomplete_rounds",
+      `Expected ${workout.roundsToScore} round scores`,
+    )
+  }
+
   if (roundClaims) {
     if (workout.roundsToScore && roundClaims.length !== workout.roundsToScore) {
       throw new CompetitionResultError(
@@ -111,22 +123,16 @@ export function decideCompetitionResult(
 
     for (const [index, round] of roundClaims.entries()) {
       const raw = scoreText(round, scheme)
+      const roundStatus = round.status ?? "scored"
       const parsed = parseScore(raw, scheme)
-      if (!parsed.isValid) {
+      if (!parsed.isValid && !(roundStatus === "cap" && !raw.trim())) {
         throw new CompetitionResultError(
           "invalid_round_score",
           `Round ${index + 1}: ${parsed.error || "invalid score"}`,
         )
       }
 
-      const roundStatus = round.status ?? "scored"
       let value = encodeScore(raw, scheme)
-      if (value === null) {
-        throw new CompetitionResultError(
-          "invalid_round_score",
-          `Round ${index + 1}: invalid score`,
-        )
-      }
 
       const roundSecondaryValue = parseSecondaryScore(
         round.secondaryScore,
@@ -148,6 +154,13 @@ export function decideCompetitionResult(
         )
       }
 
+      if (value === null) {
+        throw new CompetitionResultError(
+          "invalid_round_score",
+          `Round ${index + 1}: invalid score`,
+        )
+      }
+
       rounds.push({
         roundNumber: index + 1,
         value,
@@ -160,6 +173,13 @@ export function decideCompetitionResult(
       rounds.map((round) => round.value),
       scoreType,
     )
+    const cappedRounds = rounds.filter((round) => round.status === "cap")
+    if (cappedRounds.some((round) => round.secondaryValue !== null)) {
+      secondaryValue = cappedRounds.reduce(
+        (total, round) => total + (round.secondaryValue ?? 0),
+        0,
+      )
+    }
     if (status !== "dq" && status !== "withdrawn") {
       status = cappedRoundCount > 0 ? "cap" : "scored"
     }
@@ -225,7 +245,7 @@ export function decideCompetitionResult(
     scoreType,
     cappedRoundCount,
     timeCap:
-      !roundClaims && status === "cap" && secondaryValue !== null
+      status === "cap" && secondaryValue !== null
         ? { ms: timeCapMs ?? 0, secondaryValue }
         : undefined,
     tiebreak:

@@ -1,15 +1,4 @@
 export {
-  insertManualSubmissionWorkoutResult,
-  type ManualSubmissionWorkoutResultInput,
-  type ManualSubmissionWorkoutResultTarget,
-  type NormalizedReviewedSubmissionWorkoutResult,
-  normalizeInvalidatedSubmissionWorkoutResult,
-  normalizeManualSubmissionWorkoutResult,
-  normalizeSubmissionScoreAdjustment,
-  type SubmissionScoreAdjustmentInput,
-  updateReviewedSubmissionWorkoutResult,
-} from "../workout-results/review"
-export {
   type CompetitionResultRevision,
   decideCompetitionResult,
   type ProgrammedWorkoutDefinition,
@@ -19,10 +8,22 @@ export {
   CompetitionResultError,
   type CompetitionResultReceipt,
   type CompetitionResultRoundClaim,
-  type CompetitionResultSource,
   type DivisionScope,
   divisionIdFromScope,
   divisionScopeFromId,
   type RecordCompetitionResultCommand,
 } from "./domain"
+export {
+  insertManualSubmissionWorkoutResult,
+  type ManualSubmissionWorkoutResultTarget,
+  updateReviewedSubmissionWorkoutResult,
+} from "./repository"
+export {
+  type ManualSubmissionWorkoutResultInput,
+  type NormalizedReviewedSubmissionWorkoutResult,
+  normalizeInvalidatedSubmissionWorkoutResult,
+  normalizeManualSubmissionWorkoutResult,
+  normalizeSubmissionScoreAdjustment,
+  type SubmissionScoreAdjustmentInput,
+} from "./review"
 export { recordCompetitionResult } from "./service"

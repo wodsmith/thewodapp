@@ -408,6 +408,8 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
               scoreId: scoreRoundsTable.scoreId,
               roundNumber: scoreRoundsTable.roundNumber,
               value: scoreRoundsTable.value,
+              status: scoreRoundsTable.status,
+              secondaryValue: scoreRoundsTable.secondaryValue,
             })
             .from(scoreRoundsTable)
             .where(inArray(scoreRoundsTable.scoreId, scoreIds))
@@ -416,11 +418,21 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
 
     const roundsByScoreId = new Map<
       string,
-      { roundIndex: number; scoreValue: number }[]
+      {
+        roundIndex: number
+        scoreValue: number
+        status: string | null
+        secondaryValue: number | null
+      }[]
     >()
     for (const r of scoreRoundsRows) {
       const list = roundsByScoreId.get(r.scoreId) ?? []
-      list.push({ roundIndex: r.roundNumber, scoreValue: r.value })
+      list.push({
+        roundIndex: r.roundNumber,
+        scoreValue: r.value,
+        status: r.status,
+        secondaryValue: r.secondaryValue,
+      })
       roundsByScoreId.set(r.scoreId, list)
     }
 
@@ -494,8 +506,7 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
           lastName: captainRaw.lastName,
           email: captainRaw.email,
           avatar: captainRaw.avatar,
-          isPlaceholder:
-            !captainRaw.passwordHash && !captainRaw.emailVerified,
+          isPlaceholder: !captainRaw.passwordHash && !captainRaw.emailVerified,
         }
       : null
 

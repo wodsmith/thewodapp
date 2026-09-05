@@ -87,6 +87,7 @@ export interface ExistingSetData {
   score: number | null
   reps: number | null
   status: string | null
+  secondaryValue?: number | null
 }
 
 /** Team member info for team competitions */
@@ -507,6 +508,7 @@ function buildScoreEntryAthletes({
     roundNumber: number
     value: number
     status: string | null
+    secondaryValue?: number | null
   }>
   membersByTeamId: Map<string, ScoreEntryTeamMember[]>
 }): EventScoreEntryAthlete[] {
@@ -544,6 +546,7 @@ function buildScoreEntryAthletes({
       score,
       reps,
       status: round.status,
+      secondaryValue: round.secondaryValue,
     })
     setsByScoreId.set(round.scoreId, existing)
   }
@@ -774,6 +777,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
               roundNumber: scoreRoundsTable.roundNumber,
               value: scoreRoundsTable.value,
               status: scoreRoundsTable.status,
+              secondaryValue: scoreRoundsTable.secondaryValue,
             })
             .from(scoreRoundsTable)
             .where(inArray(scoreRoundsTable.scoreId, scoreIds))
@@ -1030,6 +1034,7 @@ export const getEventScoreEntryDataWithHeatsBatchFn = createServerFn({
                   roundNumber: scoreRoundsTable.roundNumber,
                   value: scoreRoundsTable.value,
                   status: scoreRoundsTable.status,
+                  secondaryValue: scoreRoundsTable.secondaryValue,
                 })
                 .from(scoreRoundsTable)
                 .where(inArray(scoreRoundsTable.scoreId, scoreIds))
@@ -1204,8 +1209,6 @@ async function saveCompetitionScore(
   const receipt = await recordCompetitionResult({
     db,
     command: {
-      type: "record",
-      source: "organizer-entry",
       athleteUserId: data.userId,
       trackWorkoutId: data.trackWorkoutId,
       divisionScope: divisionScopeFromId(data.divisionId),

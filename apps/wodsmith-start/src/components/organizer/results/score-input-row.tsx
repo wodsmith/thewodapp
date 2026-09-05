@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Check, Loader2, Trash2 } from "lucide-react"
 import { forwardRef, useImperativeHandle, useState } from "react"
+import { RoundCapFields } from "@/components/compete/round-cap-fields"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -82,6 +83,7 @@ export const ScoreInputRow = forwardRef<
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const {
+    inputGroupRef,
     scoreInputRef,
     roundInputRefs,
     tieBreakInputRef,
@@ -106,6 +108,7 @@ export const ScoreInputRow = forwardRef<
     effectiveScoreType,
     handleInputChange,
     handleRoundScoreChange,
+    handleRoundCapChange,
     handleTieBreakChange,
     suppressNextBlurSubmit,
     handleBlur,
@@ -179,6 +182,7 @@ export const ScoreInputRow = forwardRef<
 
   return (
     <div
+      ref={inputGroupRef}
       className={cn(
         "grid items-center gap-3 border-b p-3 transition-colors",
         gridColsClass,
@@ -293,6 +297,8 @@ export const ScoreInputRow = forwardRef<
                       if (el) roundInputRefs.current.set(roundIndex, el)
                     }}
                     value={roundScore.score}
+                    aria-label={`Round ${roundScore.roundNumber} score`}
+                    disabled={isSaving || roundScore.timeCapped}
                     onChange={(e) =>
                       handleRoundScoreChange(roundIndex, e.target.value)
                     }
@@ -313,6 +319,19 @@ export const ScoreInputRow = forwardRef<
                         "border-destructive focus:ring-destructive",
                     )}
                   />
+                  {workoutScheme === "time-with-cap" && timeCap != null && (
+                    <RoundCapFields
+                      onBlur={() => handleBlur("round")}
+                      roundNumber={roundScore.roundNumber}
+                      value={{
+                        status: roundScore.timeCapped ? "cap" : "scored",
+                        secondaryScore: roundScore.secondaryScore ?? "",
+                      }}
+                      onChange={(value) =>
+                        handleRoundCapChange(roundIndex, value)
+                      }
+                    />
+                  )}
                   {/* Preview to the right of input */}
                   {roundResult?.isValid && (
                     <span className="text-xs text-muted-foreground w-20 shrink-0">

@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest"
 import { FakeDrizzleDb } from "@repo/test-utils"
+import { describe, expect, it, type vi } from "vitest"
 import type { Database } from "@/db"
 import {
-  CompetitionResultError,
+  type CompetitionResultError,
   decideCompetitionResult,
   recordCompetitionResult,
 } from "@/server/competition-results"
@@ -159,8 +159,6 @@ describe("competition-result persistence", () => {
     const receipt = await recordCompetitionResult({
       db: db as unknown as Database,
       command: {
-        type: "record",
-        source: "organizer-entry",
         athleteUserId: "athlete-1",
         trackWorkoutId: "event-1",
         divisionScope: { kind: "division", divisionId: "rx" },

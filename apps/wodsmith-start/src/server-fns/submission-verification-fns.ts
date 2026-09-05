@@ -466,13 +466,13 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
         )
       }
 
-      // Pull existing rounds so we can either thread the previously-derived
-      // cap count through the sort key (no per-round inputs supplied) or
-      // delete them before re-inserting fresh ones (per-round inputs
-      // supplied — see followups doc #3 / #4).
+      // Preserve numbered round facts for aggregate-only adjudication and
+      // default omitted cap fields when replacing the complete round set.
       const existingRounds = await db
         .select({
+          roundNumber: scoreRoundsTable.roundNumber,
           status: scoreRoundsTable.status,
+          secondaryValue: scoreRoundsTable.secondaryValue,
         })
         .from(scoreRoundsTable)
         .where(eq(scoreRoundsTable.scoreId, data.scoreId))
@@ -489,7 +489,7 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
           timeCapMs: score.timeCapMs,
           tiebreakScheme: score.tiebreakScheme,
         },
-        existingRoundStatuses: existingRounds.map((round) => round.status),
+        existingRounds,
       })
 
       if (adjustedResult.isMultiRound) {

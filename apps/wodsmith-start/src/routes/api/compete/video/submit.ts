@@ -1,3 +1,4 @@
+import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 /**
  * Video Submission API
  *
@@ -37,7 +38,6 @@ import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
 import {
   CompetitionResultError,
   divisionScopeFromId,
-  recordCompetitionResult,
 } from "@/server/competition-results"
 import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 
@@ -234,43 +234,40 @@ export const Route = createFileRoute("/api/compete/video/submit")({
             )
             .limit(1)
 
-          const now = new Date()
-          let submissionId: string
+          return await db.transaction(async (tx) => {
+            const now = new Date()
+            let submissionId: string
 
-          if (existingSubmission) {
-            await db
-              .update(videoSubmissionsTable)
-              .set({
+            if (existingSubmission) {
+              await tx
+                .update(videoSubmissionsTable)
+                .set({
+                  videoUrl: data.videoUrl,
+                  notes: data.notes ?? null,
+                  submittedAt: now,
+                  updatedAt: now,
+                })
+                .where(eq(videoSubmissionsTable.id, existingSubmission.id))
+              submissionId = existingSubmission.id
+            } else {
+              const id = createVideoSubmissionId()
+              await tx.insert(videoSubmissionsTable).values({
+                id,
+                registrationId: registration.id,
+                trackWorkoutId: data.trackWorkoutId,
+                userId,
                 videoUrl: data.videoUrl,
                 notes: data.notes ?? null,
                 submittedAt: now,
-                updatedAt: now,
               })
-              .where(eq(videoSubmissionsTable.id, existingSubmission.id))
-            submissionId = existingSubmission.id
-          } else {
-            const id = createVideoSubmissionId()
-            await db.insert(videoSubmissionsTable).values({
-              id,
-              registrationId: registration.id,
-              trackWorkoutId: data.trackWorkoutId,
-              userId,
-              videoUrl: data.videoUrl,
-              notes: data.notes ?? null,
-              submittedAt: now,
-            })
-            submissionId = id
-          }
+              submissionId = id
+            }
 
-          // Save claimed score if provided
-          if (data.score) {
-            try {
-              await recordCompetitionResult({
-                db,
+            // Save claimed score if provided
+            if (data.score) {
+              await recordCompetitionResultInTransaction({
+                db: tx,
                 command: {
-                  type: "record",
-                  source: "video-submission",
-                  actorUserId: userId,
                   athleteUserId: userId,
                   trackWorkoutId: data.trackWorkoutId,
                   divisionScope: divisionScopeFromId(registration.divisionId),
@@ -283,24 +280,28 @@ export const Route = createFileRoute("/api/compete/video/submit")({
                   },
                 },
               })
-            } catch (error) {
-              if (!(error instanceof CompetitionResultError)) throw error
-              return json(
-                { error: error.message },
-                {
-                  status:
-                    error.code === "programmed_workout_not_found" ? 404 : 422,
-                  headers,
-                },
-              )
             }
-          }
 
-          return json(
-            { success: true, submissionId, isUpdate: !!existingSubmission },
-            { headers },
-          )
+            return json(
+              { success: true, submissionId, isUpdate: !!existingSubmission },
+              { headers },
+            )
+          })
         } catch (err) {
+          if (err instanceof CompetitionResultError) {
+            return json(
+              { error: err.message },
+              {
+                status:
+                  err.code === "programmed_workout_not_found"
+                    ? 404
+                    : err.code === "persistence_failed"
+                      ? 500
+                      : 422,
+                headers,
+              },
+            )
+          }
           console.error("[API] /api/compete/video/submit error:", err)
           return json(
             { error: "Internal server error" },

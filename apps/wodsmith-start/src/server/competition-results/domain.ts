@@ -1,12 +1,5 @@
 import type { ScoreStatus } from "@/db/schemas/workouts"
 
-export type CompetitionResultSource =
-  | "athlete-entry"
-  | "judge-entry"
-  | "organizer-entry"
-  | "video-submission"
-  | "import"
-
 export type DivisionScope =
   | { kind: "open" }
   | { kind: "division"; divisionId: string }
@@ -29,9 +22,6 @@ export interface CompetitionResultClaim {
 }
 
 export interface RecordCompetitionResultCommand {
-  type: "record"
-  source: CompetitionResultSource
-  actorUserId?: string
   athleteUserId: string
   trackWorkoutId: string
   divisionScope: DivisionScope

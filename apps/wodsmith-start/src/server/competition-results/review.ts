@@ -1,34 +1,20 @@
-import { and, eq, isNull } from "drizzle-orm"
-import type { Database } from "@/db"
-import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import {
+  computeSortKey,
   computeSortKeyWithDirection,
+  encodeScore,
   type ScoreType,
+  STATUS_ORDER,
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { resolveWorkoutResultScoreType } from "@/lib/scoring/result"
 import {
   type CompetitionResultRevision,
   decideCompetitionResult,
-} from "../competition-results/decision"
-import { CompetitionResultError } from "../competition-results/domain"
-import { resolveWorkoutResultScoreType } from "./kernel"
-
-type DatabaseTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
-
-type ReviewedScoreContext = Partial<
-  Pick<
-    typeof scoresTable.$inferInsert,
-    | "verificationStatus"
-    | "verifiedAt"
-    | "verifiedByUserId"
-    | "penaltyType"
-    | "penaltyPercentage"
-    | "noRepCount"
-    | "updatedAt"
-  >
->
+  parseSecondaryScore,
+} from "./decision"
+import { CompetitionResultError } from "./domain"
 
 interface NumberedRoundInput {
   roundNumber: number
@@ -70,7 +56,11 @@ export interface SubmissionScoreAdjustmentInput {
   tiebreakScore?: string
   roundScores?: NumberedRoundInput[]
   workout: ReviewWorkoutResultDefinition
-  existingRoundStatuses: Array<string | null>
+  existingRounds: Array<{
+    roundNumber: number
+    status: string | null
+    secondaryValue: number | null
+  }>
 }
 
 export function normalizeSubmissionScoreAdjustment(
@@ -102,12 +92,82 @@ export function normalizeSubmissionScoreAdjustment(
 
   if (
     roundScores.length > 0 &&
-    input.existingRoundStatuses.length > 0 &&
-    roundScores.length !== input.existingRoundStatuses.length
+    input.existingRounds.length > 0 &&
+    roundScores.length !== input.existingRounds.length
   ) {
     throw new Error(
-      `Expected exactly ${input.existingRoundStatuses.length} adjusted round scores`,
+      `Expected exactly ${input.existingRounds.length} adjusted round scores`,
     )
+  }
+
+  // An adjudicated total is an override of an existing performance, not a
+  // newly recorded single round. Preserve its facts and cap-count ordering.
+  if (roundScores.length === 0 && input.existingRounds.length > 1) {
+    const scoreValue = encodeScore(input.score ?? "", scheme)
+    if (scoreValue === null)
+      throw new CompetitionResultError(
+        "invalid_score",
+        "A valid adjusted total is required",
+      )
+    const single = decideCompetitionResult(
+      {
+        score: input.score,
+        status: "scored",
+        tiebreakScore: input.tiebreakScore,
+      },
+      {
+        workoutId: "reviewed-score",
+        scheme,
+        scoreType,
+        roundsToScore: null,
+        timeCap: null,
+        tiebreakScheme: input.workout.tiebreakScheme,
+      },
+    )
+    const cappedRoundCount = input.existingRounds.filter(
+      (round) => round.status === "cap",
+    ).length
+    const previousSecondaryValues = input.existingRounds.filter(
+      (round) => round.status === "cap" && round.secondaryValue !== null,
+    )
+    const secondaryValue =
+      input.secondaryScore !== undefined
+        ? parseSecondaryScore(input.secondaryScore, "Secondary score")
+        : previousSecondaryValues.length
+          ? previousSecondaryValues.reduce(
+              (sum, round) => sum + (round.secondaryValue ?? 0),
+              0,
+            )
+          : null
+
+    return {
+      scoreValue,
+      status: input.status,
+      statusOrder: STATUS_ORDER[input.status],
+      sortKey: sortKeyToString(
+        computeSortKey({
+          value: scoreValue,
+          status: input.status,
+          scheme,
+          scoreType,
+          cappedRoundCount,
+          timeCap:
+            secondaryValue !== null
+              ? { ms: input.workout.timeCapMs ?? 0, secondaryValue }
+              : undefined,
+          tiebreak:
+            single.tiebreakValue !== null && single.tiebreakScheme
+              ? { scheme: single.tiebreakScheme, value: single.tiebreakValue }
+              : undefined,
+        }),
+      ),
+      secondaryValue,
+      tiebreakValue: single.tiebreakValue,
+      rounds: [],
+      replaceRounds: false,
+      isMultiRound: true,
+      cappedRoundCount,
+    }
   }
 
   const revision = decideCompetitionResult(
@@ -116,12 +176,25 @@ export function normalizeSubmissionScoreAdjustment(
       status: input.status,
       secondaryScore: input.secondaryScore,
       tiebreakScore: input.tiebreakScore,
-      roundScores: roundScores.map((round, index) => ({
+      roundScores: roundScores.map((round) => ({
         score: round.score,
         status:
           round.status ??
-          (input.existingRoundStatuses[index] === "cap" ? "cap" : "scored"),
-        secondaryScore: round.secondaryScore,
+          (input.existingRounds.find(
+            (existing) => existing.roundNumber === round.roundNumber,
+          )?.status === "cap"
+            ? "cap"
+            : "scored"),
+        secondaryScore:
+          round.secondaryScore !== undefined
+            ? round.secondaryScore
+            : round.status === "scored"
+              ? null
+              : input.existingRounds
+                  .find(
+                    (existing) => existing.roundNumber === round.roundNumber,
+                  )
+                  ?.secondaryValue?.toString(),
       })),
     },
     {
@@ -129,8 +202,7 @@ export function normalizeSubmissionScoreAdjustment(
       scheme,
       scoreType,
       roundsToScore:
-        input.workout.roundsToScore ??
-        (input.existingRoundStatuses.length || null),
+        input.workout.roundsToScore ?? (input.existingRounds.length || null),
       timeCap: input.workout.timeCapMs ? input.workout.timeCapMs / 1000 : null,
       tiebreakScheme: input.workout.tiebreakScheme,
     },
@@ -168,46 +240,6 @@ export function normalizeInvalidatedSubmissionWorkoutResult(): NormalizedReviewe
     replaceRounds: true,
     isMultiRound: false,
     cappedRoundCount: 0,
-  }
-}
-
-// @lat: [[domain#Domain Model#Scoring#Competition-result commands]]
-export async function updateReviewedSubmissionWorkoutResult(input: {
-  db: DatabaseTransaction
-  scoreId: string
-  result: NormalizedReviewedSubmissionWorkoutResult
-  context: ReviewedScoreContext
-}): Promise<void> {
-  const { db, scoreId, result, context } = input
-
-  await db
-    .update(scoresTable)
-    .set({
-      scoreValue: result.scoreValue,
-      status: result.status,
-      statusOrder: result.statusOrder,
-      sortKey: result.sortKey,
-      secondaryValue: result.secondaryValue,
-      tiebreakValue: result.tiebreakValue,
-      ...context,
-    })
-    .where(eq(scoresTable.id, scoreId))
-
-  if (result.replaceRounds) {
-    await db
-      .delete(scoreRoundsTable)
-      .where(eq(scoreRoundsTable.scoreId, scoreId))
-    if (result.rounds.length > 0) {
-      await db.insert(scoreRoundsTable).values(
-        result.rounds.map((round) => ({
-          scoreId,
-          roundNumber: round.roundNumber,
-          value: round.value,
-          status: round.status,
-          secondaryValue: round.secondaryValue,
-        })),
-      )
-    }
   }
 }
 
@@ -315,72 +347,4 @@ export function normalizeManualSubmissionWorkoutResult(
     isMultiRound,
     cappedRoundCount,
   }
-}
-
-export interface ManualSubmissionWorkoutResultTarget {
-  userId: string
-  teamId: string
-  workoutId: string
-  trackWorkoutId: string
-  divisionId: string | null
-}
-
-export async function insertManualSubmissionWorkoutResult(input: {
-  db: DatabaseTransaction
-  target: ManualSubmissionWorkoutResultTarget
-  result: ReturnType<typeof normalizeManualSubmissionWorkoutResult>
-  recordedAt: Date
-  context: ReviewedScoreContext
-}): Promise<string> {
-  const { db, target, result, recordedAt, context } = input
-
-  await db.insert(scoresTable).values({
-    userId: target.userId,
-    teamId: target.teamId,
-    workoutId: target.workoutId,
-    competitionEventId: target.trackWorkoutId,
-    scheme: result.scheme,
-    scoreType: result.scoreType,
-    scoreValue: result.scoreValue,
-    status: result.status,
-    statusOrder: result.statusOrder,
-    sortKey: result.sortKey,
-    tiebreakScheme: result.tiebreakScheme,
-    tiebreakValue: result.tiebreakValue,
-    timeCapMs: result.timeCapMs,
-    secondaryValue: result.secondaryValue,
-    scalingLevelId: target.divisionId,
-    asRx: true,
-    recordedAt,
-    ...context,
-  })
-
-  const conditions = [
-    eq(scoresTable.competitionEventId, target.trackWorkoutId),
-    eq(scoresTable.userId, target.userId),
-    target.divisionId
-      ? eq(scoresTable.scalingLevelId, target.divisionId)
-      : isNull(scoresTable.scalingLevelId),
-  ]
-  const [inserted] = await db
-    .select({ id: scoresTable.id })
-    .from(scoresTable)
-    .where(and(...conditions))
-    .limit(1)
-
-  if (!inserted) throw new Error("Failed to fetch inserted score")
-
-  if (result.rounds.length > 0) {
-    await db.insert(scoreRoundsTable).values(
-      result.rounds.map((round) => ({
-        scoreId: inserted.id,
-        roundNumber: round.roundNumber,
-        value: round.value,
-        status: round.status,
-        secondaryValue: round.secondaryValue,
-      })),
-    )
-  }
-
-  return inserted.id
 }

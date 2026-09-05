@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-04-12
 decision-makers: [Zac Jones]
 consulted: []
@@ -7,6 +7,10 @@ informed: []
 ---
 
 # ADR-0010: Multi-Round Time Cap Scoring and Per-Round Leaderboard Display
+
+## Implementation status
+
+PR #660 implements explicit multi-round cap status and completed reps through the competition-results decision and transaction boundary. Capped rounds store the configured cap; completed reps contribute to ranking. Parent-only review adjustments preserve the existing round facts. The context and plan below describe the original problem and proposed rollout, rather than the current module layout.
 
 ## Context and Problem Statement
 

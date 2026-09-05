@@ -173,9 +173,6 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
             receipt = await recordCompetitionResult({
               db,
               command: {
-                type: "record",
-                source: "judge-entry",
-                actorUserId: session.userId,
                 athleteUserId: data.userId,
                 trackWorkoutId: data.trackWorkoutId,
                 divisionScope: divisionScopeFromId(data.divisionId),

@@ -5,7 +5,7 @@ lat:
 
 # Competition Result Commands
 
-These tests protect the canonical competition-result decision and persistence invariants shared by every competition writer.
+These tests protect the canonical competition-result decision and persistence invariants shared by the migrated competition writers.
 
 ## Explicit per-round CAP state above threshold
 
@@ -26,3 +26,19 @@ Replacing a competition result always deletes the prior round set inside the sco
 ## Authoritative programmed workout
 
 The command service derives workout identity, scoring definition, and owner team from the programmed event rather than trusting caller metadata.
+
+## Capped round ranking
+
+Capped performances retain per-round reps and rank higher reps ahead when cap count and time tie; every completed performance still ranks ahead of a capped one.
+
+## Adjudicated totals preserve performance facts
+
+A parent-only review override preserves the existing round facts, aggregate time, and capped-round count instead of becoming a single capped round.
+
+## MySQL rollback and division isolation
+
+Real MySQL tests verify score and round rollback after a later workflow failure, exact open-versus-named division identity, and total replacement without touching sibling divisions.
+
+## Organizer cap editing
+
+Organizer score entry reloads cap status and completed reps, saves changes after leaving the row, and distinguishes a finish exactly at the cap from an unfinished round.

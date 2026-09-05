@@ -14,7 +14,7 @@ import {
   normalizeWorkoutResultRounds,
   resolveWorkoutResultScoreType,
   type WorkoutResultRoundInput,
-} from "./kernel"
+} from "@/lib/scoring/result"
 import { writeWorkoutResultRounds } from "./rounds"
 
 interface PersonalWorkoutResultWorkout {

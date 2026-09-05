@@ -12,11 +12,24 @@ import {
   divisionIdFromScope,
   type RecordCompetitionResultCommand,
 } from "./domain"
-import { persistCompetitionResult } from "./repository"
+import {
+  persistCompetitionResultInTransaction,
+  type ResultTransaction,
+} from "./repository"
 
 /** Executes the record command against authoritative programmed-workout data. */
 export async function recordCompetitionResult(input: {
   db: Database
+  command: RecordCompetitionResultCommand
+}): Promise<CompetitionResultReceipt> {
+  return input.db.transaction((tx) =>
+    recordCompetitionResultInTransaction({ db: tx, command: input.command }),
+  )
+}
+
+/** Used by submission workflows to commit the result with video and audit state. */
+export async function recordCompetitionResultInTransaction(input: {
+  db: ResultTransaction
   command: RecordCompetitionResultCommand
 }): Promise<CompetitionResultReceipt> {
   const { db, command } = input
@@ -67,7 +80,7 @@ export async function recordCompetitionResult(input: {
     )
   }
 
-  return persistCompetitionResult({
+  return persistCompetitionResultInTransaction({
     db,
     target: {
       athleteUserId: command.athleteUserId,

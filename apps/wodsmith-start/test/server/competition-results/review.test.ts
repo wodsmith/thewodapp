@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest"
-import {
-  computeSortKeyWithDirection,
-  sortKeyToString,
-} from "@/lib/scoring"
+import { computeSortKeyWithDirection, sortKeyToString } from "@/lib/scoring"
 import {
   normalizeInvalidatedSubmissionWorkoutResult,
   normalizeManualSubmissionWorkoutResult,
   normalizeSubmissionScoreAdjustment,
-} from "@/server/workout-results/review"
+} from "@/server/competition-results/review"
 
 describe("reviewed workout result normalization", () => {
   // @lat: [[workout-result-adapters#Workout-result Adapter Characterization#Review invalidation ordering]]
@@ -15,9 +12,7 @@ describe("reviewed workout result normalization", () => {
     const result = normalizeInvalidatedSubmissionWorkoutResult()
 
     expect(result.sortKey).toBe(
-      sortKeyToString(
-        computeSortKeyWithDirection(null, "scored", "asc"),
-      ),
+      sortKeyToString(computeSortKeyWithDirection(null, "scored", "asc")),
     )
   })
 
@@ -36,7 +31,11 @@ describe("reviewed workout result normalization", () => {
           timeCapMs: null,
           tiebreakScheme: null,
         },
-        existingRoundStatuses: ["scored", "scored", "scored"],
+        existingRounds: ["scored", "scored", "scored"].map((status, index) => ({
+          roundNumber: index + 1,
+          status,
+          secondaryValue: null,
+        })),
       }),
     ).toThrow("Expected exactly 3 adjusted round scores")
   })
@@ -55,7 +54,11 @@ describe("reviewed workout result normalization", () => {
           timeCapMs: null,
           tiebreakScheme: null,
         },
-        existingRoundStatuses: ["scored", "scored"],
+        existingRounds: ["scored", "scored"].map((status, index) => ({
+          roundNumber: index + 1,
+          status,
+          secondaryValue: null,
+        })),
       }),
     ).toThrow(
       "adjustedRoundScores must contain contiguous roundNumber values starting at 1",
@@ -76,7 +79,11 @@ describe("reviewed workout result normalization", () => {
         timeCapMs: null,
         tiebreakScheme: null,
       },
-      existingRoundStatuses: ["scored", "scored", "scored"],
+      existingRounds: ["scored", "scored", "scored"].map((status, index) => ({
+        roundNumber: index + 1,
+        status,
+        secondaryValue: null,
+      })),
     })
 
     expect(result).toMatchObject({

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import type { Database } from "@/db"
 import { scoreRoundsTable } from "@/db/schemas/scores"
-import type { NormalizedWorkoutResultRound } from "./kernel"
+import type { NormalizedWorkoutResultRound } from "@/lib/scoring/result"
 
 type DatabaseTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
 
