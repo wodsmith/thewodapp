@@ -1,16 +1,32 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
-import type { ComponentProps, ReactNode } from "react"
+import type { ComponentProps, ComponentType, ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { Route as EventRoute } from "@/routes/compete/$slug/workouts/$eventId"
 import {
   getAthleteDivisionSubmissionsFn,
   getVideoSubmissionFn,
   submitVideoFn,
 } from "@/server-fns/video-submission-fns"
 
+const routeFixture = vi.hoisted(() => ({ data: {} as Record<string, unknown> }))
+
+vi.mock("@/server-fns/competition-event-page-fns", () => ({ getPublicEventPageDataFn: vi.fn() }))
+vi.mock("@/server-fns/competition-heats-fns", () => ({ getPublicEventHeatsFn: vi.fn() }))
+vi.mock("@/components/competition-tabs", () => ({ CompetitionTabs: () => null }))
+vi.mock("@/components/event-heat-schedule", () => ({ EventHeatSchedule: () => null }))
+
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }))
 vi.mock("@tanstack/react-router", () => ({
+  createFileRoute: (fullPath: string) => (options: unknown) => ({
+    options, fullPath,
+    useLoaderData: () => routeFixture.data,
+    useParams: () => ({ slug: "test", eventId: (routeFixture.data.event as { id: string }).id }),
+    useSearch: () => ({}),
+  }),
+  useNavigate: () => vi.fn(),
+  notFound: vi.fn(),
   Link: ({ children }: { children: ReactNode }) => (
     <a href="/workout">{children}</a>
   ),
@@ -520,6 +536,56 @@ describe("athlete submission drafts", () => {
     await changeDivision("b")
     await changeDivision("a")
     expect(screen.getByLabelText(/Your Time/)).toHaveValue("2:02")
+  })
+
+  // @lat: [[domain#Domain Model#Video Submissions#Submission Drafts#Page-owned child drafts]]
+  it("restores keyed child forms and standalone events from the page-owned draft map", () => {
+    const event = (id: string) => ({
+      id, workoutId: id, trackOrder: 1, parentEventId: null,
+      workout: { ...initialData().workout!, name: id },
+    })
+    const childA = event("child-a")
+    const childB = event("child-b")
+    const parent = event("parent")
+    const submission = initialData({ videoRequired: false })
+    routeFixture.data = {
+      competition: { id: "competition", competitionType: "online", timezone: "UTC" },
+      event: parent, resources: [], judgingSheets: [], heatTimes: null,
+      allTopLevelEvents: [parent], divisionDescriptions: [], divisions: [],
+      athleteRegisteredDivisions: divisions.slice(0, 1),
+      athleteRegisteredDivisionId: "a", initialSubmissionDivisionId: "a",
+      venue: null, videoSubmission: null,
+      childVideoSubmissions: { "child-a": submission, "child-b": submission },
+      deferredEventHeats: Promise.resolve([]), childEvents: [childA],
+      childDivisionDescriptions: {}, parentEvent: null,
+      isEventMappedToAthleteDivision: true,
+      eventDivisionMappings: { hasMappings: false, mappings: [] },
+    }
+    const Page = EventRoute.options.component as ComponentType
+    const { rerender } = render(<Page />)
+    typeField(/Your Time/, "1:01")
+    routeFixture.data = { ...routeFixture.data, childEvents: [childB] }
+    rerender(<Page />)
+    expect(screen.getByLabelText(/Your Time/)).toHaveValue("")
+    typeField(/Your Time/, "2:02")
+    routeFixture.data = { ...routeFixture.data, childEvents: [childA] }
+    rerender(<Page />)
+    expect(screen.getByLabelText(/Your Time/)).toHaveValue("1:01")
+
+    routeFixture.data = {
+      ...routeFixture.data, event: event("standalone"), childEvents: [], videoSubmission: submission,
+    }
+    rerender(<Page />)
+    expect(screen.getByLabelText(/Your Time/)).toHaveValue("")
+    typeField(/Your Time/, "3:03")
+    routeFixture.data = { ...routeFixture.data, event: parent, childEvents: [childB], videoSubmission: null }
+    rerender(<Page />)
+    expect(screen.getByLabelText(/Your Time/)).toHaveValue("2:02")
+    routeFixture.data = {
+      ...routeFixture.data, event: event("standalone"), childEvents: [], videoSubmission: submission,
+    }
+    rerender(<Page />)
+    expect(screen.getByLabelText(/Your Time/)).toHaveValue("3:03")
   })
 
   // @lat: [[domain#Domain Model#Video Submissions#Submission Drafts#Event and registration isolation]]

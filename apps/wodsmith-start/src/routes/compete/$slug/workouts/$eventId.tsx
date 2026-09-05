@@ -18,8 +18,12 @@ import {
   Timer,
   Trophy,
 } from "lucide-react"
+import { useState } from "react"
 import { z } from "zod"
-import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import {
+  VideoSubmissionForm,
+  type VideoSubmissionDraft,
+} from "@/components/compete/video-submission-form"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { Badge } from "@/components/ui/badge"
@@ -354,6 +358,9 @@ function formatEventDateFromHeatTime(
 }
 
 function EventDetailsPage() {
+  const [submissionDrafts] = useState(
+    () => new Map<string, VideoSubmissionDraft>(),
+  )
   const {
     competition,
     event,
@@ -673,6 +680,7 @@ function EventDetailsPage() {
                       ) &&
                         childSubmission && (
                           <VideoSubmissionForm
+                            draftStore={submissionDrafts}
                             trackWorkoutId={child.id}
                             competitionId={competition.id}
                             timezone={competition.timezone}
@@ -702,6 +710,7 @@ function EventDetailsPage() {
               childEvents.length === 0 &&
               isEventMappedToAthleteDivision && (
                 <VideoSubmissionForm
+                  draftStore={submissionDrafts}
                   trackWorkoutId={event.id}
                   competitionId={competition.id}
                   timezone={competition.timezone}
