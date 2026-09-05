@@ -166,6 +166,40 @@ Registered athletes can transfer their registration to another person.
 
 Transfer functions in `src/server-fns/purchase-transfer-fns.ts` and `purchase-transfer-accept-fns.ts` handle creating, accepting, and cancelling transfers. Cancel accepts either `MANAGE_COMPETITIONS` on the organizing team or cohost `editRegistrations` on the competition team.
 
+Acceptance locks the transfer row with `SELECT ... FOR UPDATE` before reading its pending state and expiry. [[apps/wodsmith-start/src/server-fns/purchase-transfer-accept-fns.ts#acceptPurchaseTransferFn]] runs validation, registration/membership/heat/answer/waiver/score changes, and the completed transition in one transaction. [[apps/wodsmith-start/src/server/commerce/transfer-handlers.ts#handleCompetitionRegistrationTransfer]] requires that transaction instead of opening a separate connection. The purchase remains owned by the original payer.
+
+Cancellation's conditional pending-to-cancelled update takes the same row lock. A concurrent accept or cancellation waits, then rechecks state; handler failures roll back all changes and leave the transfer retryable. Any future external notifications must run after commit.
+
+### Atomic acceptance rollback
+
+A late database failure during waiver insertion must roll back all prior handler writes and the transfer state, then permit a successful retry.
+
+### Individual and team acceptance
+
+Individual and team transfers reassign registration and membership, replace answers, clear heat assignments and old scores, preserve teammates, and retain the original purchase payer.
+
+### Concurrent acceptance and cancellation
+
+Cancellation racing a locked acceptance cannot commit after acceptance succeeds, and other connections see the original registration until commit.
+
+### Cancelled transfer has no side effects
+
+Acceptance of a cancelled transfer fails without changing registration, membership, answers, waivers, heats, or purchase state.
+
+### Cancellation lock ordering
+
+Acceptance waiting behind a cancellation lock must read the newly committed cancelled state and leave every registration-related table unchanged.
+
+### Concurrent acceptance commits once
+
+Simultaneous accepts serialize on the transfer row so only one succeeds and only one replacement membership is created.
+
+### MySQL integration verification
+
+Database integration tests exercise actual handlers against isolated MySQL tables, including rollback and contention, independently of mocked unit tests.
+
+Run `pnpm --filter wodsmith-start test:db-integration` with `WODSMITH_TEST_MYSQL_SOCKET` for a local Unix socket, or `WODSMITH_TEST_MYSQL_HOST=127.0.0.1` plus optional `WODSMITH_TEST_MYSQL_PORT`, `WODSMITH_TEST_MYSQL_USER`, and `WODSMITH_TEST_MYSQL_PASSWORD`. The command fails if no test connection is configured; ordinary unit runs skip these opt-in suites. The dedicated `start-db-integration.yml` workflow runs them with a MySQL 8 service and Node 24. Each suite creates and drops only its own random test database; connection configuration rejects non-loopback hosts and never falls back to application credentials. The transfer fixture uses production column types and InnoDB locking with nullable unrelated fields, rather than a complete production migration.
+
 ## Entitlements
 
 Subscription-based feature gating for organizing teams (e.g., competition creation limits).

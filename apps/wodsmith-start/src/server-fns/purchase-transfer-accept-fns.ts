@@ -292,102 +292,129 @@ export const acceptPurchaseTransferFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("transferId", data.transferId)
 
-    getEvlog()?.set({ action: "accept_purchase_transfer", transferId: data.transferId })
+    getEvlog()?.set({
+      action: "accept_purchase_transfer",
+      transferId: data.transferId,
+    })
 
     const db = getDb()
 
-    // 2. Load transfer — must be INITIATED and not expired
-    const transfer = await db.query.purchaseTransfersTable.findFirst({
-      where: eq(purchaseTransfersTable.id, data.transferId),
-      with: {
-        purchase: {
-          with: {
-            product: true,
+    const { transfer, competitionSlug } = await db.transaction(async (tx) => {
+      // Lock the transition before reading state or mutating the registration.
+      // The existing conditional cancellation UPDATE acquires this same row lock.
+      await tx
+        .select({ id: purchaseTransfersTable.id })
+        .from(purchaseTransfersTable)
+        .where(eq(purchaseTransfersTable.id, data.transferId))
+        .for("update")
+
+      // Read the full transfer only after taking its row lock. Cancellation and
+      // concurrent accepts must wait for all registration writes to commit or roll back.
+      const transfer = await tx.query.purchaseTransfersTable.findFirst({
+        where: eq(purchaseTransfersTable.id, data.transferId),
+        with: {
+          purchase: {
+            with: {
+              product: true,
+            },
           },
         },
-      },
-    })
+      })
 
-    if (!transfer) {
-      throw new Error("Transfer not found")
-    }
+      if (!transfer) {
+        throw new Error("Transfer not found")
+      }
 
-    if (transfer.transferState !== PURCHASE_TRANSFER_STATUS.INITIATED) {
-      if (transfer.transferState === PURCHASE_TRANSFER_STATUS.COMPLETED) {
-        throw new Error("This transfer has already been accepted")
+      if (transfer.transferState !== PURCHASE_TRANSFER_STATUS.INITIATED) {
+        if (transfer.transferState === PURCHASE_TRANSFER_STATUS.COMPLETED) {
+          throw new Error("This transfer has already been accepted")
+        }
+        if (transfer.transferState === PURCHASE_TRANSFER_STATUS.CANCELLED) {
+          throw new Error("This transfer was cancelled by the organizer")
+        }
+        if (transfer.transferState === PURCHASE_TRANSFER_STATUS.EXPIRED) {
+          throw new Error("This transfer has expired")
+        }
+        throw new Error("This transfer is no longer available")
       }
-      if (transfer.transferState === PURCHASE_TRANSFER_STATUS.CANCELLED) {
-        throw new Error("This transfer was cancelled by the organizer")
-      }
-      if (transfer.transferState === PURCHASE_TRANSFER_STATUS.EXPIRED) {
+
+      if (new Date(transfer.expiresAt) < new Date()) {
         throw new Error("This transfer has expired")
       }
-      throw new Error("This transfer is no longer available")
-    }
 
-    if (new Date(transfer.expiresAt) < new Date()) {
-      throw new Error("This transfer has expired")
-    }
+      // 3. Set target user from session
+      const targetUserId = session.userId
+      const acceptedEmail = session.user.email
 
-    // 3. Set target user from session
-    const targetUserId = session.userId
-    const acceptedEmail = session.user.email
+      addRequestContextAttribute("targetUserId", targetUserId)
+      addRequestContextAttribute("sourceUserId", transfer.sourceUserId)
 
-    addRequestContextAttribute("targetUserId", targetUserId)
-    addRequestContextAttribute("sourceUserId", transfer.sourceUserId)
+      // 4. Execute product-type handler (handles registration, memberships,
+      //    heat assignments, answers, waivers, scores, and team swaps)
+      if (transfer.purchase.product.type === "COMPETITION_REGISTRATION") {
+        const competitionId = transfer.purchase.competitionId
+        if (!competitionId) {
+          throw new Error(
+            "Competition ID missing from purchase for COMPETITION_REGISTRATION transfer",
+          )
+        }
 
-    // 4. Execute product-type handler (handles registration, memberships,
-    //    heat assignments, answers, waivers, scores, and team swaps)
-    if (transfer.purchase.product.type === "COMPETITION_REGISTRATION") {
-      const competitionId = transfer.purchase.competitionId
-      if (!competitionId) {
+        await handleCompetitionRegistrationTransfer(tx, {
+          purchaseId: transfer.purchaseId,
+          sourceUserId: transfer.sourceUserId,
+          targetUserId,
+          competitionId,
+          answers: data.answers,
+          waiverSignatures: data.waiverSignatures,
+        })
+      } else {
         throw new Error(
-          "Competition ID missing from purchase for COMPETITION_REGISTRATION transfer",
+          `Unsupported product type for transfer: ${transfer.purchase.product.type}`,
         )
       }
 
-      await handleCompetitionRegistrationTransfer({
-        purchaseId: transfer.purchaseId,
-        sourceUserId: transfer.sourceUserId,
-        targetUserId,
-        competitionId,
-        answers: data.answers,
-        waiverSignatures: data.waiverSignatures,
-      })
-    } else {
-      throw new Error(
-        `Unsupported product type for transfer: ${transfer.purchase.product.type}`,
-      )
-    }
+      // 5. Purchase stays with original payer (invoice belongs to them).
+      //    The transfer record tracks the reassignment.
 
-    // 5. Purchase stays with original payer (invoice belongs to them).
-    //    The transfer record tracks the reassignment.
-
-    // 6. Complete the transfer (include state check to prevent race with concurrent cancel)
-    const updateResult = await db
-      .update(purchaseTransfersTable)
-      .set({
-        transferState: PURCHASE_TRANSFER_STATUS.COMPLETED,
-        targetUserId,
-        acceptedEmail,
-        completedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(purchaseTransfersTable.id, data.transferId),
-          eq(
-            purchaseTransfersTable.transferState,
-            PURCHASE_TRANSFER_STATUS.INITIATED,
+      // 6. Complete the transfer (include state check to prevent race with concurrent cancel)
+      const updateResult = await tx
+        .update(purchaseTransfersTable)
+        .set({
+          transferState: PURCHASE_TRANSFER_STATUS.COMPLETED,
+          targetUserId,
+          acceptedEmail,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(purchaseTransfersTable.id, data.transferId),
+            eq(
+              purchaseTransfersTable.transferState,
+              PURCHASE_TRANSFER_STATUS.INITIATED,
+            ),
           ),
-        ),
-      )
+        )
 
-    if ((updateResult[0]?.affectedRows ?? 0) === 0) {
-      throw new Error(
-        "Transfer state changed before accept could complete — it may have been cancelled",
-      )
-    }
+      if ((updateResult[0]?.affectedRows ?? 0) === 0) {
+        throw new Error(
+          "Transfer state changed before accept could complete — it may have been cancelled",
+        )
+      }
+
+      // Load competition slug for redirect
+      let competitionSlug: string | null = null
+      if (transfer.purchase.competitionId) {
+        const competition = await tx.query.competitionsTable.findFirst({
+          where: eq(competitionsTable.id, transfer.purchase.competitionId),
+          columns: { slug: true },
+        })
+        competitionSlug = competition?.slug ?? null
+      }
+
+      return { transfer, competitionSlug }
+    })
+    const targetUserId = session.userId
 
     logInfo({
       message: "[PurchaseTransfer] Transfer accepted successfully",
@@ -399,16 +426,6 @@ export const acceptPurchaseTransferFn = createServerFn({ method: "POST" })
         productType: transfer.purchase.product.type,
       },
     })
-
-    // Load competition slug for redirect
-    let competitionSlug: string | null = null
-    if (transfer.purchase.competitionId) {
-      const competition = await db.query.competitionsTable.findFirst({
-        where: eq(competitionsTable.id, transfer.purchase.competitionId),
-        columns: { slug: true },
-      })
-      competitionSlug = competition?.slug ?? null
-    }
 
     return { success: true, competitionSlug }
   })
