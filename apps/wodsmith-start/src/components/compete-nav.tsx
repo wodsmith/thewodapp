@@ -6,10 +6,7 @@ import CompeteMobileNav from "@/components/compete-mobile-nav"
 import { CompeteNavBrand } from "@/components/compete-nav-brand"
 import { DarkModeToggle } from "@/components/nav/dark-mode-toggle"
 import LogoutButton from "@/components/nav/logout-button"
-import { useFeatureFlagEnabled } from "@/lib/posthog"
 import type { SessionValidationResult } from "@/types"
-
-const BENCHMARK_COMP_TYPE_FLAG = "benchmark-comp-type"
 
 interface CompeteNavProps {
   session: SessionValidationResult
@@ -23,7 +20,6 @@ export default function CompeteNav({
   // For now, we don't have these other features implemented in wodsmith-start
   const pendingInvitations: never[] = []
   const missingProfileFields = null
-  const showBenchmarksLink = useFeatureFlagEnabled(BENCHMARK_COMP_TYPE_FLAG)
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -58,15 +54,13 @@ export default function CompeteNav({
               >
                 Competitions
               </Link>
-              {showBenchmarksLink ? (
-                <Link
-                  to="/benchmarks"
-                  aria-current={isBenchmarksIndex ? "page" : undefined}
-                  className={benchmarksLinkClass}
-                >
-                  Benchmarks
-                </Link>
-              ) : null}
+              <Link
+                to="/benchmarks"
+                aria-current={isBenchmarksIndex ? "page" : undefined}
+                className={benchmarksLinkClass}
+              >
+                Benchmarks
+              </Link>
               {showManageCompetitionsLink && (
                 <>
                   <div className="h-6 border-black border-l-2 dark:border-dark-border" />
@@ -111,15 +105,13 @@ export default function CompeteNav({
               >
                 Competitions
               </Link>
-              {showBenchmarksLink ? (
-                <Link
-                  to="/benchmarks"
-                  aria-current={isBenchmarksIndex ? "page" : undefined}
-                  className={benchmarksLinkClass}
-                >
-                  Benchmarks
-                </Link>
-              ) : null}
+              <Link
+                to="/benchmarks"
+                aria-current={isBenchmarksIndex ? "page" : undefined}
+                className={benchmarksLinkClass}
+              >
+                Benchmarks
+              </Link>
               <Link
                 to="/sign-in"
                 search={{ redirect: "/" }}
@@ -140,7 +132,6 @@ export default function CompeteNav({
             invitations={pendingInvitations}
             hasOrganizerApplication={hasOrganizerApplication}
             missingProfileFields={missingProfileFields}
-            showBenchmarksLink={showBenchmarksLink}
           />
         </div>
       </div>
