@@ -413,6 +413,34 @@ describe.skipIf(!mysqlTestConfig)("submission integrity on MySQL", () => {
     expect(await rows(scoreVerificationLogsTable)).toEqual(logs)
   })
 
+  // @lat: [[submission-integrity#Submission Integrity#Invalid score stays excluded without a replacement score]]
+  it("keeps a zeroed invalid score excluded after replacing only a partner video, until a valid score replaces it", async () => {
+    await seedSubmission({ divisionId: "partner", suffix: "partner" })
+    await insert(videoSubmissionsTable, {
+      id: "partner-slot", registrationId: "registration-partner", trackWorkoutId: "event-workout", videoIndex: 1,
+      userId: "athlete", videoUrl: "https://www.youtube.com/watch?v=partner-old", reviewStatus: "verified",
+    })
+    await verifySubmissionScoreFn({ data: {
+      competitionId: "competition", trackWorkoutId: "event-workout", scoreId: "score-partner", action: "invalid", noRepCount: 7,
+    } })
+    const invalidScore = await rows(scoresTable)
+    const logs = await rows(scoreVerificationLogsTable)
+    expect(invalidScore).toMatchObject([{ score_value: 0, verification_status: "invalid" }])
+
+    await submitVideoFn({ data: { ...replacement, divisionId: "partner", videoIndex: 1, roundScores: undefined } })
+    expect(await rows(scoresTable)).toEqual(invalidScore)
+    expect((await rows(videoSubmissionsTable)).find((row) => row.id === "partner-slot")).toMatchObject(pendingVideoReview)
+    const [eligibleScores] = await pool.promise().query<RowDataPacket[]>(
+      "SELECT id FROM scores WHERE verification_status IS NULL OR verification_status != 'invalid'",
+    )
+    expect(eligibleScores).toEqual([])
+    expect(await rows(scoreVerificationLogsTable)).toEqual(logs)
+
+    await submitVideoFn({ data: { ...replacement, divisionId: "partner" } })
+    expect(await rows(scoresTable)).toMatchObject([{ ...pendingScoreReview, score_value: 845000, status: "cap" }])
+    expect(await rows(scoreVerificationLogsTable)).toEqual(logs)
+  })
+
   // @lat: [[submission-integrity#Submission Integrity#Review stays in the score division]]
   it.each([
     ["verify", "partner"],

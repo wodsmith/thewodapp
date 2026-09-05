@@ -14,6 +14,7 @@ import {
   isNotNull,
   isNull,
   ne,
+  or,
 } from "drizzle-orm"
 import { z } from "zod"
 import { type Database, getDb } from "@/db"
@@ -2022,8 +2023,20 @@ export const submitVideoFn = createServerFn({ method: "POST" })
           )
         }
       } else {
-        // Partner slots share the captain's score, even without a score payload.
-        await tx.update(scoresTable).set(pendingScoreReview).where(scoreScope)
+        // Invalid reviews zero the stored score. New evidence alone cannot
+        // make that zero a valid result; only a replacement score can reopen it.
+        await tx
+          .update(scoresTable)
+          .set(pendingScoreReview)
+          .where(
+            and(
+              scoreScope,
+              or(
+                isNull(scoresTable.verificationStatus),
+                ne(scoresTable.verificationStatus, "invalid"),
+              ),
+            ),
+          )
       }
 
       return id
