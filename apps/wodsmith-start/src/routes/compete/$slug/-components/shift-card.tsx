@@ -5,9 +5,11 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import type { VolunteerRoleType } from "@/db/schemas/volunteers"
 import type { VolunteerShiftData } from "@/server-fns/volunteer-schedule-fns"
+import { formatScheduleTimeRange } from "@/lib/volunteer-schedule-time"
 import { cn } from "@/utils/cn"
 
 interface ShiftCardProps {
+  timezone: string
   shift: VolunteerShiftData
 }
 
@@ -66,32 +68,12 @@ function getRoleBadgeClasses(role: VolunteerRoleType): string {
  * Format a date/time range for display
  * Example output: "Sat 8:00 AM - 12:00 PM"
  */
-function formatShiftTimeRange(startTime: Date, endTime: Date): string {
-  const dayFormatter = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-  })
-
-  const timeFormatter = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  })
-
-  const dayStr = dayFormatter.format(startTime)
-  const startTimeStr = timeFormatter.format(startTime)
-  const endTimeStr = timeFormatter.format(endTime)
-
-  // Check if start and end are on the same day
-  const startDay = startTime.toDateString()
-  const endDay = endTime.toDateString()
-
-  if (startDay === endDay) {
-    return `${dayStr} ${startTimeStr} - ${endTimeStr}`
-  }
-
-  // Different days - show both day abbreviations
-  const endDayStr = dayFormatter.format(endTime)
-  return `${dayStr} ${startTimeStr} - ${endDayStr} ${endTimeStr}`
+function formatShiftTimeRange(
+  startTime: Date,
+  endTime: Date,
+  timezone: string,
+): string {
+  return formatScheduleTimeRange(startTime, endTime, timezone, true)
 }
 
 /**
@@ -105,9 +87,13 @@ function isShiftUpcoming(startTime: Date): boolean {
  * Displays a single volunteer shift assignment with time, role, location, and notes
  * Used in the my-schedule page for non-judge volunteer assignments
  */
-export function ShiftCard({ shift }: ShiftCardProps) {
+export function ShiftCard({ shift, timezone }: ShiftCardProps) {
   const isUpcoming = isShiftUpcoming(shift.startTime)
-  const timeRangeStr = formatShiftTimeRange(shift.startTime, shift.endTime)
+  const timeRangeStr = formatShiftTimeRange(
+    shift.startTime,
+    shift.endTime,
+    timezone,
+  )
 
   return (
     <Card

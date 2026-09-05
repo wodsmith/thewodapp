@@ -5,9 +5,15 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { LANE_SHIFT_PATTERN } from "@/db/schema"
 import type { EnrichedRotation } from "@/server-fns/volunteer-schedule-fns"
+import {
+  formatScheduleDay,
+  formatScheduleTime,
+  getScheduleDayKey,
+} from "@/lib/volunteer-schedule-time"
 import { cn } from "@/utils/cn"
 
 interface RotationCardProps {
+  timezone: string
   rotation: EnrichedRotation
   /** Callback when a division badge is clicked - opens workout details for that division */
   onDivisionClick?: (divisionId: string) => void
@@ -18,13 +24,8 @@ interface RotationCardProps {
 /**
  * Format a scheduled time for display
  */
-function formatTime(date: Date | null): string | null {
-  if (!date) return null
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(date)
+function formatTime(date: Date | null, timezone: string): string | null {
+  return date ? formatScheduleTime(date, timezone) : null
 }
 
 /**
@@ -48,10 +49,26 @@ function getLaneForHeat(
  */
 export function RotationCard({
   rotation,
+  timezone,
   onDivisionClick,
   selectedDivisionId,
 }: RotationCardProps) {
   const { rotation: rot, heats, isUpcoming } = rotation
+
+  const dayGroups = new Map<string, { label: string; heats: typeof heats }>()
+  for (const heat of heats) {
+    const key = heat.scheduledTime
+      ? getScheduleDayKey(heat.scheduledTime, timezone)
+      : "unscheduled"
+    const group = dayGroups.get(key) ?? {
+      label: heat.scheduledTime
+        ? formatScheduleDay(heat.scheduledTime, timezone)
+        : "Unscheduled",
+      heats: [],
+    }
+    group.heats.push(heat)
+    dayGroups.set(key, group)
+  }
 
   const isShifting = rot.laneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT
 
@@ -80,62 +97,71 @@ export function RotationCard({
 
         {/* Heat rows - each heat gets its own row */}
         <div className="space-y-1.5">
-          {heats.map((heat) => {
-            const lane = getLaneForHeat(
-              rot.startingLane,
-              rot.startingHeat,
-              heat.heatNumber,
-              rot.laneShiftPattern,
-            )
-            const time = formatTime(heat.scheduledTime)
-            const isSelected = heat.divisionId === selectedDivisionId
+          {Array.from(dayGroups, ([day, group]) => (
+            <div key={day} className="space-y-1.5">
+              <h4 className="text-xs font-semibold text-muted-foreground">
+                {group.label}
+              </h4>
+              {group.heats.map((heat) => {
+                const lane = getLaneForHeat(
+                  rot.startingLane,
+                  rot.startingHeat,
+                  heat.heatNumber,
+                  rot.laneShiftPattern,
+                )
+                const time = formatTime(heat.scheduledTime, timezone)
+                const isSelected = heat.divisionId === selectedDivisionId
 
-            return (
-              <div
-                key={heat.heatNumber}
-                className={cn(
-                  "flex items-center gap-3 py-1.5 px-2 rounded-md text-sm",
-                  "bg-muted/30 hover:bg-muted/50 transition-colors",
-                  isSelected && "bg-primary/10 ring-1 ring-primary/30",
-                )}
-              >
-                {/* Time */}
-                <div className="flex items-center gap-1.5 min-w-[90px] text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span className="font-medium">{time || "TBD"}</span>
-                </div>
-
-                {/* Heat number */}
-                <span className="font-semibold min-w-[60px]">
-                  Heat {heat.heatNumber}
-                </span>
-
-                {/* Lane (show if shifting) */}
-                {isShifting && (
-                  <span className="text-muted-foreground min-w-[55px]">
-                    Lane {lane}
-                  </span>
-                )}
-
-                {/* Division - clickable */}
-                {heat.divisionId && heat.divisionName ? (
-                  <button
-                    type="button"
+                return (
+                  <div
+                    key={heat.heatNumber}
                     className={cn(
-                      "text-left flex-1 hover:text-primary transition-colors",
-                      isSelected && "text-primary font-medium",
-                      onDivisionClick && "cursor-pointer",
+                      "flex items-center gap-3 py-1.5 px-2 rounded-md text-sm",
+                      "bg-muted/30 hover:bg-muted/50 transition-colors",
+                      isSelected && "bg-primary/10 ring-1 ring-primary/30",
                     )}
-                    onClick={() => onDivisionClick?.(heat.divisionId as string)}
                   >
-                    {heat.divisionName}
-                  </button>
-                ) : (
-                  <span className="text-muted-foreground flex-1">TBD</span>
-                )}
-              </div>
-            )
-          })}
+                    {/* Time */}
+                    <div className="flex items-center gap-1.5 min-w-[90px] text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span className="font-medium">{time || "TBD"}</span>
+                    </div>
+
+                    {/* Heat number */}
+                    <span className="font-semibold min-w-[60px]">
+                      Heat {heat.heatNumber}
+                    </span>
+
+                    {/* Lane (show if shifting) */}
+                    {isShifting && (
+                      <span className="text-muted-foreground min-w-[55px]">
+                        Lane {lane}
+                      </span>
+                    )}
+
+                    {/* Division - clickable */}
+                    {heat.divisionId && heat.divisionName ? (
+                      <button
+                        type="button"
+                        className={cn(
+                          "text-left flex-1 hover:text-primary transition-colors",
+                          isSelected && "text-primary font-medium",
+                          onDivisionClick && "cursor-pointer",
+                        )}
+                        onClick={() =>
+                          onDivisionClick?.(heat.divisionId as string)
+                        }
+                      >
+                        {heat.divisionName}
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground flex-1">TBD</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
         </div>
 
         {/* Rotation-specific notes */}
