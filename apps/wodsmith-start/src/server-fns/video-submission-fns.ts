@@ -14,6 +14,7 @@ import {
   isNotNull,
   isNull,
   ne,
+  or,
 } from "drizzle-orm"
 import { z } from "zod"
 import { type Database, getDb } from "@/db"
@@ -1762,40 +1763,12 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       throw new Error("A score is required when submitting")
     }
 
-    // Save or update video submission
-    let submissionId: string
+    // Finish all score validation and encoding before starting any writes.
+    let scoreData: typeof scoresTable.$inferInsert | undefined
+    let encodedRounds: number[] = []
+    const roundStatuses: Array<"scored" | "cap"> = []
 
-    if (existingSubmission) {
-      // Update existing submission
-      await db
-        .update(videoSubmissionsTable)
-        .set({
-          videoUrl: data.videoUrl,
-          notes: data.notes ?? null,
-          submittedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(videoSubmissionsTable.id, existingSubmission.id))
-
-      submissionId = existingSubmission.id
-    } else {
-      // Create new submission
-      const id = createVideoSubmissionId()
-      await db.insert(videoSubmissionsTable).values({
-        id,
-        registrationId: registration.id,
-        trackWorkoutId: data.trackWorkoutId,
-        videoIndex: data.videoIndex,
-        userId: session.userId,
-        videoUrl: submissionVideoUrl,
-        notes: data.notes ?? null,
-        submittedAt: now,
-      })
-
-      submissionId = id
-    }
-
-    // Save claimed score (score is validated as required above)
+    // Prepare the claimed score, including every round and tiebreak.
     if (hasScore) {
       // Get workout details for encoding
       const workout = await getWorkoutDetails(data.trackWorkoutId)
@@ -1810,7 +1783,6 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
       // Encode the score — multi-round or single
       let encodedValue: number | null = null
-      let encodedRounds: number[] = []
 
       if (hasRoundScores && data.roundScores) {
         // Multi-round: validate and encode each round, then aggregate
@@ -1847,7 +1819,6 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       //   encoded value already bakes in the penalty, so the sum is meaningful.
       let status: "scored" | "cap" = "scored"
       let secondaryValue: number | null = null
-      const roundStatuses: Array<"scored" | "cap"> = []
       let cappedRoundCount = 0
 
       if (
@@ -1939,80 +1910,137 @@ export const submitVideoFn = createServerFn({ method: "POST" })
         throw new Error("Could not determine team ownership")
       }
 
-      // Upsert the score
-      await db
-        .insert(scoresTable)
-        .values({
-          userId: session.userId,
-          teamId: track.ownerTeamId,
-          workoutId: workout.workoutId,
-          competitionEventId: data.trackWorkoutId,
-          scheme,
-          scoreType,
-          scoreValue: encodedValue,
-          status,
-          statusOrder: getStatusOrder(status),
-          sortKey: sortKey ? sortKeyToString(sortKey) : null,
-          tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
-          tiebreakValue,
-          timeCapMs,
-          secondaryValue,
-          scalingLevelId: registration.divisionId,
-          asRx: true,
-          recordedAt: now,
-        })
-        .onDuplicateKeyUpdate({
-          set: {
-            scoreValue: encodedValue,
-            status,
-            statusOrder: getStatusOrder(status),
-            sortKey: sortKey ? sortKeyToString(sortKey) : null,
-            tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
-            tiebreakValue,
-            timeCapMs,
-            secondaryValue,
-            scalingLevelId: registration.divisionId,
-            updatedAt: now,
-          },
-        })
-
-      // Save round scores if multi-round
-      if (encodedRounds.length > 0) {
-        // Look up the score ID for the upserted score
-        const [upsertedScore] = await db
-          .select({ id: scoresTable.id })
-          .from(scoresTable)
-          .where(
-            and(
-              eq(scoresTable.competitionEventId, data.trackWorkoutId),
-              eq(scoresTable.userId, session.userId),
-              registration.divisionId
-                ? eq(scoresTable.scalingLevelId, registration.divisionId)
-                : isNull(scoresTable.scalingLevelId),
-            ),
-          )
-          .limit(1)
-
-        if (upsertedScore) {
-          // Delete existing rounds
-          await db
-            .delete(scoreRoundsTable)
-            .where(eq(scoreRoundsTable.scoreId, upsertedScore.id))
-
-          // Insert new rounds. Persist per-round cap status from the
-          // per-round derivation above so the leaderboard can later rank
-          // by number of capped rounds.
-          const roundsToInsert = encodedRounds.map((value, index) => ({
-            scoreId: upsertedScore.id,
-            roundNumber: index + 1,
-            value,
-            status: roundStatuses[index] ?? null,
-          }))
-
-          await db.insert(scoreRoundsTable).values(roundsToInsert)
-        }
+      scoreData = {
+        userId: session.userId,
+        teamId: track.ownerTeamId,
+        workoutId: workout.workoutId,
+        competitionEventId: data.trackWorkoutId,
+        scheme,
+        scoreType,
+        scoreValue: encodedValue,
+        status,
+        statusOrder: getStatusOrder(status),
+        sortKey: sortKey ? sortKeyToString(sortKey) : null,
+        tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
+        tiebreakValue,
+        timeCapMs,
+        secondaryValue,
+        scalingLevelId: registration.divisionId,
+        asRx: true,
+        recordedAt: now,
       }
     }
+
+    const submissionId = await db.transaction(async (tx) => {
+      const pendingScoreReview = {
+        verificationStatus: null,
+        verifiedAt: null,
+        verifiedByUserId: null,
+        penaltyType: null,
+        penaltyPercentage: null,
+        noRepCount: null,
+        updatedAt: now,
+      }
+
+      // A replacement is new athlete evidence; historical review logs remain.
+      const id = existingSubmission?.id ?? createVideoSubmissionId()
+      if (existingSubmission) {
+        await tx
+          .update(videoSubmissionsTable)
+          .set({
+            videoUrl: submissionVideoUrl,
+            notes: data.notes ?? null,
+            submittedAt: now,
+            reviewStatus: "pending",
+            statusUpdatedAt: now,
+            reviewedAt: null,
+            reviewedBy: null,
+            reviewerNotes: null,
+            updatedAt: now,
+          })
+          .where(eq(videoSubmissionsTable.id, id))
+      } else {
+        await tx.insert(videoSubmissionsTable).values({
+          id,
+          registrationId: registration.id,
+          trackWorkoutId: data.trackWorkoutId,
+          videoIndex: data.videoIndex,
+          userId: session.userId,
+          videoUrl: submissionVideoUrl,
+          notes: data.notes ?? null,
+          submittedAt: now,
+        })
+      }
+
+      const scoreScope = and(
+        eq(scoresTable.competitionEventId, data.trackWorkoutId),
+        eq(scoresTable.userId, session.userId),
+        registration.divisionId
+          ? eq(scoresTable.scalingLevelId, registration.divisionId)
+          : isNull(scoresTable.scalingLevelId),
+      )
+
+      if (scoreData) {
+        await tx
+          .insert(scoresTable)
+          .values(scoreData)
+          .onDuplicateKeyUpdate({
+            set: {
+              scoreValue: scoreData.scoreValue,
+              status: scoreData.status,
+              statusOrder: scoreData.statusOrder,
+              sortKey: scoreData.sortKey,
+              tiebreakScheme: scoreData.tiebreakScheme,
+              tiebreakValue: scoreData.tiebreakValue,
+              timeCapMs: scoreData.timeCapMs,
+              secondaryValue: scoreData.secondaryValue,
+              scalingLevelId: registration.divisionId,
+              ...pendingScoreReview,
+            },
+          })
+
+        if (encodedRounds.length > 0) {
+          const [upsertedScore] = await tx
+            .select({ id: scoresTable.id })
+            .from(scoresTable)
+            .where(scoreScope)
+            .limit(1)
+
+          if (!upsertedScore) {
+            throw new Error("Could not find the saved score")
+          }
+
+          await tx
+            .delete(scoreRoundsTable)
+            .where(eq(scoreRoundsTable.scoreId, upsertedScore.id))
+          await tx.insert(scoreRoundsTable).values(
+            encodedRounds.map((value, index) => ({
+              scoreId: upsertedScore.id,
+              roundNumber: index + 1,
+              value,
+              status: roundStatuses[index] ?? null,
+            })),
+          )
+        }
+      } else {
+        // Invalid reviews zero the stored score. New evidence alone cannot
+        // make that zero a valid result; only a replacement score can reopen it.
+        await tx
+          .update(scoresTable)
+          .set(pendingScoreReview)
+          .where(
+            and(
+              scoreScope,
+              or(
+                isNull(scoresTable.verificationStatus),
+                ne(scoresTable.verificationStatus, "invalid"),
+              ),
+            ),
+          )
+      }
+
+      return id
+    })
 
     return {
       success: true,
