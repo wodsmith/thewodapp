@@ -17,6 +17,7 @@ import {
   competitionHeatsTable,
   competitionJudgeRotationsTable,
   competitionRegistrationsTable,
+  competitionsTable,
   scalingLevelsTable,
   teamMembershipTable,
   trackWorkoutsTable,
@@ -25,6 +26,7 @@ import {
   workoutScalingDescriptionsTable,
   workouts,
 } from "@/db/schema"
+import { formatScheduleTimeRange } from "@/lib/volunteer-schedule-time"
 import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
 import type {
   LaneShiftPattern,
@@ -258,6 +260,11 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }): Promise<VolunteerScheduleData> => {
     const db = getDb()
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: { timezone: true },
+    })
+    const timezone = competition?.timezone ?? "America/Denver"
 
     // Get competition divisions for scaling level descriptions
     const divisions = await db
@@ -630,13 +637,7 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
                 (lastHeat.durationMinutes || 0) * 60 * 1000,
             )
 
-            const formatter = new Intl.DateTimeFormat("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-              hour12: true,
-            })
-
-            timeWindow = `${formatter.format(startTime)} - ${formatter.format(endTime)}`
+            timeWindow = formatScheduleTimeRange(startTime, endTime, timezone)
             estimatedDuration = Math.round(
               (endTime.getTime() - startTime.getTime()) / (60 * 1000),
             )
