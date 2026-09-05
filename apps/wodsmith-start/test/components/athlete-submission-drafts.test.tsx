@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ComponentProps, ComponentType, ReactNode } from "react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { Route as OverviewRoute } from "@/routes/compete/$slug/index"
 import { Route as EventRoute } from "@/routes/compete/$slug/workouts/$eventId"
 import {
   getAthleteDivisionSubmissionsFn,
@@ -11,20 +12,54 @@ import {
 } from "@/server-fns/video-submission-fns"
 
 const routeFixture = vi.hoisted(() => ({ data: {} as Record<string, unknown> }))
+const overviewFixture = vi.hoisted(() => ({
+  data: {} as Record<string, unknown>,
+  parent: {} as Record<string, unknown>,
+}))
+vi.mock("@/server-fns/competition-workouts-page-fns", () => ({
+  getPublicWorkoutsPageDataFn: vi.fn(),
+}))
+vi.mock("@/components/competition-location-card", () => ({
+  CompetitionLocationCard: () => null,
+}))
+vi.mock("@/components/event-details-content", () => ({
+  EventDetailsContent: () => null,
+}))
+vi.mock("@/components/registration-sidebar", () => ({
+  RegistrationSidebar: () => null,
+}))
+vi.mock("@/utils/use-deferred-schedule", () => ({
+  useDeferredSchedule: () => new Map(),
+}))
 
-vi.mock("@/server-fns/competition-event-page-fns", () => ({ getPublicEventPageDataFn: vi.fn() }))
-vi.mock("@/server-fns/competition-heats-fns", () => ({ getPublicEventHeatsFn: vi.fn() }))
-vi.mock("@/components/competition-tabs", () => ({ CompetitionTabs: () => null }))
-vi.mock("@/components/event-heat-schedule", () => ({ EventHeatSchedule: () => null }))
+vi.mock("@/server-fns/competition-event-page-fns", () => ({
+  getPublicEventPageDataFn: vi.fn(),
+}))
+vi.mock("@/server-fns/competition-heats-fns", () => ({
+  getPublicEventHeatsFn: vi.fn(),
+  getPublicScheduleDataFn: vi.fn(),
+}))
+vi.mock("@/components/competition-tabs", () => ({
+  CompetitionTabs: () => null,
+}))
+vi.mock("@/components/event-heat-schedule", () => ({
+  EventHeatSchedule: () => null,
+}))
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }))
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: (fullPath: string) => (options: unknown) => ({
-    options, fullPath,
-    useLoaderData: () => routeFixture.data,
-    useParams: () => ({ slug: "test", eventId: (routeFixture.data.event as { id: string }).id }),
+    options,
+    fullPath,
+    useLoaderData: () =>
+      fullPath === "/compete/$slug/" ? overviewFixture.data : routeFixture.data,
+    useParams: () => ({
+      slug: "test",
+      eventId: (routeFixture.data.event as { id: string } | undefined)?.id,
+    }),
     useSearch: () => ({}),
   }),
+  getRouteApi: () => ({ useLoaderData: () => overviewFixture.parent }),
   useNavigate: () => vi.fn(),
   notFound: vi.fn(),
   Link: ({ children }: { children: ReactNode }) => (
@@ -120,6 +155,8 @@ vi.mock("@/components/compete/video-submission-preview", () => ({
     </div>
   ),
 }))
+
+afterEach(() => vi.unstubAllGlobals())
 
 const mockFetch = vi.mocked(getVideoSubmissionFn)
 const mockSubmit = vi.mocked(submitVideoFn)
@@ -457,7 +494,11 @@ describe("athlete submission drafts", () => {
   it("restores explicit round caps and reps independently and submits the restored values", async () => {
     const multi = initialData({
       videoRequired: false,
-      workout: { ...initialData().workout!, roundsToScore: 2, scoreType: "sum" },
+      workout: {
+        ...initialData().workout!,
+        roundsToScore: 2,
+        scoreType: "sum",
+      },
     })
     mockFetch.mockResolvedValue(
       multi as Awaited<ReturnType<typeof getVideoSubmissionFn>>,
@@ -500,13 +541,29 @@ describe("athlete submission drafts", () => {
   // @lat: [[domain#Domain Model#Video Submissions#Submission Drafts#Persisted round cap initialization]]
   it("initializes round caps and reps from persisted results before the first edit", () => {
     const multi = initialData({
-      workout: { ...initialData().workout!, roundsToScore: 2, scoreType: "sum" },
+      workout: {
+        ...initialData().workout!,
+        roundsToScore: 2,
+        scoreType: "sum",
+      },
       existingScore: {
         ...persistedScore("14:01")!,
         status: "cap",
         roundScores: [
-          { roundNumber: 1, value: 241000, displayScore: "4:01", status: "scored", secondaryValue: null },
-          { roundNumber: 2, value: 600000, displayScore: "10:00", status: "cap", secondaryValue: 123 },
+          {
+            roundNumber: 1,
+            value: 241000,
+            displayScore: "4:01",
+            status: "scored",
+            secondaryValue: null,
+          },
+          {
+            roundNumber: 2,
+            value: 600000,
+            displayScore: "10:00",
+            status: "cap",
+            secondaryValue: 123,
+          },
         ],
       },
     })
@@ -530,7 +587,12 @@ describe("athlete submission drafts", () => {
     await changeDivision("a")
     typeField(/Your Time/, "2:02")
     await act(async () => {
-      pending.resolve({ success: true, submissionId: "saved", isUpdate: false, retainedCurrentBest: false })
+      pending.resolve({
+        success: true,
+        submissionId: "saved",
+        isUpdate: false,
+        retainedCurrentBest: false,
+      })
     })
     expect(screen.getByLabelText(/Your Time/)).toHaveValue("2:02")
     await changeDivision("b")
@@ -538,10 +600,194 @@ describe("athlete submission drafts", () => {
     expect(screen.getByLabelText(/Your Time/)).toHaveValue("2:02")
   })
 
+  // @lat: [[domain#Domain Model#Video Submissions#Submission Drafts#Responsive overview drafts]]
+  it("retains drafts when the actual overview moves its panel across the desktop breakpoint", async () => {
+    const listeners = new Set<() => void>()
+    const media = {
+      matches: false,
+      addEventListener: (_type: string, listener: () => void) =>
+        listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) =>
+        listeners.delete(listener),
+    }
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => media),
+    )
+    overviewFixture.parent = {
+      competition: {
+        id: "competition",
+        slug: "test",
+        competitionType: "online",
+        timezone: "UTC",
+      },
+      userRegistration: { id: "registration-a" },
+      session: { userId: "athlete" },
+      userDivisions: [
+        {
+          registration: { id: "registration-a", divisionId: "a" },
+          division: { id: "a", label: "Division A" },
+        },
+      ],
+      userDivision: { id: "a", label: "Division A" },
+      divisions: [],
+      registrationStatus: { registrationOpen: true },
+    }
+    overviewFixture.data = {
+      workouts: [
+        {
+          id: "event-1",
+          workoutId: "workout",
+          trackOrder: 1,
+          parentEventId: null,
+          workout: { name: "Workout", scheme: "time-with-cap" },
+        },
+      ],
+      eventDivisionMappings: { hasMappings: false, mappings: [] },
+      divisionDescriptionsMap: {},
+      submissionStatusMap: {},
+      benchmarkViewerScores: {},
+    }
+    const Page = OverviewRoute.options.component as ComponentType
+    render(<Page />)
+    fireEvent.click(await screen.findByRole("button", { name: /Workout/ }))
+    await screen.findByLabelText(/Your Time/)
+    typeField(/Your Time/, "1:23")
+    typeField("Video URL", "https://youtu.be/AAAAAAAAAAA")
+    for (const matches of [true, false]) {
+      act(() => {
+        media.matches = matches
+        for (const listener of listeners) listener()
+      })
+      fireEvent.click(await screen.findByRole("button", { name: /Workout/ }))
+      expect(await screen.findByLabelText(/Your Time/)).toHaveValue("1:23")
+      expect(screen.getByLabelText("Video URL")).toHaveValue(
+        "https://youtu.be/AAAAAAAAAAA",
+      )
+    }
+  })
+
+  // @lat: [[domain#Domain Model#Video Submissions#Submission Drafts#Saved inline form reloads persisted data]]
+  it.each([false, true])(
+    "reloads saved inline data without overwriting a newer draft (newer=%s)",
+    async (hasNewerDraft) => {
+      mockFetch.mockResolvedValue(
+        initialData({ videoRequired: false }) as Awaited<
+          ReturnType<typeof getVideoSubmissionFn>
+        >,
+      )
+      render(
+        <AthleteScoreSubmissionPanel
+          competitionId="competition"
+          slug="test"
+          userDivisions={[
+            {
+              registration: { id: "registration-a", divisionId: "a" },
+              division: { id: "a", label: "Division A" },
+            },
+          ]}
+          workouts={[
+            {
+              id: "event-1",
+              workoutId: "workout",
+              trackOrder: 1,
+              parentEventId: null,
+              workout: { name: "Workout", scheme: "time-with-cap" },
+            },
+          ]}
+          eventDivisionMappings={{ hasMappings: false, mappings: [] }}
+        />,
+      )
+      fireEvent.click(await screen.findByRole("button", { name: /Workout/ }))
+      await screen.findByLabelText(/Your Time/)
+      typeField(/Your Time/, "4:30")
+      fireEvent.click(screen.getByRole("button", { name: /Submit result/i }))
+      await screen.findByText("Submitted successfully!")
+      mockFetch.mockResolvedValue(
+        initialData({
+          videoRequired: false,
+          existingScore: persistedScore("4:30"),
+        }) as Awaited<ReturnType<typeof getVideoSubmissionFn>>,
+      )
+      if (hasNewerDraft) typeField(/Your Time/, "5:45")
+      fireEvent.click(screen.getByRole("button", { name: /Workout/ }))
+      await waitFor(() =>
+        expect(screen.queryByLabelText(/Your Time/)).not.toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole("button", { name: /Workout/ }))
+      expect(await screen.findByLabelText(/Your Time/)).toHaveValue(
+        hasNewerDraft ? "5:45" : "4:30",
+      )
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  // @lat: [[domain#Domain Model#Video Submissions#Submission Drafts#Collapsed save reloads persisted data]]
+  it("loads the saved result when submission finishes after its row was collapsed", async () => {
+    const pending = deferred<Awaited<ReturnType<typeof submitVideoFn>>>()
+    mockSubmit.mockReturnValueOnce(pending.promise)
+    mockFetch.mockResolvedValue(
+      initialData({ videoRequired: false }) as Awaited<
+        ReturnType<typeof getVideoSubmissionFn>
+      >,
+    )
+    render(
+      <AthleteScoreSubmissionPanel
+        competitionId="competition"
+        slug="test"
+        userDivisions={[
+          {
+            registration: { id: "registration-a", divisionId: "a" },
+            division: { id: "a", label: "Division A" },
+          },
+        ]}
+        workouts={[
+          {
+            id: "event-1",
+            workoutId: "workout",
+            trackOrder: 1,
+            parentEventId: null,
+            workout: { name: "Workout", scheme: "time-with-cap" },
+          },
+        ]}
+        eventDivisionMappings={{ hasMappings: false, mappings: [] }}
+      />,
+    )
+    fireEvent.click(await screen.findByRole("button", { name: /Workout/ }))
+    await screen.findByLabelText(/Your Time/)
+    typeField(/Your Time/, "4:30")
+    fireEvent.click(screen.getByRole("button", { name: /Submit result/i }))
+    await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole("button", { name: /Workout/ }))
+    await waitFor(() =>
+      expect(screen.queryByLabelText(/Your Time/)).not.toBeInTheDocument(),
+    )
+    mockFetch.mockResolvedValue(
+      initialData({
+        videoRequired: false,
+        existingScore: persistedScore("4:30"),
+      }) as Awaited<ReturnType<typeof getVideoSubmissionFn>>,
+    )
+    await act(async () =>
+      pending.resolve({
+        success: true,
+        submissionId: "saved",
+        isUpdate: false,
+        retainedCurrentBest: false,
+      }),
+    )
+    fireEvent.click(screen.getByRole("button", { name: /Workout/ }))
+    expect(await screen.findByLabelText(/Your Time/)).toHaveValue("4:30")
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
   // @lat: [[domain#Domain Model#Video Submissions#Submission Drafts#Page-owned child drafts]]
   it("restores keyed child forms and standalone events from the page-owned draft map", () => {
     const event = (id: string) => ({
-      id, workoutId: id, trackOrder: 1, parentEventId: null,
+      id,
+      workoutId: id,
+      trackOrder: 1,
+      parentEventId: null,
       workout: { ...initialData().workout!, name: id },
     })
     const childA = event("child-a")
@@ -549,15 +795,28 @@ describe("athlete submission drafts", () => {
     const parent = event("parent")
     const submission = initialData({ videoRequired: false })
     routeFixture.data = {
-      competition: { id: "competition", competitionType: "online", timezone: "UTC" },
-      event: parent, resources: [], judgingSheets: [], heatTimes: null,
-      allTopLevelEvents: [parent], divisionDescriptions: [], divisions: [],
+      competition: {
+        id: "competition",
+        competitionType: "online",
+        timezone: "UTC",
+      },
+      event: parent,
+      resources: [],
+      judgingSheets: [],
+      heatTimes: null,
+      allTopLevelEvents: [parent],
+      divisionDescriptions: [],
+      divisions: [],
       athleteRegisteredDivisions: divisions.slice(0, 1),
-      athleteRegisteredDivisionId: "a", initialSubmissionDivisionId: "a",
-      venue: null, videoSubmission: null,
+      athleteRegisteredDivisionId: "a",
+      initialSubmissionDivisionId: "a",
+      venue: null,
+      videoSubmission: null,
       childVideoSubmissions: { "child-a": submission, "child-b": submission },
-      deferredEventHeats: Promise.resolve([]), childEvents: [childA],
-      childDivisionDescriptions: {}, parentEvent: null,
+      deferredEventHeats: Promise.resolve([]),
+      childEvents: [childA],
+      childDivisionDescriptions: {},
+      parentEvent: null,
       isEventMappedToAthleteDivision: true,
       eventDivisionMappings: { hasMappings: false, mappings: [] },
     }
@@ -573,16 +832,27 @@ describe("athlete submission drafts", () => {
     expect(screen.getByLabelText(/Your Time/)).toHaveValue("1:01")
 
     routeFixture.data = {
-      ...routeFixture.data, event: event("standalone"), childEvents: [], videoSubmission: submission,
+      ...routeFixture.data,
+      event: event("standalone"),
+      childEvents: [],
+      videoSubmission: submission,
     }
     rerender(<Page />)
     expect(screen.getByLabelText(/Your Time/)).toHaveValue("")
     typeField(/Your Time/, "3:03")
-    routeFixture.data = { ...routeFixture.data, event: parent, childEvents: [childB], videoSubmission: null }
+    routeFixture.data = {
+      ...routeFixture.data,
+      event: parent,
+      childEvents: [childB],
+      videoSubmission: null,
+    }
     rerender(<Page />)
     expect(screen.getByLabelText(/Your Time/)).toHaveValue("2:02")
     routeFixture.data = {
-      ...routeFixture.data, event: event("standalone"), childEvents: [], videoSubmission: submission,
+      ...routeFixture.data,
+      event: event("standalone"),
+      childEvents: [],
+      videoSubmission: submission,
     }
     rerender(<Page />)
     expect(screen.getByLabelText(/Your Time/)).toHaveValue("3:03")

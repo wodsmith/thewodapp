@@ -260,7 +260,7 @@ Switching divisions fetches that division's submission data via [[apps/wodsmith-
 
 Athlete submission drafts stay in memory while switching divisions, events, or panel rows, keyed by competition, event, registration, and division.
 
-[[apps/wodsmith-start/src/components/compete/athlete-score-submission-panel.tsx#AthleteScoreSubmissionPanel]] owns drafts above keyed workout rows. The [[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx#EventDetailsPage]] owns a shared map for child and standalone event forms so keyed child remounts retain drafts; its loader includes registration IDs with division labels. The reusable [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] owns a fallback map above its keyed editor. Other form consumers use an instance-local scope when no registration ID is supplied. Drafts contain video slots and notes, score, cap reps, tiebreak, per-round inputs, explicit round cap flags, and round reps. Reloading or leaving the owning surface discards them; nothing is written to browser storage.
+[[apps/wodsmith-start/src/routes/compete/$slug/index.tsx#CompetitionOverviewPage]] owns a draft map above responsive layout branches and passes it to [[apps/wodsmith-start/src/components/compete/athlete-score-submission-panel.tsx#AthleteScoreSubmissionPanel]], which otherwise owns a fallback map above keyed workout rows. The [[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx#EventDetailsPage]] owns a shared map for child and standalone event forms so keyed child remounts retain drafts; its loader includes registration IDs with division labels. The reusable [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] owns a fallback map above its keyed editor. Other form consumers use an instance-local scope when no registration ID is supplied. Drafts contain video slots and notes, score, cap reps, tiebreak, per-round inputs, explicit round cap flags, and round reps. Reloading or leaving the owning surface discards them; nothing is written to browser storage.
 
 Input handlers store drafts synchronously so row unmounts cannot lose the latest edit. A fresh division starts from its own persisted submission, then restores a matching draft if present. Superseded fetch responses and same-identity loader refreshes cannot overwrite current edits. A successful save clears only the submitted draft revision; failures and newer edits survive. Successful replacement previews show pending review and clear old reviewer notes, matching the server's evidence-reset contract.
 
@@ -287,6 +287,18 @@ A first visit initializes explicit round cap flags and reps from persisted round
 #### Late save retains newer revision
 
 When a draft is reopened and edited during an earlier save, that save cannot clear the newer revision or replace its visible inputs.
+
+#### Responsive overview drafts
+
+Switching the overview between desktop and mobile layouts keeps drafts in the page-owned map while the submission panel remounts.
+
+#### Saved inline form reloads persisted data
+
+Reopening an inline form fetches current persisted data so completed submissions appear while any newer unsaved draft still takes precedence.
+
+#### Collapsed save reloads persisted data
+
+An inline save that finishes after its form is collapsed clears the saved draft; reopening fetches the persisted result without relying on a callback from the unmounted editor.
 
 #### Page-owned child drafts
 

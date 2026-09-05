@@ -133,6 +133,7 @@ interface AthleteScoreSubmissionPanelProps {
   eventDivisionMappings: EventDivisionMappings
   timezone?: string | null
   divisionDescriptionsMap?: Record<string, DivisionDescription[]>
+  draftStore?: Map<string, VideoSubmissionDraft>
 }
 
 export function AthleteScoreSubmissionPanel({
@@ -143,8 +144,10 @@ export function AthleteScoreSubmissionPanel({
   eventDivisionMappings,
   timezone,
   divisionDescriptionsMap,
+  draftStore: sharedDraftStore,
 }: AthleteScoreSubmissionPanelProps) {
-  const [draftStore] = useState(() => new Map<string, VideoSubmissionDraft>())
+  const [localDraftStore] = useState(() => new Map<string, VideoSubmissionDraft>())
+  const draftStore = sharedDraftStore ?? localDraftStore
   const [selectedDivisionIdx, setSelectedDivisionIdx] = useState(0)
   const [submissions, setSubmissions] = useState<WorkoutSubmission[]>([])
   const [loading, setLoading] = useState(true)
@@ -714,7 +717,9 @@ function WorkoutRow({
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
-    if (next && !formData && !formLoading) {
+    // A save can finish after its editor unmounts. Reload persisted data on
+    // every reopen; the shared draft map still takes precedence over it.
+    if (next && !formLoading) {
       loadFormData()
     }
   }

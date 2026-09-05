@@ -2,6 +2,7 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
 import { BenchmarkWorkoutDirectory } from "@/components/benchmark-workout-directory"
 import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
+import type { VideoSubmissionDraft } from "@/components/compete/video-submission-form"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import {
@@ -84,6 +85,7 @@ export const Route = createFileRoute("/compete/$slug/")({
 })
 
 function CompetitionOverviewPage() {
+  const [submissionDrafts] = useState(() => new Map<string, VideoSubmissionDraft>())
   const {
     competition,
     userRegistration,
@@ -189,6 +191,7 @@ function CompetitionOverviewPage() {
       eventDivisionMappings={eventDivisionMappings}
       timezone={competition.timezone}
       divisionDescriptionsMap={divisionDescriptionsMap}
+      draftStore={submissionDrafts}
     />
   ) : null
 
