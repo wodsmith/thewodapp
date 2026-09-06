@@ -694,15 +694,15 @@ async function persistCrewCheckoutSessionCreated(
         .for("update")
       if (!row || readCrewCheckoutAttempt(row.settings)?.id !== attemptId)
         return
-      await tx
-        .insert(crewBillingEventsTable)
-        .values(toNewCrewBillingEvent(appendPlan.event))
-      // The payment webhook may arrive before this write. Never revert paid to pending.
+      // A webhook may settle first. Keep both the audit and access in settled state.
       if (
         row.crewBillingState !== "pending" ||
         row.crewBillingSource !== "stripe_checkout"
       )
         return
+      await tx
+        .insert(crewBillingEventsTable)
+        .values(toNewCrewBillingEvent(appendPlan.event))
       await tx
         .update(crewEventSettingsTable)
         .set({ ...appendPlan.settingsPatch, updatedAt: new Date() })

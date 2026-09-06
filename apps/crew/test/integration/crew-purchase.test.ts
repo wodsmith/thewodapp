@@ -168,6 +168,10 @@ describe.skipIf(!databaseUrl)("Crew purchase persistence", () => {
     })
     await createCrewCheckoutSession({ eventId })
     expect((await settings()).crewBillingState).toBe("paid")
+    const events = await db!.select().from(crewBillingEventsTable).where(
+      eq(crewBillingEventsTable.competitionId, eventId),
+    )
+    expect(events.map((event) => event.eventType)).toEqual(["checkout_completed"])
   })
 
   it("blocks unauthorized buyers before Stripe and rejects unrelated event settlement", async () => {

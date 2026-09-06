@@ -580,7 +580,7 @@ Crew persists each checkout attempt before calling Stripe so duplicate clicks, u
 
 [[apps/crew/src/lib/crew/checkout-attempt.ts]] stores a private attempt identifier, creation time, and frozen price, event name, and return origin in the event settings JSON. Row locks serialize attempt creation; the Stripe request runs outside the transaction with an attempt-specific idempotency key. Uncertain requests older than 23 hours require operator reconciliation before another create call.
 
-[[apps/crew/src/server/crew-billing.server.ts]] resumes existing open sessions and handles expiration by appending an event-scoped audit entry and releasing only the matching pending attempt. Completion checks the active attempt inside the settlement transaction, and a late session-created write cannot replace paid state with pending state.
+[[apps/crew/src/server/crew-billing.server.ts]] resumes existing open sessions and handles expiration by appending an event-scoped audit entry and releasing only the matching pending attempt. Completion checks the active attempt inside the settlement transaction, and a late session-created write cannot replace paid state with pending state or append a misleading pending audit entry after settlement.
 
 [[apps/crew/src/routes/api/webhooks/stripe.ts]] requires a verified signature and a paid Checkout Session before granting access. The browser success URL never grants access. Existing legacy Basic and Pro checkout metadata remains supported, while new purchases use the single Basic-backed Crew Event package.
 
