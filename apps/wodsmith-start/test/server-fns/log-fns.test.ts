@@ -784,6 +784,26 @@ describe('Log Server Functions (TanStack)', () => {
     })
   })
 
+  describe('personal training score privacy', () => {
+    // @lat: [[training#Library Result Tests#Private scores stay private in older views]]
+    it('denies another gym member the detail and rounds of a personal result', async () => {
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      limitMock.mockResolvedValueOnce([createTestScore({id: 'private-score', userId: 'another-athlete', teamId: 'team-1'})])
+      limitMock.mockResolvedValueOnce([{itemId: 'item-1', trainingDate: '2026-09-05', items: []}])
+      await expect(getLogByIdFn({data: {id: 'private-score'}})).rejects.toThrow('Not authorized')
+      limitMock.mockResolvedValueOnce([{id: 'personal-result'}])
+      await expect(getScoreRoundsFn({data: {scoreId: 'private-score'}})).rejects.toThrow('Not authorized')
+    })
+
+    // @lat: [[training#Library Result Tests#Linked results retain their session date]]
+    it('rejects moving a linked result to a different day', async () => {
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      limitMock.mockResolvedValueOnce([createTestScore({id: 'private-score', userId: 'test-user-123'})])
+      limitMock.mockResolvedValueOnce([{trainingDate: '2026-09-05'}])
+      await expect(updateLogFn({data: {id: 'private-score', date: '2026-09-06'}})).rejects.toThrow('training date cannot be changed')
+    })
+  })
+
   describe('getScoreRoundsFn', () => {
     it('returns rounds ordered by round number', async () => {
       const rounds = [
@@ -793,6 +813,8 @@ describe('Log Server Functions (TanStack)', () => {
       ]
 
       mockDb.setMockReturnValue(rounds)
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      limitMock.mockResolvedValueOnce([])
 
       const result = await getScoreRoundsFn({data: {scoreId: 'score-1'}})
 

@@ -44,6 +44,7 @@ import {
   saveTrainingDraftFn,
 } from "@/server-fns/training-fns"
 import { cn } from "@/utils/cn"
+import { CoachLibraryPicker } from "./coach-library-picker"
 import { CoachSessionPreview, coachBlockLabels } from "./coach-session-preview"
 
 const selectClass =
@@ -1010,6 +1011,19 @@ function CoachDayEditor({
               <Plus />
               Add a section
             </Button>
+            <CoachLibraryPicker
+              key={team.id}
+              teamId={team.id}
+              disabled={busy || content.blocks.length >= 20}
+              onAdd={(block) => {
+                setContent((current) => ({
+                  ...current,
+                  isRestDay: false,
+                  blocks: [...current.blocks, block],
+                }))
+                setEditingBlock(block.id)
+              }}
+            />
           </fieldset>
         </div>
         <CoachSessionPreview

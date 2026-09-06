@@ -156,7 +156,7 @@ export function WorkoutRemixInfo({
         {/* Remix Button - navigates to create form with pre-filled data */}
         {teamId && (
           <Button variant="outline" className="w-full sm:w-auto" asChild>
-            <Link to="/workouts/new" search={{ remixFrom: workoutId }}>
+            <Link to="/workouts/new" search={{ remixFrom: workoutId, teamId }}>
               <GitFork className="h-4 w-4 mr-2" />
               Remix this workout
             </Link>

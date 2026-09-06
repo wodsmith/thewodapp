@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type {
   OwnTrainingResult,
+  SaveTrainingResultInput,
   TrainingAudience,
   TrainingBlock,
   TrainingScaling,
@@ -27,6 +28,8 @@ interface TrainingResultDialogProps {
   trackName: string
   gymName: string
   result?: OwnTrainingResult
+  privateOnly?: boolean
+  saveResult?: (input: SaveTrainingResultInput) => Promise<OwnTrainingResult>
   disabled?: boolean
   onSavingChange?: (saving: boolean) => void
   onSaved: (result: OwnTrainingResult) => void
@@ -63,6 +66,8 @@ export function TrainingResultDialog({
   gymName,
   result,
   disabled = false,
+  privateOnly = false,
+  saveResult = (data) => saveTrainingResultFn({ data }),
   onSavingChange,
   onSaved,
 }: TrainingResultDialogProps) {
@@ -96,24 +101,22 @@ export function TrainingResultDialog({
     setSaving(true)
     onSavingChange?.(true)
     try {
-      const saved = await saveTrainingResultFn({
-        data: {
-          sessionId: session.id,
-          blockId: block.id,
-          publishedVersion: session.publishedVersion,
-          score:
-            block.kind === "time"
-              ? `${fields.minutes || "0"}:${(fields.seconds || "0").padStart(2, "0")}`
-              : block.kind === "check"
-                ? ""
-                : fields.score,
-          scaling: fields.scaling,
-          modification: fields.scaling === "rx" ? "" : fields.modification,
-          notes: fields.notes,
-          audience: fields.audience,
-          unit: fields.unit,
-          completed: block.kind === "check" ? fields.completed : true,
-        },
+      const saved = await saveResult({
+        sessionId: session.id,
+        blockId: block.id,
+        publishedVersion: session.publishedVersion,
+        score:
+          block.kind === "time"
+            ? `${fields.minutes || "0"}:${(fields.seconds || "0").padStart(2, "0")}`
+            : block.kind === "check"
+              ? ""
+              : fields.score,
+        scaling: fields.scaling,
+        modification: fields.scaling === "rx" ? "" : fields.modification,
+        notes: fields.notes,
+        audience: privateOnly ? "private" : fields.audience,
+        unit: fields.unit,
+        completed: block.kind === "check" ? fields.completed : true,
       })
       onSaved(saved)
       setDirty(false)
@@ -244,7 +247,7 @@ export function TrainingResultDialog({
                 </div>
               </div>
             )}
-            {block.kind !== "check" ? (
+            {block.kind !== "check" && !privateOnly ? (
               <fieldset className="space-y-2">
                 <legend className="text-sm font-medium">
                   How you performed it
@@ -278,7 +281,9 @@ export function TrainingResultDialog({
                 ) : null}
               </fieldset>
             ) : null}
-            {fields.scaling !== "rx" && block.kind !== "check" ? (
+            {fields.scaling !== "rx" &&
+            block.kind !== "check" &&
+            !privateOnly ? (
               <div className="space-y-2">
                 <Label htmlFor={`${fieldId}-modification`}>
                   What did you change?
@@ -309,9 +314,9 @@ export function TrainingResultDialog({
                 Only you can see these notes, even when your result is shared.
               </p>
             </div>
-            {block.kind === "check" ? (
+            {block.kind === "check" || privateOnly ? (
               <p className="text-sm text-muted-foreground">
-                Section completion and notes are private.
+                This result and its notes are private.
               </p>
             ) : (
               <div className="space-y-2">

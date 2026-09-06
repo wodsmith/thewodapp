@@ -3,8 +3,12 @@
  * Simplified MVP for logging workout results
  */
 
+import {
+  personalTrainingResultsTable,
+  personalTrainingSessionsTable,
+} from "@repo/wodsmith-db/schemas/training-personal"
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq, isNull, ne, notExists } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
@@ -233,6 +237,14 @@ export const getWorkoutScoresFn = createServerFn({ method: "GET" })
         and(
           eq(scoresTable.workoutId, data.workoutId),
           eq(scoresTable.teamId, data.teamId),
+          notExists(
+            db
+              .select({ id: personalTrainingResultsTable.id })
+              .from(personalTrainingResultsTable)
+              .where(
+                eq(personalTrainingResultsTable.legacyScoreId, scoresTable.id),
+              ),
+          ),
         ),
       )
       .orderBy(desc(scoresTable.recordedAt))
@@ -275,6 +287,8 @@ export const getWorkoutScoresFn = createServerFn({ method: "GET" })
  */
 const getLogsByUserInputSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
+  teamId: z.string().optional(),
+  personalOnly: z.boolean().optional(),
 })
 
 export const getLogsByUserFn = createServerFn({ method: "GET" })
@@ -319,7 +333,15 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
         scalingLevelsTable,
         eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
       )
-      .where(eq(scoresTable.userId, data.userId))
+      .where(
+        and(
+          eq(scoresTable.userId, data.userId),
+          data.teamId ? eq(scoresTable.teamId, data.teamId) : undefined,
+          data.personalOnly
+            ? isNull(scoresTable.competitionEventId)
+            : undefined,
+        ),
+      )
       .orderBy(desc(scoresTable.recordedAt))
 
     // Format the display score for each log
@@ -433,7 +455,42 @@ export const getLogByIdFn = createServerFn({ method: "GET" })
       throw new Error("Not authorized to access this score")
     }
 
-    return { score }
+    const [personalResult] = await db
+      .select({
+        itemId: personalTrainingResultsTable.itemId,
+        personalSessionId: personalTrainingSessionsTable.id,
+        revision: personalTrainingSessionsTable.revision,
+        trainingDate: personalTrainingSessionsTable.trainingDate,
+        items: personalTrainingSessionsTable.items,
+      })
+      .from(personalTrainingResultsTable)
+      .innerJoin(
+        personalTrainingSessionsTable,
+        eq(
+          personalTrainingResultsTable.personalSessionId,
+          personalTrainingSessionsTable.id,
+        ),
+      )
+      .where(eq(personalTrainingResultsTable.legacyScoreId, score.id))
+      .limit(1)
+    if (personalResult && !isOwner)
+      throw new Error("Not authorized to access this score")
+    const personalItem = personalResult?.items?.find(
+      (item) => item.id === personalResult.itemId,
+    )
+    return {
+      score: {
+        ...score,
+        personalTrainingDate: personalResult?.trainingDate ?? null,
+        personalSessionId: personalResult?.personalSessionId ?? null,
+        personalItemId: personalResult?.itemId ?? null,
+        personalRevision: personalResult?.revision ?? null,
+        personalWorkout:
+          personalItem?.kind === "library"
+            ? (personalItem.workout ?? null)
+            : null,
+      },
+    }
   })
 
 /**
@@ -505,6 +562,18 @@ export const getScoreRoundsFn = createServerFn({ method: "GET" })
       throw new Error("Not authenticated")
     }
 
+    const [privateResult] = await db
+      .select({ id: personalTrainingResultsTable.id })
+      .from(personalTrainingResultsTable)
+      .where(
+        and(
+          eq(personalTrainingResultsTable.legacyScoreId, data.scoreId),
+          ne(personalTrainingResultsTable.userId, session.userId),
+        ),
+      )
+      .limit(1)
+    if (privateResult) throw new Error("Not authorized to access this score")
+
     // Get rounds ordered by round number
     const rounds = await db
       .select({
@@ -573,6 +642,29 @@ export const updateLogFn = createServerFn({ method: "POST" })
 
     if (existingScore.userId !== session.userId) {
       throw new Error("Not authorized to update this score")
+    }
+
+    if (data.date) {
+      const [personalResult] = await db
+        .select({ trainingDate: personalTrainingSessionsTable.trainingDate })
+        .from(personalTrainingResultsTable)
+        .innerJoin(
+          personalTrainingSessionsTable,
+          eq(
+            personalTrainingResultsTable.personalSessionId,
+            personalTrainingSessionsTable.id,
+          ),
+        )
+        .where(eq(personalTrainingResultsTable.legacyScoreId, data.id))
+        .limit(1)
+      if (
+        personalResult &&
+        new Date(data.date).toISOString().slice(0, 10) !==
+          personalResult.trainingDate
+      )
+        throw new Error(
+          "This result belongs to a personal session. Its training date cannot be changed here.",
+        )
     }
 
     const score = await updatePersonalWorkoutResult({

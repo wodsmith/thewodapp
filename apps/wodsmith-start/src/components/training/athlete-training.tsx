@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,8 +13,14 @@ import {
   getTrainingHistoryFn,
   getTrainingWeekFn,
 } from "@/server-fns/training-fns"
-import { AthleteSessionBlock } from "./athlete-session-block"
+import {
+  getPersonalTrainingDayFn,
+  getPersonalTrainingHistoryFn,
+  saveTrainingPreferenceFn,
+} from "@/server-fns/training-personal-fns"
+import { AthletePersonalSession } from "./athlete-personal-session"
 import { AthleteTeamResults } from "./athlete-team-results"
+import { EarlierTrainingHistory } from "./earlier-training-history"
 
 type TrainingView = "training" | "team" | "progress"
 
@@ -55,12 +61,18 @@ function dateLabel(
 export function AthleteTraining({
   context,
   initialView = "training",
+  initialTeamId,
+  initialDate,
+  libraryWorkoutId,
 }: {
   context: TrainingContext
   initialView?: TrainingView
+  initialTeamId?: string
+  initialDate?: string
+  libraryWorkoutId?: string
 }) {
   const [selectedTeamId, setSelectedTeamId] = useState(
-    context.activeTeamId ?? context.teams[0]?.id ?? "",
+    initialTeamId ?? context.activeTeamId ?? context.teams[0]?.id ?? "",
   )
   const team =
     context.teams.find((item) => item.id === selectedTeamId) ?? context.teams[0]
@@ -88,6 +100,8 @@ export function AthleteTraining({
       team={team}
       context={context}
       initialView={initialView}
+      initialDate={initialDate}
+      libraryWorkoutId={libraryWorkoutId}
       onTeamChange={setSelectedTeamId}
     />
   )
@@ -98,17 +112,22 @@ function AthleteTrainingGym({
   context,
   initialView,
   onTeamChange,
+  initialDate,
+  libraryWorkoutId,
 }: {
   team: TrainingTeam
   context: TrainingContext
   initialView: TrainingView
+  initialDate?: string
+  libraryWorkoutId?: string
   onTeamChange: (id: string) => void
 }) {
   const [trackId, setTrackId] = useState(team.tracks[0]?.id ?? "")
-  const [selectedDate, setSelectedDate] = useState(() =>
-    gymToday(team.timezone),
+  const [selectedDate, setSelectedDate] = useState(
+    () => initialDate ?? gymToday(team.timezone),
   )
   const [view, setView] = useState<TrainingView>(initialView)
+  const [interactionBusy, setInteractionBusy] = useState(false)
   const [reload, setReload] = useState(0)
   const [week, setWeek] = useState<{ key: string; data: TrainingWeek } | null>(
     null,
@@ -125,17 +144,40 @@ function AthleteTrainingGym({
   )
   const content = session?.published
   const today = gymToday(team.timezone)
-  const preferenceKey = `wodsmith-training-track-v1:${context.userId}:${team.id}`
+  const [defaultTrackId, setDefaultTrackId] = useState<string | null>(null)
+  const [preferenceReady, setPreferenceReady] = useState(false)
+  const [preferenceSaving, setPreferenceSaving] = useState(false)
+  const [preferenceError, setPreferenceError] = useState("")
 
   useEffect(() => {
-    try {
-      const savedTrack = localStorage.getItem(preferenceKey)
-      if (savedTrack && team.tracks.some((track) => track.id === savedTrack))
-        setTrackId(savedTrack)
-    } catch {
-      // Storage is optional; the current selection still works.
+    let cancelled = false
+    getPersonalTrainingDayFn({
+      data: {
+        teamId: team.id,
+        trainingDate: initialDate ?? gymToday(team.timezone),
+      },
+    })
+      .then((day) => {
+        if (!cancelled) {
+          setDefaultTrackId(day.defaultTrackId)
+          setTrackId(day.selectedTrackId ?? team.tracks[0]?.id ?? "")
+          setPreferenceReady(true)
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setPreferenceError(
+            cause instanceof Error
+              ? cause.message
+              : "Could not load your default track. Refresh to try again.",
+          )
+          setPreferenceReady(true)
+        }
+      })
+    return () => {
+      cancelled = true
     }
-  }, [preferenceKey, team.tracks])
+  }, [team.id, team.timezone, team.tracks, initialDate])
 
   useEffect(() => {
     setView(initialView)
@@ -146,6 +188,7 @@ function AthleteTrainingGym({
     let cancelled = false
     setError(null)
     setNotice("")
+    if (!preferenceReady) return
     if (!trackId) {
       setLoading(false)
       return
@@ -171,14 +214,28 @@ function AthleteTrainingGym({
     return () => {
       cancelled = true
     }
-  }, [team.id, trackId, startDate, requestKey, reload])
+  }, [team.id, trackId, startDate, requestKey, reload, preferenceReady])
 
   function chooseTrack(id: string) {
     setTrackId(id)
+  }
+
+  async function makeDefaultTrack() {
+    setPreferenceSaving(true)
+    setPreferenceError("")
     try {
-      localStorage.setItem(preferenceKey, id)
-    } catch {
-      /* Current selection does not require browser storage. */
+      await saveTrainingPreferenceFn({
+        data: { teamId: team.id, defaultTrackId: trackId },
+      })
+      setDefaultTrackId(trackId)
+    } catch (cause) {
+      setPreferenceError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not save your default track. Try again.",
+      )
+    } finally {
+      setPreferenceSaving(false)
     }
   }
 
@@ -230,25 +287,6 @@ function AthleteTrainingGym({
     )
   }
 
-  const myResults =
-    data?.myResults.filter(
-      (result) =>
-        result.sessionId === session?.id &&
-        result.publishedVersion === session?.publishedVersion,
-    ) ?? []
-  const scoreBlocks =
-    content?.blocks.filter(
-      (block) => block.kind !== "check" && block.kind !== "note",
-    ) ?? []
-  const loggedCount = scoreBlocks.filter((block) =>
-    myResults.some((result) => result.blockId === block.id && result.completed),
-  ).length
-  const previousVersion = data?.myResults.some(
-    (result) =>
-      result.sessionId === session?.id &&
-      result.publishedVersion !== session?.publishedVersion,
-  )
-
   return (
     <main className="training-shell mx-auto w-full max-w-4xl px-4 py-6 sm:px-8 sm:py-10">
       <header className="space-y-6">
@@ -277,6 +315,7 @@ function AthleteTrainingGym({
               <select
                 id="training-gym"
                 className="min-h-11 w-full min-w-0 rounded-md border border-input bg-background px-3"
+                disabled={interactionBusy}
                 value={team.id}
                 onChange={(event) => onTeamChange(event.target.value)}
               >
@@ -295,6 +334,7 @@ function AthleteTrainingGym({
                 id="training-track"
                 className="min-h-11 w-full min-w-0 rounded-md border border-input bg-background px-3"
                 value={trackId}
+                disabled={!preferenceReady || interactionBusy}
                 onChange={(event) => chooseTrack(event.target.value)}
               >
                 {team.tracks.map((track) => (
@@ -303,6 +343,34 @@ function AthleteTrainingGym({
                   </option>
                 ))}
               </select>
+              <div className="flex flex-wrap items-center gap-x-3 text-sm">
+                {trackId === defaultTrackId ? (
+                  <span className="text-muted-foreground">Default track</span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="min-h-11 px-0"
+                    disabled={preferenceSaving || !preferenceReady}
+                    onClick={makeDefaultTrack}
+                  >
+                    {preferenceSaving ? "Saving…" : "Make default track"}
+                  </Button>
+                )}
+                {defaultTrackId && trackId !== defaultTrackId ? (
+                  <Button
+                    variant="ghost"
+                    className="min-h-11"
+                    onClick={() => chooseTrack(defaultTrackId)}
+                  >
+                    Back to default
+                  </Button>
+                ) : null}
+              </div>
+              {preferenceError ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {preferenceError}
+                </p>
+              ) : null}
               {activeTrack?.description ? (
                 <p className="text-sm text-muted-foreground">
                   {activeTrack.description}
@@ -320,11 +388,12 @@ function AthleteTrainingGym({
               key={item}
               type="button"
               aria-pressed={view === item}
+              disabled={interactionBusy}
               onClick={() => setView(item)}
               className={`min-h-12 flex-1 border-b-2 px-2 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:flex-none sm:px-6 ${view === item ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               {item === "training"
-                ? "Training"
+                ? "My session"
                 : item === "team"
                   ? "Team"
                   : "My progress"}
@@ -332,7 +401,7 @@ function AthleteTrainingGym({
           ))}
         </nav>
       </header>
-      {!activeTrack ? (
+      {!activeTrack && !preferenceReady ? (
         <section className="py-12">
           <h2 className="text-2xl font-semibold">Your track is coming.</h2>
           <p className="mt-3 text-muted-foreground">
@@ -346,6 +415,7 @@ function AthleteTrainingGym({
           key={`${team.id}:${trackId}:${reload}`}
           teamId={team.id}
           trackId={trackId}
+          userId={context.userId}
         />
       ) : (
         <>
@@ -356,6 +426,7 @@ function AthleteTrainingGym({
                   variant="ghost"
                   className="min-h-11 min-w-11"
                   size="icon"
+                  disabled={interactionBusy}
                   aria-label="Previous week"
                   onClick={() => setSelectedDate(offsetDate(selectedDate, -7))}
                 >
@@ -373,6 +444,7 @@ function AthleteTrainingGym({
                   variant="ghost"
                   className="min-h-11 min-w-11"
                   size="icon"
+                  disabled={interactionBusy}
                   aria-label="Next week"
                   onClick={() => setSelectedDate(offsetDate(selectedDate, 7))}
                 >
@@ -383,11 +455,13 @@ function AthleteTrainingGym({
                 <Button
                   variant="outline"
                   className="min-h-11"
+                  disabled={interactionBusy}
                   onClick={() => setSelectedDate(today)}
                 >
                   Today
                 </Button>
                 <Input
+                  disabled={interactionBusy}
                   type="date"
                   aria-label="Choose training date"
                   className="min-h-11 min-w-0 flex-1 sm:w-40"
@@ -409,6 +483,7 @@ function AthleteTrainingGym({
                 const rest = daySession?.published?.isRestDay
                 return (
                   <button
+                    disabled={interactionBusy}
                     key={day}
                     type="button"
                     aria-label={`${dateLabel(day)}${day === today ? ", today" : ""}${rest ? ", rest day" : ""}`}
@@ -428,7 +503,7 @@ function AthleteTrainingGym({
             </fieldset>
           </section>
           <output className="sr-only">{notice}</output>
-          {loading || (!data && !error) ? (
+          {loading || (trackId && !data && !error) ? (
             <output className="block border-t border-border py-12 text-muted-foreground">
               Loading your training…
             </output>
@@ -442,13 +517,24 @@ function AthleteTrainingGym({
                 Try again
               </Button>
             </div>
+          ) : view === "training" ? (
+            <AthletePersonalSession
+              key={`${team.id}:${selectedDate}`}
+              team={team}
+              trackId={trackId}
+              date={selectedDate}
+              sourceResults={data?.myResults ?? []}
+              onSaved={saved}
+              libraryWorkoutId={libraryWorkoutId}
+              onInteractionBusy={setInteractionBusy}
+            />
           ) : !session || !content ? (
             <section className="border-t border-border py-10">
               <h2 className="text-2xl font-semibold">Not published yet.</h2>
               <p className="mt-3 max-w-prose text-muted-foreground">
                 There isn't a published session for {dateLabel(selectedDate)} on{" "}
-                {activeTrack.name}. Choose another day or check your earlier
-                workout schedule.
+                {activeTrack?.name ?? "this track"}. Choose another day or check
+                your earlier workout schedule.
               </p>
               <EarlierTrainingLinks />
             </section>
@@ -458,7 +544,8 @@ function AthleteTrainingGym({
                 {content.title}
               </h2>
               <p className="mt-2 text-muted-foreground">
-                Rest day · {dateLabel(selectedDate)} · {activeTrack.name}
+                Rest day · {dateLabel(selectedDate)} ·{" "}
+                {activeTrack?.name ?? "this track"}
               </p>
               {content.coachNote ? (
                 <p className="mt-6 max-w-prose whitespace-pre-wrap break-words leading-relaxed">
@@ -478,86 +565,7 @@ function AthleteTrainingGym({
               userId={context.userId}
               onCheered={cheered}
             />
-          ) : (
-            <section aria-labelledby="training-session-title">
-              <div className="pb-6">
-                <div className="flex items-start justify-between gap-3">
-                  <h2
-                    id="training-session-title"
-                    className="min-w-0 break-words text-3xl font-semibold sm:text-4xl"
-                  >
-                    {content.title}
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    className="min-h-11 min-w-11 shrink-0"
-                    size="icon"
-                    aria-label="Refresh session"
-                    onClick={() => setReload((value) => value + 1)}
-                  >
-                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {dateLabel(selectedDate)}
-                  {scoreBlocks.length
-                    ? ` · ${loggedCount} of ${scoreBlocks.length} scored sections logged`
-                    : ""}
-                </p>
-                {content.coachNote ? (
-                  <p className="mt-5 max-w-prose whitespace-pre-wrap break-words leading-relaxed">
-                    {content.coachNote}
-                  </p>
-                ) : null}
-                {previousVersion ? (
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    Your coach updated this session. Results from the earlier
-                    version remain in{" "}
-                    <button
-                      type="button"
-                      className="min-h-11 underline underline-offset-4"
-                      onClick={() => setView("progress")}
-                    >
-                      My progress
-                    </button>
-                    .
-                  </p>
-                ) : null}
-              </div>
-              {content.blocks.length ? (
-                <ol>
-                  {content.blocks.map((block, index) => (
-                    <AthleteSessionBlock
-                      key={`${session.id}:${session.publishedVersion}:${block.id}`}
-                      session={session}
-                      block={block}
-                      index={index}
-                      trackName={activeTrack.name}
-                      gymName={team.name}
-                      result={myResults.find(
-                        (result) => result.blockId === block.id,
-                      )}
-                      onSaved={saved}
-                    />
-                  ))}
-                </ol>
-              ) : (
-                <p className="border-t border-border py-8 text-muted-foreground">
-                  This session has no sections yet.
-                </p>
-              )}
-              <div className="border-t border-border py-6">
-                <Button
-                  variant="outline"
-                  className="min-h-11"
-                  onClick={() => setView("team")}
-                >
-                  See team results
-                </Button>
-                <EarlierTrainingLinks />
-              </div>
-            </section>
-          )}
+          ) : null}
         </>
       )}
     </main>
@@ -586,9 +594,11 @@ function EarlierTrainingLinks() {
 function AthleteHistory({
   teamId,
   trackId,
+  userId,
 }: {
   teamId: string
   trackId: string
+  userId: string
 }) {
   const [history, setHistory] = useState<OwnTrainingResult[]>([])
   const [loading, setLoading] = useState(true)
@@ -599,9 +609,14 @@ function AthleteHistory({
     let cancelled = false
     setLoading(true)
     setError(null)
-    getTrainingHistoryFn({ data: { teamId, trackId } })
-      .then((result) => {
-        if (!cancelled) setHistory(result)
+    Promise.all([
+      trackId
+        ? getTrainingHistoryFn({ data: { teamId, trackId } })
+        : Promise.resolve([]),
+      getPersonalTrainingHistoryFn({ data: { teamId } }),
+    ])
+      .then(([source, personal]) => {
+        if (!cancelled) setHistory([...source, ...personal])
       })
       .catch((cause: unknown) => {
         if (!cancelled)
@@ -625,7 +640,8 @@ function AthleteHistory({
         Your work, remembered.
       </h2>
       <p className="mt-2 text-muted-foreground">
-        Your results on this track, with the prescription you performed.
+        Your results on this track and your personal workouts, with the
+        prescription you performed.
       </p>
       {loading ? (
         <output className="block py-8">Loading your results…</output>
@@ -708,7 +724,7 @@ function AthleteHistory({
             ))}
         </ul>
       )}
-      <EarlierTrainingLinks />
+      <EarlierTrainingHistory userId={userId} teamId={teamId} />
     </section>
   )
 }

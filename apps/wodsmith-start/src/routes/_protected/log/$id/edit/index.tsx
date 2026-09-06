@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -16,11 +16,25 @@ import {
   getScoreRoundsFn,
   updateLogFn,
 } from "@/server-fns/log-fns"
+import {
+  getPersonalLibraryScalingLevelsFn,
+  savePersonalLibraryResultFn,
+} from "@/server-fns/training-personal-fns"
 import { getWorkoutByIdFn } from "@/server-fns/workout-fns"
 import { parseScore } from "@/utils/score-parser-new"
 
 export const Route = createFileRoute("/_protected/log/$id/edit/")({
   component: LogEditPage,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { redirectUrl?: string } => ({
+    redirectUrl:
+      typeof search.redirectUrl === "string" &&
+      (search.redirectUrl === "/log" ||
+        /^\/training(?:\?|$)/.test(search.redirectUrl))
+        ? search.redirectUrl
+        : undefined,
+  }),
   loader: async ({ params }) => {
     // Fetch the existing log
     const logResult = await getLogByIdFn({ data: { id: params.id } })
@@ -36,17 +50,27 @@ export const Route = createFileRoute("/_protected/log/$id/edit/")({
     })
 
     // Fetch scaling levels for this workout
-    const levelsResult = await getScalingLevelsFn({
-      data: { workoutId: score.workoutId },
-    })
+    const levelsResult =
+      score.personalSessionId && score.personalItemId
+        ? await getPersonalLibraryScalingLevelsFn({
+            data: {
+              personalSessionId: score.personalSessionId,
+              itemId: score.personalItemId,
+            },
+          })
+        : await getScalingLevelsFn({
+            data: { workoutId: score.workoutId },
+          })
 
     // Fetch existing round scores if this is a multi-round workout
     let existingRounds: Array<{
       roundNumber: number
       value: number
       status: string | null
+      secondaryValue: number | null
     }> = []
-    const numRounds = score.workoutRoundsToScore ?? 1
+    const numRounds =
+      score.personalWorkout?.roundsToScore ?? score.workoutRoundsToScore ?? 1
     if (numRounds > 1) {
       const roundsResult = await getScoreRoundsFn({
         data: { scoreId: score.id },
@@ -56,7 +80,13 @@ export const Route = createFileRoute("/_protected/log/$id/edit/")({
 
     return {
       score,
-      workout: workoutResult.workout,
+      workout: score.personalWorkout
+        ? {
+            ...workoutResult.workout,
+            ...score.personalWorkout,
+            id: score.workoutId,
+          }
+        : workoutResult.workout,
       scalingLevels: levelsResult.levels,
       existingRounds,
     }
@@ -68,6 +98,7 @@ function LogEditPage() {
     Route.useLoaderData()
   const navigate = useNavigate()
   const { id } = Route.useParams()
+  const { redirectUrl } = Route.useSearch()
 
   // Initialize form state with existing values
   const [date, setDate] = useState(() => {
@@ -85,13 +116,19 @@ function LogEditPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Multi-round support
-  const numRounds = score.workoutRoundsToScore ?? 1
+  const numRounds = workout?.roundsToScore ?? score.workoutRoundsToScore ?? 1
   const isMultiRound = numRounds > 1
-  const scheme = (score.workoutScheme ?? score.scheme) as WorkoutScheme
+  const scheme = (score.personalWorkout?.scheme ??
+    score.workoutScheme ??
+    score.scheme) as WorkoutScheme
 
   // Decode existing score for single-score display
   const decodedScore =
-    score.scoreValue !== null ? decodeScore(score.scoreValue, scheme) : ""
+    score.personalSessionId && score.status === "cap"
+      ? `CAP+${score.secondaryValue ?? 0}`
+      : score.scoreValue !== null
+        ? decodeScore(score.scoreValue, scheme)
+        : ""
   const [singleScore, setSingleScore] = useState(decodedScore)
 
   // Initialize round scores from existing rounds
@@ -104,7 +141,9 @@ function LogEditPage() {
     return Array.from({ length: numRounds }, (_, index) => {
       const round = existingRounds.find((r) => r.roundNumber === index + 1)
       if (!round) return ""
-      return decodeScore(round.value, scheme) ?? ""
+      return score.personalSessionId && round.status === "cap"
+        ? `CAP+${round.secondaryValue ?? 0}`
+        : (decodeScore(round.value, scheme) ?? "")
     })
   })
 
@@ -121,6 +160,16 @@ function LogEditPage() {
   const getRoundParseResult = (roundIndex: number) => {
     const roundScore = roundScores[roundIndex]
     if (!roundScore?.trim() || !workout) return null
+    if (
+      score.personalSessionId &&
+      scheme === "time-with-cap" &&
+      /^CAP\s*\+\s*\d+$/i.test(roundScore.trim())
+    )
+      return {
+        isValid: true,
+        formatted: roundScore.toUpperCase(),
+        error: undefined,
+      }
     return parseScore(
       roundScore,
       workout.scheme as WorkoutScheme,
@@ -137,6 +186,32 @@ function LogEditPage() {
     setError(null)
 
     try {
+      if (
+        score.personalSessionId &&
+        score.personalItemId &&
+        score.personalRevision !== null
+      ) {
+        await savePersonalLibraryResultFn({
+          data: {
+            personalSessionId: score.personalSessionId,
+            itemId: score.personalItemId,
+            expectedRevision: score.personalRevision,
+            replaceExisting: true,
+            score: isMultiRound ? "" : singleScore,
+            roundScores: isMultiRound
+              ? roundScores.map((value) => ({ score: value }))
+              : undefined,
+            notes,
+            asRx,
+            scalingLevelId: selectedScalingLevelId,
+          },
+        })
+        window.location.assign(
+          redirectUrl ??
+            `/training?teamId=${encodeURIComponent(score.teamId)}&date=${score.personalTrainingDate}`,
+        )
+        return
+      }
       // Build update data
       const updateData: {
         id: string
@@ -175,7 +250,10 @@ function LogEditPage() {
 
       await updateLogFn({ data: updateData })
 
-      // Navigate back to the log or workout page
+      if (redirectUrl) {
+        window.location.assign(redirectUrl)
+        return
+      }
       navigate({
         to: "/workouts/$workoutId",
         params: { workoutId: workout.id },
@@ -200,11 +278,11 @@ function LogEditPage() {
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <Button variant="outline" size="icon" asChild>
-          <Link to="/workouts/$workoutId" params={{ workoutId: workout.id }}>
+          <a href={redirectUrl ?? `/workouts/${workout.id}`} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </a>
         </Button>
-        <h1 className="text-2xl font-bold">EDIT LOG</h1>
+        <h1 className="text-2xl font-bold">Edit result</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -241,6 +319,7 @@ function LogEditPage() {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
+                  readOnly={!!score.personalTrainingDate}
                   required
                 />
               </div>
@@ -362,12 +441,14 @@ function LogEditPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() =>
-                    navigate({
-                      to: "/workouts/$workoutId",
-                      params: { workoutId: workout.id },
-                    })
-                  }
+                  onClick={() => {
+                    if (redirectUrl) window.location.assign(redirectUrl)
+                    else
+                      navigate({
+                        to: "/workouts/$workoutId",
+                        params: { workoutId: workout.id },
+                      })
+                  }}
                 >
                   Cancel
                 </Button>
@@ -399,8 +480,9 @@ function getScorePlaceholder(scheme: string): string {
 
 function getScoreHint(scheme: string): string {
   switch (scheme) {
-    case "time":
     case "time-with-cap":
+      return "Enter a finish time (1:30), or CAP+reps completed (CAP+123)."
+    case "time":
       return "Enter time as seconds (90) or MM:SS format (1:30)"
     case "rounds-reps":
       return "Enter as rounds+reps (5+12) or rounds.reps (5.12)"

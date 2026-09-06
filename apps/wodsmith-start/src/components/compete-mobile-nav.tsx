@@ -143,6 +143,13 @@ export default function CompeteMobileNav({
           )}
           {session?.user ? (
             <>
+              <a
+                href="/training"
+                className="hover:text-primary"
+                onClick={() => setOpen(false)}
+              >
+                Training
+              </a>
               <Link
                 to="/"
                 aria-current={isCompetitionIndex ? "page" : undefined}

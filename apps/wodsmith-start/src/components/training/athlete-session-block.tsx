@@ -3,6 +3,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import type {
   OwnTrainingResult,
+  SaveTrainingResultInput,
   TrainingBlock,
   TrainingSession,
 } from "@/lib/training/types"
@@ -17,6 +18,8 @@ export function AthleteSessionBlock({
   gymName,
   result,
   onSaved,
+  privateOnly = false,
+  saveResult = (data) => saveTrainingResultFn({ data }),
 }: {
   session: TrainingSession
   block: TrainingBlock
@@ -24,6 +27,8 @@ export function AthleteSessionBlock({
   trackName: string
   gymName: string
   result?: OwnTrainingResult
+  privateOnly?: boolean
+  saveResult?: (input: SaveTrainingResultInput) => Promise<OwnTrainingResult>
   onSaved: (result: OwnTrainingResult) => void
 }) {
   const [saving, setSaving] = useState(false)
@@ -34,19 +39,17 @@ export function AthleteSessionBlock({
     setError(null)
     try {
       onSaved(
-        await saveTrainingResultFn({
-          data: {
-            sessionId: session.id,
-            blockId: block.id,
-            publishedVersion: session.publishedVersion,
-            score: "",
-            scaling: result?.scaling ?? "rx",
-            modification: result?.modification ?? "",
-            notes: result?.notes ?? "",
-            audience: result?.audience ?? "private",
-            unit: result?.unit ?? "lb",
-            completed: !result?.completed,
-          },
+        await saveResult({
+          sessionId: session.id,
+          blockId: block.id,
+          publishedVersion: session.publishedVersion,
+          score: "",
+          scaling: result?.scaling ?? "rx",
+          modification: result?.modification ?? "",
+          notes: result?.notes ?? "",
+          audience: result?.audience ?? "private",
+          unit: result?.unit ?? "lb",
+          completed: !result?.completed,
         }),
       )
     } catch (cause) {
@@ -146,6 +149,8 @@ export function AthleteSessionBlock({
                 </Button>
               ) : null}
               <TrainingResultDialog
+                privateOnly={privateOnly}
+                saveResult={saveResult}
                 session={session}
                 block={block}
                 trackName={trackName}

@@ -83,22 +83,8 @@ export default function MobileNav({
                     className="hover:text-primary"
                     onClick={handleLinkClick}
                   >
-                    Workouts
+                    Workout library
                   </Link>
-                  <a
-                    href="/log"
-                    className="hover:text-primary"
-                    onClick={handleLinkClick}
-                  >
-                    Log
-                  </a>
-                  <a
-                    href="/training?view=team"
-                    className="hover:text-primary"
-                    onClick={handleLinkClick}
-                  >
-                    Team
-                  </a>
                 </>
               )}
               {/* @lat: [[architecture#Route Groups#compete]] */}

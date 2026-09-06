@@ -1,7 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { ArrowLeft, Search } from "lucide-react"
+import { createFileRoute, redirect } from "@tanstack/react-router"
+import { ArrowLeft } from "lucide-react"
 import { useState } from "react"
-import { trackEvent } from "@/lib/posthog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,69 +8,110 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
+import { trackEvent } from "@/lib/posthog"
 import { cn } from "@/lib/utils"
-import { getScalingLevelsFn, submitLogFn } from "@/server-fns/log-fns"
-import { getWorkoutByIdFn, getWorkoutsFn } from "@/server-fns/workout-fns"
+import {
+  getPersonalLibraryScalingLevelsFn,
+  getPersonalTrainingDayFn,
+  savePersonalLibraryResultFn,
+} from "@/server-fns/training-personal-fns"
 import { parseScore } from "@/utils/score-parser-new"
 
 export const Route = createFileRoute("/_protected/log/new/")({
   component: LogNewPage,
-  validateSearch: (search: Record<string, unknown>) => ({
-    workoutId: (search.workoutId as string) || undefined,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    workoutId?: string
+    teamId?: string
+    date?: string
+    personalSessionId?: string
+    personalItemId?: string
+    personalRevision?: number
+  } => ({
+    workoutId:
+      typeof search.workoutId === "string" ? search.workoutId : undefined,
+    teamId: typeof search.teamId === "string" ? search.teamId : undefined,
+    date: typeof search.date === "string" ? search.date : undefined,
+    personalSessionId:
+      typeof search.personalSessionId === "string"
+        ? search.personalSessionId
+        : undefined,
+    personalItemId:
+      typeof search.personalItemId === "string"
+        ? search.personalItemId
+        : undefined,
+    personalRevision:
+      Number.isInteger(Number(search.personalRevision)) &&
+      Number(search.personalRevision) > 0
+        ? Number(search.personalRevision)
+        : undefined,
   }),
-  loaderDeps: ({ search }) => ({ workoutId: search.workoutId }),
-  loader: async ({ context, deps }) => {
-    const session = context.session
-    const teamId = session?.teams?.[0]?.id
-
-    if (!teamId) {
-      return { workouts: [], selectedWorkout: null, scalingLevels: [] }
-    }
-
-    // Fetch workouts
-    const workoutsResult = await getWorkoutsFn({ data: { teamId } })
-
-    // If a workout is pre-selected, fetch its details and scaling levels
-    let selectedWorkout = null
-    let scalingLevels: Array<{ id: string; label: string; position: number }> =
-      []
-
-    if (deps.workoutId) {
-      const workoutResult = await getWorkoutByIdFn({
-        data: { id: deps.workoutId },
+  loaderDeps: ({ search }) => search,
+  loader: async ({ deps }) => {
+    if (
+      !deps.personalSessionId ||
+      !deps.personalItemId ||
+      !deps.teamId ||
+      !deps.date
+    ) {
+      const query = new URLSearchParams()
+      if (deps.workoutId) query.set("workoutId", deps.workoutId)
+      if (deps.teamId) query.set("teamId", deps.teamId)
+      if (deps.date) query.set("date", deps.date)
+      throw redirect({
+        href: `${deps.workoutId ? "/training" : "/workouts"}?${query}`,
       })
-      selectedWorkout = workoutResult.workout
-
-      if (selectedWorkout) {
-        const levelsResult = await getScalingLevelsFn({
-          data: { workoutId: deps.workoutId },
-        })
-        scalingLevels = levelsResult.levels
-      }
     }
-
+    const day = await getPersonalTrainingDayFn({
+      data: { teamId: deps.teamId, trainingDate: deps.date },
+    })
+    const personal = day.personalSession
+    if (!personal || personal.id !== deps.personalSessionId)
+      throw new Error("Your session is no longer available.")
+    const item = personal.items.find(
+      (entry) => entry.id === deps.personalItemId,
+    )
+    if (!item || item.kind !== "library")
+      throw new Error("This workout is no longer in your session.")
+    const previous = day.libraryResults.find(
+      (result) => result.itemId === item.id,
+    )
+    if (previous)
+      throw redirect({
+        href: `/log/${encodeURIComponent(previous.scoreId)}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${personal.teamId}&date=${personal.trainingDate}`)}`,
+      })
+    const levelsResult = await getPersonalLibraryScalingLevelsFn({
+      data: { personalSessionId: personal.id, itemId: item.id },
+    })
     return {
-      workouts: workoutsResult.workouts,
-      selectedWorkout,
-      scalingLevels,
-      teamId,
+      selectedWorkout: { ...item.workout, id: item.workoutId },
+      scalingLevels: levelsResult.levels,
+      teamId: personal.teamId,
+      trainingDate: personal.trainingDate,
+      personalSessionId: personal.id,
+      personalItemId: item.id,
+      personalRevision: personal.revision,
     }
   },
 })
 
 function LogNewPage() {
-  const { workouts, selectedWorkout, scalingLevels, teamId } =
-    Route.useLoaderData()
-  const { workoutId } = Route.useSearch()
-  const navigate = useNavigate()
+  const {
+    selectedWorkout,
+    scalingLevels,
+    teamId,
+    trainingDate,
+    personalSessionId,
+    personalItemId,
+    personalRevision,
+  } = Route.useLoaderData()
+  const workoutId = selectedWorkout?.id
+  const returnTo = `/training?teamId=${encodeURIComponent(teamId)}&date=${trainingDate}`
 
-  const [searchQuery, setSearchQuery] = useState("")
   const [score, setScore] = useState("")
   const [notes, setNotes] = useState("")
-  const [date, setDate] = useState(() => {
-    const today = new Date()
-    return today.toISOString().split("T")[0]
-  })
+
   const [selectedScalingLevelId, setSelectedScalingLevelId] = useState<
     string | undefined
   >(scalingLevels[0]?.id)
@@ -84,20 +124,6 @@ function LogNewPage() {
   const isMultiRound = numRounds > 1
   const [roundScores, setRoundScores] = useState<string[]>(() =>
     Array(numRounds).fill(""),
-  )
-
-  // Reset round scores when workout changes
-  const handleWorkoutSelect = (id: string) => {
-    setRoundScores(Array(numRounds).fill(""))
-    setScore("")
-    navigate({
-      to: "/log/new",
-      search: { workoutId: id },
-    })
-  }
-
-  const filteredWorkouts = workouts.filter((workout) =>
-    workout.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   // Handle round score changes
@@ -113,6 +139,15 @@ function LogNewPage() {
   const getRoundParseResult = (roundIndex: number) => {
     const roundScore = roundScores[roundIndex]
     if (!roundScore?.trim() || !selectedWorkout) return null
+    if (
+      selectedWorkout.scheme === "time-with-cap" &&
+      /^CAP\s*\+\s*\d+$/i.test(roundScore.trim())
+    )
+      return {
+        isValid: true,
+        formatted: roundScore.toUpperCase(),
+        error: undefined,
+      }
     return parseScore(
       roundScore,
       selectedWorkout.scheme as WorkoutScheme,
@@ -129,32 +164,19 @@ function LogNewPage() {
     setError(null)
 
     try {
-      // For multi-round workouts, pass round scores
-      const submitData: {
-        workoutId: string
-        teamId: string
-        date: string
-        score: string
-        notes?: string
-        scalingLevelId?: string
-        asRx: boolean
-        roundScores?: Array<{ score: string }>
-      } = {
-        workoutId,
-        teamId,
-        date,
-        score: isMultiRound ? "" : score,
-        notes,
-        scalingLevelId: selectedScalingLevelId,
-        asRx,
-      }
-
-      if (isMultiRound) {
-        submitData.roundScores = roundScores.map((s) => ({ score: s }))
-      }
-
-      const result = await submitLogFn({
-        data: submitData,
+      const result = await savePersonalLibraryResultFn({
+        data: {
+          personalSessionId,
+          itemId: personalItemId,
+          expectedRevision: personalRevision,
+          score: isMultiRound ? "" : score,
+          notes,
+          scalingLevelId: selectedScalingLevelId,
+          asRx,
+          roundScores: isMultiRound
+            ? roundScores.map((value) => ({ score: value }))
+            : undefined,
+        },
       })
 
       trackEvent("workout_result_logged", {
@@ -166,7 +188,7 @@ function LogNewPage() {
       })
 
       // Navigate back to workouts or log page
-      navigate({ to: "/workouts/$workoutId", params: { workoutId } })
+      window.location.assign(returnTo)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save log"
       trackEvent("workout_result_logged_failed", {
@@ -184,11 +206,11 @@ function LogNewPage() {
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <Button variant="outline" size="icon" asChild>
-          <Link to="/workouts" search={{ view: "row", q: "" }}>
+          <a href={returnTo} aria-label="Back to my session">
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </a>
         </Button>
-        <h1 className="text-2xl font-bold">LOG RESULT</h1>
+        <h1 className="text-2xl font-bold">Log result</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -197,7 +219,7 @@ function LogNewPage() {
           {selectedWorkout ? (
             <Card>
               <CardHeader>
-                <CardTitle>Selected Workout</CardTitle>
+                <CardTitle>Workout</CardTitle>
               </CardHeader>
               <CardContent>
                 <h3 className="text-xl font-bold mb-2">
@@ -213,61 +235,10 @@ function LogNewPage() {
                     {selectedWorkout.scheme.toUpperCase()}
                   </Badge>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    navigate({
-                      to: "/log/new",
-                      search: { workoutId: undefined },
-                    })
-                  }
-                >
-                  Choose different workout
-                </Button>
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Workout</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search workouts..."
-                    className="pl-10"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <div className="h-[400px] overflow-y-auto border rounded-md">
-                  {filteredWorkouts.length > 0 ? (
-                    <div className="divide-y">
-                      {filteredWorkouts.map((workout) => (
-                        <button
-                          key={workout.id}
-                          type="button"
-                          onClick={() => handleWorkoutSelect(workout.id)}
-                          className="w-full text-left p-4 hover:bg-muted transition-colors"
-                        >
-                          <h3 className="font-semibold">{workout.name}</h3>
-                          <span className="text-xs text-muted-foreground">
-                            {workout.scheme.toUpperCase()}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <p className="text-muted-foreground">No workouts found</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <p>This workout is no longer available.</p>
           )}
         </div>
 
@@ -286,8 +257,8 @@ function LogNewPage() {
                     <Input
                       id="date"
                       type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
+                      value={trainingDate}
+                      readOnly
                       required
                     />
                   </div>
@@ -418,12 +389,7 @@ function LogNewPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() =>
-                        navigate({
-                          to: "/workouts",
-                          search: { view: "row", q: "" },
-                        })
-                      }
+                      onClick={() => window.location.assign(returnTo)}
                     >
                       Cancel
                     </Button>
@@ -465,8 +431,9 @@ function getScorePlaceholder(scheme: string): string {
 
 function getScoreHint(scheme: string): string {
   switch (scheme) {
-    case "time":
     case "time-with-cap":
+      return "Enter a finish time (1:30), or CAP+reps completed (CAP+123)."
+    case "time":
       return "Enter time as seconds (90) or MM:SS format (1:30)"
     case "rounds-reps":
       return "Enter as rounds+reps (5+12) or rounds.reps (5.12)"

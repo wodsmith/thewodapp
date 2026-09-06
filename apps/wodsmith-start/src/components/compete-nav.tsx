@@ -51,6 +51,12 @@ export default function CompeteNav({
           {/* @lat: [[architecture#Route Groups#compete]] */}
           {session?.user ? (
             <>
+              <a
+                href="/training"
+                className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+              >
+                Training
+              </a>
               <Link
                 to="/"
                 aria-current={isCompetitionIndex ? "page" : undefined}
