@@ -10,8 +10,16 @@ import { requireAdmin } from "@/utils/auth"
 // Intentionally public: returns published programming for the public CrossFit.com track only.
 // Import IDs are deterministic public date keys; pending entries and workflow diagnostics are excluded.
 export const getCrossFitTrackDaysFn = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ trackId: z.string() }))
-  .handler(({ data }) => getPublishedCrossFitDays(getDb(), data.trackId))
+  .inputValidator(
+    z.object({ trackId: z.string(), date: sourceDateSchema.optional() }),
+  )
+  .handler(({ data }) =>
+    getPublishedCrossFitDays(
+      getDb(),
+      data.trackId,
+      data.date ? { startDate: data.date, endDate: data.date } : undefined,
+    ),
+  )
 
 export const getCrossFitImportsFn = createServerFn({ method: "GET" }).handler(
   async () => {
@@ -21,6 +29,7 @@ export const getCrossFitImportsFn = createServerFn({ method: "GET" }).handler(
         id: externalWorkoutImportsTable.id,
         sourceDate: externalWorkoutImportsTable.sourceDate,
         status: externalWorkoutImportsTable.status,
+        publishedAt: externalWorkoutImportsTable.publishedAt,
         kind: externalWorkoutImportsTable.kind,
         error: externalWorkoutImportsTable.error,
         sourceMarkdown: externalWorkoutImportsTable.sourceMarkdown,
@@ -53,10 +62,16 @@ export const runCrossFitImportFn = createServerFn({ method: "POST" })
     z.object({
       sourceDate: sourceDateSchema,
       mode: z.enum(["dry-run", "publish"]),
+      expectedSourceHash: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .optional(),
     }),
   )
   .handler(async ({ data }) => {
     await requireAdmin()
+    if (data.mode === "publish" && !data.expectedSourceHash)
+      throw new Error("Preview this date before publishing")
     const instance = await env.CROSSFIT_DAILY_IMPORT_WORKFLOW.create({
       id: `crossfit-${data.sourceDate}-${crypto.randomUUID()}`,
       params: data,

@@ -25,6 +25,10 @@ import {
 export const crossFitImportParamsSchema = z.object({
   sourceDate: sourceDateSchema,
   mode: z.enum(["dry-run", "publish"]),
+  expectedSourceHash: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
 })
 export type CrossFitImportParams = z.infer<typeof crossFitImportParamsSchema>
 
@@ -97,6 +101,15 @@ export class CrossFitDailyImportWorkflowBase extends WorkflowEntrypoint<
         await step.sleep(`wait-for-source-${attempt}`, delay * 1000)
       }
       if (!source) throw new Error("CrossFit source unavailable")
+      if (
+        params.expectedSourceHash &&
+        source.hash !== params.expectedSourceHash
+      ) {
+        phase = "review"
+        throw new CrossFitImportReviewError(
+          "Source content changed since preview. Preview this date again before publishing.",
+        )
+      }
       const snapshot = source
       if (publish)
         await step.do("snapshot", () =>

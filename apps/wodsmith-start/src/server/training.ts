@@ -40,6 +40,7 @@ import type {
 import { hasFeature } from "@/server/entitlements"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getActiveTeamId } from "@/utils/team-auth"
+import { getPublishedCrossFitDays } from "./crossfit-import"
 import {
   assertTrainingRevision,
   normalizeTrainingResult,
@@ -205,7 +206,8 @@ export async function getTrainingContext(): Promise<TrainingContext> {
       continue
     teams.push({
       id: team.id,
-      name: team.name,
+      name: team.isPersonalTeam ? "My training" : team.name,
+      isPersonal: team.isPersonalTeam,
       timezone: trainingTimezone(team.settings),
       canProgram: memberships.some(
         (m) => m.team.id === team.id && canProgramTraining(m),
@@ -293,7 +295,20 @@ export async function getTrainingWeek(input: {
       ),
     )
     .orderBy(trainingSessionsTable.trainingDate)
-  if (!sessions.length) return { sessions: [], myResults: [], teamResults: [] }
+  const providerDays = (
+    await getPublishedCrossFitDays(getDb(), input.trackId, {
+      startDate: input.startDate,
+      endDate: end.toISOString().slice(0, 10),
+    })
+  ).filter(
+    (day) =>
+      !sessions.some(
+        (session) =>
+          session.trainingDate === day.date && session.published !== null,
+      ),
+  )
+  if (!sessions.length)
+    return { sessions: [], myResults: [], teamResults: [], providerDays }
   const rows = await getDb()
     .select({
       result: trainingResultsTable,
@@ -335,6 +350,7 @@ export async function getTrainingWeek(input: {
     userId,
   )
   return {
+    providerDays,
     sessions: sessions
       .filter((s) => input.mode === "coach" || s.published !== null)
       .map((s) => trainingSession(s, input.mode === "coach")),

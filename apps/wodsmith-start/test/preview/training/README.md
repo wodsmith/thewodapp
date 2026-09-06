@@ -11,3 +11,13 @@ pnpm --filter wodsmith-start exec vite --config test/preview/training/vite.confi
 Open `http://127.0.0.1:8766/training` or `/training/programming`. The fixture creates today's session in the gym timezone. Athlete results, draft changes, publication, and copying persist in the browser. Clear the `wodsmith-training-component-preview-v1` localStorage key to reset the fixture.
 
 Production routes do not import these fixtures. The Vite alias is confined to this preview configuration; the normal application calls authenticated training server functions.
+
+## Track and provider preview
+
+The track preview mounts the production reader, importer controls, and athlete Training components with in-memory fixtures. The banner identifies illustrative data; these pages make no production writes.
+
+```sh
+pnpm --filter wodsmith-start exec vite --config test/preview/training/vite.track.config.ts
+```
+
+Open `http://127.0.0.1:8767/programming/ptrk_crossfit_dotcom?admin=1&date=2026-09-04` for a multi-score day, or choose September 6 for rest. Omit `admin=1` for the ordinary reader. Import controls are at `/admin/programming/ptrk_crossfit_dotcom`; Training is at `/training?date=2026-09-04`. Reloading resets this preview's in-memory state. Production authorization and persistence are verified separately by the server and disposable-MySQL tests.

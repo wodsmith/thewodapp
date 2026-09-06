@@ -2,7 +2,16 @@ import { bigint, boolean, index, int, json, mysqlTable, text, uniqueIndex, varch
 import { commonColumns } from "./common"
 import type { TrainingBlockSnapshot } from "./training"
 
+export interface ProviderProvenanceSnapshot {
+  importId: string
+  trackId: string
+  trackName: string
+  sourceDate: string
+  sourceUrl: string
+}
+
 export interface PersonalItemSnapshot {
+  provenance?: ProviderProvenanceSnapshot
   id: string
   kind: "source" | "personal" | "library"
   block?: TrainingBlockSnapshot
@@ -17,6 +26,7 @@ export interface PersonalItemSnapshot {
   workout?: { name: string; description: string; scheme: string; scoreType?: string | null; timeCap?: number | null; roundsToScore?: number | null; repsPerRound?: number | null; tiebreakScheme?: string | null; scalingGroupId?: string | null }
 }
 export interface PersonalLibraryItemSnapshot {
+  provenance?: ProviderProvenanceSnapshot
   id: string
   kind: "library"
   workoutId: string

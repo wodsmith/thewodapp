@@ -233,3 +233,41 @@ The browser test opens Workout library, finds seeded workouts, and follows one i
 ## Legacy Session Entry Links
 
 Legacy dashboard and scheduled workout actions explicitly add work to Training, carrying the selected gym and scheduled date. Older logging bookmarks show an import confirmation before creating a personal session.
+
+## Dated Provider Programming
+
+Published provider days project into the Training calendar without creating coached sessions or athlete compositions. The weekly and daily reads share the same calendar identity and publication precedence.
+
+[[apps/wodsmith-start/src/server/training.ts#getTrainingWeek]] batches one provider range read. Published coach sessions take precedence for their gym, track, and date; drafts never suppress provider programming for athletes. Explicit rest differs from missing publication. The day union distinguishes coach-session, provider-day, and unavailable. Existing personal items render before browsed source programming.
+
+An explicit track/date/workspace link overrides the saved default for browsing. An inaccessible linked track falls back visibly; no preference is rewritten. The week strip shows Rest, Workout, or an empty marker. My training uses personal labels and omits the gym Team tab. Workspace timezones choose the initial date; provider dates remain calendar labels.
+
+## Track Following and Gym Libraries
+
+Personal following, the default Training preference, gym-library access, and personal session additions are separate actions. Following never grants entitlement or copies a workout automatically.
+
+[[apps/wodsmith-start/src/server-fns/track-follow-fns.ts#followTrackFn]] resolves the caller's existing owned personal workspace using its ownership flags. Follow is idempotent; unfollow only deactivates existing associations. The gym selector requires active unexpired membership, programming permission, training access, and a gym type without personal ownership. Event teams are excluded. Owned gym tracks remain available without redundant subscriptions.
+
+## Provider Verification
+
+Tests cover the provider read contract, contextual navigation, user consent, and separation of gym permissions from site administration.
+
+### Read-only dates and precedence
+
+The real MySQL test checks that published provider dates produce no inserts, private review dates remain unavailable, and only published coached sessions supersede the provider.
+
+### Explicit track deep links
+
+The athlete component sends the explicit selected track on its initial day read without saving a default or a personal composition.
+
+### Reader and following actions
+
+The reader distinguishes missing dates from rest and presents contextual personal following without a global organization subscription list.
+
+### Personal and gym authorization
+
+The real MySQL follow tests resolve owned personal workspaces, reject forged personal IDs, exclude event and expired gyms, and retain owned gym tracks in the library.
+
+### Failed source reads discard stale programming
+
+Changing the selected track clears the previous day response before loading. A failed read shows no stale prescription or add action, and retry retains the newly selected workspace, track, and date without writing a composition.

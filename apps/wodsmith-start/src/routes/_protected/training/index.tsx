@@ -11,7 +11,17 @@ export const Route = createFileRoute("/_protected/training/")({
     teamId?: string
     date?: string
     workoutId?: string
+    workoutIds?: string
+    trackId?: string
   } => ({
+    trackId:
+      typeof search.trackId === "string" && search.trackId.length <= 255
+        ? search.trackId
+        : undefined,
+    workoutIds:
+      typeof search.workoutIds === "string" && search.workoutIds.length <= 4096
+        ? search.workoutIds
+        : undefined,
     teamId: typeof search.teamId === "string" ? search.teamId : undefined,
     date:
       typeof search.date === "string" &&
@@ -32,17 +42,24 @@ export const Route = createFileRoute("/_protected/training/")({
 function TrainingPage() {
   const context = Route.useLoaderData()
   const navigate = useNavigate({ from: Route.fullPath })
-  const { view, teamId, date, workoutId } = Route.useSearch()
+  const { view, teamId, date, workoutId, workoutIds, trackId } =
+    Route.useSearch()
   return (
     <AthleteTraining
       context={context}
       initialView={view}
       initialTeamId={teamId}
+      initialTrackId={trackId}
+      libraryWorkoutIds={workoutIds?.split(",").filter(Boolean).slice(0, 20)}
       initialDate={date}
       libraryWorkoutId={workoutId}
       onLibraryWorkoutHandled={() => {
         void navigate({
-          search: (previous) => ({ ...previous, workoutId: undefined }),
+          search: (previous) => ({
+            ...previous,
+            workoutId: undefined,
+            workoutIds: undefined,
+          }),
           replace: true,
         })
       }}

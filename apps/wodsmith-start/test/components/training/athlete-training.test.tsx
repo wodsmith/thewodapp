@@ -10,6 +10,8 @@ import { parseTime } from "@/lib/scoring/parse/time"
 import type { OwnTrainingResult, TrainingBlock, TrainingContext, TrainingSession, TrainingWeek } from "@/lib/training/types"
 import { getTrainingHistoryFn, getTrainingWeekFn, saveTrainingResultFn, setTrainingCheerFn } from "@/server-fns/training-fns"
 
+vi.mock("@tanstack/react-router", async (actual) => ({...await actual<object>(), Link: ({children,params}:{children:React.ReactNode;params:{workoutId:string}})=><a href={`/workouts/${params.workoutId}`}>{children}</a>}))
+
 vi.mock("@/server-fns/training-fns", () => ({
   getTrainingWeekFn: vi.fn(),
   getTrainingHistoryFn: vi.fn(),
@@ -155,13 +157,13 @@ describe("athlete training", () => {
     expect(screen.getByLabelText("Choose training date")).toHaveValue("2026-09-07")
     await screen.findByRole("heading", { name: "Strength for the week" })
     fireEvent.change(screen.getByLabelText("Choose training date"), { target: { value: "2026-09-09" } })
-    fireEvent.change(screen.getByLabelText("Your training track"), { target: { value: "compete" } })
+    fireEvent.change(screen.getByLabelText("Training track"), { target: { value: "compete" } })
     await waitFor(() => expect(getTrainingWeekFn).toHaveBeenLastCalledWith({ data: { teamId: "gym", trackId: "compete", startDate: "2026-09-07", mode: "athlete" } }))
     expect(screen.getByLabelText("Choose training date")).toHaveValue("2026-09-09")
     expect(saveTrainingPreferenceFn).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole("button", { name: "Next week" }))
     expect(screen.getByLabelText("Choose training date")).toHaveValue("2026-09-16")
-    fireEvent.change(screen.getByLabelText("Gym or coaching group"), { target: { value: "other" } })
+    fireEvent.change(screen.getByLabelText("Training for"), { target: { value: "other" } })
     expect(screen.getByLabelText("Choose training date")).toHaveValue("2026-09-08")
     await screen.findByText("No session is published for this day. You can still build your own.")
   })
@@ -173,9 +175,9 @@ describe("athlete training", () => {
     let resolveOld: (week: TrainingWeek) => void = () => {}
     vi.mocked(getTrainingWeekFn).mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve })).mockResolvedValueOnce({ ...emptyWeek, sessions: [{ ...session, id: "compete-session", trackId: "compete", published: { ...session.published!, title: "Compete day" } }] })
     render(<AthleteTraining context={context} />)
-    await waitFor(() => expect(screen.getByLabelText("Your training track")).toBeEnabled())
+    await waitFor(() => expect(screen.getByLabelText("Training track")).toBeEnabled())
     await waitFor(() => expect(getTrainingWeekFn).toHaveBeenCalled())
-    fireEvent.change(screen.getByLabelText("Your training track"), { target: { value: "compete" } })
+    fireEvent.change(screen.getByLabelText("Training track"), { target: { value: "compete" } })
     await screen.findByRole("heading", { name: "Compete day" })
     await act(async () => { resolveOld({ ...emptyWeek, sessions: [session] }) })
     expect(screen.queryByRole("heading", { name: "Strength for the week" })).not.toBeInTheDocument()
@@ -218,7 +220,7 @@ it("opens the durable default without saving a personal session and keeps browsi
   render(<AthleteTraining context={context} initialDate={session.trainingDate} />)
   await screen.findByRole("heading", { name: "Strength for the week" })
   expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
-  fireEvent.change(screen.getByLabelText("Your training track"), { target: { value: "compete" } })
+  fireEvent.change(screen.getByLabelText("Training track"), { target: { value: "compete" } })
   await screen.findByRole("heading", { name: "Compete day" })
   expect(saveTrainingPreferenceFn).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole("button", { name: "Make default track" }))
@@ -313,4 +315,162 @@ it("limits personal workout names to the server-supported length", async () => {
   await screen.findByRole("heading", { name: "Back squat" })
   fireEvent.click(screen.getByRole("button", { name: "Create workout" }))
   expect(screen.getByLabelText("Workout name")).toHaveAttribute("maxlength", "160")
+})
+
+// @lat: [[training#Provider Verification#Explicit track deep links]]
+it("opens an explicit track without changing the saved default", async () => {
+  render(
+    <AthleteTraining
+      context={context}
+      initialDate="2026-09-07"
+      initialTrackId="compete"
+    />,
+  )
+  await waitFor(() =>
+    expect(getPersonalTrainingDayFn).toHaveBeenCalledWith({
+      data: { teamId: "gym", trainingDate: "2026-09-07", trackId: "compete" },
+    }),
+  )
+  expect(saveTrainingPreferenceFn).not.toHaveBeenCalled()
+})
+
+// @lat: [[training-personal#Provider Source Snapshots#Multiple component consent]]
+it("cancels a multi-workout request without writes, then retains it after a failed atomic save", async () => {
+  const props = {
+    team: context.teams[0],
+    trackId: "everyday",
+    date: "2026-09-07",
+    sourceResults: [],
+    onSaved: vi.fn(),
+    libraryWorkoutIds: ["time", "load"],
+    onLibraryWorkoutHandled: vi.fn(),
+  }
+  const { unmount } = render(<AthletePersonalSession {...props} />)
+  await screen.findByText("Add 2 workouts?")
+  expect(screen.getByRole("heading", { name: "Add 2 workouts?" })).toHaveFocus()
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  expect(props.onLibraryWorkoutHandled).toHaveBeenCalledOnce()
+  unmount()
+  vi.mocked(savePersonalTrainingSessionFn).mockRejectedValue(
+    new Error("Save failed"),
+  )
+  render(<AthletePersonalSession {...props} />)
+  await screen.findByText("Add 2 workouts?")
+  fireEvent.click(screen.getByRole("button", { name: "Add to my session" }))
+  await screen.findByText("Save failed")
+  expect(screen.getByText("Add 2 workouts?")).toBeInTheDocument()
+  expect(savePersonalTrainingSessionFn).toHaveBeenCalledOnce()
+  const input = vi.mocked(savePersonalTrainingSessionFn).mock.calls[0]?.[0]
+    ?.data as import("@/lib/training/personal-types").SavePersonalTrainingSessionInput
+  expect(
+    input.items
+      .filter((item) => item.kind === "library")
+      .map((item) => item.workoutId),
+  ).toEqual(["time", "load"])
+  expect(input.trainingDate).toBe("2026-09-07")
+})
+it("keeps personal sessions available with no followed tracks", async () => {
+  render(
+    <AthleteTraining
+      context={{ ...context, teams: [{ ...context.teams[0], tracks: [] }] }}
+      initialDate="2026-09-07"
+    />,
+  )
+  await screen.findByRole("link", { name: "Browse tracks" })
+  expect(
+    screen.getByRole("button", { name: "My progress" }),
+  ).toBeInTheDocument()
+  expect(getPersonalTrainingDayFn).toHaveBeenCalled()
+})
+
+it("keeps gym coaching tools out of an owned personal workspace", async () => {
+  render(
+    <AthleteTraining
+      context={{
+        ...context,
+        teams: [
+          {
+            ...context.teams[0],
+            isPersonal: true,
+            canProgram: true,
+            name: "My training",
+          },
+        ],
+      }}
+      initialDate="2026-09-07"
+      initialView="team"
+    />,
+  )
+  await screen.findByRole("heading", { name: "My training" })
+  expect(
+    screen.queryByRole("link", { name: "Coach tools" }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole("button", { name: /^Team$/ }),
+  ).not.toBeInTheDocument()
+  expect(screen.getByRole("button", { name: "My session" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  )
+})
+
+// @lat: [[training#Provider Verification#Failed source reads discard stale programming]]
+it("removes the prior provider source after a new track read fails and retries the selected track", async () => {
+  const empty = {
+    defaultTrackId: "everyday",
+    selectedTrackId: "everyday",
+    sourceSession: null,
+    personalSession: null,
+    items: [],
+    results: [],
+    libraryResults: [],
+  }
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValueOnce({
+    ...empty,
+    source: {
+      kind: "provider-day",
+      day: {
+        id: "provider-a",
+        date: "2026-09-07",
+        url: "https://www.crossfit.com/260907",
+        kind: "workout",
+        markdown: "Provider A prescription",
+        workouts: [
+          { workoutId: "a", name: "Provider A workout", scheme: "time" },
+        ],
+      },
+    },
+  })
+  const props = {
+    team: context.teams[0],
+    date: "2026-09-07",
+    sourceResults: [],
+    onSaved: vi.fn(),
+  }
+  const { rerender } = render(
+    <AthletePersonalSession {...props} trackId="everyday" />,
+  )
+  await screen.findByRole("heading", { name: "Provider A workout" })
+  vi.mocked(getPersonalTrainingDayFn).mockRejectedValueOnce(
+    new Error("Could not load track B"),
+  )
+  rerender(<AthletePersonalSession {...props} trackId="compete" />)
+  await screen.findByText("Could not load track B")
+  expect(screen.queryByText("Provider A prescription")).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole("button", { name: "Add to my day" }),
+  ).not.toBeInTheDocument()
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValueOnce({
+    ...empty,
+    selectedTrackId: "compete",
+    source: { kind: "unavailable" },
+  })
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }))
+  await waitFor(() =>
+    expect(getPersonalTrainingDayFn).toHaveBeenLastCalledWith({
+      data: { teamId: "gym", trackId: "compete", trainingDate: "2026-09-07" },
+    }),
+  )
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
 })
