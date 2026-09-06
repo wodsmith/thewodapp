@@ -115,6 +115,12 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
     requestId.current = id
     return id
   }
+  const beginSourceRead = () => {
+    setReviewed(null)
+    setPending(null)
+    setLocalError(null)
+    return beginRequest()
+  }
   const focusQuestion = () =>
     requestAnimationFrame(() => {
       const question = root.current?.querySelector<HTMLElement>(
@@ -314,7 +320,7 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
         <Button
           type="button"
           disabled={disabled || (!text.trim() && !file)}
-          onClick={() => run(() => props.onRead(text, file, beginRequest()))}
+          onClick={() => run(() => props.onRead(text, file, beginSourceRead()))}
         >
           Read workout
         </Button>

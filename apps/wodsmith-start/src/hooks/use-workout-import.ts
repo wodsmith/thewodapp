@@ -174,7 +174,12 @@ export function useWorkoutImport(importId: string, onAccessLost: () => void) {
     },
     onClose(event) {
       setReady(false)
-      if (event.code === 4403) onAccessLost()
+      if (event.code === 4403 && event.reason !== "source_expired")
+        onAccessLost()
+      else if (event.reason === "source_expired")
+        setConnectionError(
+          "This source session has ended. Read the source again to continue.",
+        )
       else setConnectionError("Connection lost. Reconnecting to your import…")
     },
     onOpen() {

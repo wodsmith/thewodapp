@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 const mock = vi.hoisted(() => ({ access: vi.fn(), agent: vi.fn(), save: vi.fn() }))
 vi.mock("@/server-fns/workout-import-fns", () => ({ getWorkoutImportAccessFn: mock.access, saveWorkoutImportFn: mock.save }))
@@ -6,7 +6,7 @@ vi.mock("agents/react", () => ({ useAgent: mock.agent }))
 vi.mock("@/server-fns/movement-fns", () => ({ getAllMovementsFn: vi.fn().mockResolvedValue({ movements: [] }) }))
 import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
 import { renderHook } from "@testing-library/react"
-import { isWorkoutImportAccessError, workoutImportError, useWorkoutImportAccess } from "@/hooks/use-workout-import"
+import { isWorkoutImportAccessError, workoutImportError, useWorkoutImport, useWorkoutImportAccess } from "@/hooks/use-workout-import"
 
 beforeEach(() => { mock.access.mockResolvedValue({ hasAccess: false }) })
 describe("workout import access", () => {
@@ -37,6 +37,20 @@ describe("workout import access", () => {
   it.each(["AI Workout Import access required", "Not authenticated", "access_required"])("recognizes save denial without a stale enabled UI: %s", (message) => {
     expect(isWorkoutImportAccessError(new Error(message))).toBe(true)
     expect(workoutImportError(new Error(message))).toMatch(/access required/)
+  })
+
+  // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Cancellation is not revocation]]
+  it("distinguishes an expired source socket from revoked destination access", async () => {
+    const onAccessLost = vi.fn()
+    mock.agent.mockReturnValue({ state: null, call: vi.fn() })
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, json: async () => ({ status: "idle", draft: null, error: null, runId: null, requestId: null }) } as Response)
+    const { result } = renderHook(() => useWorkoutImport("session", onAccessLost))
+    act(() => mock.agent.mock.calls.at(-1)?.[0].onClose({ code: 4403, reason: "source_expired" }))
+    expect(onAccessLost).not.toHaveBeenCalled()
+    expect(result.current.connectionError).toMatch(/source session has ended/)
+    act(() => mock.agent.mock.calls.at(-1)?.[0].onClose({ code: 4403, reason: "access_required" }))
+    expect(onAccessLost).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled())
   })
 
 })

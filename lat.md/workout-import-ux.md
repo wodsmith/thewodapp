@@ -24,4 +24,4 @@ Library entry points return to workout detail. Both writable track managers use 
 
 An opaque session ID stored per actor and destination permits an authorized snapshot reload when reopening. Images and pasted text are never stored in URLs or browser persistence by the importer.
 
-Access loss unmounts the connection and disables AI reads, revisions, and saves while retaining the local editor. A fresh access check permits reconnecting. Safe cancellation expires the session; the next read creates another session. Uncertain saves retry the same reviewed content with the same key. Server authorization remains authoritative at every operation.
+Access loss unmounts the connection and disables AI reads, revisions, and saves while retaining the local editor. A fresh access check permits reconnecting. Safe cancellation expires the session. Reading a source again creates a fresh session at revision zero; corrections revise the current session. Local edits remain visible throughout. Uncertain saves retry the same reviewed content with the same key. Server authorization remains authoritative at every operation.

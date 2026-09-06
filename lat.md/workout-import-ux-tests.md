@@ -73,3 +73,11 @@ Removing a restored or uploaded image hides its preview so a text-only source ca
 ## Save denial classification
 
 Both HTTP/RPC access codes and direct server-save denial messages trigger access-required recovery rather than leaving the AI workspace enabled.
+
+## Fresh source session
+
+Reading a source again safely cancels its prior session and begins a fresh import at revision zero, matching the backend's immutable-source contract.
+
+## Cancellation is not revocation
+
+A source-expired socket close prompts a fresh source session; an access-required close revokes the UI's active AI controls. Safe cancellation must not falsely mark destination access as denied.

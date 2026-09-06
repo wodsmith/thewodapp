@@ -210,10 +210,15 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
     }
   }
   const ensureSession = async () => {
-    if (sessionId && connection.current) return sessionId
-    const session = sessionId
-      ? { importId: sessionId }
-      : await createImportSession(props.destination)
+    // Read starts a new immutable source. Corrections to an accepted draft use
+    // revise instead; the backend intentionally permits read only at revision 0.
+    const previousSessionId = sessionId
+    setSessionId(null)
+    if (previousSessionId) await cancelImportSession(previousSessionId)
+    setConnectionError(null)
+    setSnapshot(null)
+    setSourceUrl(undefined)
+    const session = await createImportSession(props.destination)
     if (!mounted.current) throw new Error("connection_closed")
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
@@ -255,6 +260,7 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
       {allowed && sessionId && (
         <ImportConnection
           ref={connection}
+          key={sessionId}
           importId={sessionId}
           onAccessLost={onAccessLost}
           onState={setSnapshot}
@@ -309,7 +315,7 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
             await connection.current.read({
               importId,
               requestId,
-              expectedRevision: snapshot?.draft?.revision ?? 0,
+              expectedRevision: 0,
               source: { text, ...(image ? { imageId: image.imageId } : {}) },
             })
           })
@@ -336,6 +342,7 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
           setSessionId(null)
           setSnapshot(null)
           setSourceUrl(undefined)
+          setConnectionError(null)
           setStage(null)
         }}
         onClose={props.onClose}
