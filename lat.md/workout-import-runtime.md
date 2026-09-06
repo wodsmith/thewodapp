@@ -64,6 +64,10 @@ Session creation and every source, snapshot and socket route verify current acce
 
 Browser mutations and WebSocket handshakes require an exact same-origin header. Unknown session IDs and agent subpaths cannot allocate objects or reach inherited sub-agent routes.
 
+## HTTP failure diagnostics
+
+Unexpected infrastructure failures return a generic server error and log only fixed stage/code values. Access checks remain fail-closed; raw exceptions, source text, cookies and provider details never enter these diagnostics.
+
 ## Private source delivery
 
 Source reads check current access again after loading R2 data and return no-store, same-origin responses. Revoked access cannot deliver previously stored source bytes.
@@ -80,6 +84,18 @@ Database ownership and access are resolved before a guessed import ID can reach 
 
 Alchemy provisions the SQLite namespace, private source bucket with a 24-hour lifecycle, Images decoder and a separate Gateway with payload logging/caching disabled. Wrangler generates binding types; runtime date and flags remain unchanged.
 
+The main app pins Cloudflare Vite plugin 1.32.3 and Wrangler 4.83.0, whose April 2026 workerd supports native named Durable Object IDs required by Agents 0.22. The former December 2025 local runtime failed before session creation despite passing mocked tests. Crew keeps its own existing tooling.
+
 Run `node scripts/workout-import-local-config.mjs` inside the main app to create an isolated build fixture only if one does not already exist. It does not configure remote AI or deploy resources. Run `pnpm test:workout-import-runtime` for Node binding/transport tests and normal app tests for scheduler regression.
 
 `scripts/workout-import-smoke.worker.ts` is a local-loopback-only synthetic-fixture harness, never exported from the app. Live smoke requires an explicitly configured remote AI binding and Gateway; mocked binding results do not establish live model quality or deployed payload-log suppression.
+
+## Live smoke evidence
+
+Synthetic text and rendered screenshot requests reached the real Workers AI model through the TanStack adapter and an existing Gateway. These bounded samples verify transport only; semantic quality and deployed privacy gates remain open.
+
+On 2026-09-06 UTC, text extraction completed in 49.4 seconds with one dispatch (345 input/3392 output tokens), but produced conflicting time/cap fields that deterministic validation blocked with a question. The first screenshot attempt timed out at 90 seconds after two dispatches.
+
+With `reasoning_effort: low`, the same screenshot completed in 51.5 seconds with one dispatch (626 input/3355 output tokens), correctly reading 100 burpees and converting 15 minutes to 900 seconds. It still asked an unnecessary scoring question. The runtime now requests low reasoning effort within the unchanged 4096-token and 90-second bounds; this is not evidence of consistent latency improvement.
+
+The screenshot was a synthetic printed prescription, not handwriting or a blurred photograph. The remaining representative corpus, human label review, ambiguity accuracy and deployed Gateway log suppression must be evaluated before release. No production deployment or entitlement grant occurred.

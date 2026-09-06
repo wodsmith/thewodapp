@@ -21,7 +21,10 @@ vi.mock("@/agents/workout-import-agent", () => ({
   chargeWorkoutImportBudget: m.budget,
 }))
 vi.mock("@/utils/auth", () => ({ getSessionFromRequestCookie: m.auth }))
-vi.mock("./access", () => ({ requireWorkoutImportAccess: m.access }))
+vi.mock("./access", () => ({
+  requireWorkoutImportAccess: m.access,
+  WorkoutImportAccessError: class extends Error {},
+}))
 vi.mock("./sessions", () => ({
   requireWorkoutImportSession: m.session,
   loadOwnedWorkoutImportSession: m.owned,
@@ -72,6 +75,34 @@ beforeEach(() => {
 })
 
 describe("authenticated import HTTP routing (mock services)", () => {
+  // @lat: [[workout-import-runtime#HTTP failure diagnostics]]
+  it("distinguishes infrastructure failure without exposing raw errors", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {})
+    m.budget.mockRejectedValueOnce(new Error("private provider credentials"))
+    try {
+      const response = await handleWorkoutImportRequest(
+        request("/api/workout-import/sessions", "POST", {
+          destination: { kind: "personal" },
+        }),
+        env,
+      )
+      expect(response?.status).toBe(500)
+      expect(await response?.json()).toEqual({
+        error: { code: "provider_error" },
+      })
+      expect(log).toHaveBeenCalledExactlyOnceWith(
+        "workout-import-request-failed",
+        {
+          stage: "budget",
+          code: "provider_error",
+        },
+      )
+      expect(m.create).not.toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+    }
+  })
+
   // @lat: [[workout-import-runtime#HTTP authorization]]
   it("checks access before allocating a session/agent or charging model work", async () => {
     m.access.mockRejectedValue(

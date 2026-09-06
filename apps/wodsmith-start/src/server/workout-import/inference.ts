@@ -165,6 +165,7 @@ export async function inferWorkoutImport(
         abortController: options.signal,
         modelOptions: {
           max_tokens: IMPORT_LIMITS.outputTokens,
+          reasoning_effort: "low",
           temperature: 0.1,
         },
         middleware: [

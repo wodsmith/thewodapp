@@ -42,7 +42,7 @@
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@atlaskit/pragmatic-drag-and-drop-react-accessibility": "^2.0.6",
     "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.1",
-    "@cloudflare/vite-plugin": "^1.19.0",
+    "@cloudflare/vite-plugin": "1.32.3",
     "@fullcalendar/core": "^6.1.17",
     "@fullcalendar/daygrid": "^6.1.17",
     "@fullcalendar/interaction": "^6.1.17",
@@ -165,6 +165,6 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0",
-    "wrangler": "^4.56.0"
+    "wrangler": "4.83.0"
   }
 }

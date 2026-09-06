@@ -67,6 +67,7 @@ describe("TanStack Cloudflare import adapter (mock binding, no live model)", () 
       "data:image/png;base64,cGl4ZWxz",
     )
     expect(input.max_tokens).toBe(IMPORT_LIMITS.outputTokens)
+    expect(input.reasoning_effort).toBe("low")
     expect(options).toMatchObject({
       returnRawResponse: true,
       gateway: { id: "private-import", skipCache: true, collectLog: false },

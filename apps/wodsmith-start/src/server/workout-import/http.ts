@@ -2,7 +2,7 @@ import { getAgentByName } from "agents"
 import { chargeWorkoutImportBudget } from "@/agents/workout-import-agent"
 import { workoutImportDestinationSchema } from "@/lib/workout-import"
 import { getSessionFromRequestCookie } from "@/utils/auth"
-import { requireWorkoutImportAccess } from "./access"
+import { requireWorkoutImportAccess, WorkoutImportAccessError } from "./access"
 import { readBoundedBody, WorkoutImportRuntimeError } from "./limits"
 import {
   createWorkoutImportSession,
@@ -51,8 +51,10 @@ export async function handleWorkoutImportRequest(
       return new Response("Not found", { status: 404, headers: privateHeaders })
     return null
   }
+  let stage = "origin"
   try {
     assertImportOrigin(request)
+    stage = "authentication"
     const actor = await getSessionFromRequestCookie(request)
     if (!actor?.userId)
       return Response.json(
@@ -61,25 +63,31 @@ export async function handleWorkoutImportRequest(
       )
     const ns = env.WORKOUT_IMPORT_AGENT
     if (api && !api[1] && request.method === "POST") {
+      stage = "input"
       const body = JSON.parse(
         new TextDecoder().decode(await readBoundedBody(request.body, 4096)),
       )
       const destination = workoutImportDestinationSchema.parse(body.destination)
+      stage = "access"
       const scope = await requireWorkoutImportAccess({
         userId: actor.userId,
         destination,
       })
+      stage = "budget"
       await chargeWorkoutImportBudget(
         env,
         scope.userId,
         scope.teamId,
         "session",
       )
+      stage = "session-create"
       const session = await createWorkoutImportSession({
         userId: actor.userId,
         destination,
       })
+      stage = "agent-allocate"
       const stub = await getAgentByName(ns, session.importId)
+      stage = "agent-initialize"
       await stub.initialize(session)
       return Response.json(
         {
@@ -98,16 +106,21 @@ export async function handleWorkoutImportRequest(
       })
     const cancelling = api?.[2] === "cancel" && request.method === "POST"
     // Check the DB before getAgentByName: guessed IDs cannot allocate durable objects.
+    stage = "access"
     const session = await (cancelling
       ? loadOwnedWorkoutImportSession
       : requireWorkoutImportSession)({ userId: actor.userId, importId })
+    stage = "agent-allocate"
     const stub = await getAgentByName(ns, importId)
     if (cancelling) {
+      stage = "cancel"
       await stub.cancelOwned(actor.userId)
       return Response.json({ cancelled: true }, { headers: privateHeaders })
     }
+    stage = "agent-initialize"
     await stub.initialize(session)
     if (agent) {
+      stage = "socket"
       if (
         request.method !== "GET" ||
         request.headers.get("upgrade")?.toLowerCase() !== "websocket"
@@ -119,6 +132,7 @@ export async function handleWorkoutImportRequest(
       return stub.fetch(request)
     }
     if (api?.[2] === "source") {
+      stage = "source"
       if (request.method === "PUT") {
         const image = await normalizeImportImage(
           request,
@@ -140,6 +154,7 @@ export async function handleWorkoutImportRequest(
           Number(object.customMetadata?.expiresAt ?? 0) <= Date.now()
         )
           throw new WorkoutImportRuntimeError("source_expired", 410)
+        stage = "access"
         await requireWorkoutImportSession({ userId: actor.userId, importId })
         return new Response(object.body, {
           headers: {
@@ -150,6 +165,7 @@ export async function handleWorkoutImportRequest(
         })
       }
     } else if (request.method === "GET") {
+      stage = "snapshot"
       return Response.json(await stub.snapshot(actor.userId), {
         headers: privateHeaders,
       })
@@ -163,7 +179,15 @@ export async function handleWorkoutImportRequest(
     const safe =
       error instanceof WorkoutImportRuntimeError
         ? error
-        : new WorkoutImportRuntimeError("access_required", 403)
+        : error instanceof WorkoutImportAccessError ||
+            ["origin", "authentication", "access"].includes(stage)
+          ? new WorkoutImportRuntimeError("access_required", 403)
+          : stage === "input"
+            ? new WorkoutImportRuntimeError("invalid_source", 400)
+            : new WorkoutImportRuntimeError("provider_error", 500)
+    // Log only fixed stages/codes; raw errors may contain source or credentials.
+    if (safe.status >= 500)
+      console.error("workout-import-request-failed", { stage, code: safe.code })
     return Response.json(
       { error: { code: safe.code } },
       {
