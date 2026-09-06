@@ -196,9 +196,9 @@ jobs:
         env:
           CREW_TEST_DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e
 
-      - run: pnpm --filter crew exec playwright install chromium --with-deps
+      - run: pnpm --filter crew exec playwright install chromium webkit --with-deps
         timeout-minutes: 10
-      - run: pnpm --filter crew exec playwright test e2e/crew-organizer-flow.spec.ts e2e/crew-volunteer-flow.spec.ts
+      - run: pnpm --filter crew exec playwright test e2e/crew-organizer-flow.spec.ts e2e/crew-volunteer-flow.spec.ts e2e/crew-mobile.spec.ts
         env:
           CI: true
           DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e

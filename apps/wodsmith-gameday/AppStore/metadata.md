@@ -1,6 +1,6 @@
 # App Store metadata
 
-This copy describes the implemented native app. Upload only after production API verification and final simulator/device checks.
+This copy describes the submitted native app: version 1.0, build 1. Apple confirmed Waiting for Review on September 6, 2026 UTC.
 
 ## Identity
 
@@ -48,7 +48,7 @@ To test a Live Activity, open a registered competition or My day and select Show
 
 ## Privacy declarations
 
-The draft declares Name, Email Address, and User ID as linked to the account, used for App Functionality and Product Personalization, with no tracking. Other Diagnostic Data is linked to the account and used for App Functionality, with no tracking.
+The published privacy responses declare Name, Email Address, and User ID as linked to the account, used for App Functionality and Product Personalization, with no tracking. Other Diagnostic Data is linked to the account and used for App Functionality, with no tracking.
 
 The native binary contains no analytics or advertising SDK. WODsmith’s server uses Sentry for errors/traces and operational logging with PostHog. Diagnostics include request paths, response status, and timing; account identifiers may be attached by server context. Default PII collection in Sentry is disabled, but this is not a guarantee of anonymization, so the disclosure does not claim that diagnostics are unlinked.
 

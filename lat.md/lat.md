@@ -19,3 +19,5 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[gameday]] — Native iOS athlete schedules, spectator browsing, secure sessions, and heat reminders.
 - [[training]] — Implemented gym training, versioned results, draft publication, permissions, and interface tests
 - [[crossfit-import]] — Daily CrossFit.com source ingestion, scoring conversion, atomic publication, and dated track display
+
+- [[training-personal]] — Athlete-owned composition, durable defaults, source snapshots, and private results.

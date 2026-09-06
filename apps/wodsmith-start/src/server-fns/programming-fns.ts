@@ -148,32 +148,26 @@ const getTrackWorkoutsInputSchema = z.object({
   trackId: z.string().min(1, "Track ID is required"),
 })
 
-const addWorkoutToTrackInputSchema = z
-  .object({
-    trackId: z.string().min(1, "Track ID is required"),
+const addWorkoutToTrackInputSchema = z.union([
+  z.object({
+    trackId: z.literal(CROSSFIT_TRACK_ID),
     workoutId: z.string().min(1, "Workout ID is required"),
-    trackOrder: z
-      .number()
-      .int()
-      .min(1, "Track order must be at least 1")
-      .optional(),
+    trackOrder: z.never().optional(),
     notes: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (
-      data.trackId === CROSSFIT_TRACK_ID
-        ? data.trackOrder !== undefined
-        : data.trackOrder === undefined
-    )
-      ctx.addIssue({
-        code: "custom",
-        path: ["trackOrder"],
-        message:
-          data.trackId === CROSSFIT_TRACK_ID
-            ? "CrossFit.com order is assigned automatically"
-            : "Track order is required",
-      })
-  })
+  }),
+  z.object({
+    trackId: z
+      .string()
+      .min(1)
+      .refine(
+        (id) => id !== CROSSFIT_TRACK_ID,
+        "CrossFit.com order is assigned automatically",
+      ),
+    workoutId: z.string().min(1, "Workout ID is required"),
+    trackOrder: z.number().int().min(1, "Track order must be at least 1"),
+    notes: z.string().optional(),
+  }),
+])
 
 export type AddWorkoutToTrackInput = z.infer<
   typeof addWorkoutToTrackInputSchema

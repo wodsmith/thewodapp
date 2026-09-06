@@ -5,10 +5,9 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import { LayoutGrid, LayoutList, Plus, Search } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { z } from "zod"
 import { Pagination } from "@/components/pagination"
-import { ScheduledWorkoutsSection } from "@/components/scheduled-workouts-section"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { WorkoutCard } from "@/components/workout-card"
@@ -17,30 +16,13 @@ import {
   WorkoutFilters,
   type WorkoutFilters as WorkoutFiltersType,
 } from "@/components/workout-filters"
-import WorkoutRowCard from "@/components/workout-row-card"
 import { WORKOUT_SCHEME_VALUES } from "@/db/schemas/workouts"
+import { trainingDateSchema } from "@/server/training-validation"
+import { getTrainingContextFn } from "@/server-fns/training-fns"
 import {
-  getScheduledWorkoutsWithResultsFn,
-  getTodayScoresFn,
   getWorkoutFilterOptionsFn,
   getWorkoutsFn,
-  type ScheduledWorkoutWithResult,
-  type TodayScore,
 } from "@/server-fns/workout-fns"
-
-// Helper to get start of local day
-function startOfLocalDay(date: Date = new Date()): Date {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-// Helper to get end of local day
-function endOfLocalDay(date: Date = new Date()): Date {
-  const d = new Date(date)
-  d.setHours(23, 59, 59, 999)
-  return d
-}
 
 // Default page size for pagination
 const DEFAULT_PAGE_SIZE = 50
@@ -51,6 +33,8 @@ const DEFAULT_PAGE_SIZE = 50
 const workoutsSearchSchema = z.object({
   view: z.enum(["row", "card"]).optional(),
   q: z.string().optional(),
+  teamId: z.string().optional(),
+  date: trainingDateSchema.optional().catch(undefined),
   // Pagination params
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(100).optional(),
@@ -81,6 +65,9 @@ export const Route = createFileRoute("/_protected/workouts/")({
     return workoutsSearchSchema.parse(search)
   },
   loaderDeps: ({ search }) => ({
+    q: search.q,
+    teamId: search.teamId,
+    date: search.date,
     page: search.page,
     pageSize: search.pageSize,
     tagIds: search.tagIds,
@@ -89,27 +76,31 @@ export const Route = createFileRoute("/_protected/workouts/")({
     trackId: search.trackId,
     type: search.type,
   }),
-  loader: async ({ context, deps }) => {
-    // Get teamId and userId from session
-    const session = context.session
-    const teamId = session?.teams?.[0]?.id
-    const userId = session?.userId
-
+  loader: async ({ deps }) => {
+    const training = await getTrainingContextFn()
+    const team =
+      training.teams.find((item) => item.id === deps.teamId) ??
+      training.teams.find((item) => item.id === training.activeTeamId) ??
+      training.teams[0]
+    const teamId = team?.id
+    const date =
+      deps.date ??
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: team?.timezone ?? "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date())
     if (!teamId) {
       return {
         workouts: [],
         totalCount: 0,
         currentPage: 1,
         pageSize: DEFAULT_PAGE_SIZE,
-        scheduledWorkouts: [] as ScheduledWorkoutWithResult[],
-        filterOptions: {
-          tags: [],
-          movements: [],
-          tracks: [],
-        } as FilterOptions,
-        todayScoresMap: {} as Record<string, TodayScore>,
+        filterOptions: { tags: [], movements: [], tracks: [] } as FilterOptions,
         teamId: null,
-        userId: null,
+        date,
+        teams: training.teams,
       }
     }
 
@@ -124,6 +115,7 @@ export const Route = createFileRoute("/_protected/workouts/")({
     // Build filter params from search deps
     const filterParams: {
       teamId: string
+      search?: string
       page: number
       pageSize: number
       tagIds?: string[]
@@ -133,6 +125,7 @@ export const Route = createFileRoute("/_protected/workouts/")({
       type?: "all" | "original" | "remix"
     } = {
       teamId,
+      search: deps.q,
       page,
       pageSize,
     }
@@ -153,53 +146,16 @@ export const Route = createFileRoute("/_protected/workouts/")({
       filterParams.type = deps.type
     }
 
-    // Fetch workouts, scheduled workouts, and filter options in parallel
-    const today = new Date()
-    const [workoutsResult, scheduledResult, filterOptionsResult] =
-      await Promise.all([
-        getWorkoutsFn({ data: filterParams }),
-        userId
-          ? getScheduledWorkoutsWithResultsFn({
-              data: {
-                teamId,
-                userId,
-                startDate: startOfLocalDay(today).toISOString(),
-                endDate: endOfLocalDay(today).toISOString(),
-              },
-            })
-          : Promise.resolve({ scheduledWorkoutsWithResults: [] }),
-        getWorkoutFilterOptionsFn({ data: { teamId } }),
-      ])
-
-    // Fetch today's scores for the returned workouts
-    const workoutIds = workoutsResult.workouts.map((w) => w.id)
-    const todayScoresResult =
-      userId && workoutIds.length > 0
-        ? await getTodayScoresFn({
-            data: {
-              teamId,
-              userId,
-              workoutIds,
-            },
-          })
-        : { scores: [] as TodayScore[] }
-
-    // Create a map of workout ID to today's score for easy lookup
-    const todayScoresMap = new Map<string, TodayScore>()
-    for (const score of todayScoresResult.scores) {
-      todayScoresMap.set(score.workoutId, score)
-    }
-
+    const [workoutsResult, filterOptions] = await Promise.all([
+      getWorkoutsFn({ data: filterParams }),
+      getWorkoutFilterOptionsFn({ data: { teamId } }),
+    ])
     return {
-      workouts: workoutsResult.workouts,
-      totalCount: workoutsResult.totalCount,
-      currentPage: workoutsResult.currentPage,
-      pageSize: workoutsResult.pageSize,
-      scheduledWorkouts: scheduledResult.scheduledWorkoutsWithResults,
-      filterOptions: filterOptionsResult,
-      todayScoresMap: Object.fromEntries(todayScoresMap),
+      ...workoutsResult,
+      filterOptions,
       teamId,
-      userId,
+      date,
+      teams: training.teams,
     }
   },
 })
@@ -210,11 +166,10 @@ function WorkoutsPage() {
     totalCount,
     currentPage,
     pageSize,
-    scheduledWorkouts,
     filterOptions,
-    todayScoresMap,
     teamId,
-    userId,
+    date,
+    teams,
   } = Route.useLoaderData()
   const navigate = useNavigate({ from: Route.fullPath })
   const search = Route.useSearch()
@@ -223,10 +178,13 @@ function WorkoutsPage() {
   const q = search.q ?? ""
   const { tagIds, movementIds, workoutType, trackId, type } = search
   const [searchQuery, setSearchQuery] = useState(q)
+  useEffect(() => setSearchQuery(q), [q])
 
   // Build search params for pagination navigation
   const buildPaginationSearchParams = (page: number) => ({
     view,
+    teamId: teamId ?? undefined,
+    date,
     q: q || undefined,
     page,
     pageSize,
@@ -254,16 +212,7 @@ function WorkoutsPage() {
     currentFilters.trackId ||
     (currentFilters.type && currentFilters.type !== "all")
 
-  // Filter workouts by search query (client-side for immediate feedback)
-  const filteredWorkouts = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return workouts
-    }
-    const query = searchQuery.toLowerCase()
-    return workouts.filter((workout) =>
-      workout.name.toLowerCase().includes(query),
-    )
-  }, [workouts, searchQuery])
+  const filteredWorkouts = workouts
 
   // Handle view toggle
   const handleViewChange = (newView: "row" | "card") => {
@@ -274,11 +223,7 @@ function WorkoutsPage() {
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newQuery = e.target.value
-    setSearchQuery(newQuery)
-    navigate({
-      search: (prev) => ({ ...prev, q: newQuery }),
-    })
+    setSearchQuery(e.target.value)
   }
 
   // Handle filters change - update URL params and refetch (reset to page 1)
@@ -286,6 +231,8 @@ function WorkoutsPage() {
     navigate({
       search: {
         view,
+        teamId: teamId ?? undefined,
+        date,
         q,
         page: 1, // Reset to page 1 when filters change
         pageSize,
@@ -309,39 +256,99 @@ function WorkoutsPage() {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-4xl font-bold">WORKOUTS</h1>
+        <h1 className="text-4xl font-bold">Workout library</h1>
         <Button asChild>
-          <Link to="/workouts/new" search={{ remixFrom: undefined }}>
+          <Link
+            to="/workouts/new"
+            search={{ remixFrom: undefined, teamId: teamId ?? undefined }}
+          >
             <Plus className="h-5 w-5 mr-2" />
             Create workout
           </Link>
         </Button>
       </div>
 
-      {/* Scheduled Workouts Section */}
-      {teamId && userId && (
-        <ScheduledWorkoutsSection
-          teamId={teamId}
-          userId={userId}
-          initialWorkouts={scheduledWorkouts}
-        />
+      <p className="mb-6 max-w-2xl text-muted-foreground">
+        Find a workout, make it your own, and add it to your training session.
+      </p>
+      {teams.length > 1 && (
+        <div className="mb-6 max-w-sm space-y-2">
+          <label htmlFor="library-gym" className="text-sm font-medium">
+            Gym or coaching group
+          </label>
+          <select
+            id="library-gym"
+            className="min-h-11 w-full rounded-md border border-input bg-background px-3"
+            value={teamId ?? ""}
+            onChange={(event) => {
+              const nextTeamId = event.currentTarget.value
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  teamId: nextTeamId,
+                  trackId: undefined,
+                  tagIds: undefined,
+                  movementIds: undefined,
+                  page: 1,
+                }),
+              })
+            }}
+          >
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
-
+      <div className="mb-6 max-w-sm space-y-2">
+        <label htmlFor="library-date" className="text-sm font-medium">
+          Add to session on
+        </label>
+        <Input
+          id="library-date"
+          type="date"
+          value={date}
+          onChange={(event) => {
+            if (event.target.value)
+              navigate({
+                search: (prev) => ({ ...prev, date: event.target.value }),
+              })
+          }}
+        />
+      </div>
       {/* Search + View Toggle */}
       <div className="mb-4 flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search workouts..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={handleSearchChange}
-          />
-        </div>
+        <form
+          className="flex min-w-0 flex-1 gap-2"
+          aria-label="Workout library search"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void navigate({
+              search: (prev) => ({ ...prev, q: searchQuery, page: 1 }),
+            })
+          }}
+        >
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              aria-label="Search workout library"
+              placeholder="Search workouts..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
+          </div>
+          <Button type="submit" variant="outline">
+            Search
+          </Button>
+        </form>
         <div className="flex border rounded-md">
           <Button
             variant={view === "row" ? "default" : "ghost"}
             size="icon"
+            aria-label="List view"
             onClick={() => handleViewChange("row")}
           >
             <LayoutList className="h-4 w-4" />
@@ -349,6 +356,7 @@ function WorkoutsPage() {
           <Button
             variant={view === "card" ? "default" : "ghost"}
             size="icon"
+            aria-label="Card view"
             onClick={() => handleViewChange("card")}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -368,7 +376,7 @@ function WorkoutsPage() {
       {filteredWorkouts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg">
-            {searchQuery.trim() || hasActiveFilters
+            {q.trim() || hasActiveFilters
               ? "No workouts found matching your filters."
               : "No workouts found. Create your first workout to get started."}
           </p>
@@ -376,35 +384,68 @@ function WorkoutsPage() {
       ) : view === "row" ? (
         <ul className="space-y-2">
           {filteredWorkouts.map((workout) => (
-            <WorkoutRowCard
-              key={workout.id}
-              workout={workout}
-              result={todayScoresMap[workout.id] ?? null}
-            />
+            <li key={workout.id} className="space-y-2">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border py-5">
+                <div className="min-w-0 flex-1">
+                  <Link
+                    className="text-lg font-semibold underline-offset-4 hover:underline"
+                    to="/workouts/$workoutId"
+                    params={{ workoutId: workout.id }}
+                    search={{ teamId: teamId ?? undefined, date }}
+                  >
+                    {workout.name}
+                  </Link>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {workout.scheme}
+                  </p>
+                  <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm">
+                    {workout.description}
+                  </p>
+                </div>
+              </div>
+              {teamId && (
+                <a
+                  className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
+                  href={`/training?${new URLSearchParams({ teamId, date, workoutId: workout.id })}`}
+                >
+                  Add to my session
+                </a>
+              )}
+            </li>
           ))}
         </ul>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredWorkouts.map((workout, index) => (
-            <Link
-              key={workout.id}
-              to="/workouts/$workoutId"
-              params={{ workoutId: workout.id }}
-            >
-              <WorkoutCard
-                trackOrder={index + 1}
-                name={workout.name}
-                scheme={workout.scheme}
-                description={workout.description}
-                scoreType={null}
-                roundsToScore={null}
-                pointsMultiplier={null}
-                notes={null}
-                movements={workout.movements}
-                tags={workout.tags}
-                divisionDescriptions={[]}
-              />
-            </Link>
+            <div key={workout.id}>
+              <Link
+                to="/workouts/$workoutId"
+                params={{ workoutId: workout.id }}
+                search={{ teamId: teamId ?? undefined, date }}
+              >
+                <WorkoutCard
+                  trackOrder={index + 1}
+                  name={workout.name}
+                  scheme={workout.scheme}
+                  description={workout.description}
+                  scoreType={null}
+                  roundsToScore={null}
+                  pointsMultiplier={null}
+                  notes={null}
+                  movements={workout.movements}
+                  tags={workout.tags}
+                  divisionDescriptions={[]}
+                />
+              </Link>
+              {teamId && (
+                <a
+                  className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
+                  href={`/training?${new URLSearchParams({ teamId, date, workoutId: workout.id })}`}
+                >
+                  Add to my session
+                </a>
+              )}
+            </div>
           ))}
         </div>
       )}

@@ -141,3 +141,7 @@ CrossFit additions omit caller-selected order, while other tracks retain require
 ### Administrator track edits
 
 Administrators can perform the protected CrossFit edits after authorization, preserving the intended maintenance workflow.
+
+### Qualified composite score requests
+
+Qualified score requests preserve total-rep AMRAP components, ignore unscored distances, and accept explicit counts with possessive or ranking words.

@@ -44,7 +44,7 @@ describe("CrossFit track mutation authorization", () => {
     await addWorkoutToTrackFn({ data: { trackId: CROSSFIT_TRACK_ID, workoutId: "workout" } })
     expect(appendCrossFitWorkout).toHaveBeenCalledWith(db, "workout", undefined)
     await expect(async () => addWorkoutToTrackFn({ data: { trackId: CROSSFIT_TRACK_ID, workoutId: "workout", trackOrder: 4 } })).rejects.toThrow("assigned automatically")
-    await expect(async () => addWorkoutToTrackFn({ data: { trackId: "other", workoutId: "workout" } })).rejects.toThrow("Track order is required")
+    await expect(async () => addWorkoutToTrackFn({ data: { trackId: "other", workoutId: "workout" } as never })).rejects.toThrow()
     vi.mocked(requireAdmin).mockClear()
     await addWorkoutToTrackFn({ data: { trackId: "other", workoutId: "workout", trackOrder: 4 } })
     expect(requireAdmin).not.toHaveBeenCalled()

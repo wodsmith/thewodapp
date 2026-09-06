@@ -38,7 +38,7 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
       await pool.promise().query(`CREATE TABLE \`${getTableName(table)}\` (${columns.join(",")}) ENGINE=InnoDB`)
     }
     // Execute the actual additive migration, including its uniqueness constraints.
-    const migration = readFileSync(fileURLToPath(new NodeURL("../../../../packages/wodsmith-db/mysql-migrations/0002_milky_katie_power.sql", import.meta.url)), "utf8")
+    const migration = readFileSync(fileURLToPath(new NodeURL("../../../../packages/wodsmith-db/mysql-migrations/0004_crossfit_daily_import.sql", import.meta.url)), "utf8")
     for (const statement of migration.split("--> statement-breakpoint")) if (statement.trim()) await pool.promise().query(statement)
   })
   beforeEach(async () => {

@@ -1,0 +1,1 @@
+ALTER TABLE `personal_training_results` ADD `library_item` json;

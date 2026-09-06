@@ -19,13 +19,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { VOLUNTEER_ROLE_LABELS } from "@/db/schemas/volunteers"
 import {
   type CrewRosterVolunteer,
   getCrewRosterAssigneeId,
   isCrewRosterVolunteerStaffable,
   isVolunteerCompatibleWithShift,
 } from "@/lib/crew/roster-shifts"
-import { VOLUNTEER_ROLE_LABELS } from "@/db/schemas/volunteers"
 import type { CrewShiftBoardItem } from "@/server-fns/crew-roster-shift-fns"
 import {
   assignCrewVolunteerToShiftFn,
@@ -100,7 +100,8 @@ export function ShiftAssignmentPanel({
   // (invitation-based) volunteers in a staffable status. Each is referenced by
   // its canonical assignee id (membership id or invitation id).
   const assignableVolunteers = useMemo(
-    () => roster.filter((volunteer) => isCrewRosterVolunteerStaffable(volunteer)),
+    () =>
+      roster.filter((volunteer) => isCrewRosterVolunteerStaffable(volunteer)),
     [roster],
   )
 
@@ -192,8 +193,8 @@ export function ShiftAssignmentPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader className="space-y-1">
+      <SheetContent className="flex w-full flex-col p-4 sm:max-w-md sm:p-6">
+        <SheetHeader className="space-y-1 pr-10 text-left">
           <SheetTitle>{shift.name}</SheetTitle>
           <SheetDescription>
             Manage volunteer assignments for this shift
@@ -201,10 +202,10 @@ export function ShiftAssignmentPanel({
         </SheetHeader>
 
         {/* Scrollable content area */}
-        <div className="mt-4 flex-1 overflow-y-auto">
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
           {/* Shift Details */}
           <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <Badge variant="outline">{shift.roleLabel}</Badge>
               <Badge
                 variant={isAtCapacity ? "default" : "secondary"}
@@ -215,13 +216,13 @@ export function ShiftAssignmentPanel({
               </Badge>
             </div>
 
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               {formatDateRange(shift.startTime, shift.endTime, timezone)}
             </div>
 
             {shift.location && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4" />
                 {shift.location}
               </div>
@@ -250,7 +251,7 @@ export function ShiftAssignmentPanel({
                       key={assignment.id}
                       className="flex items-center justify-between rounded-md border bg-card p-2"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                           <User className="h-4 w-4 text-primary" />
                         </div>
@@ -302,7 +303,7 @@ export function ShiftAssignmentPanel({
                       key={volunteer.id}
                       className="flex items-center justify-between rounded-md border bg-card p-2"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
                           <User className="h-4 w-4 text-muted-foreground" />
                         </div>

@@ -240,21 +240,21 @@ export function CrewEventSidebarShell({
       </Sidebar>
 
       <SidebarInset>
-        <header className="fixed top-0 right-0 left-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden print:hidden">
-          <SidebarTrigger className="-ml-1">
+        <header className="sticky top-0 z-40 flex min-h-16 items-center gap-2 border-b bg-background px-3 md:hidden print:hidden">
+          <SidebarTrigger
+            className="-ml-1 size-11"
+            aria-label="Open event navigation"
+          >
             <Menu className="size-5" />
           </SidebarTrigger>
           <CrewBrandLink variant={variant} compact />
         </header>
-        <div className="h-14 md:hidden print:hidden" />
 
-        <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6 print:gap-0 print:p-0">
+        <div className="flex min-w-0 flex-1 flex-col gap-5 p-4 sm:gap-6 sm:p-6 print:gap-0 print:p-0">
           <header className="flex flex-col gap-2 border-b pb-5 print:hidden">
-            <p className="text-sm font-medium uppercase text-muted-foreground">
-              {eyebrow}
-            </p>
+            <p className="sr-only">{eyebrow}</p>
             <div>
-              <h1 className="break-words text-2xl font-semibold sm:text-3xl">
+              <h1 className="break-words text-balance text-2xl font-semibold sm:text-3xl">
                 {event.name}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -333,7 +333,12 @@ function CrewSidebarNavItem({
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={item.label}
+        className="min-h-11 md:min-h-8"
+      >
         <Link to={item.href} onClick={() => setOpenMobile(false)}>
           <Icon className="size-4" />
           <span>{item.label}</span>
@@ -345,7 +350,7 @@ function CrewSidebarNavItem({
 
 function CrewSidebarHeader({ variant }: { variant: "organizer" | "admin" }) {
   return (
-    <SidebarHeader className="h-14 flex-row items-center border-b px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+    <SidebarHeader className="h-16 flex-row items-center border-b pl-3 pr-12 md:h-14 md:pr-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
       <CrewBrandLink variant={variant} />
     </SidebarHeader>
   )

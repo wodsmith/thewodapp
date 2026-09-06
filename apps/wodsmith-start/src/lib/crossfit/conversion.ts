@@ -29,6 +29,34 @@ export const crossFitConversionSchema = z.discriminatedUnion("kind", [
 ])
 export type CrossFitConversion = z.infer<typeof crossFitConversionSchema>
 
+const scoreNouns = {
+  time: "times?",
+  "time-with-cap": "times?",
+  "rounds-reps": "rounds?(?: and reps)?",
+  reps: "(?:reps?|rep counts?)",
+  load: "loads?",
+  calories: "calories?",
+  meters: "(?:meters?|metres?|distances?)",
+}
+
+function requestedScoreSchemes(prescription: string) {
+  const requests = new Set<string>()
+  for (const [scheme, noun] of Object.entries(scoreNouns)) {
+    if (scheme === "time-with-cap") continue
+    if (
+      new RegExp(
+        `(?:post|record|log)\\s+(?:(?:your|the|all|best|top|total|sum|average|mean|combined|separate|of|\\d+)\\s+)*${noun}\\b`,
+        "i",
+      ).test(prescription)
+    )
+      requests.add(scheme)
+  }
+  if (/for time/i.test(prescription)) requests.add("time")
+  if (!requests.has("reps") && /as many rounds|\bamrap\b/i.test(prescription))
+    requests.add("rounds-reps")
+  return requests
+}
+
 export function crossFitPrescription(markdown: string) {
   return markdown
     .split(
@@ -53,6 +81,9 @@ export function deterministicCrossFitConversion(
   if (
     loadSets &&
     /Post loads to comments\.?/i.test(prescription) &&
+    [...requestedScoreSchemes(prescription)].every(
+      (scheme) => scheme === "load",
+    ) &&
     !/for time|metcon|as many|\bamrap\b|\bthen\b|post (?:your )?(?:time|reps|rounds|calories|meters)/i.test(
       prescription,
     )
@@ -143,23 +174,20 @@ export function validateCrossFitConversion(
       throw new Error(
         "Load prescription requires one score for each prescribed set",
       )
-    const requiredMetconScheme = /for time/i.test(prescription)
-      ? "time"
-      : /as many rounds|\bamrap\b/i.test(prescription)
-        ? "rounds-reps"
-        : /post (?:your )?reps/i.test(prescription)
-          ? "reps"
-          : null
-    if (
-      requiredMetconScheme &&
-      !result.components.some(
-        (component) =>
-          component.scheme === requiredMetconScheme ||
-          (requiredMetconScheme === "time" &&
-            component.scheme === "time-with-cap"),
-      )
+    const requested = requestedScoreSchemes(prescription)
+    const actual = new Set<string>(
+      result.components.map((component) =>
+        component.scheme === "time-with-cap" ? "time" : component.scheme,
+      ),
     )
-      throw new Error("Source requires both load and metcon scores")
+    for (const scheme of requested)
+      if (!actual.has(scheme))
+        throw new Error("Source requires both load and metcon scores")
+    for (const scheme of actual)
+      if (!requested.has(scheme))
+        throw new Error(
+          "Additional components require an explicit source scoring instruction",
+        )
   }
   for (const component of result.components) {
     if (!lower.includes(component.evidence.toLowerCase()))
@@ -179,18 +207,10 @@ export function validateCrossFitConversion(
       )
     const timed =
       component.scheme === "time" || component.scheme === "time-with-cap"
-    const scoreNoun = {
-      time: "times?",
-      "time-with-cap": "times?",
-      "rounds-reps": "rounds?(?: and reps)?",
-      reps: "(?:reps?|rep counts?)",
-      load: "loads?",
-      calories: "calories?",
-      meters: "(?:meters?|metres?|distances?)",
-    }[component.scheme]
+    const scoreNoun = scoreNouns[component.scheme]
     const countRequest = prescription.match(
       new RegExp(
-        `(?:post|record|log) (?:all )?(\\d+) (?:separate )?${scoreNoun}\\b`,
+        `(?:post|record|log) (?:(?:your|the|all|best|top) )*(\\d+) (?:(?:separate|best|top) )*${scoreNoun}\\b`,
         "i",
       ),
     )

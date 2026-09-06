@@ -211,7 +211,11 @@ export function ScheduledWorkoutsSection({
         </div>
         <div className="ml-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {todaysWorkouts.map((workout) => (
-            <ScheduledWorkoutCard key={workout.id} workoutData={workout} />
+            <ScheduledWorkoutCard
+              key={workout.id}
+              workoutData={workout}
+              teamId={teamId}
+            />
           ))}
         </div>
       </div>
@@ -238,7 +242,11 @@ export function ScheduledWorkoutsSection({
             </div>
             <div className="flex flex-col gap-4">
               {workoutsByDate[dateKey].map((workout) => (
-                <ScheduledWorkoutCard key={workout.id} workoutData={workout} />
+                <ScheduledWorkoutCard
+                  key={workout.id}
+                  workoutData={workout}
+                  teamId={teamId}
+                />
               ))}
             </div>
           </div>

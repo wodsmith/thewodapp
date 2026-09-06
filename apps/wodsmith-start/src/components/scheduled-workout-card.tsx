@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router"
+import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -22,6 +23,7 @@ interface ScheduledWorkoutWithResult {
 }
 
 interface ScheduledWorkoutCardProps {
+  teamId: string
   workoutData: ScheduledWorkoutWithResult
   classTimes?: string
   teamNotes?: string
@@ -29,6 +31,7 @@ interface ScheduledWorkoutCardProps {
 }
 
 export function ScheduledWorkoutCard({
+  teamId,
   workoutData,
   classTimes,
   teamNotes,
@@ -137,8 +140,16 @@ export function ScheduledWorkoutCard({
                   size="default"
                   className="w-full sm:w-auto sm:self-start"
                 >
-                  <Link to="/log/new" search={{ workoutId: workout.id }}>
-                    Log another result
+                  <Link
+                    to="/training"
+                    search={{
+                      view: "training",
+                      workoutId: workout.id,
+                      teamId,
+                      date: format(workoutData.scheduledDate, "yyyy-MM-dd"),
+                    }}
+                  >
+                    Add to my session
                   </Link>
                 </Button>
               </div>
@@ -149,8 +160,16 @@ export function ScheduledWorkoutCard({
                 size="default"
                 className="w-full sm:w-auto"
               >
-                <Link to="/log/new" search={{ workoutId: workout.id }}>
-                  Log result
+                <Link
+                  to="/training"
+                  search={{
+                    view: "training",
+                    workoutId: workout.id,
+                    teamId,
+                    date: format(workoutData.scheduledDate, "yyyy-MM-dd"),
+                  }}
+                >
+                  Add to my session
                 </Link>
               </Button>
             )}

@@ -112,6 +112,48 @@ describe('Workout Sets Server Functions', () => {
     setMockSession(mockAuthenticatedSession)
   })
 
+  // @lat: [[training-personal#Verification#Round readers require authentication]]
+  it('rejects anonymous single and batch round reads before querying the database', async () => {
+    setMockSession(null)
+    await expect(getWorkoutResultSetsFn({data: {scoreId: 'private-score'}})).rejects.toThrow('Not authenticated')
+    await expect(getMultipleWorkoutResultSetsFn({data: {scoreIds: ['private-score']}})).rejects.toThrow('Not authenticated')
+    expect(mockDb.getChainMock().from).not.toHaveBeenCalled()
+  })
+
+  // @lat: [[training-personal#Verification#Single round reads protect private associations]]
+  it('rejects another athlete private sets and notes while allowing their owner', async () => {
+    const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+    const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
+    limitMock.mockResolvedValueOnce([{...createTestScore({id: 'private-score'}), privateUserId: 'other-athlete'}])
+    await expect(getWorkoutResultSetsFn({data: {scoreId: 'private-score'}})).rejects.toThrow('Score not found')
+    expect(orderByMock).not.toHaveBeenCalled()
+    limitMock.mockResolvedValueOnce([{...createTestScore({id: 'my-score'}), privateUserId: mockAuthenticatedSession.userId}])
+    orderByMock.mockResolvedValueOnce([createTestScoreRound({scoreId: 'my-score', notes: 'Private round note'})])
+    const own = await getWorkoutResultSetsFn({data: {scoreId: 'my-score'}})
+    expect(own.sets[0].notes).toBe('Private round note')
+  })
+
+  // @lat: [[training-personal#Verification#Batch round reads isolate private associations]]
+  it('omits foreign private scores from a mixed batch while preserving own and ordinary shared sets', async () => {
+    const whereMock = mockDb.getChainMock().where as ReturnType<typeof vi.fn>
+    const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
+    whereMock.mockResolvedValueOnce([
+      {...createTestScore({id: 'private-other'}), privateUserId: 'other-athlete'},
+      {...createTestScore({id: 'private-own'}), privateUserId: mockAuthenticatedSession.userId},
+      {...createTestScore({id: 'shared'}), privateUserId: null},
+    ])
+    orderByMock.mockResolvedValueOnce([
+      createTestScoreRound({scoreId: 'private-other', notes: 'Must not leak'}),
+      createTestScoreRound({scoreId: 'private-own', notes: 'My note'}),
+      createTestScoreRound({scoreId: 'shared', notes: 'Shared note'}),
+    ])
+    const result = await getMultipleWorkoutResultSetsFn({data: {scoreIds: ['private-other', 'private-own', 'shared']}})
+    expect(Object.keys(result)).toEqual(['private-own', 'shared'])
+    expect(result['private-own'].sets[0].notes).toBe('My note')
+    expect(result.shared.sets[0].notes).toBe('Shared note')
+    expect(JSON.stringify(result)).not.toContain('Must not leak')
+  })
+
   describe('getWorkoutResultSetsFn', () => {
     it('returns sets for a score', async () => {
       const score = createTestScore({id: 'score-1', scheme: 'load'})

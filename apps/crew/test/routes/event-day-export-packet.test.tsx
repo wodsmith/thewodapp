@@ -78,7 +78,7 @@ describe("EventPilotExportsView", () => {
     // Shifts tab lists each shift as its own section without contact details.
     fireEvent.click(screen.getByRole("tab", { name: /Shifts/ }))
     expect(screen.getByText("Floor reset")).toBeInTheDocument()
-    expect(screen.getByText("Rae Reset")).toBeInTheDocument()
+    expect(screen.getByRole("cell", { name: "Rae Reset", exact: true })).toBeInTheDocument()
     expect(screen.queryByText("reset@example.com")).not.toBeInTheDocument()
   })
 })

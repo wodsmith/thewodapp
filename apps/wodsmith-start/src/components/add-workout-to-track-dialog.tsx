@@ -85,12 +85,18 @@ export function AddWorkoutToTrackDialog({
     setError(null)
     try {
       await addWorkoutToTrackFn({
-        data: {
-          trackId,
-          workoutId: selectedWorkoutId,
-          ...(autoOrder ? {} : { trackOrder: orderNumber }),
-          notes: notes.trim() || undefined,
-        },
+        data: autoOrder
+          ? {
+              trackId: CROSSFIT_TRACK_ID,
+              workoutId: selectedWorkoutId,
+              notes: notes.trim() || undefined,
+            }
+          : {
+              trackId,
+              workoutId: selectedWorkoutId,
+              trackOrder: orderNumber,
+              notes: notes.trim() || undefined,
+            },
       })
 
       setSuccessMessage("Workout added to track")

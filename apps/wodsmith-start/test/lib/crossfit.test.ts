@@ -111,4 +111,19 @@ describe("CrossFit source and scoring", () => {
     await expect(fetchCrossFitSource("2026-09-05", vi.fn<typeof fetch>().mockResolvedValue(new Response("", { status: 408 })))).rejects.toMatchObject({ retryable: true })
   })
 
+  // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Qualified composite score requests]]
+  it("preserves qualified rep-scored composites and refuses unscored extra components", async () => {
+    const load = { scheme: "load", scoreType: "max", evidence: "Post loads", roundsToScore: 3, timeCap: null }
+    const composite = await parseCrossFitResponse(payload("Front squat 3-3-3 reps\nPost loads to comments.\nAMRAP: burpees. Post total reps to comments."), "2026-09-05")
+    expect(deterministicCrossFitConversion(composite)).toBeNull()
+    expect(() => validateCrossFitConversion({ kind: "workout", components: [load] }, composite)).toThrow("both load and metcon")
+    expect(validateCrossFitConversion({ kind: "workout", components: [load, { scheme: "reps", scoreType: "sum", evidence: "total reps", roundsToScore: 1, timeCap: null }] }, composite).components).toHaveLength(2)
+    const distance = await parseCrossFitResponse(payload("Front squat 3-3-3 reps\nPost loads to comments.\nWarm up with 500 meters."), "2026-09-05")
+    expect(() => validateCrossFitConversion({ kind: "workout", components: [load, { scheme: "meters", scoreType: "max", evidence: "500 meters", roundsToScore: 1, timeCap: null }] }, distance)).toThrow("explicit source scoring instruction")
+    for (const phrase of ["Record your 3 separate times", "Post your 3 best times", "Log the top 3 times"]) {
+      const source = await parseCrossFitResponse(payload(`3 intervals for time. ${phrase}.`), "2026-09-05")
+      expect(validateCrossFitConversion({ kind: "workout", components: [{ ...timeComponent, roundsToScore: 3 }] }, source).components[0].roundsToScore).toBe(3)
+    }
+  })
+
 })
