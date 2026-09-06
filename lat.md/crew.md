@@ -132,7 +132,7 @@ The Setup page also hosts a "Workouts" section (see [[crew#Workout Shells]]) bel
 
 ## Organizer Home Next Action
 
-The Crew organizer home computes one primary next action from event setup, readiness, billing, import, and scheduling state so the event landing page stays task-focused.
+The Crew organizer home computes one primary next action from event details, volunteer roster size, and shift coverage. Heat imports and confirmation state are not prerequisites for scheduling.
 
 [[apps/crew/src/lib/crew/organizer-next-action.ts]] owns deterministic action ranking, while [[apps/crew/src/server/crew-organizer-home.server.ts]] and [[apps/crew/src/server-fns/crew-organizer-home-fns.ts]] load the server-side facts for [[apps/crew/src/routes/events/$eventId/index.tsx]].
 
@@ -228,7 +228,7 @@ The pilot-ops board renders on [[apps/crew/src/routes/events/$eventId/shifts.tsx
 
 ## Volunteer Shifts Page
 
-The Volunteer Shifts page is a focused shift-management surface ported from the wodsmith-start organizer experience, reached from the Workflow sidebar group and the staffing report.
+The Volunteer Shifts page is a focused shift-management surface ported from the wodsmith-start organizer experience, reached from the Schedule sidebar group and the staffing report.
 
 [[apps/crew/src/routes/events/$eventId/shifts.tsx]] loads the shift board through [[apps/crew/src/server-fns/crew-roster-shift-fns.ts#getCrewShiftBoardFn]] and renders the ported [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-list.tsx|ShiftList]]. Shifts group by event-timezone calendar day in cards; each row opens a [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-assignment-panel.tsx|assignment sheet]] that assigns or removes roster volunteers compatible with the shift role, and an add/edit [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-form-dialog.tsx|dialog]] creates and updates shifts.
 
