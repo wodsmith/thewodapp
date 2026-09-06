@@ -20,7 +20,9 @@ import {
 } from "@/db/schemas/programming"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
-import { getSessionFromCookie } from "@/utils/auth"
+import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
+import { appendCrossFitWorkout } from "@/server/append-crossfit-workout"
+import { getSessionFromCookie, requireAdmin } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -471,6 +473,10 @@ export const addWorkoutToTrackFn = createServerFn({ method: "POST" })
     }
 
     // Create the track workout
+    if (data.trackId === CROSSFIT_TRACK_ID) {
+      await requireAdmin()
+      return appendCrossFitWorkout(db, data.workoutId, data.notes)
+    }
     const trackWorkoutId = createTrackWorkoutId()
     await db.insert(trackWorkoutsTable).values({
       id: trackWorkoutId,
