@@ -11,9 +11,8 @@ test.describe('Workouts', () => {
     await page.goto('/workouts')
     await waitForHydration(page)
 
-    // Heading text is uppercase "WORKOUTS" — exact match to avoid matching
-    // "Scheduled Workouts" and "No workouts scheduled for today"
-    await expect(page.getByRole('heading', {name: 'WORKOUTS', exact: true})).toBeVisible({
+    // @lat: [[training#Workout Library Navigation Test]]
+    await expect(page.getByRole('heading', {name: 'Workout library', exact: true})).toBeVisible({
       timeout: 30000,
     })
 

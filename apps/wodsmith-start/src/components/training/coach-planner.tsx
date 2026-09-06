@@ -44,6 +44,7 @@ import {
   saveTrainingDraftFn,
 } from "@/server-fns/training-fns"
 import { cn } from "@/utils/cn"
+import { CoachLibraryPicker } from "./coach-library-picker"
 import { CoachSessionPreview, coachBlockLabels } from "./coach-session-preview"
 
 const selectClass =
@@ -582,6 +583,7 @@ function CoachDayEditor({
   const [restConfirm, setRestConfirm] = useState(false)
   const [deleteBlock, setDeleteBlock] = useState<string | null>(null)
   const [editingBlock, setEditingBlock] = useState<string | null>(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [copyDate, setCopyDate] = useState(shiftDate(trainingDate, 1))
   const [copyTrack, setCopyTrack] = useState(trackId)
   const [copyError, setCopyError] = useState("")
@@ -989,7 +991,7 @@ function CoachDayEditor({
               type="button"
               variant="outline"
               className={actionClass}
-              disabled={content.blocks.length >= 20}
+              disabled={libraryOpen || content.blocks.length >= 20}
               onClick={() => {
                 const block: TrainingBlock = {
                   id: crypto.randomUUID(),
@@ -1010,6 +1012,20 @@ function CoachDayEditor({
               <Plus />
               Add a section
             </Button>
+            <CoachLibraryPicker
+              key={team.id}
+              teamId={team.id}
+              onOpenChange={setLibraryOpen}
+              disabled={busy || content.blocks.length >= 20}
+              onAdd={(block) => {
+                setContent((current) => ({
+                  ...current,
+                  isRestDay: false,
+                  blocks: [...current.blocks, block],
+                }))
+                setEditingBlock(block.id)
+              }}
+            />
           </fieldset>
         </div>
         <CoachSessionPreview

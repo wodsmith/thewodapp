@@ -3,12 +3,14 @@
  * Fetch and display multi-round workout result sets (e.g., '10x3 Back Squat')
  */
 
+import { personalTrainingResultsTable } from "@repo/wodsmith-db/schemas/training-personal"
 import { createServerFn } from "@tanstack/react-start"
 import { asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
+import { getSessionFromCookie } from "@/utils/auth"
 
 // Input validation schemas
 const getWorkoutResultSetsInputSchema = z.object({
@@ -54,6 +56,8 @@ export const getWorkoutResultSetsFn = createServerFn({ method: "GET" })
     getWorkoutResultSetsInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<WorkoutResultSetsResponse> => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
     const db = getDb()
 
     // First, get the parent score to know the scheme
@@ -61,12 +65,20 @@ export const getWorkoutResultSetsFn = createServerFn({ method: "GET" })
       .select({
         id: scoresTable.id,
         scheme: scoresTable.scheme,
+        privateUserId: personalTrainingResultsTable.userId,
       })
       .from(scoresTable)
+      .leftJoin(
+        personalTrainingResultsTable,
+        eq(personalTrainingResultsTable.legacyScoreId, scoresTable.id),
+      )
       .where(eq(scoresTable.id, data.scoreId))
       .limit(1)
 
-    if (!score) {
+    if (
+      !score ||
+      (score.privateUserId && score.privateUserId !== session.userId)
+    ) {
       throw new Error("Score not found")
     }
 
@@ -126,17 +138,28 @@ export const getMultipleWorkoutResultSetsFn = createServerFn({ method: "GET" })
   )
   .handler(
     async ({ data }): Promise<Record<string, WorkoutResultSetsResponse>> => {
+      const session = await getSessionFromCookie()
+      if (!session?.userId) throw new Error("Not authenticated")
       const db = getDb()
 
       // Batch fetch all parent scores
-      const parentScores = await db
+      const requestedScores = await db
         .select({
           id: scoresTable.id,
           scheme: scoresTable.scheme,
+          privateUserId: personalTrainingResultsTable.userId,
         })
         .from(scoresTable)
+        .leftJoin(
+          personalTrainingResultsTable,
+          eq(personalTrainingResultsTable.legacyScoreId, scoresTable.id),
+        )
         .where(inArray(scoresTable.id, data.scoreIds))
 
+      const parentScores = requestedScores.filter(
+        (score) =>
+          !score.privateUserId || score.privateUserId === session.userId,
+      )
       if (parentScores.length === 0) {
         return {}
       }
@@ -156,7 +179,12 @@ export const getMultipleWorkoutResultSetsFn = createServerFn({ method: "GET" })
           status: scoreRoundsTable.status,
         })
         .from(scoreRoundsTable)
-        .where(inArray(scoreRoundsTable.scoreId, data.scoreIds))
+        .where(
+          inArray(
+            scoreRoundsTable.scoreId,
+            parentScores.map((score) => score.id),
+          ),
+        )
         .orderBy(asc(scoreRoundsTable.roundNumber))
 
       // Group rounds by score ID and build results

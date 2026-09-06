@@ -77,20 +77,8 @@ export default function MainNav({
                     search={{ view: "row", q: "" }}
                     className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
                   >
-                    Workouts
+                    Workout library
                   </Link>
-                  <a
-                    href="/log"
-                    className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-                  >
-                    Log
-                  </a>
-                  <a
-                    href="/training?view=team"
-                    className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-                  >
-                    Team
-                  </a>
                 </>
               )}
               {/* @lat: [[architecture#Route Groups#compete]] */}

@@ -784,6 +784,43 @@ describe('Log Server Functions (TanStack)', () => {
     })
   })
 
+  describe('personal training score privacy', () => {
+    // @lat: [[training#Library Result Tests#Invalid result date]]
+    it('rejects malformed result dates before querying storage', async () => {
+      await expect(updateLogFn({data: {id: 'private-score', date: 'not-a-date'}})).rejects.toThrow('Enter a valid result date')
+      expect(mockDb.getChainMock().limit).not.toHaveBeenCalled()
+    })
+
+    // @lat: [[training#Library Result Tests#Removed library prescription]]
+    it('returns the performed library snapshot after its session item is removed', async () => {
+      const libraryItem = {id: 'library-1', kind: 'library', workoutId: 'wk-1', workout: {name: 'Original cap', description: 'Original prescription', scheme: 'time-with-cap', timeCap: 600}}
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      limitMock.mockResolvedValueOnce([createTestScore({id: 'private-score', userId: 'test-user-123'})])
+        .mockResolvedValueOnce([{itemId: 'library-1', libraryItem, items: [], personalSessionId: 'session-1', revision: 3, trainingDate: '2026-09-05'}])
+      const result = await getLogByIdFn({data: {id: 'private-score'}})
+      expect(result.score?.personalWorkout).toEqual(libraryItem.workout)
+      expect(result.score?.personalRevision).toBe(3)
+    })
+
+    // @lat: [[training#Library Result Tests#Private scores stay private in older views]]
+    it('denies another gym member the detail and rounds of a personal result', async () => {
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      limitMock.mockResolvedValueOnce([createTestScore({id: 'private-score', userId: 'another-athlete', teamId: 'team-1'})])
+      limitMock.mockResolvedValueOnce([{itemId: 'item-1', trainingDate: '2026-09-05', items: []}])
+      await expect(getLogByIdFn({data: {id: 'private-score'}})).rejects.toThrow('Not authorized')
+      limitMock.mockResolvedValueOnce([{id: 'personal-result'}])
+      await expect(getScoreRoundsFn({data: {scoreId: 'private-score'}})).rejects.toThrow('Not authorized')
+    })
+
+    // @lat: [[training#Library Result Tests#Linked results retain their session date]]
+    it('rejects moving a linked result to a different day', async () => {
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      limitMock.mockResolvedValueOnce([createTestScore({id: 'private-score', userId: 'test-user-123'})])
+      limitMock.mockResolvedValueOnce([{trainingDate: '2026-09-05'}])
+      await expect(updateLogFn({data: {id: 'private-score', date: '2026-09-06'}})).rejects.toThrow('training date cannot be changed')
+    })
+  })
+
   describe('getScoreRoundsFn', () => {
     it('returns rounds ordered by round number', async () => {
       const rounds = [
@@ -793,6 +830,8 @@ describe('Log Server Functions (TanStack)', () => {
       ]
 
       mockDb.setMockReturnValue(rounds)
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      limitMock.mockResolvedValueOnce([])
 
       const result = await getScoreRoundsFn({data: {scoreId: 'score-1'}})
 
@@ -824,6 +863,23 @@ describe('Log Server Functions (TanStack)', () => {
   })
 
   describe('getLogsByUserFn', () => {
+    // @lat: [[training#Library Result Tests#History API bounds optional pagination]]
+    it('bounds opt-in pages and preserves unpaged callers', async () => {
+      mockDb.setMockReturnValue([])
+      await getLogsByUserFn({data: {userId: 'test-user-123', limit: 20, offset: 40}})
+      expect(mockDb.getChainMock().limit).toHaveBeenCalledWith(20)
+      expect(mockDb.getChainMock().offset).toHaveBeenCalledWith(40)
+      expect(vi.mocked(mockDb.getChainMock().orderBy).mock.calls[0]).toHaveLength(2)
+      vi.mocked(mockDb.getChainMock().limit).mockClear()
+      vi.mocked(mockDb.getChainMock().offset).mockClear()
+      await getLogsByUserFn({data: {userId: 'test-user-123'}})
+      expect(mockDb.getChainMock().limit).not.toHaveBeenCalled()
+      expect(mockDb.getChainMock().offset).not.toHaveBeenCalled()
+      await expect(getLogsByUserFn({data: {userId: 'test-user-123', limit: 101}})).rejects.toThrow()
+      await expect(getLogsByUserFn({data: {userId: 'test-user-123', limit: 20, offset: -1}})).rejects.toThrow()
+      await expect(getLogsByUserFn({data: {userId: 'test-user-123', offset: 20}})).rejects.toThrow()
+    })
+
     it('returns logs with workout names and scaling levels', async () => {
       const logs = [
         createTestScore({

@@ -15,6 +15,20 @@
       "when": 1788654255795,
       "tag": "0001_training_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1788667082026,
+      "tag": "0002_training_personal",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1788668930970,
+      "tag": "0003_training_library_history",
+      "breakpoints": true
     }
   ]
 }

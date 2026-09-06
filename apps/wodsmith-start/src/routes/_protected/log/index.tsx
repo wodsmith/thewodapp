@@ -35,12 +35,16 @@ function LogPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-4xl font-bold">WORKOUT LOG</h1>
+        <h1 className="text-4xl font-bold">Workout history</h1>
         <Button asChild>
-          <a href="/log/new">Log new result</a>
+          <a href="/training?view=progress">My progress</a>
         </Button>
       </div>
 
+      <p className="mb-8 max-w-prose text-muted-foreground">
+        Your existing workout log remains available here. Open My progress for
+        your training session results and personal workouts.
+      </p>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px]">
         <div>
           <h2 className="mb-4 text-xl font-semibold">Recent Results</h2>

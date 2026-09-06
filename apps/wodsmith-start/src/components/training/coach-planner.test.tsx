@@ -30,6 +30,11 @@ vi.mock("@/server-fns/training-fns", () => ({
   copyTrainingSessionFn: api.copy,
 }))
 vi.mock("@tanstack/react-router", () => ({ useBlocker: api.blocker }))
+const libraryApi = vi.hoisted(() => ({ list: vi.fn(), detail: vi.fn() }))
+vi.mock("@/server-fns/training-personal-fns", () => ({
+  listTrainingLibraryWorkoutsFn: libraryApi.list,
+  getTrainingLibraryWorkoutFn: libraryApi.detail,
+}))
 
 const context: TrainingContext = {
   userId: "coach",
@@ -313,4 +318,53 @@ describe("CoachPlanner", () => {
       screen.getByRole("button", { name: "Review & publish" }),
     ).toBeDisabled()
   })
+})
+
+// @lat: [[training#Workout Library#Library additions respect session capacity]]
+it("reserves the remaining section slot while a library import is pending", async () => {
+  const content = trainingContent()
+  const firstBlock = content.blocks[0]
+  if (!firstBlock) throw new Error("Missing test section")
+  content.blocks = Array.from({ length: 19 }, (_, index) => ({
+    ...firstBlock,
+    id: `section-${index}`,
+    title: `Section ${index}`,
+  }))
+  api.getWeek.mockResolvedValue(
+    week([session({ draft: content, published: content })]),
+  )
+  const workout = {
+    id: "fran",
+    name: "Fran",
+    description: "21-15-9",
+    scheme: "time",
+    scoreType: "min",
+    roundsToScore: 1,
+    timeCap: null,
+    repsPerRound: null,
+    tiebreakScheme: null,
+  }
+  let completeDetail!: (value: typeof workout) => void
+  libraryApi.list.mockResolvedValue([workout])
+  libraryApi.detail.mockReturnValue(
+    new Promise((resolve) => {
+      completeDetail = resolve
+    }),
+  )
+  await renderPlanner()
+  fireEvent.click(
+    screen.getByRole("button", { name: "Add from workout library" }),
+  )
+  expect(screen.getByRole("button", { name: "Add a section" })).toBeDisabled()
+  fireEvent.click(screen.getByRole("button", { name: "Search library" }))
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Add Fran to draft" }),
+  )
+  fireEvent.click(screen.getByRole("button", { name: "Add a section" }))
+  await act(async () => completeDetail(workout))
+  expect(screen.getByRole("button", { name: "Add a section" })).toBeDisabled()
+  api.saveDraft.mockResolvedValue(session({ revision: 5 }))
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }))
+  await waitFor(() => expect(api.saveDraft).toHaveBeenCalled())
+  expect(api.saveDraft.mock.lastCall?.[0].data.content.blocks).toHaveLength(20)
 })

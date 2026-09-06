@@ -3,8 +3,12 @@
  * Simplified MVP for logging workout results
  */
 
+import {
+  personalTrainingResultsTable,
+  personalTrainingSessionsTable,
+} from "@repo/wodsmith-db/schemas/training-personal"
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq, isNull, ne, notExists } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
@@ -233,6 +237,14 @@ export const getWorkoutScoresFn = createServerFn({ method: "GET" })
         and(
           eq(scoresTable.workoutId, data.workoutId),
           eq(scoresTable.teamId, data.teamId),
+          notExists(
+            db
+              .select({ id: personalTrainingResultsTable.id })
+              .from(personalTrainingResultsTable)
+              .where(
+                eq(personalTrainingResultsTable.legacyScoreId, scoresTable.id),
+              ),
+          ),
         ),
       )
       .orderBy(desc(scoresTable.recordedAt))
@@ -273,9 +285,18 @@ export const getWorkoutScoresFn = createServerFn({ method: "GET" })
 /**
  * Get all logs (scores) by user ID with workout names and scaling level details
  */
-const getLogsByUserInputSchema = z.object({
-  userId: z.string().min(1, "User ID is required"),
-})
+const getLogsByUserInputSchema = z
+  .object({
+    userId: z.string().min(1, "User ID is required"),
+    teamId: z.string().optional(),
+    personalOnly: z.boolean().optional(),
+    limit: z.number().int().min(1).max(100).optional(),
+    offset: z.number().int().min(0).max(100000).optional(),
+  })
+  .refine((data) => data.offset === undefined || data.limit !== undefined, {
+    message: "A page limit is required with an offset",
+    path: ["limit"],
+  })
 
 export const getLogsByUserFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getLogsByUserInputSchema.parse(data))
@@ -293,7 +314,7 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
       throw new Error("Not authorized to view these logs")
     }
 
-    const logs = await db
+    const logsQuery = db
       .select({
         id: scoresTable.id,
         userId: scoresTable.userId,
@@ -312,15 +333,33 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
         createdAt: scoresTable.createdAt,
         updatedAt: scoresTable.updatedAt,
         workoutName: workouts.name,
+        personalLibraryItem: personalTrainingResultsTable.libraryItem,
+        personalDisplayScore: personalTrainingResultsTable.displayScore,
       })
       .from(scoresTable)
       .leftJoin(workouts, eq(scoresTable.workoutId, workouts.id))
       .leftJoin(
+        personalTrainingResultsTable,
+        eq(personalTrainingResultsTable.legacyScoreId, scoresTable.id),
+      )
+      .leftJoin(
         scalingLevelsTable,
         eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
       )
-      .where(eq(scoresTable.userId, data.userId))
-      .orderBy(desc(scoresTable.recordedAt))
+      .where(
+        and(
+          eq(scoresTable.userId, data.userId),
+          data.teamId ? eq(scoresTable.teamId, data.teamId) : undefined,
+          data.personalOnly
+            ? isNull(scoresTable.competitionEventId)
+            : undefined,
+        ),
+      )
+      .orderBy(desc(scoresTable.recordedAt), desc(scoresTable.id))
+
+    const logs = await (data.limit === undefined
+      ? logsQuery
+      : logsQuery.limit(data.limit).offset(data.offset ?? 0))
 
     // Format the display score for each log
     const formattedLogs = logs.map((log) => {
@@ -353,8 +392,9 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
 
       return {
         ...log,
-        displayScore,
-        workoutName: log.workoutName || undefined,
+        displayScore: log.personalDisplayScore ?? displayScore,
+        workoutName:
+          log.personalLibraryItem?.workout.name ?? log.workoutName ?? undefined,
         scalingLevelLabel: log.scalingLevelLabel || undefined,
         scalingLevelPosition:
           log.scalingLevelPosition !== null
@@ -433,7 +473,43 @@ export const getLogByIdFn = createServerFn({ method: "GET" })
       throw new Error("Not authorized to access this score")
     }
 
-    return { score }
+    const [personalResult] = await db
+      .select({
+        itemId: personalTrainingResultsTable.itemId,
+        libraryItem: personalTrainingResultsTable.libraryItem,
+        personalSessionId: personalTrainingSessionsTable.id,
+        revision: personalTrainingSessionsTable.revision,
+        trainingDate: personalTrainingSessionsTable.trainingDate,
+        items: personalTrainingSessionsTable.items,
+      })
+      .from(personalTrainingResultsTable)
+      .innerJoin(
+        personalTrainingSessionsTable,
+        eq(
+          personalTrainingResultsTable.personalSessionId,
+          personalTrainingSessionsTable.id,
+        ),
+      )
+      .where(eq(personalTrainingResultsTable.legacyScoreId, score.id))
+      .limit(1)
+    if (personalResult && !isOwner)
+      throw new Error("Not authorized to access this score")
+    const personalItem =
+      personalResult?.libraryItem ??
+      personalResult?.items?.find((item) => item.id === personalResult.itemId)
+    return {
+      score: {
+        ...score,
+        personalTrainingDate: personalResult?.trainingDate ?? null,
+        personalSessionId: personalResult?.personalSessionId ?? null,
+        personalItemId: personalResult?.itemId ?? null,
+        personalRevision: personalResult?.revision ?? null,
+        personalWorkout:
+          personalItem?.kind === "library"
+            ? (personalItem.workout ?? null)
+            : null,
+      },
+    }
   })
 
 /**
@@ -505,6 +581,18 @@ export const getScoreRoundsFn = createServerFn({ method: "GET" })
       throw new Error("Not authenticated")
     }
 
+    const [privateResult] = await db
+      .select({ id: personalTrainingResultsTable.id })
+      .from(personalTrainingResultsTable)
+      .where(
+        and(
+          eq(personalTrainingResultsTable.legacyScoreId, data.scoreId),
+          ne(personalTrainingResultsTable.userId, session.userId),
+        ),
+      )
+      .limit(1)
+    if (privateResult) throw new Error("Not authorized to access this score")
+
     // Get rounds ordered by round number
     const rounds = await db
       .select({
@@ -532,7 +620,13 @@ const updateLogInputSchema = z.object({
   notes: z.string().optional(),
   asRx: z.boolean().optional(),
   scalingLevelId: z.string().optional(),
-  date: z.string().optional(),
+  date: z
+    .string()
+    .refine(
+      (value) => Number.isFinite(Date.parse(value)),
+      "Enter a valid result date",
+    )
+    .optional(),
   // Multi-round support
   roundScores: z
     .array(
@@ -573,6 +667,29 @@ export const updateLogFn = createServerFn({ method: "POST" })
 
     if (existingScore.userId !== session.userId) {
       throw new Error("Not authorized to update this score")
+    }
+
+    if (data.date) {
+      const [personalResult] = await db
+        .select({ trainingDate: personalTrainingSessionsTable.trainingDate })
+        .from(personalTrainingResultsTable)
+        .innerJoin(
+          personalTrainingSessionsTable,
+          eq(
+            personalTrainingResultsTable.personalSessionId,
+            personalTrainingSessionsTable.id,
+          ),
+        )
+        .where(eq(personalTrainingResultsTable.legacyScoreId, data.id))
+        .limit(1)
+      if (
+        personalResult &&
+        new Date(data.date).toISOString().slice(0, 10) !==
+          personalResult.trainingDate
+      )
+        throw new Error(
+          "This result belongs to a personal session. Its training date cannot be changed here.",
+        )
     }
 
     const score = await updatePersonalWorkoutResult({
