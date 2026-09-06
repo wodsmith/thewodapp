@@ -72,7 +72,7 @@ Crew Checkout Session creation is feature-flagged with `CREW_STRIPE_CHECKOUT_ENA
 
 Crew Stripe webhooks complete the event-level Checkout flow after Stripe verifies payment.
 
-[[apps/crew/src/routes/api/webhooks/stripe.ts]] routes completed Checkout Sessions by `session.metadata.product`. Sessions with `product=crew` are handled by Crew billing completion, while non-Crew registration sessions continue through the existing athlete registration checkout workflow.
+[[apps/crew/src/routes/api/webhooks/stripe.ts]] routes completed Checkout Sessions by `session.metadata.product`. Sessions with `product=crew` are handled by Crew billing completion; other products are acknowledged without side effects and remain owned by the main WODsmith endpoint.
 
 [[apps/crew/src/lib/crew/checkout-webhooks.ts]] validates the Crew metadata contract, including team/event scope, public Crew plan, event settings row ID, billing event ID, checkout idempotency key, amount, currency, Checkout Session ID, and Stripe event ID. Duplicate delivery is treated as idempotent by both Stripe event ID and Checkout Session ID.
 
