@@ -32,6 +32,7 @@ export interface WorkoutImportWorkspaceProps {
   stage: string
   busy: boolean
   accessRequired: boolean
+  accessUnavailable?: boolean
   error: string | null
   sourceUrl?: string
   movements: Pick<Movement, "id" | "name" | "type">[]
@@ -74,6 +75,8 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
   const [notice, setNotice] = useState("")
   const [localError, setLocalError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const requestRunning = useRef(false)
+  const [requestPending, setRequestPending] = useState(false)
   const baseline = useRef<WorkoutImportWorkout>({ ...emptyImportWorkout })
   const requestId = useRef<string | null>(null)
   const cancelled = useRef(new Set<string>())
@@ -107,6 +110,17 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
           ? error.message
           : "The operation failed. Your edits are still here.",
       )
+    }
+  }
+  const runRequest = async (operation: () => Promise<void>) => {
+    if (requestRunning.current) return
+    requestRunning.current = true
+    setRequestPending(true)
+    try {
+      await run(operation)
+    } finally {
+      requestRunning.current = false
+      setRequestPending(false)
     }
   }
   const beginRequest = () => {
@@ -160,7 +174,12 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
       (question) =>
         question.field === "selectedPart" || !answers[question.id]?.trim(),
     ) ?? []
-  const disabled = props.busy || saving || props.accessRequired
+  const disabled =
+    props.busy ||
+    requestPending ||
+    saving ||
+    props.accessRequired ||
+    !!props.accessUnavailable
 
   const save = async () => {
     if (!reviewed || pending || props.accessRequired) return
@@ -271,12 +290,17 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
       <output aria-live="polite" className="text-sm text-muted-foreground">
         {props.busy ? props.stage : notice || props.stage}
       </output>
-      {props.accessRequired && (
+      {(props.accessRequired || props.accessUnavailable) && (
         <div role="alert" className="space-y-3 rounded-md border p-4">
-          <p className="font-medium">AI Workout Import access required</p>
+          <p className="font-medium">
+            {props.accessRequired
+              ? "AI Workout Import access required"
+              : "AI access check unavailable"}
+          </p>
           <p className="text-sm">
-            Access for this destination is unavailable or has expired. Your
-            local edits remain here.
+            {props.accessRequired
+              ? "Access for this destination is unavailable or has expired. Your local edits remain here."
+              : "The access check could not finish. Your local edits remain here."}
           </p>
           <Button type="button" variant="outline" onClick={props.onCheckAccess}>
             Check access again
@@ -320,12 +344,14 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
         <Button
           type="button"
           disabled={disabled || (!text.trim() && !file)}
-          onClick={() => run(() => props.onRead(text, file, beginSourceRead()))}
+          onClick={() =>
+            runRequest(() => props.onRead(text, file, beginSourceRead()))
+          }
         >
           Read workout
         </Button>
       </details>
-      {props.busy && (
+      {(props.busy || requestPending) && (
         <Button
           type="button"
           variant="outline"
@@ -542,7 +568,9 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
               variant="outline"
               disabled={disabled || !instruction.trim() || !!pending}
               onClick={() =>
-                run(() => props.onRevise(workout, instruction, beginRequest()))
+                runRequest(() =>
+                  props.onRevise(workout, instruction, beginRequest()),
+                )
               }
             >
               Review another proposal

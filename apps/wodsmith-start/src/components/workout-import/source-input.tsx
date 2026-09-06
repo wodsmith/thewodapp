@@ -78,7 +78,7 @@ export function WorkoutImportSource({
             if (!selected) return
             const issue = validateImportImage(selected)
             setError(issue)
-            if (!issue) onFileChange(selected)
+            onFileChange(issue ? null : selected)
             event.target.value = ""
           }}
         />

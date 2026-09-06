@@ -1,5 +1,6 @@
 import type { Connection, FiberRecoveryContext } from "agents"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { WorkoutImportSessionExpiredError } from "@/server/workout-import/session-errors"
 
 const m = vi.hoisted(() => ({
   access: vi.fn(),
@@ -10,6 +11,7 @@ const m = vi.hoisted(() => ({
   connection: null as unknown,
   sockets: [] as unknown[],
   budget: vi.fn(),
+  allocate: vi.fn(),
 }))
 vi.mock("@/server/workout-import/sessions", () => ({
   requireWorkoutImportSession: m.access,
@@ -58,10 +60,14 @@ vi.mock("agents", () => ({
   },
   callable: () => (method: unknown) => method,
   getCurrentAgent: () => ({ connection: m.connection }),
-  getAgentByName: async () => ({ chargeBudget: m.budget }),
+  getAgentByName: m.allocate,
 }))
 
-import { WorkoutImportAgent } from "./workout-import-agent"
+import { IMPORT_LIMITS } from "@/server/workout-import/limits"
+import {
+  chargeWorkoutImportBudget,
+  WorkoutImportAgent,
+} from "./workout-import-agent"
 
 const session = {
   importId: "wimp_test",
@@ -118,9 +124,63 @@ beforeEach(() => {
   m.auth.mockResolvedValue({ userId: "user" })
   m.cleanup.mockResolvedValue(undefined)
   m.budget.mockResolvedValue(undefined)
+  m.allocate.mockResolvedValue({ chargeBudget: m.budget })
 })
 
 describe("WorkoutImportAgent with mocked session services", () => {
+  // @lat: [[workout-import-runtime#Denied upload cleanup]]
+  it("deletes an uploaded source if access is revoked during the put", async () => {
+    const { agent, bucket } = await setup()
+    bucket.put.mockImplementation(async () => {
+      m.access.mockRejectedValue(new Error("revoked"))
+    })
+    await expect(
+      agent.storeSource("user", new Uint8Array([1])),
+    ).rejects.toThrow("access_required")
+    expect(bucket.delete).toHaveBeenCalledWith("sources/wimp_test/image")
+  })
+
+  // @lat: [[workout-import-runtime#Cleanup failure preserves denial]]
+  it("preserves typed expiry when best-effort source deletion fails", async () => {
+    const { agent, bucket } = await setup()
+    bucket.put.mockImplementation(async () => {
+      m.access.mockRejectedValue(new WorkoutImportSessionExpiredError())
+    })
+    bucket.delete.mockRejectedValue(new Error("R2 unavailable"))
+    await expect(
+      agent.storeSource("user", new Uint8Array([1])),
+    ).rejects.toMatchObject({
+      code: "source_expired",
+      status: 410,
+    })
+    expect(bucket.delete).toHaveBeenCalledWith("sources/wimp_test/image")
+  })
+
+  // @lat: [[workout-import-runtime#Budget wiring]]
+  it("charges actor and destination team with the correct dispatch and session limits", async () => {
+    const ns = {}
+    const env = { WORKOUT_IMPORT_AGENT: ns } as unknown as Env
+    await chargeWorkoutImportBudget(env, "actor", "destination", "session")
+    expect(m.allocate.mock.calls).toEqual([
+      [ns, "budget-actor-actor"],
+      [ns, "budget-team-destination"],
+    ])
+    expect(m.budget.mock.calls).toEqual([
+      ["session", IMPORT_LIMITS.actorDailySessions],
+      ["session", IMPORT_LIMITS.teamDailySessions],
+    ])
+    m.budget.mockClear()
+    m.budget
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("team exhausted"))
+    await expect(
+      chargeWorkoutImportBudget(env, "actor", "destination", "dispatch"),
+    ).rejects.toThrow("team exhausted")
+    expect(m.budget.mock.calls).toEqual([
+      ["dispatch", IMPORT_LIMITS.actorDailyDispatches],
+      ["dispatch", IMPORT_LIMITS.teamDailyDispatches],
+    ])
+  })
   // @lat: [[workout-import-runtime#Agent authorization]]
   it("denies RPC and generic client state updates without dispatching inference", async () => {
     const { agent, socket } = await setup()
@@ -197,6 +257,32 @@ describe("WorkoutImportAgent with mocked session services", () => {
     await expect(agent.chargeBudget("dispatch", 2)).rejects.toThrow(
       "rate_limited",
     )
+  })
+
+  // @lat: [[workout-import-runtime#Expired connection recovery]]
+  it("preserves source expiry for snapshots and closes owned expired connections without claiming revocation", async () => {
+    const { agent, socket } = await setup()
+    m.access.mockRejectedValue(new WorkoutImportSessionExpiredError())
+    await expect(agent.snapshot("user")).rejects.toMatchObject({
+      code: "source_expired",
+      status: 410,
+    })
+    await agent.onConnect(
+      socket as unknown as Connection,
+      {
+        request: new Request("https://app.test", {
+          headers: { cookie: "session=test" },
+        }),
+      } as never,
+    )
+    expect(socket.close).toHaveBeenCalledWith(4403, "source_expired")
+    expect(socket.send).not.toHaveBeenCalled()
+    m.auth.mockResolvedValue({ userId: "other" })
+    await agent.onConnect(
+      socket as unknown as Connection,
+      { request: new Request("https://app.test") } as never,
+    )
+    expect(socket.close).toHaveBeenLastCalledWith(4403, "access_required")
   })
 
   // @lat: [[workout-import-runtime#Saved source cleanup]]

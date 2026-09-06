@@ -65,7 +65,8 @@ export function useWorkoutImportAccess(
     key: string
     result: Result | null
     loading: boolean
-  }>({ key, result: null, loading: true })
+    error: string | null
+  }>({ key, result: null, loading: true, error: null })
   const currentKey = useRef(key)
   currentKey.current = key
   const destinationRef = useRef(destination)
@@ -77,16 +78,24 @@ export function useWorkoutImportAccess(
         data: { destination: destinationRef.current },
       })
       if (currentKey.current === requestedKey)
-        setState({ key: requestedKey, result, loading: false })
+        setState({ key: requestedKey, result, loading: false, error: null })
       return result
-    } catch {
+    } catch (issue) {
+      const denied = isWorkoutImportAccessError(issue)
       if (currentKey.current === requestedKey)
-        setState({
+        setState((previous) => ({
           key: requestedKey,
-          result: { hasAccess: false },
+          result: denied
+            ? { hasAccess: false }
+            : previous.key === requestedKey
+              ? previous.result
+              : null,
           loading: false,
-        })
-      return { hasAccess: false } as const
+          error: denied
+            ? null
+            : "Could not check AI access. Check your connection and try again.",
+        }))
+      return denied ? ({ hasAccess: false } as const) : null
     }
   }, [])
   useEffect(() => {
@@ -104,7 +113,12 @@ export function useWorkoutImportAccess(
     }
   }, [active, refresh])
   const result = state.key === key ? state.result : null
-  return { result, loading: state.key !== key || state.loading, refresh }
+  return {
+    result,
+    loading: state.key !== key || state.loading,
+    error: state.key === key ? state.error : null,
+    refresh,
+  }
 }
 
 async function importRequest<T>(url: string, init?: RequestInit): Promise<T> {

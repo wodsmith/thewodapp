@@ -34,7 +34,7 @@ Real MySQL tests verify complete scoring roundtrips, simultaneous retries, rollb
 
 The idempotent MySQL migration adds the AI Workout Import catalog entry and import session/receipt tables without adding plan or team grants. Existing admin entitlement controls provide targeted grants and revocations.
 
-Sessions expire after 24 hours. Successful saves immediately clear DB proposal/source text. Ownership-only cleanup clears abandoned or cancelled drafts and expires their sessions. The backend schedules cleanup and removes private source objects; receipts retain minimal IDs and hashes for audit, without source content.
+Sessions expire after 24 hours. Successful saves immediately clear DB proposal/source text. Ownership-only cleanup clears abandoned or cancelled drafts and expires unsaved sessions. Saved receipts keep their original expiry so late cancellation cannot invalidate retry. The backend schedules cleanup and removes private source objects; receipts retain minimal IDs and hashes for audit, without source content.
 
 The Drizzle migration journal and snapshot include only the two import tables. Other preexisting schema drift is deliberately outside this migration. Admin regrant clears an expired AI import snapshot; it does not alter expiry behavior for other features.
 
@@ -53,3 +53,21 @@ Saved imports use ordinary workout edit permissions. Reads include movements and
 Omitted new metadata or movements preserves existing values for older callers. Explicit null clears optional scoring metadata and an empty movement list clears junction rows. Real MySQL tests verify reload, replacement, clearing, invalid-reference rollback, and denied writes after permission loss.
 
 The import migration is `packages/wodsmith-db/mysql-migrations/0004_workout_import_domain.sql`, after main’s `0002_training_personal.sql` and `0003_training_library_history.sql`. Its snapshot extends main’s 0003 schema with only the two import tables.
+
+## Ordinary edit scaling choices
+
+The ordinary workout editor loads team and system scaling choices using current edit permission on the workout’s owner team. It needs no AI entitlement and excludes foreign-team and unowned non-system groups.
+
+A real MySQL and rendered-route regression revokes the AI grant, opens the actual edit form, changes team and system selections, and verifies saved values. Stale session permissions cannot bypass membership expiry, membership revocation, or loss of the edit role.
+
+## Saved receipt cancellation tests
+
+Real MySQL tests verify that late cancellation preserves a saved receipt and its original expiry, allowing lost-response retries to return the same IDs while still enforcing current import access.
+
+## Ordinary aggregation defaults tests
+
+Ordinary multi-score creation and edits normalize a missing aggregation to the scoring library’s scheme default. Import review still requires an explicit choice before saving multiple scores.
+
+## Programming order validation tests
+
+Importer saves to ordinary programming tracks use the manual API’s positive integer ordering contract. Zero, negative, fractional, and out-of-range orders fail validation; competition decimal ordering is unchanged.

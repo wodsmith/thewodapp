@@ -101,3 +101,47 @@ On 2026-09-06 UTC, text extraction completed in 49.4 seconds with one dispatch (
 With `reasoning_effort: low`, the same screenshot completed in 51.5 seconds with one dispatch (626 input/3355 output tokens), correctly reading 100 burpees and converting 15 minutes to 900 seconds. It still asked an unnecessary scoring question. The runtime now requests low reasoning effort within the unchanged 4096-token and 90-second bounds; this is not evidence of consistent latency improvement.
 
 The screenshot was a synthetic printed prescription, not handwriting or a blurred photograph. The remaining representative corpus, human label review, ambiguity accuracy and deployed Gateway log suppression must be evaluated before release. No production deployment or entitlement grant occurred.
+
+## Owned session expiry
+
+Only an owned session whose current destination access still passes can report expiry. Revoked grants and other actors remain access denials; expiry permits a new session without changing or saving the old draft.
+
+## Expired session HTTP recovery
+
+Expired authorized session, source and socket requests return private no-store 410 source_expired responses before Durable Object allocation. The client can discard stale provenance without treating the destination entitlement as revoked.
+
+## Expired connection recovery
+
+An already-open owned connection preserves source-expired errors and closes with that reason after expiry. Cross-user and revoked access still close as access-required and never deliver stored state.
+
+## Already cancelled work
+
+Already-aborted callers still attach rejection handlers to dispatched work, preventing late provider failures from becoming unhandled rejections.
+
+## Question envelope
+
+When questions exceed the schema limit, they are grouped by affected field and require full-source review. Generated and model question IDs are normalized for uniqueness before publication.
+
+## Denied upload cleanup
+
+If access disappears while an image is being stored, the Agent deletes the private source before returning the denial. Storage failures still leave the 24-hour lifecycle as the cleanup backstop.
+
+## Budget wiring
+
+Actor and resolved destination-team instances receive their respective session or dispatch limits. A failed team charge keeps the actor reservation, matching the conservative quota policy.
+
+## Cancel method restriction
+
+The cancel endpoint accepts POST only. Other methods return 405 before session reads or Agent allocation and never return a draft snapshot.
+
+## Smoke errors
+
+The local-only smoke harness bounds and parses source input inside its error boundary, preserves runtime status codes, and never labels rejected input as live inference.
+
+## Runtime CI coverage
+
+The main package test command runs both the application suite and the separate Node runtime suite. The tracked Wrangler example includes both Agent namespaces; the local fixture preserves an existing configuration on reruns.
+
+## Cleanup failure preserves denial
+
+A failed best-effort R2 deletion cannot replace the original typed access or expiry error. The private source remains inaccessible to denied callers and the bucket's 24-hour retention is the cleanup fallback.

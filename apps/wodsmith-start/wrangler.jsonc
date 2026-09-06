@@ -24,9 +24,15 @@
 		"mode": "smart"
 	},
 	"durable_objects": {
-		"bindings": [{ "name": "WORKOUT_IMPORT_AGENT", "class_name": "WorkoutImportAgent" }]
+		"bindings": [
+      { "name": "WORKOUT_IMPORT_AGENT", "class_name": "WorkoutImportAgent" },
+      { "name": "JUDGE_SCHEDULER_AGENT", "class_name": "JudgeSchedulerAgent" }
+    ]
 	},
-	"migrations": [{ "tag": "workout-import-v1", "new_sqlite_classes": ["WorkoutImportAgent"] }],
+	"migrations": [
+    { "tag": "workout-import-v1", "new_sqlite_classes": ["WorkoutImportAgent"] },
+    { "tag": "judge-scheduler-v1", "new_sqlite_classes": ["JudgeSchedulerAgent"] }
+  ],
 	"images": { "binding": "WORKOUT_IMPORT_IMAGES" },
 	/**
 	 * Bindings

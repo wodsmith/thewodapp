@@ -93,3 +93,43 @@ A rejected composition save retains the current score and notes, does not naviga
 ## Legacy log handoff
 
 Workout-only logging links still redirect to Training for explicit session composition and do not create a session or result while loading.
+
+## Expired session restoration
+
+Restoring an expired session clears its destination storage entry and server snapshot. Reopening can begin a fresh source read without manual browser-storage cleanup or a false access lock.
+
+## Denied session restoration
+
+A revoked or unowned stored session still locks AI actions and cannot start new generation through the expiry recovery path.
+
+## Cancel pending source operations
+
+Cancelling during session creation, socket readiness, or upload prevents a later inference call and safely cancels any session returned after the user's cancellation.
+
+## Duplicate read request identity
+
+Repeated clicks before rendering dispatch only one read or revision and preserve its request ID so the resulting proposal remains reviewable.
+
+## Invalid image replacement
+
+An invalid replacement clears the active image and preview instead of silently submitting the previous screenshot.
+
+## Transient access recovery
+
+A failed background access check retains the last confirmed result, reports a connection error, and recovers on the next check; a definitive denial still removes access.
+
+## Initial access retry
+
+An initial network failure offers a retry without opening an agent or presenting it as an entitlement denial.
+
+## Access check failure blocks operations
+
+A failed access recheck blocks session allocation and inference without falsely marking the previously entitled destination as revoked.
+
+## Subscriber track action
+
+Subscribed tracks without current owner-team management permission hide both manual and AI add-workout entry points.
+
+## Track management capability
+
+Track reads check management permission against the current owner team, preserve read-only access on denial, and propagate unexpected failures rather than reporting false permission results.

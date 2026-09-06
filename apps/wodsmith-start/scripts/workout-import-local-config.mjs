@@ -21,5 +21,10 @@ const config = {
   vars: { APP_URL: "http://localhost:33317", WORKOUT_IMPORT_GATEWAY: "wodsmith-import-dev" },
 }
 await mkdir(new URL("../.alchemy/local/", import.meta.url), { recursive: true })
-await writeFile(new URL("../.alchemy/local/wrangler.jsonc", import.meta.url), JSON.stringify(config, null, 2) + "\n", { flag: "wx" })
-console.log("Created .alchemy/local/wrangler.jsonc (build fixture; AI requires explicit live configuration)")
+try {
+  await writeFile(new URL("../.alchemy/local/wrangler.jsonc", import.meta.url), JSON.stringify(config, null, 2) + "\n", { flag: "wx" })
+  console.log("Created .alchemy/local/wrangler.jsonc (build fixture; AI requires explicit live configuration)")
+} catch (error) {
+  if (error?.code !== "EEXIST") throw error
+  console.log(".alchemy/local/wrangler.jsonc already exists; preserving existing configuration")
+}

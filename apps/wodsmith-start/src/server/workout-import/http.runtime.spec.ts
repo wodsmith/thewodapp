@@ -36,6 +36,7 @@ vi.mock("./source", () => ({
 }))
 
 import { handleWorkoutImportRequest } from "./http"
+import { WorkoutImportSessionExpiredError } from "./session-errors"
 
 const session = {
   importId: "wimp_one",
@@ -75,6 +76,37 @@ beforeEach(() => {
 })
 
 describe("authenticated import HTTP routing (mock services)", () => {
+  // @lat: [[workout-import-runtime#Cancel method restriction]]
+  it("rejects GET cancel before loading sessions or allocating agents", async () => {
+    const response = await handleWorkoutImportRequest(
+      request("/api/workout-import/sessions/wimp_one/cancel"),
+      env,
+    )
+    expect(response?.status).toBe(405)
+    expect(response?.headers.get("allow")).toBe("POST")
+    expect(m.session).not.toHaveBeenCalled()
+    expect(m.owned).not.toHaveBeenCalled()
+    expect(m.allocate).not.toHaveBeenCalled()
+  })
+  // @lat: [[workout-import-runtime#Expired session HTTP recovery]]
+  it("returns source_expired for an authorized expired session before allocating or reading private data", async () => {
+    m.session.mockRejectedValue(new WorkoutImportSessionExpiredError())
+    for (const path of [
+      "/api/workout-import/sessions/wimp_one",
+      "/api/workout-import/sessions/wimp_one/source",
+      "/agents/workout-import-agent/wimp_one",
+    ]) {
+      const response = await handleWorkoutImportRequest(request(path), env)
+      expect(response?.status).toBe(410)
+      expect(await response?.json()).toEqual({
+        error: { code: "source_expired" },
+      })
+      expect(response?.headers.get("cache-control")).toBe("private, no-store")
+    }
+    expect(m.allocate).not.toHaveBeenCalled()
+    expect(env.WORKOUT_IMPORT_SOURCES.get).not.toHaveBeenCalled()
+  })
+
   // @lat: [[workout-import-runtime#HTTP failure diagnostics]]
   it("distinguishes infrastructure failure without exposing raw errors", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {})

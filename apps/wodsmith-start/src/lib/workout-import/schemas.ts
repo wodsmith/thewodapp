@@ -104,7 +104,7 @@ export const workoutImportSaveInputSchema = z.object({
   idempotencyKey: id,
   workout: normalizedWorkoutSaveSchema,
   resolutions: z.array(z.object({questionId: id, answer: z.string().trim().min(1).max(2000)}).strict()).max(50).default([]),
-  track: z.object({ trackOrder: z.number().min(0).max(9999.99), notes: z.string().max(10000).optional() }).strict().optional(),
+  track: z.object({ trackOrder: z.number().int().min(1).max(9999), notes: z.string().max(10000).optional() }).strict().optional(),
 }).strict()
 export type WorkoutImportSaveInput = z.infer<typeof workoutImportSaveInputSchema>
 export interface WorkoutImportSaveResult { workoutId: string; trackWorkoutId: string | null; importId: string; revision: number }

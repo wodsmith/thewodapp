@@ -40,6 +40,7 @@ import {
   workouts,
   workoutTags,
 } from "@/db/schemas/workouts"
+import { DEFAULT_SCORE_TYPES } from "@/lib/scoring/constants"
 import { normalizedWorkoutSaveSchema } from "@/lib/workout-import"
 import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
 import {
@@ -409,7 +410,11 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
       name: data.name,
       description: data.description,
       scheme: data.scheme,
-      scoreType: data.scoreType ?? null,
+      scoreType:
+        data.scoreType ??
+        ((data.roundsToScore ?? 1) > 1
+          ? DEFAULT_SCORE_TYPES[data.scheme]
+          : null),
       scope: data.scope,
       timeCapSeconds: data.timeCap ?? null,
       roundsToScore: data.roundsToScore ?? 1,
@@ -499,23 +504,27 @@ export const updateWorkoutFn = createServerFn({ method: "POST" })
         TEAM_PERMISSIONS.EDIT_COMPONENTS,
         tx,
       )
+      const roundsToScore =
+        data.roundsToScore === undefined
+          ? (existing.roundsToScore ?? 1)
+          : (data.roundsToScore ?? 1)
+      const scoreType =
+        data.scoreType === undefined ? existing.scoreType : data.scoreType
       const normalized = normalizedWorkoutSaveSchema.parse({
         name: data.name,
         description: data.description,
         scheme: data.scheme,
         scope: data.scope,
         scoreType:
-          data.scoreType === undefined ? existing.scoreType : data.scoreType,
+          scoreType ??
+          (roundsToScore > 1 ? DEFAULT_SCORE_TYPES[data.scheme] : null),
         timeCapSeconds:
           data.timeCap === undefined
             ? data.scheme === "time-with-cap"
               ? existing.timeCap
               : null
             : data.timeCap,
-        roundsToScore:
-          data.roundsToScore === undefined
-            ? (existing.roundsToScore ?? 1)
-            : (data.roundsToScore ?? 1),
+        roundsToScore,
         repsPerRound:
           data.repsPerRound === undefined
             ? existing.repsPerRound

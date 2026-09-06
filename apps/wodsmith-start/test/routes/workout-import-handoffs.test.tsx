@@ -115,7 +115,7 @@ describe("workout import route handoffs", () => {
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Track alias placement]]
   it.each([SettingsRoute, AdminRoute])("preserves displayed track destination, order and notes through the shared adapter", async (route) => {
-    mock.data = { track: { id: "track-owned", name: "Strength", ownerTeamId: "team-owner" }, trackWorkouts: [], teamId: "team-owner", teamName: "Gym" }
+    mock.data = { canManageWorkouts: true, track: { id: "track-owned", name: "Strength", ownerTeamId: "team-owner" }, trackWorkouts: [], teamId: "team-owner", teamName: "Gym" }
     const Page = route.options.component as ComponentType
     render(<Page />)
     fireEvent.click(screen.getByRole("button", { name: "Add workout" }))
@@ -127,4 +127,13 @@ describe("workout import route handoffs", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finish track import" }))
     await waitFor(() => expect(mock.invalidate).toHaveBeenCalled())
   })
+})
+
+// @lat: [[workout-import-ux-tests#Workout Import UX Tests#Subscriber track action]]
+it("hides manual and AI add actions for a track without owner-team management permission", () => {
+  mock.data = { canManageWorkouts: false, track: { id: "subscribed", name: "Subscribed track", ownerTeamId: "foreign-owner" }, trackWorkouts: [] }
+  const Page = SettingsRoute.options.component as ComponentType
+  render(<Page />)
+  expect(screen.queryByRole("button", { name: "Add workout" })).not.toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Create with AI" })).not.toBeInTheDocument()
 })

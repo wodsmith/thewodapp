@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { useState } from "react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { validateImportImage, WorkoutImportSource } from "@/components/workout-import/source-input"
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe("workout import source", () => {
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Bounded image source]]
@@ -14,7 +17,7 @@ describe("workout import source", () => {
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Keyboard image inspection]]
   it("provides a labeled picker and preview, and releases the local preview URL", () => {
     const revoke = vi.fn()
-    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:test-image"), revokeObjectURL: revoke }))
+    vi.stubGlobal("URL", class extends URL { static createObjectURL = vi.fn(() => "blob:test-image"); static revokeObjectURL = revoke })
     const onFileChange = vi.fn()
     const file = new File(["image"], "workout.png", { type: "image/png" })
     const { unmount } = render(<WorkoutImportSource text="" onTextChange={vi.fn()} file={file} onFileChange={onFileChange} disabled={false} />)
@@ -26,4 +29,20 @@ describe("workout import source", () => {
     unmount()
     expect(revoke).toHaveBeenCalledWith("blob:test-image")
   })
+})
+
+// @lat: [[workout-import-ux-tests#Workout Import UX Tests#Invalid image replacement]]
+it("clears the active image and preview when its replacement is invalid", () => {
+  vi.stubGlobal("URL", class extends URL { static createObjectURL = vi.fn(() => "blob:old"); static revokeObjectURL = vi.fn() })
+  const changed = vi.fn()
+  function Source() {
+    const [file, setFile] = useState<File | null>(new File(["image"], "old.png", { type: "image/png" }))
+    return <WorkoutImportSource text="" onTextChange={vi.fn()} file={file} onFileChange={(next) => { changed(next); setFile(next) }} disabled={false} />
+  }
+  render(<Source />)
+  expect(screen.getByRole("img")).toHaveAttribute("src", "blob:old")
+  fireEvent.change(screen.getByLabelText("Workout screenshot"), { target: { files: [new File(["text"], "invalid.txt", { type: "text/plain" })] } })
+  expect(changed).toHaveBeenCalledWith(null)
+  expect(screen.queryByRole("img")).not.toBeInTheDocument()
+  expect(screen.getByRole("alert")).toHaveTextContent(/PNG, JPEG, or WebP/)
 })

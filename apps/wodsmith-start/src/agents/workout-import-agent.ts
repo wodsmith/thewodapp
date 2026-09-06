@@ -31,6 +31,7 @@ import {
   IMPORT_LIMITS,
   WorkoutImportRuntimeError,
 } from "@/server/workout-import/limits"
+import { WorkoutImportSessionExpiredError } from "@/server/workout-import/session-errors"
 import {
   cleanupWorkoutImportSession,
   loadOwnedWorkoutImportSession,
@@ -103,7 +104,9 @@ export class WorkoutImportAgent extends Agent<Env, WorkoutImportAgentState> {
         userId: identity.userId,
         importId: identity.importId,
       })
-    } catch {
+    } catch (error) {
+      if (error instanceof WorkoutImportSessionExpiredError)
+        throw new WorkoutImportRuntimeError("source_expired", 410)
       throw new WorkoutImportRuntimeError("access_required", 403)
     }
   }
@@ -156,8 +159,14 @@ export class WorkoutImportAgent extends Agent<Env, WorkoutImportAgentState> {
         const session = await this.access()
         const state = { ...this.state, draft: session.draft }
         socket.send(JSON.stringify({ type: "cf_agent_state", state }))
-      } catch {
-        socket.close(4403, "access_required")
+      } catch (error) {
+        socket.close(
+          4403,
+          error instanceof WorkoutImportRuntimeError &&
+            error.code === "source_expired"
+            ? "source_expired"
+            : "access_required",
+        )
       }
     }
   }
@@ -188,7 +197,18 @@ export class WorkoutImportAgent extends Agent<Env, WorkoutImportAgentState> {
           customMetadata: { expiresAt: String(Date.parse(session.expiresAt)) },
         },
       )
-      await this.access()
+      try {
+        await this.access()
+      } catch (error) {
+        try {
+          await this.env.WORKOUT_IMPORT_SOURCES.delete(
+            sourceKey(session.importId),
+          )
+        } catch {
+          // Preserve the denial; the private bucket lifecycle remains the fallback.
+        }
+        throw error
+      }
     } finally {
       this.accepting = false
     }

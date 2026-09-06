@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { normalizedWorkoutSaveSchema, workoutImportProposalSchema, workoutSecondsToScoreMilliseconds } from "./schemas"
+import { workoutImportSaveInputSchema, normalizedWorkoutSaveSchema, workoutImportProposalSchema, workoutSecondsToScoreMilliseconds } from "./schemas"
 
 const cappedWorkout = {name:"Three rounds",description:"3 rounds for time; 15 minute cap; 10 pull-ups",scheme:"time-with-cap" as const,scoreType:null,timeCapSeconds:900,roundsToScore:1,repsPerRound:10,tiebreakScheme:"reps" as const,scalingGroupId:null,movementIds:["pull-up"],scope:"private" as const}
 describe("workout import contract",()=>{
@@ -20,4 +20,13 @@ describe("workout import contract",()=>{
     expect(workoutImportProposalSchema.safeParse({workout:{...workout,teamId:"other"},extractedText:"source",unresolved:[],warnings:[]}).success).toBe(false)
     expect(workoutImportProposalSchema.safeParse({workout:{...workout,scope},extractedText:"source",unresolved:[],warnings:[]}).success).toBe(false)
   })
+  // @lat: [[workout-import#Workout Import#Programming order validation tests]]
+  it("matches ordinary programming's positive integer order contract", () => {
+    const input = { importId: "import", revision: 1, idempotencyKey: "save", workout: cappedWorkout, track: { trackOrder: 1 } }
+    expect(workoutImportSaveInputSchema.safeParse(input).success).toBe(true)
+    for (const trackOrder of [0, -1, 1.5, 10000]) {
+      expect(workoutImportSaveInputSchema.safeParse({ ...input, track: { trackOrder } }).success).toBe(false)
+    }
+  })
+
 })

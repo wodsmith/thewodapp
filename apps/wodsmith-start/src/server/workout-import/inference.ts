@@ -105,6 +105,34 @@ export function resolveImportProposal(
   }
   if ((w.roundsToScore ?? 0) > 1 && w.scoreType === null)
     ask("scoreType", "Choose how separately recorded scores combine")
+  // Preserve every affected field when source complexity exceeds the question
+  // envelope. Each grouped question requires review against the complete source.
+  if (proposal.unresolved.length > 50) {
+    const groups = new Map<string, typeof proposal.unresolved>()
+    for (const question of proposal.unresolved) {
+      const group = groups.get(question.field) ?? []
+      group.push(question)
+      groups.set(question.field, group)
+    }
+    proposal.unresolved = [...groups.values()].map((questions) => ({
+      ...questions[0],
+      reason: (
+        `Review all ${questions.length} unresolved details for this field against the complete source. ` +
+        questions.map((q) => q.reason).join("; ")
+      ).slice(0, 2000),
+      sourceExcerpt: questions
+        .map((q) => q.sourceExcerpt)
+        .join("; ")
+        .slice(0, 2000),
+      choices: [],
+    }))
+  }
+  const usedIds = new Set<string>()
+  let nextId = 0
+  for (const question of proposal.unresolved) {
+    while (usedIds.has(question.id)) question.id = `question-${nextId++}`
+    usedIds.add(question.id)
+  }
   return workoutImportProposalSchema.parse(proposal)
 }
 

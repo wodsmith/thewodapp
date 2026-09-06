@@ -4,6 +4,7 @@ import { workoutImportDestinationSchema } from "@/lib/workout-import"
 import { getSessionFromRequestCookie } from "@/utils/auth"
 import { requireWorkoutImportAccess, WorkoutImportAccessError } from "./access"
 import { readBoundedBody, WorkoutImportRuntimeError } from "./limits"
+import { WorkoutImportSessionExpiredError } from "./session-errors"
 import {
   createWorkoutImportSession,
   loadOwnedWorkoutImportSession,
@@ -104,7 +105,12 @@ export async function handleWorkoutImportRequest(
         status: 405,
         headers: privateHeaders,
       })
-    const cancelling = api?.[2] === "cancel" && request.method === "POST"
+    const cancelling = api?.[2] === "cancel"
+    if (cancelling && request.method !== "POST")
+      return new Response("Method not allowed", {
+        status: 405,
+        headers: { ...privateHeaders, Allow: "POST" },
+      })
     // Check the DB before getAgentByName: guessed IDs cannot allocate durable objects.
     stage = "access"
     const session = await (cancelling
@@ -177,14 +183,16 @@ export async function handleWorkoutImportRequest(
   } catch (error) {
     // Never return provider, database, source, filename or raw schema errors.
     const safe =
-      error instanceof WorkoutImportRuntimeError
-        ? error
-        : error instanceof WorkoutImportAccessError ||
-            ["origin", "authentication", "access"].includes(stage)
-          ? new WorkoutImportRuntimeError("access_required", 403)
-          : stage === "input"
-            ? new WorkoutImportRuntimeError("invalid_source", 400)
-            : new WorkoutImportRuntimeError("provider_error", 500)
+      error instanceof WorkoutImportSessionExpiredError
+        ? new WorkoutImportRuntimeError("source_expired", 410)
+        : error instanceof WorkoutImportRuntimeError
+          ? error
+          : error instanceof WorkoutImportAccessError ||
+              ["origin", "authentication", "access"].includes(stage)
+            ? new WorkoutImportRuntimeError("access_required", 403)
+            : stage === "input"
+              ? new WorkoutImportRuntimeError("invalid_source", 400)
+              : new WorkoutImportRuntimeError("provider_error", 500)
     // Log only fixed stages/codes; raw errors may contain source or credentials.
     if (safe.status >= 500)
       console.error("workout-import-request-failed", { stage, code: safe.code })

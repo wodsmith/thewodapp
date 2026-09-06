@@ -38,6 +38,50 @@ function modelResponse(value: unknown) {
 }
 
 describe("TanStack Cloudflare import adapter (mock binding, no live model)", () => {
+  // @lat: [[workout-import-runtime#Question envelope]]
+  it("bounds generated questions while retaining every affected field and unique IDs", () => {
+    const unresolved = Array.from({ length: 50 }, () => ({
+      id: "movement-50",
+      field: "prescription" as const,
+      reason: "Confirm the prescription",
+      sourceExcerpt: "source",
+      choices: [],
+    }))
+    const result = resolveImportProposal(
+      {
+        ...extraction,
+        workout: { ...extraction.workout, scheme: null, timeCapSeconds: null },
+        unresolved,
+        movementNames: Array.from({ length: 100 }, (_, i) => `movement${i}`),
+      },
+      [],
+    )
+    expect(result.unresolved.length).toBeLessThanOrEqual(50)
+    expect(new Set(result.unresolved.map((q) => q.id)).size).toBe(
+      result.unresolved.length,
+    )
+    expect(result.unresolved.map((q) => q.field)).toEqual(
+      expect.arrayContaining(["prescription", "movementIds", "scheme"]),
+    )
+    expect(
+      result.unresolved.find((q) => q.field === "movementIds")?.sourceExcerpt,
+    ).toContain("movement99")
+    const collision = resolveImportProposal(
+      {
+        ...extraction,
+        workout: { ...extraction.workout, scheme: null, timeCapSeconds: null },
+        unresolved: [
+          { ...unresolved[0], id: "movement-1" },
+          { ...unresolved[0], id: "scoring-scheme" },
+        ],
+        movementNames: ["unknown"],
+      },
+      [],
+    )
+    expect(new Set(collision.unresolved.map((q) => q.id)).size).toBe(
+      collision.unresolved.length,
+    )
+  })
   // @lat: [[workout-import-runtime#Adapter transport]]
   it("sends vision + JSON schema through the actual adapter with private Gateway controls", async () => {
     const run = vi

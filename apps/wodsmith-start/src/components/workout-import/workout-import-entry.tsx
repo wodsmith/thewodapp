@@ -32,13 +32,17 @@ export function WorkoutImportAccessButton({
     <Button
       type="button"
       variant="outline"
-      className="max-w-full min-h-11 whitespace-normal text-left"
-      disabled={access.loading || !allowed}
-      onClick={onClick}
+      className="h-auto max-w-full min-h-11 whitespace-normal text-left"
+      disabled={access.loading || (!allowed && !access.error)}
+      onClick={() => {
+        if (!allowed) void access.refresh()
+        else onClick()
+      }}
       title={
         allowed
           ? undefined
-          : "AI Workout Import access required for this destination"
+          : (access.error ??
+            "AI Workout Import access required for this destination")
       }
     >
       {allowed ? (
@@ -50,7 +54,9 @@ export function WorkoutImportAccessButton({
         ? "Checking AI access…"
         : allowed
           ? "Create with AI"
-          : "AI Workout Import access required"}
+          : access.error
+            ? "Retry AI access check"
+            : "AI Workout Import access required"}
     </Button>
   )
 }
@@ -67,8 +73,14 @@ export function WorkoutImportEntry(
         <Button
           type="button"
           variant="outline"
-          className="max-w-full min-h-11 whitespace-normal text-left"
-          disabled={access.loading || !allowed}
+          className="h-auto max-w-full min-h-11 whitespace-normal text-left"
+          disabled={access.loading || (!allowed && !access.error)}
+          onClick={(event) => {
+            if (!allowed) {
+              event.preventDefault()
+              void access.refresh()
+            }
+          }}
         >
           {allowed ? (
             <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -79,7 +91,9 @@ export function WorkoutImportEntry(
             ? "Checking AI access…"
             : allowed
               ? "Create with AI"
-              : "AI Workout Import access required"}
+              : access.error
+                ? "Retry AI access check"
+                : "AI Workout Import access required"}
         </Button>
       </DialogTrigger>
       <DialogContent

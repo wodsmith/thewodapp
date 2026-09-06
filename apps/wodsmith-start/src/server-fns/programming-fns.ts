@@ -20,7 +20,10 @@ import {
 } from "@/db/schemas/programming"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
-import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
+import {
+  requireWorkoutTeamWrite,
+  WorkoutImportAccessError,
+} from "@/server/workout-import/access"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -272,7 +275,23 @@ export const getProgrammingTrackByIdFn = createServerFn({ method: "GET" })
       .where(eq(programmingTracksTable.id, data.trackId))
       .limit(1)
 
-    return { track: result[0] || null }
+    const track = result[0] || null
+    const session = await getSessionFromCookie()
+    let canManageWorkouts = false
+    if (track?.ownerTeamId && session?.userId) {
+      try {
+        await requireWorkoutTeamWrite(
+          session.userId,
+          track.ownerTeamId,
+          TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+          db,
+        )
+        canManageWorkouts = true
+      } catch (error) {
+        if (!(error instanceof WorkoutImportAccessError)) throw error
+      }
+    }
+    return { track, canManageWorkouts }
   })
 
 /**

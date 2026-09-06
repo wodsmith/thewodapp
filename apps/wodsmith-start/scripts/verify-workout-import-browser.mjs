@@ -20,9 +20,14 @@ page.setDefaultTimeout(30_000)
 const actor = "e2e_test_user"
 const personal = "e2e_personal_team_test"
 const gym = "e2e_test_team"
+const [originalEntitlements] = await db.execute("SELECT * FROM team_feature_entitlements WHERE team_id IN (?,?) AND feature_id IN (SELECT id FROM features WHERE `key`='ai_workout_import')", [personal, gym])
+const [originalTrackingOverrides] = await db.execute("SELECT * FROM team_entitlement_overrides WHERE team_id=? AND type='feature' AND `key`='workout_tracking'", [gym])
 
 async function grant(teamId, enabled) {
   await db.execute("INSERT INTO team_feature_entitlements (id,team_id,feature_id,source,is_active,created_at,updated_at) SELECT ?,?,id,'override',?,UTC_TIMESTAMP(),UTC_TIMESTAMP() FROM features WHERE `key`='ai_workout_import' ON DUPLICATE KEY UPDATE is_active=VALUES(is_active),expires_at=NULL", [`browser_import_${teamId}`, teamId, enabled ? 1 : 0])
+  const [rows] = await db.execute("SELECT is_active FROM team_feature_entitlements WHERE team_id=? AND feature_id IN (SELECT id FROM features WHERE `key`='ai_workout_import')", [teamId])
+  assert.equal(rows.length, 1, "Seed the AI import feature catalog before browser verification")
+  assert.equal(rows[0].is_active, enabled ? 1 : 0)
 }
 
 async function request(path, method = "GET", data) {
@@ -174,5 +179,17 @@ try {
   throw error
 } finally {
   await browser.close()
-  await db.end()
+  try {
+    await db.beginTransaction()
+    await db.execute("DELETE FROM team_feature_entitlements WHERE team_id IN (?,?) AND feature_id IN (SELECT id FROM features WHERE `key`='ai_workout_import')", [personal, gym])
+    for (const row of originalEntitlements) await db.query("INSERT INTO team_feature_entitlements SET ?", row)
+    await db.execute("DELETE FROM team_entitlement_overrides WHERE team_id=? AND type='feature' AND `key`='workout_tracking'", [gym])
+    for (const row of originalTrackingOverrides) await db.query("INSERT INTO team_entitlement_overrides SET ?", row)
+    await db.commit()
+  } catch (error) {
+    await db.rollback()
+    throw error
+  } finally {
+    await db.end()
+  }
 }

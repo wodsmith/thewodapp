@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { WorkoutImportWorkspace, type WorkoutImportWorkspaceProps } from "@/components/workout-import/workout-import-workspace"
 import { emptyImportWorkout } from "@/components/workout-import/editor-adapter"
@@ -85,4 +85,25 @@ describe("WorkoutImportWorkspace", () => {
     expect(screen.queryByRole("img")).not.toBeInTheDocument()
   })
 
+})
+
+// @lat: [[workout-import-ux-tests#Workout Import UX Tests#Duplicate read request identity]]
+it.each(["read", "revise"])("keeps the first %s request identity when clicked twice before rendering", async (operation) => {
+  let finish!: () => void
+  const pending = new Promise<void>((resolve) => { finish = resolve })
+  const send = vi.fn((_input: unknown, _context: unknown, _requestId: string) => pending)
+  const initial = props({ draft: operation === "read" ? null : draft, onRead: send, onRevise: send })
+  const view = render(<WorkoutImportWorkspace {...initial} />)
+  if (operation === "read") fireEvent.change(screen.getByLabelText("Workout text or image instructions"), { target: { value: "3 rounds" } })
+  else {
+    fireEvent.click(screen.getByRole("button", { name: "Apply selected fields" }))
+    fireEvent.change(screen.getByLabelText("Ask for a change"), { target: { value: "Use 5 rounds" } })
+  }
+  const button = screen.getByRole("button", { name: operation === "read" ? "Read workout" : "Review another proposal" })
+  act(() => { button.click(); button.click() })
+  expect(send).toHaveBeenCalledTimes(1)
+  const requestId = send.mock.calls[0][2]
+  await act(async () => finish())
+  view.rerender(<WorkoutImportWorkspace {...initial} draft={{ ...draft, revision: 2, requestId }} />)
+  expect(await screen.findByRole("region", { name: "Proposed changes" })).toBeInTheDocument()
 })

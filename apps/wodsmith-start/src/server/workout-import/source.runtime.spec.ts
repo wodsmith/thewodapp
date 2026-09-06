@@ -14,6 +14,18 @@ const png = new Uint8Array([
   ...Array(16).fill(0),
 ])
 describe("private source validation", () => {
+  // @lat: [[workout-import-runtime#Already cancelled work]]
+  it("observes provider rejection when cancellation happened before waiting", async () => {
+    const controller = new AbortController()
+    controller.abort("cancelled")
+    await expect(
+      awaitImportResult(
+        Promise.reject(new Error("late provider failure")),
+        controller,
+      ),
+    ).rejects.toThrow("cancelled")
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
   // @lat: [[workout-import-runtime#Bounded waiting]]
   it("ends local waiting when a provider never settles", async () => {
     const controller = new AbortController()

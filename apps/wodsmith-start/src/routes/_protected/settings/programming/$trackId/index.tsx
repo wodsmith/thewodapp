@@ -24,13 +24,14 @@ export const Route = createFileRoute(
 
     return {
       track: trackResult.track,
+      canManageWorkouts: trackResult.canManageWorkouts,
       trackWorkouts: workoutsResult.workouts,
     }
   },
 })
 
 function TrackDetailPage() {
-  const { track, trackWorkouts } = Route.useLoaderData()
+  const { track, trackWorkouts, canManageWorkouts } = Route.useLoaderData()
   const router = useRouter()
 
   const handleRefresh = () => {
@@ -82,7 +83,7 @@ function TrackDetailPage() {
             <p className="text-sm text-muted-foreground font-mono">
               {trackWorkouts.length} workout(s)
             </p>
-            {track.ownerTeamId && (
+            {canManageWorkouts && track.ownerTeamId && (
               <AddWorkoutToTrackDialog
                 trackId={track.id}
                 teamId={track.ownerTeamId}

@@ -2,7 +2,10 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { eq } from "drizzle-orm"
 import { type Database, getDb } from "@/db"
-import { workoutImportSessionsTable } from "@/db/schema"
+import {
+  workoutImportReceiptsTable,
+  workoutImportSessionsTable,
+} from "@/db/schema"
 import {
   type WorkoutImportDestination,
   type WorkoutImportDraft,
@@ -16,6 +19,8 @@ import {
   requireWorkoutImportAccess,
   type WorkoutImportDatabase,
 } from "./access"
+
+import { WorkoutImportSessionExpiredError } from "./session-errors"
 
 export interface WorkoutImportSession {
   importId: string
@@ -76,7 +81,7 @@ export async function authorizeWorkoutImportSession(
   if (scope.teamId !== session.teamId)
     throw new Error("Workout import destination changed")
   if (Date.parse(session.expiresAt) <= Date.now())
-    throw new Error("Workout import session expired")
+    throw new WorkoutImportSessionExpiredError()
 }
 
 export async function createWorkoutImportSession(
@@ -188,6 +193,11 @@ export async function cleanupWorkoutImportSession(
   await db.transaction(
     async (tx) => {
       await loadWorkoutImportSessionForUpdate(tx, input.userId, input.importId)
+      const receipt = await tx.query.workoutImportReceiptsTable.findFirst({
+        where: eq(workoutImportReceiptsTable.importId, input.importId),
+      })
+      // A late cancel must preserve retries after a successful but lost response.
+      if (receipt) return
       await tx
         .update(workoutImportSessionsTable)
         .set({ proposal: null, expiresAt: new Date(0) })

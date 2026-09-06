@@ -54,3 +54,32 @@ describe("workout import access", () => {
   })
 
 })
+
+// @lat: [[workout-import-ux-tests#Workout Import UX Tests#Transient access recovery]]
+it("retains a successful access result after a transient focus check and recovers automatically", async () => {
+  const allowed = { hasAccess: true, scope: { userId: "user", teamId: "personal", destination: { kind: "personal" } }, teamName: "Personal", scalingGroups: [] }
+  mock.access.mockResolvedValue(allowed)
+  const { result } = renderHook(() => useWorkoutImportAccess({ kind: "personal" }, true))
+  await waitFor(() => expect(result.current.result).toEqual(allowed))
+  mock.access.mockRejectedValueOnce(new Error("Failed to fetch"))
+  fireEvent(window, new Event("focus"))
+  await waitFor(() => expect(result.current.error).toMatch(/connection/))
+  expect(result.current.result).toEqual(allowed)
+  fireEvent(window, new Event("focus"))
+  await waitFor(() => expect(result.current.error).toBeNull())
+  mock.access.mockResolvedValueOnce({ hasAccess: false })
+  fireEvent(window, new Event("focus"))
+  await waitFor(() => expect(result.current.result).toEqual({ hasAccess: false }))
+})
+
+// @lat: [[workout-import-ux-tests#Workout Import UX Tests#Initial access retry]]
+it("offers a retry after an initial network error without claiming entitlement denial", async () => {
+  mock.access.mockRejectedValueOnce(new Error("Failed to fetch"))
+  render(<WorkoutImportEntry destination={{ kind: "personal" }} saveLabel="Create workout" onSaved={vi.fn()} />)
+  const retry = await screen.findByRole("button", { name: "Retry AI access check" })
+  expect(retry).toBeEnabled()
+  expect(screen.queryByText("AI Workout Import access required")).not.toBeInTheDocument()
+  fireEvent.click(retry)
+  await screen.findByRole("button", { name: "AI Workout Import access required" })
+  expect(mock.agent).not.toHaveBeenCalled()
+})

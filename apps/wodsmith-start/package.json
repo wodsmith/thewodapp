@@ -8,7 +8,7 @@
     "dev:multi": "portless run vite dev",
     "build": "vite build",
     "serve": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run && pnpm test:workout-import-runtime",
     "test:db-integration": "node scripts/test-db-integration.mjs",
     "preview": "pnpm run build && vite preview",
     "lint": "biome lint .",

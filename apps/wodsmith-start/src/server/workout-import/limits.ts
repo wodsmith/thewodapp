@@ -46,14 +46,15 @@ export function awaitImportResult<T>(
           408,
         ),
       )
+    // Work may already be running; observe rejection even after cancellation.
+    work
+      .then(resolve, reject)
+      .finally(() => controller.signal.removeEventListener("abort", aborted))
     if (controller.signal.aborted) {
       aborted()
       return
     }
     controller.signal.addEventListener("abort", aborted, { once: true })
-    work
-      .then(resolve, reject)
-      .finally(() => controller.signal.removeEventListener("abort", aborted))
   })
 }
 

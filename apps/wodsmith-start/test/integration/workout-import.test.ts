@@ -61,6 +61,7 @@ import {
   cleanupWorkoutImportSession,
 } from "@/server/workout-import/sessions"
 import { saveWorkoutImport } from "@/server/workout-import/persistence"
+import { WorkoutImportSessionExpiredError } from "@/server/workout-import/session-errors"
 vi.mock("@/utils/auth", () => ({
   getSessionFromCookie: async () => ({ userId: "athlete" }),
 }))
@@ -184,7 +185,7 @@ async function draft(kind: "personal" | "track" = "personal", p = proposal) {
     workout,
     resolutions: [],
     ...(kind === "track"
-      ? { track: { trackOrder: 2.5, notes: "Review notes" } }
+      ? { track: { trackOrder: 2, notes: "Review notes" } }
       : {}),
   } satisfies WorkoutImportSaveInput
 }
@@ -363,7 +364,7 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
     const link = await db.query.trackWorkoutsTable.findFirst({
       where: eq(trackWorkoutsTable.id, a.trackWorkoutId!),
     })
-    expect(Number(link?.trackOrder)).toBe(2.5)
+    expect(Number(link?.trackOrder)).toBe(2)
     expect(link?.notes).toBe("Review notes")
     expect(
       (
@@ -560,6 +561,25 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
     await expect(
       saveWorkoutImport({ userId: "athlete", input }, db),
     ).rejects.toThrow("expired")
+    expect(await rowCounts()).toEqual([0, 0, 0, 0])
+  })
+  // @lat: [[workout-import-runtime#Owned session expiry]]
+  it("reports expiry only for the currently authorized owner and permits a fresh session", async () => {
+    await grantTeamFeature("personal", FEATURES.AI_WORKOUT_IMPORT)
+    const input = await draft()
+    await db.update(workoutImportSessionsTable)
+      .set({ expiresAt: new Date(0) })
+      .where(eq(workoutImportSessionsTable.id, input.importId))
+    await expect(requireWorkoutImportSession({ userId: "athlete", importId: input.importId }, db))
+      .rejects.toBeInstanceOf(WorkoutImportSessionExpiredError)
+    await expect(requireWorkoutImportSession({ userId: "other", importId: input.importId }, db))
+      .rejects.toThrow("not found")
+    const fresh = await createWorkoutImportSession({ userId: "athlete", destination: { kind: "personal" } }, db)
+    expect(fresh.importId).not.toBe(input.importId)
+    expect(fresh.revision).toBe(0)
+    await revokeTeamFeature("personal", FEATURES.AI_WORKOUT_IMPORT)
+    await expect(requireWorkoutImportSession({ userId: "athlete", importId: input.importId }, db))
+      .rejects.toMatchObject({ name: "WorkoutImportAccessError" })
     expect(await rowCounts()).toEqual([0, 0, 0, 0])
   })
   it("provisions catalog idempotently without granting plans or teams", async () => {
@@ -760,4 +780,30 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
     ).rejects.toThrow("access required")
     expect(await rowCounts()).toEqual([0, 0, 0, 0])
   })
+  // @lat: [[workout-import#Workout Import#Saved receipt cancellation tests]]
+  it("preserves saved receipts through late cancellation and still checks retry access", async () => {
+    await grantTeamFeature("personal", FEATURES.AI_WORKOUT_IMPORT)
+    const input = await draft()
+    const saved = await saveWorkoutImport({ userId: "athlete", input }, db)
+    const before = await db.query.workoutImportSessionsTable.findFirst({ where: eq(workoutImportSessionsTable.id, input.importId) })
+    await cleanupWorkoutImportSession({ userId: "athlete", importId: input.importId }, db)
+    const after = await db.query.workoutImportSessionsTable.findFirst({ where: eq(workoutImportSessionsTable.id, input.importId) })
+    expect(after?.expiresAt).toEqual(before?.expiresAt)
+    expect(after?.proposal).toBeNull()
+    expect(await saveWorkoutImport({ userId: "athlete", input }, db)).toEqual(saved)
+    expect(await rowCounts()).toEqual([1, 1, 0, 1])
+    await revokeTeamFeature("personal", FEATURES.AI_WORKOUT_IMPORT)
+    await expect(saveWorkoutImport({ userId: "athlete", input }, db)).rejects.toThrow("access required")
+    expect(await rowCounts()).toEqual([1, 1, 0, 1])
+  })
+  // @lat: [[workout-import#Workout Import#Ordinary aggregation defaults tests]]
+  it("uses scheme defaults for ordinary multi-score creates and legacy edits", async () => {
+    const created = await createWorkoutFn({ data: { name: "Intervals", description: "Three separate scores", scheme: "time", roundsToScore: 3, teamId: "personal" } })
+    expect(created.workout).toMatchObject({ roundsToScore: 3, scoreType: "min" })
+    await db.update(workouts).set({ scoreType: null }).where(eq(workouts.id, created.workout.id))
+    const edit = { id: created.workout.id, name: "Legacy intervals", description: "Three separate scores", scheme: "time" as const, scope: "private" as const }
+    expect((await updateWorkoutFn({ data: edit })).workout).toMatchObject({ roundsToScore: 3, scoreType: "min" })
+    expect((await updateWorkoutFn({ data: { ...edit, scheme: "reps", scoreType: null } })).workout).toMatchObject({ roundsToScore: 3, scoreType: "max" })
+  })
+
 })

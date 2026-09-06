@@ -96,8 +96,10 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
     Awaited<ReturnType<typeof getAllMovementsFn>>["movements"]
   >([])
   const connection = useRef<ImportConnectionHandle>(null)
-  const waiting = useRef<(() => void) | null>(null)
+  const waiting = useRef<((cancelled?: boolean) => void) | null>(null)
   const operation = useRef(false)
+  const generation = useRef(0)
+  const pendingSession = useRef<string | null>(null)
   const trackedStage = useRef<string | null>(null)
   const startedAt = useRef<number | null>(null)
   const mounted = useRef(true)
@@ -117,6 +119,8 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
     mounted.current = true
     return () => {
       mounted.current = false
+      generation.current += 1
+      waiting.current?.(true)
     }
   }, [])
   useEffect(() => {
@@ -155,7 +159,13 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
         .catch((issue) => {
           if (cancelled) return
           if (isWorkoutImportAccessError(issue)) onAccessLost()
-          else sessionStorage.removeItem(storageKey)
+          else {
+            sessionStorage.removeItem(storageKey)
+            setSessionId(null)
+            setSnapshot(null)
+            setSourceUrl(undefined)
+            setError(workoutImportError(issue))
+          }
         })
     return () => {
       cancelled = true
@@ -182,18 +192,24 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
     })
   }, [snapshot, props.destination.kind])
 
-  const checkedOperation = async (work: () => Promise<void>) => {
+  const checkedOperation = async (
+    work: (requestGeneration: number) => Promise<void>,
+  ) => {
     if (operation.current) return
     operation.current = true
+    const requestGeneration = generation.current
     setError(null)
     try {
       const current = await access.refresh()
+      if (requestGeneration !== generation.current || !mounted.current) return
+      if (!current) throw new Error("network_access_check_failed")
       if (!current.hasAccess) {
         onAccessLost()
         throw new Error("access_required")
       }
-      await work()
+      await work(requestGeneration)
     } catch (issue) {
+      if (requestGeneration !== generation.current || !mounted.current) return
       if (isWorkoutImportAccessError(issue)) onAccessLost()
       const message = workoutImportError(issue)
       setError(message)
@@ -206,32 +222,43 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
       throw new Error(message)
     } finally {
       operation.current = false
-      setStage(null)
+      if (mounted.current) setStage(null)
     }
   }
-  const ensureSession = async () => {
+  const assertActive = (requestGeneration: number) => {
+    if (requestGeneration !== generation.current || !mounted.current)
+      throw new Error("import_cancelled")
+  }
+  const ensureSession = async (requestGeneration: number) => {
     // Read starts a new immutable source. Corrections to an accepted draft use
     // revise instead; the backend intentionally permits read only at revision 0.
     const previousSessionId = sessionId
     setSessionId(null)
     if (previousSessionId) await cancelImportSession(previousSessionId)
+    assertActive(requestGeneration)
     setConnectionError(null)
     setSnapshot(null)
     setSourceUrl(undefined)
     const session = await createImportSession(props.destination)
-    if (!mounted.current) throw new Error("connection_closed")
+    if (requestGeneration !== generation.current || !mounted.current) {
+      await cancelImportSession(session.importId)
+      throw new Error("import_cancelled")
+    }
+    pendingSession.current = session.importId
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         waiting.current = null
         reject(new Error("socket_timeout"))
       }, 15_000)
-      waiting.current = () => {
+      waiting.current = (cancelled) => {
         window.clearTimeout(timeout)
-        resolve()
+        if (cancelled) reject(new Error("import_cancelled"))
+        else resolve()
       }
       setSessionId(session.importId)
       sessionStorage.setItem(storageKey, session.importId)
     })
+    assertActive(requestGeneration)
     return session.importId
   }
   const onSave = async (input: WorkoutImportSaveInput) => {
@@ -286,9 +313,11 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
           snapshot?.status === "reading" ||
           snapshot?.status === "checking"
         }
-        accessRequired={!access.loading && !allowed}
+        accessRequired={revoked || access.result?.hasAccess === false}
+        accessUnavailable={!access.loading && !access.result}
         error={
           error ??
+          access.error ??
           connectionError ??
           (snapshot?.error ? workoutImportError(snapshot.error.code) : null)
         }
@@ -298,12 +327,13 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
           access.result?.hasAccess ? access.result.scalingGroups : []
         }
         onRead={(text, file, requestId) =>
-          checkedOperation(async () => {
+          checkedOperation(async (requestGeneration) => {
             setStage(file ? "Uploading image…" : "Starting import…")
-            const importId = await ensureSession()
+            const importId = await ensureSession(requestGeneration)
             if (!mounted.current || !connection.current)
               throw new Error("connection_closed")
             const image = file ? await uploadImportSource(importId, file) : null
+            assertActive(requestGeneration)
             setSourceUrl(image?.url)
             startedAt.current = Date.now()
             trackEvent("workout_import_started", {
@@ -337,7 +367,12 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
         }
         onSave={onSave}
         onCancel={async () => {
-          if (sessionId) await cancelImportSession(sessionId)
+          generation.current += 1
+          waiting.current?.(true)
+          waiting.current = null
+          const cancelledId = pendingSession.current ?? sessionId
+          pendingSession.current = null
+          if (cancelledId) await cancelImportSession(cancelledId)
           sessionStorage.removeItem(storageKey)
           setSessionId(null)
           setSnapshot(null)
@@ -348,7 +383,7 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
         onClose={props.onClose}
         onCheckAccess={() => {
           void access.refresh().then((result) => {
-            if (result.hasAccess) {
+            if (result?.hasAccess) {
               setRevoked(false)
               setError(null)
             }

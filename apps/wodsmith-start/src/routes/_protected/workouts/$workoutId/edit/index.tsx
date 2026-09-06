@@ -3,25 +3,28 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { WorkoutForm, type WorkoutFormData } from "@/components/workout-form"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
+import { getWorkoutEditScalingGroupsFn } from "@/server-fns/workout-edit-fns"
 import { getWorkoutByIdFn, updateWorkoutFn } from "@/server-fns/workout-fns"
 
 export const Route = createFileRoute("/_protected/workouts/$workoutId/edit/")({
   component: EditWorkoutPage,
   loader: async ({ params }) => {
-    const [workoutResult, movementsResult] = await Promise.all([
+    const [workoutResult, movementsResult, scalingResult] = await Promise.all([
       getWorkoutByIdFn({ data: { id: params.workoutId } }),
       getAllMovementsFn(),
+      getWorkoutEditScalingGroupsFn({ data: { workoutId: params.workoutId } }),
     ])
     return {
       workout: workoutResult.workout,
       movements: movementsResult.movements,
+      scalingGroups: scalingResult.scalingGroups,
     }
   },
 })
 
 function EditWorkoutPage() {
   const navigate = useNavigate()
-  const { workout, movements } = Route.useLoaderData()
+  const { workout, movements, scalingGroups } = Route.useLoaderData()
   const { workoutId } = Route.useParams()
 
   const initialMovementIds =
@@ -87,6 +90,7 @@ function EditWorkoutPage() {
       onSubmit={handleSubmit}
       backUrl={`/workouts/${workoutId}`}
       movements={movements}
+      scalingGroups={scalingGroups}
       initialMovementIds={initialMovementIds}
     />
   )

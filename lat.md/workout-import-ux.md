@@ -25,3 +25,13 @@ Library entry points return to workout detail. Both writable track managers use 
 An opaque session ID stored per actor and destination permits an authorized snapshot reload when reopening. Images and pasted text are never stored in URLs or browser persistence by the importer.
 
 Access loss unmounts the connection and disables AI reads, revisions, and saves while retaining the local editor. A fresh access check permits reconnecting. Safe cancellation expires the session. Reading a source again creates a fresh session at revision zero; corrections revise the current session. Local edits remain visible throughout. Uncertain saves retry the same reviewed content with the same key. Server authorization remains authoritative at every operation.
+
+## Request recovery boundaries
+
+Only one read or revision can reserve a request ID at a time. Cancellation invalidates pending setup, socket waits, and uploads before inference; late-created sessions are cancelled safely.
+
+Transient access-check failures preserve the last confirmed entitlement but block new operations until a fresh check succeeds. Initial failures offer a retry. Invalid image replacements clear the prior active file. Locked entry buttons grow for wrapped labels. The isolated browser fixture resolves paths relative to its configuration file.
+
+## Track manager visibility
+
+The settings track page shows add-workout actions only when a fresh owner-team management check succeeds. Subscription access alone never grants composition writes; mutations retain their own authorization checks.
