@@ -61,7 +61,9 @@ vi.mock('@/server/commerce/financial-events', () => ({
 
 // Mock Crew billing completion
 const mockCompleteCrewCheckoutSessionFromWebhook = vi.fn()
+const mockExpireCrewCheckout = vi.fn()
 vi.mock('@/server/crew-billing.server', () => ({
+  expireCrewCheckoutSessionFromWebhook: (...args: unknown[]) => mockExpireCrewCheckout(...args),
   completeCrewCheckoutSessionFromWebhook: (...args: unknown[]) =>
     mockCompleteCrewCheckoutSessionFromWebhook(...args),
 }))
@@ -191,6 +193,7 @@ describe('Stripe Webhook Handler', () => {
       )
       const session = {
         id: 'cs_crew_123',
+        payment_status: 'paid',
         payment_intent: 'pi_crew_456',
         amount_total: 20000,
         currency: 'usd',
@@ -239,6 +242,7 @@ describe('Stripe Webhook Handler', () => {
     it('returns 200 for invalid Crew Checkout metadata without granting access', async () => {
       const session = {
         id: 'cs_crew_invalid',
+        payment_status: 'paid',
         payment_intent: 'pi_crew_invalid',
         amount_total: 20000,
         currency: 'usd',
@@ -275,6 +279,7 @@ describe('Stripe Webhook Handler', () => {
       })
       const session = {
         id: 'cs_crew_duplicate',
+        payment_status: 'paid',
         payment_intent: 'pi_crew_duplicate',
         amount_total: 20000,
         currency: 'usd',
@@ -784,5 +789,35 @@ describe('Stripe Webhook Handler', () => {
       const response = await callWebhook(JSON.stringify(event))
       expect(response.status).toBe(200)
     })
+  })
+})
+
+// @lat: [[crew#Crew Checkout Recovery]]
+describe('Crew checkout payment boundary', () => {
+  it('does not unlock an unpaid completed session', async () => {
+    const event = buildStripeEvent('checkout.session.completed', {
+      id: 'cs_unpaid', payment_status: 'unpaid', metadata: { product: 'crew' },
+    })
+    mockConstructEventAsync.mockResolvedValue(event)
+    const response = await callWebhook(JSON.stringify(event))
+    expect(response.status).toBe(200)
+    expect(mockCompleteCrewCheckoutSessionFromWebhook).not.toHaveBeenCalled()
+  })
+
+  it('routes Crew expiration to event billing instead of athlete purchases', async () => {
+    const session = { id: 'cs_expired', status: 'expired', metadata: { product: 'crew' } }
+    mockConstructEventAsync.mockResolvedValue(buildStripeEvent('checkout.session.expired', session))
+    const response = await callWebhook('{}')
+    expect(response.status).toBe(200)
+    expect(mockExpireCrewCheckout).toHaveBeenCalledWith(session)
+    expect(mockDb.update).not.toHaveBeenCalled()
+  })
+
+  it('retries when Crew expiration persistence fails', async () => {
+    mockConstructEventAsync.mockResolvedValue(buildStripeEvent('checkout.session.expired', {
+      id: 'cs_expired', status: 'expired', metadata: { product: 'crew' },
+    }))
+    mockExpireCrewCheckout.mockRejectedValue(new Error('Database unavailable'))
+    expect((await callWebhook('{}')).status).toBe(500)
   })
 })

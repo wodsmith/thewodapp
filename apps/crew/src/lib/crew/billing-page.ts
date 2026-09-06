@@ -223,10 +223,10 @@ function buildCheckoutAction(
 
   if (billing.state === CREW_BILLING_STATE.PENDING) {
     return {
-      label: "Checkout pending",
-      status: "disabled",
+      label: "Resume checkout",
+      status: "available",
       href: null,
-      helperText: "A Checkout Session is already pending for this event.",
+      helperText: "Resume your existing checkout or retry after it expires.",
     }
   }
 
@@ -243,7 +243,11 @@ function buildCheckoutAction(
     }
   }
 
-  if (billing.planId && !isCrewCheckoutPlanId(billing.planId)) {
+  if (
+    billing.planId &&
+    billing.planId !== "crew_starter" &&
+    !isCrewCheckoutPlanId(billing.planId)
+  ) {
     return {
       label: "Checkout unavailable",
       status: "disabled",
@@ -253,7 +257,7 @@ function buildCheckoutAction(
   }
 
   return {
-    label: "Start Checkout",
+    label: "Purchase event access",
     status: "available",
     href: null,
     helperText: "Create a Checkout Session for this Crew event.",

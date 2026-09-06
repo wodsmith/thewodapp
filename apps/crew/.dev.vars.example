@@ -58,3 +58,8 @@ CRON_SECRET=replace_me_cron_secret
 # Comma-separated list of purchase types to notify on (optional, defaults to all)
 # Valid types: COMPETITION_REGISTRATION, ADDON, CREDITS, SUBSCRIPTION
 # SLACK_PURCHASE_NOTIFICATION_TYPES=COMPETITION_REGISTRATION,ADDON
+
+# Crew uses a dedicated Stripe webhook endpoint and one-time event billing.
+CREW_STRIPE_CHECKOUT_ENABLED=false
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=

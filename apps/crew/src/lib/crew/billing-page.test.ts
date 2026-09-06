@@ -85,7 +85,7 @@ describe("Crew billing page view model", () => {
     expect(enabled.checkout).toMatchObject({
       status: "available",
       href: null,
-      label: "Start Checkout",
+      label: "Purchase event access",
     })
     expect(enabled.checkout.helperText).toContain("Checkout Session")
   })
@@ -109,7 +109,7 @@ describe("Crew billing page view model", () => {
     expect(JSON.stringify(viewModel.checkout)).not.toContain("crew_basic")
   })
 
-  it("disables Checkout for pending or private Crew billing states", () => {
+  it("allows pending checkout to resume while keeping private billing unavailable", () => {
     const pending = buildCrewBillingPageViewModel({
       billing: {
         ...baseBilling,
@@ -136,8 +136,8 @@ describe("Crew billing page view model", () => {
     })
 
     expect(pending.checkout).toMatchObject({
-      status: "disabled",
-      label: "Checkout pending",
+      status: "available",
+      label: "Resume checkout",
     })
     expect(privatePlan.checkout).toMatchObject({
       status: "disabled",

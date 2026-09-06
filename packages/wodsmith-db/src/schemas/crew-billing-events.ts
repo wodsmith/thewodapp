@@ -28,6 +28,7 @@ export const CREW_BILLING_EVENT_TYPE = {
   PAYMENT_LINK_RECONCILED: "payment_link_reconciled",
   // @lat: [[crew#Crew Checkout Sessions]]
   CHECKOUT_SESSION_CREATED: "checkout_session_created",
+  CHECKOUT_SESSION_EXPIRED: "checkout_session_expired",
   CHECKOUT_COMPLETED: "checkout_completed",
   FOUNDER_OVERRIDE_APPLIED: "founder_override_applied",
   CREDIT_SET: "credit_set",

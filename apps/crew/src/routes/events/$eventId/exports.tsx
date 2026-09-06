@@ -1,6 +1,6 @@
 // @lat: [[crew#Pilot Exports]]
 // @lat: [[crew#Event Day Export Packet]]
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { Download, Printer } from "lucide-react"
 import type { ReactNode } from "react"
 import type {
@@ -10,6 +10,7 @@ import type {
   CrewPilotShiftSheet,
 } from "@/lib/crew/exports/pilot-exports"
 import { formatCrewValue } from "@/lib/crew-event-display"
+import { getCrewScheduleAccessFn } from "@/server-fns/crew-billing-fns"
 import {
   type CrewPilotExportsPageData,
   getCrewPilotExportsPageFn,
@@ -40,6 +41,17 @@ function validateExportsSearch(search: Record<string, unknown>): ExportsSearch {
 
 export const Route = createFileRoute("/events/$eventId/exports")({
   validateSearch: validateExportsSearch,
+  beforeLoad: async ({ params }) => {
+    const { hasAccess } = await getCrewScheduleAccessFn({
+      data: { eventId: params.eventId },
+    })
+    if (!hasAccess)
+      throw redirect({
+        to: "/events/$eventId/billing",
+        params,
+        search: { crew_checkout: undefined },
+      })
+  },
   loader: async ({ params }) =>
     await getCrewPilotExportsPageFn({
       data: { eventId: params.eventId },

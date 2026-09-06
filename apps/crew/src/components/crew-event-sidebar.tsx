@@ -84,6 +84,7 @@ interface CrewEventSidebarShellProps {
 
 const organizerIconByKey: Record<string, LucideIcon> = {
   home: Home,
+  billing: CreditCard,
   setup: Settings,
   heats: LayoutGrid,
   staffing: ClipboardList,
@@ -118,7 +119,9 @@ export function getCrewOrganizerEventSidebarNavigation({
     .map((item) => toOrganizerSidebarItem(item, eventId))
 
   const operationsItems = navItems
-    .filter((item) => ["shifts", "judges", "print-packet"].includes(item.key))
+    .filter((item) =>
+      ["shifts", "judges", "print-packet", "billing"].includes(item.key),
+    )
     .map((item) => toOrganizerSidebarItem(item, eventId))
 
   return {

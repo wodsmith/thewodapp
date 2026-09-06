@@ -72,6 +72,14 @@ const website = await TanStackStart("crew-app", {
     // biome-ignore lint/style/noNonNullAssertion: Set by deploy workflow.
     APP_URL: process.env.APP_URL!,
     SITE_URL: process.env.APP_URL ?? "https://crew.wodsmith.com",
+    CREW_STRIPE_CHECKOUT_ENABLED:
+      process.env.CREW_STRIPE_CHECKOUT_ENABLED ?? "false",
+    ...(process.env.STRIPE_SECRET_KEY && {
+      STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY),
+    }),
+    ...(process.env.STRIPE_WEBHOOK_SECRET && {
+      STRIPE_WEBHOOK_SECRET: alchemy.secret(process.env.STRIPE_WEBHOOK_SECRET),
+    }),
     NODE_ENV:
       stage === "prod" || stage === "demo" ? "production" : "development",
     R2_PUBLIC_URL: r2Bucket.domains?.[0]

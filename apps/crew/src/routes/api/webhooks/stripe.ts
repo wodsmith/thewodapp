@@ -1,18 +1,24 @@
 // @lat: [[crew#Crew Stripe Webhooks]]
+
+import { env } from "cloudflare:workers"
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { env } from "cloudflare:workers"
 import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
   COMMERCE_PURCHASE_STATUS,
-  FINANCIAL_EVENT_TYPE,
   commercePurchaseTable,
   competitionsTable,
+  FINANCIAL_EVENT_TYPE,
   financialEventTable,
   teamTable,
 } from "@/db/schema"
+import {
+  CrewCheckoutWebhookValidationError,
+  isCrewCheckoutSessionMetadata,
+  parseCrewCheckoutSessionWebhook,
+} from "@/lib/crew/checkout-webhooks"
 import { getStripeWebhookSecret } from "@/lib/env"
 import {
   logError,
@@ -20,13 +26,11 @@ import {
   logWarning,
 } from "@/lib/logging/posthog-otel-logger"
 import { getStripe } from "@/lib/stripe"
-import {
-  CrewCheckoutWebhookValidationError,
-  isCrewCheckoutSessionMetadata,
-  parseCrewCheckoutSessionWebhook,
-} from "@/lib/crew/checkout-webhooks"
 import { recordRefundCompleted } from "@/server/commerce/financial-events"
-import { completeCrewCheckoutSessionFromWebhook } from "@/server/crew-billing.server"
+import {
+  completeCrewCheckoutSessionFromWebhook,
+  expireCrewCheckoutSessionFromWebhook,
+} from "@/server/crew-billing.server"
 import { notifyPaymentExpired } from "@/server/notifications"
 import type { CheckoutCompletedParams } from "@/workflows/stripe-checkout-workflow"
 
@@ -239,6 +243,11 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
           session: Stripe.Checkout.Session,
         ) {
           try {
+            if (session.payment_status !== "paid") {
+              throw new CrewCheckoutWebhookValidationError(
+                "Crew access requires a paid Checkout Session.",
+              )
+            }
             const completion = parseCrewCheckoutSessionWebhook({
               stripeEventId,
               sessionId: session.id,
@@ -459,11 +468,15 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
               break
             }
 
-            case "checkout.session.expired":
-              await handleCheckoutExpired(
-                event.data.object as Stripe.Checkout.Session,
-              )
+            case "checkout.session.expired": {
+              const session = event.data.object as Stripe.Checkout.Session
+              if (isCrewCheckoutSessionMetadata(session.metadata)) {
+                await expireCrewCheckoutSessionFromWebhook(session)
+              } else {
+                await handleCheckoutExpired(session)
+              }
               break
+            }
 
             case "account.updated":
               await handleAccountUpdated(event.data.object as Stripe.Account)

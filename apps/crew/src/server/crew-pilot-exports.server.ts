@@ -1,5 +1,6 @@
 // @lat: [[crew#Pilot Exports]]
 // @lat: [[crew#Event Day Export Packet]]
+
 import {
   buildCrewPilotExports,
   type CrewPilotExports,
@@ -16,6 +17,7 @@ import {
   loadCrewStaffingMatrixInput,
   requireCrewStaffingEvent,
 } from "../server-fns/crew-staffing-fns.server"
+import { requireCrewSchedulePurchase } from "./crew-billing.server"
 
 export interface CrewPilotExportsPageData {
   event: CrewStaffingReportEvent
@@ -33,6 +35,7 @@ export async function getCrewPilotExportsPage(data: {
 }): Promise<CrewPilotExportsPageData> {
   const event = await requireCrewStaffingEvent(data.eventId)
   await requireCrewDepartmentLeadFullAccess(event)
+  await requireCrewSchedulePurchase(data)
   const { input } = await loadCrewStaffingMatrixInput(event, {
     kind: "full",
     scopes: [],
