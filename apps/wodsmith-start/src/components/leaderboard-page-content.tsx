@@ -2,7 +2,7 @@
 
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { BarChart3, Eye, EyeOff } from "lucide-react"
+import { BarChart3, Eye, EyeOff, RefreshCw } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   getStatusConfig,
@@ -161,6 +161,7 @@ export function LeaderboardPageContent({
   )
   const [isLoading, setIsLoading] = useState(!initialMatchesSelected)
   const [error, setError] = useState<string | null>(null)
+  const [retryRequest, setRetryRequest] = useState(0)
   const isOnlineLeaderboard =
     leaderboardVariant(competition.competitionType) === "online"
 
@@ -353,6 +354,7 @@ export function LeaderboardPageContent({
   const getLeaderboard = useServerFn(getCompetitionLeaderboardFn)
 
   // Fetch leaderboard when division changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retryRequest intentionally retriggers the request after the viewer clicks Try again.
   useEffect(() => {
     let cancelled = false
 
@@ -387,9 +389,7 @@ export function LeaderboardPageContent({
         if (!cancelled) {
           console.error("Failed to fetch leaderboard:", err)
           setError(
-            err instanceof Error
-              ? err.message
-              : "Failed to load leaderboard. Please try again.",
+            "We couldn't load the leaderboard. Check your connection and try again.",
           )
         }
       } finally {
@@ -404,7 +404,18 @@ export function LeaderboardPageContent({
     return () => {
       cancelled = true
     }
-  }, [competitionId, selectedDivision, getLeaderboard, preview, initialData])
+  }, [
+    competitionId,
+    selectedDivision,
+    getLeaderboard,
+    preview,
+    initialData,
+    retryRequest,
+  ])
+
+  const handleRetry = useCallback(() => {
+    setRetryRequest((request) => request + 1)
+  }, [])
 
   // Handle division change - update URL
   const handleDivisionChange = useCallback(
@@ -589,7 +600,13 @@ export function LeaderboardPageContent({
         <Alert variant="destructive">
           <BarChart3 className="h-4 w-4" />
           <AlertTitle>Error loading leaderboard</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="space-y-3">
+            <p>{error}</p>
+            <Button size="sm" variant="outline" onClick={handleRetry}>
+              <RefreshCw className="mr-1.5 h-4 w-4" />
+              Try again
+            </Button>
+          </AlertDescription>
         </Alert>
       </div>
     )
