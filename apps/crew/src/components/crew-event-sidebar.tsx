@@ -113,25 +113,19 @@ export function getCrewOrganizerEventSidebarNavigation({
 
   const workflowItems = navItems
     .filter((item) =>
-      ["setup", "heats", "staffing", "volunteers"].includes(
-        item.key,
-      ),
+      ["setup", "heats", "staffing", "volunteers"].includes(item.key),
     )
     .map((item) => toOrganizerSidebarItem(item, eventId))
 
   const operationsItems = navItems
-    .filter((item) =>
-      ["shifts", "judges", "confirmations", "event-day", "print-packet"].includes(
-        item.key,
-      ),
-    )
+    .filter((item) => ["shifts", "judges", "print-packet"].includes(item.key))
     .map((item) => toOrganizerSidebarItem(item, eventId))
 
   return {
     overview: toOrganizerSidebarItem(overview, eventId, true),
     groups: [
       { label: "Workflow", items: workflowItems },
-      { label: "Operations", items: operationsItems },
+      { label: "Schedule", items: operationsItems },
     ].filter((group) => group.items.length > 0),
   }
 }

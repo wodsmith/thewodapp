@@ -2,6 +2,7 @@
 // @lat: [[crew#Confirmation Emails And Reminders]]
 import {
   createFileRoute,
+  redirect,
   getRouteApi,
   Link,
   useRouter,
@@ -35,6 +36,10 @@ import {
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/events/$eventId/messages")({
+  // @lat: [[crew#Scheduling Launch Scope]]
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/events/$eventId/shifts", params })
+  },
   loader: async ({ params }) =>
     await getCrewAssignmentCommunicationDashboardFn({
       data: { eventId: params.eventId },

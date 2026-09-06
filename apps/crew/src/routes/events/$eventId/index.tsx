@@ -130,10 +130,6 @@ function toEventRoute(ctaTo: CrewOrganizerHomeView["nextAction"]["ctaTo"]) {
       return "/events/$eventId/staffing"
     case "/shifts":
       return "/events/$eventId/shifts"
-    case "/messages":
-      return "/events/$eventId/messages"
-    case "/day-of":
-      return "/events/$eventId/day-of"
     case "/exports":
       return "/events/$eventId/exports"
   }

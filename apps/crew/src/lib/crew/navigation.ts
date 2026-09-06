@@ -82,20 +82,8 @@ export const CREW_EVENT_NAV_ITEMS = [
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
   {
-    key: "confirmations",
-    label: "Confirmations",
-    to: "/events/$eventId/messages",
-    persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
-  },
-  {
-    key: "event-day",
-    label: "Event Day",
-    to: "/events/$eventId/day-of",
-    persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
-  },
-  {
     key: "print-packet",
-    label: "Print Packet",
+    label: "Export Schedule",
     to: "/events/$eventId/exports",
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
