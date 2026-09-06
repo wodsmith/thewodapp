@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { WorkoutImportAccessButton } from "@/components/workout-import/workout-import-entry"
+import { WorkoutImportPanel } from "@/components/workout-import/workout-import-panel"
 import { addWorkoutToTrackFn } from "@/server-fns/programming-fns"
 import { getWorkoutsFn } from "@/server-fns/workout-fns"
 
@@ -35,6 +37,7 @@ export function AddWorkoutToTrackDialog({
   onSuccess,
 }: AddWorkoutToTrackDialogProps) {
   const [open, setOpen] = useState(false)
+  const [createWithAI, setCreateWithAI] = useState(false)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>("")
   const [trackOrder, setTrackOrder] = useState<string>("1")
   const [notes, setNotes] = useState<string>("")
@@ -116,6 +119,7 @@ export function AddWorkoutToTrackDialog({
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen)
     if (!newOpen) {
+      setCreateWithAI(false)
       // Reset form when closing
       setSelectedWorkoutId("")
       setTrackOrder("1")
@@ -130,7 +134,16 @@ export function AddWorkoutToTrackDialog({
       <DialogTrigger asChild>
         <Button>Add workout</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent
+        onInteractOutside={(event) => {
+          if (createWithAI) event.preventDefault()
+        }}
+        className={
+          createWithAI
+            ? "max-h-[95dvh] overflow-y-auto sm:max-w-3xl"
+            : "max-h-[95dvh] overflow-y-auto sm:max-w-[500px]"
+        }
+      >
         <DialogHeader>
           <DialogTitle>Add workout to track</DialogTitle>
           <DialogDescription>
@@ -138,6 +151,21 @@ export function AddWorkoutToTrackDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {!createWithAI && (
+          <WorkoutImportAccessButton
+            destination={{ kind: "track", trackId }}
+            onClick={() => setCreateWithAI(true)}
+          />
+        )}
+        {createWithAI && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setCreateWithAI(false)}
+          >
+            Choose an existing workout
+          </Button>
+        )}
         {error && (
           <div className="p-4 bg-red-500/10 border-2 border-red-500 text-red-500 font-mono text-sm">
             {error}
@@ -151,35 +179,37 @@ export function AddWorkoutToTrackDialog({
         )}
 
         <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="workout">Workout</Label>
-            <Select
-              value={selectedWorkoutId}
-              onValueChange={setSelectedWorkoutId}
-              disabled={isLoadingWorkouts || isSubmitting}
-            >
-              <SelectTrigger id="workout">
-                <SelectValue placeholder="Select a workout" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingWorkouts ? (
-                  <SelectItem value="loading" disabled>
-                    Loading workouts...
-                  </SelectItem>
-                ) : workouts.length > 0 ? (
-                  workouts.map((workout) => (
-                    <SelectItem key={workout.id} value={workout.id}>
-                      {workout.name}
+          {!createWithAI && (
+            <div className="grid gap-2">
+              <Label htmlFor="workout">Workout</Label>
+              <Select
+                value={selectedWorkoutId}
+                onValueChange={setSelectedWorkoutId}
+                disabled={isLoadingWorkouts || isSubmitting}
+              >
+                <SelectTrigger id="workout">
+                  <SelectValue placeholder="Select a workout" />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingWorkouts ? (
+                    <SelectItem value="loading" disabled>
+                      Loading workouts...
                     </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="no-workouts" disabled>
-                    No workouts available
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+                  ) : workouts.length > 0 ? (
+                    workouts.map((workout) => (
+                      <SelectItem key={workout.id} value={workout.id}>
+                        {workout.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-workouts" disabled>
+                      No workouts available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="trackOrder">Track Order</Label>
             <Input
@@ -206,23 +236,41 @@ export function AddWorkoutToTrackDialog({
             />
           </div>
         </div>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting || !selectedWorkoutId}
-          >
-            {isSubmitting ? "Adding..." : "Add workout"}
-          </Button>
-        </DialogFooter>
+        {createWithAI && open && (
+          <WorkoutImportPanel
+            key={trackId}
+            destination={{ kind: "track", trackId }}
+            saveLabel="Create and add to track"
+            track={{
+              trackOrder: Number(trackOrder),
+              notes: notes.trim() || undefined,
+            }}
+            onClose={() => setCreateWithAI(false)}
+            onSaved={() => {
+              handleOpenChange(false)
+              onSuccess?.()
+            }}
+          />
+        )}
+        {!createWithAI && (
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !selectedWorkoutId}
+            >
+              {isSubmitting ? "Adding..." : "Add workout"}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )

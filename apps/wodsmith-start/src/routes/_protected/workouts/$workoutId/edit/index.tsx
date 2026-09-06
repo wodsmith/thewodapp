@@ -24,19 +24,20 @@ function EditWorkoutPage() {
   const { workout, movements } = Route.useLoaderData()
   const { workoutId } = Route.useParams()
 
-  // Extract initial movement IDs from the workout's current movements
-  // Note: movements property is added when getWorkoutByIdFn is updated to include workout movements
-  const workoutWithMovements = workout as typeof workout & {
-    movements?: Array<{ id: string }>
-  }
   const initialMovementIds =
-    workoutWithMovements?.movements?.map((m) => m.id) ?? []
+    workout?.movements?.map((movement) => movement.id) ?? []
 
   const handleSubmit = async (data: WorkoutFormData) => {
     await updateWorkoutFn({
       data: {
         id: workoutId,
         ...data,
+        timeCap: data.timeCap ?? null,
+        roundsToScore: data.roundsToScore ?? 1,
+        repsPerRound: data.repsPerRound ?? null,
+        tiebreakScheme: data.tiebreakScheme ?? null,
+        scalingGroupId: data.scalingGroupId ?? null,
+        movementIds: data.movementIds ?? [],
       },
     })
 
@@ -79,6 +80,9 @@ function EditWorkoutPage() {
         scope: workout.scope,
         timeCap: workout.timeCap ?? undefined,
         roundsToScore: workout.roundsToScore ?? undefined,
+        repsPerRound: workout.repsPerRound ?? undefined,
+        tiebreakScheme: workout.tiebreakScheme ?? undefined,
+        scalingGroupId: workout.scalingGroupId ?? undefined,
       }}
       onSubmit={handleSubmit}
       backUrl={`/workouts/${workoutId}`}

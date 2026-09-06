@@ -1,14 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Search } from "lucide-react"
-import { useState } from "react"
-import { trackEvent } from "@/lib/posthog"
+import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
 import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
+import { trackEvent } from "@/lib/posthog"
 import { cn } from "@/lib/utils"
 import { getScalingLevelsFn, submitLogFn } from "@/server-fns/log-fns"
 import { getWorkoutByIdFn, getWorkoutsFn } from "@/server-fns/workout-fns"
@@ -85,6 +86,12 @@ function LogNewPage() {
   const [roundScores, setRoundScores] = useState<string[]>(() =>
     Array(numRounds).fill(""),
   )
+
+  useEffect(() => {
+    if (!selectedWorkout?.id) return
+    setRoundScores(Array(numRounds).fill(""))
+    setSelectedScalingLevelId(scalingLevels[0]?.id)
+  }, [selectedWorkout?.id, numRounds, scalingLevels])
 
   // Reset round scores when workout changes
   const handleWorkoutSelect = (id: string) => {
@@ -191,6 +198,26 @@ function LogNewPage() {
         <h1 className="text-2xl font-bold">LOG RESULT</h1>
       </div>
 
+      <div className="mb-6 space-y-2">
+        <WorkoutImportEntry
+          destination={{ kind: "personal" }}
+          saveLabel="Create and use workout"
+          onSaved={async (result) => {
+            setScore("")
+            setRoundScores([])
+            setSelectedScalingLevelId(undefined)
+            setAsRx(true)
+            await navigate({
+              to: "/log/new",
+              search: { workoutId: result.workoutId },
+            })
+          }}
+        />
+        <p className="text-sm text-muted-foreground">
+          Create a missing workout and return here. Date and notes are kept;
+          score and scaling start fresh for the new workout.
+        </p>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Workout Selection */}
         <div>

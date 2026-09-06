@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { WorkoutForm, type WorkoutFormData } from "@/components/workout-form"
+import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
 import { trackEvent } from "@/lib/posthog"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { createWorkoutFn, getWorkoutByIdFn } from "@/server-fns/workout-fns"
@@ -95,13 +96,29 @@ function CreateWorkoutPage() {
     : undefined
 
   return (
-    <WorkoutForm
-      mode="create"
-      movements={movements}
-      onSubmit={handleSubmit}
-      backUrl="/workouts"
-      initialData={initialData}
-      isRemix={!!sourceWorkoutId}
-    />
+    <>
+      {!sourceWorkoutId && (
+        <div className="container mx-auto max-w-2xl px-4 pt-6">
+          <WorkoutImportEntry
+            destination={{ kind: "personal" }}
+            saveLabel="Create workout"
+            onSaved={(result) =>
+              navigate({
+                to: "/workouts/$workoutId",
+                params: { workoutId: result.workoutId },
+              })
+            }
+          />
+        </div>
+      )}
+      <WorkoutForm
+        mode="create"
+        movements={movements}
+        onSubmit={handleSubmit}
+        backUrl="/workouts"
+        initialData={initialData}
+        isRemix={!!sourceWorkoutId}
+      />
+    </>
   )
 }

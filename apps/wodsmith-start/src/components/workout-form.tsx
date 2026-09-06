@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
-import { useState } from "react"
+import { useId, useState } from "react"
 import { MovementsList } from "@/components/movements-list"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ import {
   type Movement,
   SCORE_TYPE_VALUES,
   type ScoreType,
+  type TiebreakScheme,
   WORKOUT_SCHEME_VALUES,
   type WorkoutScheme,
 } from "@/db/schemas/workouts"
@@ -76,6 +77,9 @@ export type WorkoutFormData = {
   timeCap?: number
   roundsToScore?: number
   movementIds?: string[]
+  repsPerRound?: number
+  tiebreakScheme?: TiebreakScheme
+  scalingGroupId?: string
 }
 
 // Flexible movement type that can accept partial Movement data
@@ -89,6 +93,17 @@ type WorkoutFormProps = {
   movements?: MovementData[]
   initialMovementIds?: string[]
   isRemix?: boolean
+  /** Controlled editing makes asynchronous draft application an explicit parent action. */
+  editor?: {
+    value: Partial<WorkoutFormData>
+    onChange: (value: Partial<WorkoutFormData>) => void
+  }
+  scalingGroups?: { id: string; title: string }[]
+  embedded?: boolean
+  submitLabel?: string
+  submitDisabled?: boolean
+  onCancel?: () => void
+  fieldMessages?: Partial<Record<keyof WorkoutFormData, string>>
 }
 
 export function WorkoutForm({
@@ -99,45 +114,61 @@ export function WorkoutForm({
   movements = [],
   initialMovementIds = [],
   isRemix = false,
+  editor,
+  embedded = false,
+  scalingGroups = [],
+  submitLabel,
+  submitDisabled = false,
+  onCancel,
+  fieldMessages = {},
 }: WorkoutFormProps) {
   const navigate = useNavigate()
+  const editorId = useId()
+  const fieldId = (field: string) => (embedded ? `${editorId}-${field}` : field)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Form state
-  const [name, setName] = useState(initialData?.name ?? "")
-  const [description, setDescription] = useState(initialData?.description ?? "")
-  const [scheme, setScheme] = useState<WorkoutScheme | undefined>(
-    initialData?.scheme,
+  // Initial data initializes manual create/edit/remix exactly once. AI review owns
+  // an explicit controlled value; incoming agent state never resets this form.
+  const [localValue, setLocalValue] = useState<Partial<WorkoutFormData>>(
+    () => ({
+      ...initialData,
+      scope: initialData?.scope ?? "private",
+      movementIds: initialData?.movementIds ?? initialMovementIds,
+    }),
   )
-  const [scoreType, setScoreType] = useState<ScoreType | undefined>(
-    initialData?.scoreType,
-  )
-  const [scope, setScope] = useState<"private" | "public">(
-    initialData?.scope ?? "private",
-  )
-  const [timeCap, setTimeCap] = useState<string>(
-    initialData?.timeCap?.toString() ?? "",
-  )
-  const [roundsToScore, setRoundsToScore] = useState<string>(
-    initialData?.roundsToScore?.toString() ?? "",
-  )
-  const [selectedMovements, setSelectedMovements] =
-    useState<string[]>(initialMovementIds)
+  const value = editor?.value ?? localValue
+  const update = (patch: Partial<WorkoutFormData>) => {
+    const next = { ...value, ...patch }
+    if (editor) editor.onChange(next)
+    else setLocalValue(next)
+  }
+  const {
+    name = "",
+    description = "",
+    scheme,
+    scoreType,
+    scope = "private",
+    timeCap,
+    roundsToScore,
+    movementIds: selectedMovements = [],
+  } = value
+  const cancel = () => (onCancel ? onCancel() : navigate({ to: backUrl }))
 
-  // Handle movement toggle
   const handleMovementToggle = (movementId: string) => {
-    if (selectedMovements.includes(movementId)) {
-      setSelectedMovements(selectedMovements.filter((id) => id !== movementId))
-    } else {
-      setSelectedMovements([...selectedMovements, movementId])
-    }
+    update({
+      movementIds: selectedMovements.includes(movementId)
+        ? selectedMovements.filter((id) => id !== movementId)
+        : [...selectedMovements, movementId],
+    })
   }
 
-  // Update score type when scheme changes
   const handleSchemeChange = (newScheme: WorkoutScheme) => {
-    setScheme(newScheme)
-    setScoreType(getDefaultScoreType(newScheme))
+    update({
+      scheme: newScheme,
+      scoreType: getDefaultScoreType(newScheme),
+      timeCap: newScheme === "time-with-cap" ? timeCap : undefined,
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -153,13 +184,14 @@ export function WorkoutForm({
 
     try {
       await onSubmit({
+        ...value,
         name,
         description,
         scheme,
         scoreType,
         scope,
-        timeCap: timeCap ? parseInt(timeCap, 10) : undefined,
-        roundsToScore: roundsToScore ? parseInt(roundsToScore, 10) : undefined,
+        timeCap,
+        roundsToScore,
         movementIds:
           selectedMovements.length > 0 ? selectedMovements : undefined,
       })
@@ -171,24 +203,29 @@ export function WorkoutForm({
   }
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
+    <div
+      className={embedded ? "min-w-0" : "container mx-auto max-w-2xl px-4 py-8"}
+    >
       {/* Header */}
-      <div className="mb-6 flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => navigate({ to: backUrl })}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-2xl font-bold">
-          {isRemix
-            ? "REMIX WORKOUT"
-            : mode === "create"
-              ? "CREATE WORKOUT"
-              : "EDIT WORKOUT"}
-        </h1>
-      </div>
+      {!embedded && (
+        <div className="mb-6 flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Back to workouts"
+            onClick={cancel}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">
+            {isRemix
+              ? "REMIX WORKOUT"
+              : mode === "create"
+                ? "CREATE WORKOUT"
+                : "EDIT WORKOUT"}
+          </h1>
+        </div>
+      )}
 
       {/* Remix notice */}
       {isRemix && (
@@ -202,34 +239,43 @@ export function WorkoutForm({
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 border-2 border-border p-6 rounded-lg"
+        className={
+          embedded
+            ? "space-y-5"
+            : "space-y-6 border-2 border-border p-6 rounded-lg"
+        }
       >
         {/* Name */}
         <div className="space-y-2">
-          <Label htmlFor="name" className="font-bold uppercase">
+          <Label htmlFor={fieldId("name")} className="font-bold uppercase">
             Workout Name
           </Label>
           <Input
-            id="name"
+            id={fieldId("name")}
+            data-import-field="name"
             type="text"
             placeholder="e.g., Fran, Cindy, Custom WOD"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => update({ name: e.target.value })}
             required
           />
         </div>
 
         {/* Description */}
         <div className="space-y-2">
-          <Label htmlFor="description" className="font-bold uppercase">
+          <Label
+            htmlFor={fieldId("description")}
+            className="font-bold uppercase"
+          >
             Description
           </Label>
           <Textarea
-            id="description"
+            id={fieldId("description")}
+            data-import-field="description"
             rows={4}
             placeholder="Describe the workout (e.g., 21-15-9 reps for time of Thrusters and Pull-ups)"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => update({ description: e.target.value })}
             required
           />
         </div>
@@ -248,9 +294,11 @@ export function WorkoutForm({
 
         {/* Scheme */}
         <div className="space-y-2">
-          <Label className="font-bold uppercase">Scheme</Label>
-          <Select value={scheme} onValueChange={handleSchemeChange}>
-            <SelectTrigger>
+          <Label htmlFor={fieldId("scheme")} className="font-bold uppercase">
+            Scheme
+          </Label>
+          <Select value={scheme ?? ""} onValueChange={handleSchemeChange}>
+            <SelectTrigger id={fieldId("scheme")} data-import-field="scheme">
               <SelectValue placeholder="Select a scheme" />
             </SelectTrigger>
             <SelectContent>
@@ -266,12 +314,20 @@ export function WorkoutForm({
         {/* Score Type - only show when scheme is selected */}
         {scheme && (
           <div className="space-y-2">
-            <Label className="font-bold uppercase">Score Type</Label>
-            <Select
-              value={scoreType}
-              onValueChange={(v) => setScoreType(v as ScoreType)}
+            <Label
+              htmlFor={fieldId("scoreType")}
+              className="font-bold uppercase"
             >
-              <SelectTrigger>
+              Score Type
+            </Label>
+            <Select
+              value={scoreType ?? ""}
+              onValueChange={(v) => update({ scoreType: v as ScoreType })}
+            >
+              <SelectTrigger
+                id={fieldId("scoreType")}
+                data-import-field="scoreType"
+              >
                 <SelectValue placeholder="Select score type" />
               </SelectTrigger>
               <SelectContent>
@@ -288,15 +344,20 @@ export function WorkoutForm({
         {/* Time Cap - only show for time-with-cap scheme */}
         {scheme === "time-with-cap" && (
           <div className="space-y-2">
-            <Label htmlFor="timeCap" className="font-bold uppercase">
+            <Label htmlFor={fieldId("timeCap")} className="font-bold uppercase">
               Time Cap (seconds)
             </Label>
             <Input
-              id="timeCap"
+              id={fieldId("timeCap")}
+              data-import-field="timeCap"
               type="number"
               placeholder="e.g., 600 (10 minutes)"
-              value={timeCap}
-              onChange={(e) => setTimeCap(e.target.value)}
+              value={timeCap ?? ""}
+              onChange={(e) =>
+                update({
+                  timeCap: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
               min="1"
             />
           </div>
@@ -304,12 +365,14 @@ export function WorkoutForm({
 
         {/* Scope */}
         <div className="space-y-2">
-          <Label className="font-bold uppercase">Scope</Label>
+          <Label htmlFor={fieldId("scope")} className="font-bold uppercase">
+            Visibility
+          </Label>
           <Select
             value={scope}
-            onValueChange={(v) => setScope(v as "private" | "public")}
+            onValueChange={(v) => update({ scope: v as "private" | "public" })}
           >
-            <SelectTrigger>
+            <SelectTrigger id={fieldId("scope")} data-import-field="scope">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -321,39 +384,144 @@ export function WorkoutForm({
 
         {/* Advanced Options */}
         <div className="space-y-2">
-          <Label htmlFor="roundsToScore" className="font-bold uppercase">
-            Rounds to Score
+          <Label
+            htmlFor={fieldId("roundsToScore")}
+            className="font-bold uppercase"
+          >
+            Number of separately recorded scores
           </Label>
           <Input
-            id="roundsToScore"
+            id={fieldId("roundsToScore")}
+            data-import-field="roundsToScore"
             type="number"
-            placeholder="e.g., 4 (default is 1)"
-            value={roundsToScore}
-            onChange={(e) => setRoundsToScore(e.target.value)}
+            placeholder="1 (one final result)"
+            value={roundsToScore ?? ""}
+            onChange={(e) =>
+              update({
+                roundsToScore: e.target.value
+                  ? Number(e.target.value)
+                  : undefined,
+              })
+            }
             min="1"
           />
         </div>
 
+        {(embedded || mode === "edit") && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor={fieldId("repsPerRound")}>
+                Reps per round (optional)
+              </Label>
+              <Input
+                id={fieldId("repsPerRound")}
+                data-import-field="repsPerRound"
+                type="number"
+                min="1"
+                value={value.repsPerRound ?? ""}
+                onChange={(e) =>
+                  update({
+                    repsPerRound: e.target.value
+                      ? Number(e.target.value)
+                      : undefined,
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={fieldId("tiebreakScheme")}>
+                Tiebreak (optional)
+              </Label>
+              <Select
+                value={value.tiebreakScheme ?? "none"}
+                onValueChange={(v) =>
+                  update({
+                    tiebreakScheme:
+                      v === "none" ? undefined : (v as TiebreakScheme),
+                  })
+                }
+              >
+                <SelectTrigger
+                  id={fieldId("tiebreakScheme")}
+                  data-import-field="tiebreakScheme"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="time">Time</SelectItem>
+                  <SelectItem value="reps">Reps</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={fieldId("scalingGroupId")}>
+                Scaling group (optional)
+              </Label>
+              <Select
+                value={value.scalingGroupId ?? "none"}
+                onValueChange={(id) =>
+                  update({ scalingGroupId: id === "none" ? undefined : id })
+                }
+              >
+                <SelectTrigger
+                  id={fieldId("scalingGroupId")}
+                  data-import-field="scalingGroupId"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {scalingGroups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.title}
+                    </SelectItem>
+                  ))}
+                  {value.scalingGroupId &&
+                    !scalingGroups.some(
+                      (group) => group.id === value.scalingGroupId,
+                    ) && (
+                      <SelectItem value={value.scalingGroupId}>
+                        {embedded
+                          ? "Matched group is unavailable"
+                          : "Current scaling group"}
+                      </SelectItem>
+                    )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Loads and scaling prescriptions stay in the description.
+              </p>
+            </div>
+          </>
+        )}
+
+        {Object.entries(fieldMessages).length > 0 && (
+          <div role="alert" className="text-sm text-destructive space-y-1">
+            {Object.entries(fieldMessages).map(([field, message]) => (
+              <p key={field}>{message}</p>
+            ))}
+          </div>
+        )}
         {/* Error */}
-        {error && <div className="text-sm text-destructive">{error}</div>}
+        {error && (
+          <div role="alert" className="text-sm text-destructive">
+            {error}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex justify-end gap-4 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate({ to: backUrl })}
-          >
+          <Button type="button" variant="outline" onClick={cancel}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting || submitDisabled}>
             {isSubmitting
               ? mode === "create"
                 ? "Creating..."
                 : "Saving..."
-              : mode === "create"
-                ? "Create workout"
-                : "Save changes"}
+              : (submitLabel ??
+                (mode === "create" ? "Create workout" : "Save changes"))}
           </Button>
         </div>
       </form>

@@ -23,3 +23,6 @@ This directory defines the high-level concepts, business logic, and architecture
 
 - [[workout-import]] — Reviewed AI import contracts, current destination authorization, and atomic persistence
 - [[workout-import-runtime]] — Private source transport, bounded TanStack inference, authorization, and runtime verification
+
+- [[workout-import-ux]] — Shared reviewed import workspace, destinations, access and recovery
+- [[workout-import-ux-tests]] — Draft, access, source, cancellation and destination interaction tests
