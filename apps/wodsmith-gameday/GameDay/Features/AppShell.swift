@@ -58,9 +58,8 @@ struct CompetitionHome: View {
     @State private var search = ""
     @State private var includePast = false
     private var competitions: [Competition] {
-        let today = String(ISO8601DateFormatter().string(from: .now).prefix(10))
         return store.home.competitions.filter {
-            (includePast || $0.endDate >= today) && (search.isEmpty || "\($0.name) \($0.location)".localizedCaseInsensitiveContains(search))
+            (includePast || !$0.hasEnded()) && (search.isEmpty || "\($0.name) \($0.location)".localizedCaseInsensitiveContains(search))
         }.sorted { $0.startDate < $1.startDate }
     }
     var body: some View {

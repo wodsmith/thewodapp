@@ -2,6 +2,16 @@ import XCTest
 @testable import GameDay
 
 final class GameDayTests: XCTestCase {
+    // @lat: [[gameday#Tests#Competition local day boundary]]
+    func testDiscoveryKeepsCompetitionUntilItsLocalDayEnds() throws {
+        let competition = DemoData.detail.competition
+        let formatter = ISO8601DateFormatter()
+        let utcTomorrow = try XCTUnwrap(formatter.date(from: "2026-09-07T01:00:00Z"))
+        let localTomorrow = try XCTUnwrap(formatter.date(from: "2026-09-07T06:00:00Z"))
+        XCTAssertFalse(competition.hasEnded(at: utcTomorrow), "An evening heat in Boise is still on the competition's final day")
+        XCTAssertTrue(competition.hasEnded(at: localTomorrow), "The event ends at its own timezone's midnight")
+    }
+
     // @lat: [[gameday#Tests#Assigned heats only]]
     func testPersonalScheduleRequiresActiveRegistrationAndAssignment() {
         let source = DemoData.detail

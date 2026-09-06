@@ -137,6 +137,25 @@ describe("Game Day API", () => {
     expect(statements[3].params).toContain(JSON.stringify({ type: "public" }))
     expect(await response.json()).toMatchObject({ assignments: [] })
   })
+  // @lat: [[gameday#Tests#Native leaderboard projection]]
+  it("exposes only native leaderboard fields without internal identities or submission metadata", async () => {
+    rows.push([["competition-1", "summit", "Summit", null, "2026-09-05", "2026-09-05", "America/Boise", "in-person", null, null, null, null, null]])
+    const expected = {
+      registrationId: "registration-1", athleteName: "Test Athlete",
+      divisionId: "rx", divisionLabel: "RX", totalPoints: 100,
+      overallRank: 1, teamName: null,
+      eventResults: [{trackWorkoutId: "event-1", eventName: "Engine Room", rank: 1, formattedScore: "10:00"}],
+    }
+    mocks.leaderboard.mockResolvedValue({
+      entries: [{...expected, userId: "internal-user", teamMembers: [{userId: "internal-teammate"}],
+        eventResults: [{...expected.eventResults[0], rawScore: "600000", videoUrl: "https://private.example/video", reviewNotes: "Internal review"}]}],
+      scoringConfig: {internal: true}, events: [{internal: true}],
+    })
+    const response = await handleGameDayRequest(new Request("https://wodsmith.com/api/gameday/v1/competitions/competition-1/leaderboard"))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({entries: [expected]})
+  })
+
   // @lat: [[gameday#Tests#Division publication boundary]]
   it("scopes native standards to published events, competition divisions, and inherited event mappings", async () => {
     rows.push(

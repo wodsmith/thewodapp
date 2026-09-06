@@ -44,6 +44,14 @@ Privacy disclosures include linked name, email, and account identifiers for auth
 
 Native tests verify the athlete’s schedule and reminder invariants and exercise the primary navigation with fictional competition data. These fixtures never replace live API failures.
 
+### Competition local day boundary
+
+Discovery keeps an event through its final calendar day in the competition's timezone, even after UTC advances to tomorrow. It becomes past at local midnight.
+
+### Native leaderboard projection
+
+The Game Day leaderboard returns only athlete display names, registration and division references, ranks, points, and formatted event scores. Internal user IDs, teammate identities, submission URLs, and review metadata are excluded.
+
 ### Assigned heats only
 
 An athlete sees only heats linked to an active registration through an explicit assignment. Other registrations in the same division do not confer ownership or reveal their lanes.

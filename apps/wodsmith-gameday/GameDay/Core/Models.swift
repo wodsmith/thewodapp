@@ -16,6 +16,14 @@ struct Competition: Codable, Identifiable, Hashable {
     let address: String?
 
     var timeZone: TimeZone { TimeZone(identifier: timezone ?? "America/Denver") ?? .gmt }
+    func hasEnded(at now: Date = .now) -> Bool {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return endDate < formatter.string(from: now)
+    }
     var location: String { [city, region].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ") }
     var dateLabel: String {
         let parser = DateFormatter()

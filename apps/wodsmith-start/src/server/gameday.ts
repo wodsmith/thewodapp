@@ -405,14 +405,30 @@ export async function handleGameDayRequest(
       )
       if (!detail) return reply({ error: "Competition not found" }, 404)
       if (path.length === 2) return reply(detail)
-      if (path[2] === "leaderboard")
-        return reply(
-          await getCompetitionLeaderboard({
-            competitionId: detail.competition.id,
-            divisionId:
-              new URL(request.url).searchParams.get("divisionId") || undefined,
-          }),
-        )
+      if (path[2] === "leaderboard") {
+        const leaderboard = await getCompetitionLeaderboard({
+          competitionId: detail.competition.id,
+          divisionId:
+            new URL(request.url).searchParams.get("divisionId") || undefined,
+        })
+        return reply({
+          entries: leaderboard.entries.map((entry) => ({
+            registrationId: entry.registrationId,
+            athleteName: entry.athleteName,
+            divisionId: entry.divisionId,
+            divisionLabel: entry.divisionLabel,
+            totalPoints: entry.totalPoints,
+            overallRank: entry.overallRank,
+            teamName: entry.teamName,
+            eventResults: entry.eventResults.map((result) => ({
+              trackWorkoutId: result.trackWorkoutId,
+              eventName: result.eventName,
+              rank: result.rank,
+              formattedScore: result.formattedScore,
+            })),
+          })),
+        })
+      }
     }
     if (request.method === "PATCH" && path.join("/") === "profile") {
       if (!session) return reply({ error: "Please sign in" }, 401)
