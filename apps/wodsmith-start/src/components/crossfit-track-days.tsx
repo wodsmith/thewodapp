@@ -1,6 +1,23 @@
 import { Link } from "@tanstack/react-router"
+import { useState } from "react"
 import ReactMarkdown from "react-markdown"
 import type { getPublishedCrossFitDays } from "@/server/crossfit-import"
+
+function CrossFitProgrammingText({ markdown }: { markdown: string | null }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="cursor-pointer text-sm underline">
+        Read programming and scaling
+      </summary>
+      {open && (
+        <div className="prose dark:prose-invert max-w-none mt-3">
+          <ReactMarkdown>{markdown}</ReactMarkdown>
+        </div>
+      )}
+    </details>
+  )
+}
 
 export function CrossFitTrackDays({
   days,
@@ -27,14 +44,7 @@ export function CrossFitTrackDays({
               View on CrossFit.com
             </a>
           </div>
-          <details>
-            <summary className="cursor-pointer text-sm underline">
-              Read programming and scaling
-            </summary>
-            <div className="prose dark:prose-invert max-w-none mt-3">
-              <ReactMarkdown>{day.markdown}</ReactMarkdown>
-            </div>
-          </details>
+          <CrossFitProgrammingText markdown={day.markdown} />
           {day.kind !== "rest" && (
             <ul className="flex flex-wrap gap-3">
               {day.workouts.map((workout) => (

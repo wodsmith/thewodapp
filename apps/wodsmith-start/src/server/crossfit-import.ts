@@ -8,6 +8,7 @@ import {
   workouts,
 } from "@/db/schema"
 import { validateCrossFitConversion } from "@/lib/crossfit/conversion"
+import { CrossFitImportReviewError } from "@/lib/crossfit/errors"
 import {
   CROSSFIT_OWNER_TEAM_ID,
   CROSSFIT_PARSER_VERSION,
@@ -126,7 +127,9 @@ export async function publishCrossFitImport(
       )
     }
     if (entry.sourceHash !== source.hash)
-      throw new Error("Source changed during import; restart for review")
+      throw new CrossFitImportReviewError(
+        "Source changed during import; restart for review",
+      )
     const [last] = await tx
       .select({ order: max(links.trackOrder) })
       .from(links)

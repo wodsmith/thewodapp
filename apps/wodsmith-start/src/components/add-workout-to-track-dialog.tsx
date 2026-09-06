@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import { addWorkoutToTrackFn } from "@/server-fns/programming-fns"
 import { getWorkoutsFn } from "@/server-fns/workout-fns"
 
@@ -34,6 +35,7 @@ export function AddWorkoutToTrackDialog({
   teamId,
   onSuccess,
 }: AddWorkoutToTrackDialogProps) {
+  const autoOrder = trackId === CROSSFIT_TRACK_ID
   const [open, setOpen] = useState(false)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>("")
   const [trackOrder, setTrackOrder] = useState<string>("1")
@@ -74,7 +76,7 @@ export function AddWorkoutToTrackDialog({
     }
 
     const orderNumber = Number.parseInt(trackOrder, 10)
-    if (Number.isNaN(orderNumber) || orderNumber < 1) {
+    if (!autoOrder && (Number.isNaN(orderNumber) || orderNumber < 1)) {
       setError("Track order must be a positive number")
       return
     }
@@ -86,7 +88,7 @@ export function AddWorkoutToTrackDialog({
         data: {
           trackId,
           workoutId: selectedWorkoutId,
-          trackOrder: orderNumber,
+          ...(autoOrder ? {} : { trackOrder: orderNumber }),
           notes: notes.trim() || undefined,
         },
       })
@@ -134,7 +136,9 @@ export function AddWorkoutToTrackDialog({
         <DialogHeader>
           <DialogTitle>Add workout to track</DialogTitle>
           <DialogDescription>
-            Select a workout and specify its position in the programming track.
+            {autoOrder
+              ? "Select a workout to append to the track."
+              : "Select a workout and specify its position in the programming track."}
           </DialogDescription>
         </DialogHeader>
 
@@ -180,21 +184,23 @@ export function AddWorkoutToTrackDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="trackOrder">Track Order</Label>
-            <Input
-              id="trackOrder"
-              type="number"
-              min="1"
-              value={trackOrder}
-              onChange={(e) => setTrackOrder(e.target.value)}
-              disabled={isSubmitting}
-              placeholder="1"
-            />
-            <p className="text-sm text-muted-foreground">
-              Position of this workout in the track (e.g., Day 1, Day 2)
-            </p>
-          </div>
+          {!autoOrder && (
+            <div className="grid gap-2">
+              <Label htmlFor="trackOrder">Track Order</Label>
+              <Input
+                id="trackOrder"
+                type="number"
+                min="1"
+                value={trackOrder}
+                onChange={(e) => setTrackOrder(e.target.value)}
+                disabled={isSubmitting}
+                placeholder="1"
+              />
+              <p className="text-sm text-muted-foreground">
+                Position of this workout in the track (e.g., Day 1, Day 2)
+              </p>
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="notes">Notes (optional)</Label>
             <Input

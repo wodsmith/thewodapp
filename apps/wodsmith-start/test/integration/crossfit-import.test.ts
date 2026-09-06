@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs"
+import { fileURLToPath, URL as NodeURL } from "node:url"
 import { createWodsmithDb, type WodsmithDb } from "@repo/wodsmith-db/mysql"
 import { getTableColumns, getTableName, eq } from "drizzle-orm"
 import { CasingCache } from "drizzle-orm/casing"
@@ -23,7 +24,7 @@ async function source(date = "2026-09-05", markdown = "For time: 100 air squats.
 
 describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => {
   beforeAll(async () => {
-    if (!mysqlTestConfig?.socketPath) throw new Error("CrossFit tests require an explicit isolated MySQL socket")
+    if (!mysqlTestConfig) throw new Error("CrossFit tests require an explicit local MySQL configuration")
     admin = mysql.createPool(mysqlTestConfig)
     await admin.promise().query(`CREATE DATABASE \`${databaseName}\``)
     pool = mysql.createPool({ ...mysqlTestConfig, database: databaseName, connectionLimit: 5 })
@@ -37,7 +38,7 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
       await pool.promise().query(`CREATE TABLE \`${getTableName(table)}\` (${columns.join(",")}) ENGINE=InnoDB`)
     }
     // Execute the actual additive migration, including its uniqueness constraints.
-    const migration = readFileSync("../../packages/wodsmith-db/mysql-migrations/0002_milky_katie_power.sql", "utf8")
+    const migration = readFileSync(fileURLToPath(new NodeURL("../../../../packages/wodsmith-db/mysql-migrations/0002_milky_katie_power.sql", import.meta.url)), "utf8")
     for (const statement of migration.split("--> statement-breakpoint")) if (statement.trim()) await pool.promise().query(statement)
   })
   beforeEach(async () => {
@@ -97,4 +98,10 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
     await db.update(programmingTracksTable).set({ ownerTeamId: "other" }).where(eq(programmingTracksTable.id, CROSSFIT_TRACK_ID))
     await expect(publishCrossFitImport(db, next, conversion, null)).rejects.toThrow("identity")
   })
+  // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Missing manual workout]]
+  it("refuses missing manual workouts without consuming a track position", async () => {
+    await expect(appendCrossFitWorkout(db, "missing")).rejects.toThrow("Workout not found")
+    expect(await db.select().from(trackWorkoutsTable)).toHaveLength(0)
+  })
+
 })

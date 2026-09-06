@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { CrossFitTrackDays } from "@/components/crossfit-track-days"
 
@@ -20,4 +20,17 @@ describe("CrossFit dated track feed", () => {
     expect(screen.getByRole("link", { name: "Load part · load" })).toHaveAttribute("href", "/workouts/load")
     expect(screen.queryByRole("button", { name: /score/i })).not.toBeInTheDocument()
   })
+  // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Deferred programming text]]
+  it("mounts Markdown only while a day's programming is expanded", () => {
+    render(<CrossFitTrackDays days={[{ id: "day", date: "2026-09-06", url: "https://www.crossfit.com/260906", kind: "rest", markdown: "Unique programming text", workouts: [] }]} />)
+    expect(screen.queryByText("Unique programming text")).not.toBeInTheDocument()
+    const details = screen.getByText("Read programming and scaling").closest("details")!
+    details.open = true
+    fireEvent(details, new Event("toggle"))
+    expect(screen.getByText("Unique programming text")).toBeInTheDocument()
+    details.open = false
+    fireEvent(details, new Event("toggle"))
+    expect(screen.queryByText("Unique programming text")).not.toBeInTheDocument()
+  })
+
 })

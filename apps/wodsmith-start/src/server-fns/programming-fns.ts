@@ -148,12 +148,32 @@ const getTrackWorkoutsInputSchema = z.object({
   trackId: z.string().min(1, "Track ID is required"),
 })
 
-const addWorkoutToTrackInputSchema = z.object({
-  trackId: z.string().min(1, "Track ID is required"),
-  workoutId: z.string().min(1, "Workout ID is required"),
-  trackOrder: z.number().int().min(1, "Track order must be at least 1"),
-  notes: z.string().optional(),
-})
+const addWorkoutToTrackInputSchema = z
+  .object({
+    trackId: z.string().min(1, "Track ID is required"),
+    workoutId: z.string().min(1, "Workout ID is required"),
+    trackOrder: z
+      .number()
+      .int()
+      .min(1, "Track order must be at least 1")
+      .optional(),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.trackId === CROSSFIT_TRACK_ID
+        ? data.trackOrder !== undefined
+        : data.trackOrder === undefined
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["trackOrder"],
+        message:
+          data.trackId === CROSSFIT_TRACK_ID
+            ? "CrossFit.com order is assigned automatically"
+            : "Track order is required",
+      })
+  })
 
 export type AddWorkoutToTrackInput = z.infer<
   typeof addWorkoutToTrackInputSchema
@@ -341,6 +361,7 @@ export const updateProgrammingTrackFn = createServerFn({ method: "POST" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
+    if (data.trackId === CROSSFIT_TRACK_ID) await requireAdmin()
 
     // Build update object with only provided fields
     const updateData: {
@@ -398,6 +419,7 @@ export const deleteProgrammingTrackFn = createServerFn({ method: "POST" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
+    if (data.trackId === CROSSFIT_TRACK_ID) await requireAdmin()
 
     // Check track exists before deleting
     const trackToDelete = await db
@@ -477,6 +499,8 @@ export const addWorkoutToTrackFn = createServerFn({ method: "POST" })
       await requireAdmin()
       return appendCrossFitWorkout(db, data.workoutId, data.notes)
     }
+    if (data.trackOrder === undefined)
+      throw new Error("Track order is required")
     const trackWorkoutId = createTrackWorkoutId()
     await db.insert(trackWorkoutsTable).values({
       id: trackWorkoutId,
@@ -528,6 +552,8 @@ export const removeWorkoutFromTrackFn = createServerFn({ method: "POST" })
       throw new Error("Track workout not found")
     }
 
+    if (trackWorkoutToDelete.trackId === CROSSFIT_TRACK_ID) await requireAdmin()
+
     // Delete the track workout
     await db
       .delete(trackWorkoutsTable)
@@ -551,6 +577,7 @@ export const updateTrackVisibilityFn = createServerFn({ method: "POST" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
+    if (data.trackId === CROSSFIT_TRACK_ID) await requireAdmin()
 
     // Update the track visibility
     await db

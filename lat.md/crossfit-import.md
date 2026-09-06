@@ -12,25 +12,25 @@ The date comes from the scheduled timestamp, not the execution or retry time. Ea
 
 The source adapter requests CrossFit's public `/workout/YYYY/MM/DD` JSON endpoint and validates the exact date, canonical URL, language, publication state, and Markdown before conversion.
 
-Requests have a 30-second timeout, disallow redirects, and stream at most 256 KB. Original Markdown is normalized only for newlines and outer whitespace, then hashed. Missing content cannot become a rest day. The short `/YYMMDD` URL remains visible as source attribution.
+Requests have a 30-second timeout, disallow redirects, and stream at most 256 KB. Source Markdown is additionally limited to 60,000 UTF-8 bytes so the ledger and attributed workout description fit MySQL TEXT storage. Original Markdown is normalized only for newlines and outer whitespace, then hashed. Missing content cannot become a rest day. The short `/YYMMDD` URL remains visible as source attribution.
 
 ## Scoring Conversion
 
 Explicit rest days, narrow timed or rep-count workouts, and simple load-set prescriptions convert deterministically. Other formats use bounded structured output through Workers AI Gateway, followed by source-based validation.
 
-The converter cannot choose track IDs or publish. The gateway adapter sends the JSON schema to Workers AI, and local validation checks the result independently. Evidence must appear in the main prescription and support the chosen scheme, including explicit movement-count scoring. Caps must be explicit; timed components minimize time. A source requesting time and load requires both components. Unsupported conversion stays private for review. Source scaling remains in the preserved description rather than creating new scaling levels.
+The converter cannot choose track IDs or publish. The gateway adapter sends the JSON schema to Workers AI, and local validation checks the result independently. Evidence must appear in the main prescription and support the chosen scheme, including explicit movement-count scoring. Caps must be explicit; timed components minimize time. Score counts require explicit source requests, with one score by default and a score per prescribed load set. Non-timed scores reject minimum aggregation; sums and averages require explicit scoring instructions. A source requesting time and load requires both components. Unsupported conversion stays private for review. Source scaling remains in the preserved description rather than creating new scaling levels.
 
 ## Durable Execution
 
 The Workflow checkpoints initialization, source attempts, source snapshot, conversion, and publication. Temporary source failures wait at least fifteen minutes and respect Retry-After within a two-hour window.
 
-Dry runs return source and normalized output without database writes. Completed imports return before fetching or converting again. Invalid conversion records `needs_review`; fetch or publication errors record `failed` and propagate to Workflow/Sentry monitoring. The admin panel supports preview, explicit publication, status refresh, and inspection of original source and failure details.
+Dry runs return source and normalized output without database writes. Completed imports return before fetching or converting again. Invalid conversion or a source revision detected at publication records `needs_review`; fetch or publication errors record `failed` and propagate to Workflow/Sentry monitoring. The admin panel supports preview, explicit publication, status refresh, and inspection of original source and failure details.
 
 ## Publication
 
 Two additive MySQL tables store one source-date import and its scoreable items. Publication locks the import and destination track, inserts all public rows, and marks publication within one transaction.
 
-The unique provider/track/date constraint and deterministic identities protect retries after commit. The publisher verifies `ptrk_crossfit_dotcom` remains public, third-party, owned by its configured team, and unrelated to a competition. Manual additions to this track require site administration and use the same track lock before allocating order. Published editorial changes remain intact on replay.
+The unique provider/track/date constraint and deterministic identities protect retries after commit. The publisher verifies `ptrk_crossfit_dotcom` remains public, third-party, owned by its configured team, and unrelated to a competition. Manual additions verify the workout exists and allocate order under the same track lock; caller-supplied CrossFit order is rejected. All track edits, visibility changes, removals, and deletions require site administration. Published editorial changes remain intact on replay.
 
 Rest imports contain zero scoreable items. Pending and failed imports have no public workout rows; competition-oriented `eventStatus` cannot hide an uncertain import from existing library readers. Apply the additive migration before deploying code that reads the import tables. Production schema changes use the existing PlanetScale deploy-request process.
 
@@ -38,11 +38,13 @@ Rest imports contain zero scoreable items. Pending and failed imports have no pu
 
 The CrossFit.com track shows up to sixty published import days, newest first, with source attribution, expandable programming, rest labels, and links to each independently scoreable workout.
 
-The existing workout library remains available below the dated feed. The source track's subscriptions do not automatically create [[training#Training#Session Model]] entries or gym-specific scheduled instances.
+Programming Markdown mounts only when its disclosure is expanded. The published feed is intentionally public; administrator diagnostics are separate and return only fields used by the review panel. The existing workout library remains available below the dated feed. The source track's subscriptions do not automatically create [[training#Training#Session Model]] entries or gym-specific scheduled instances.
 
 ## Tests
 
-These tests cover extraction, interpretation, durable execution, actual MySQL transactions, and the dated track display. Database tests require an explicit isolated local socket.
+These tests cover extraction, interpretation, durable execution, actual MySQL transactions, and the dated track display.
+
+Database tests require an explicit local socket or loopback TCP configuration; they create and remove their own disposable database and resolve the migration independently of the runner directory.
 
 ### Source identity and failures
 
@@ -107,3 +109,35 @@ A source identity error fails immediately without sleeping, publishing, or treat
 ### Rest and component display
 
 The dated feed attributes its source and links each scoreable component while showing rest days without score actions.
+
+### Scoring review regressions
+
+Reject invented score counts, reversed non-time scoring, and unsupported aggregation. Preserve separately requested strength and metcon scores, and parse cap units without case sensitivity.
+
+### Storage bytes and transient timeouts
+
+Reject Markdown exceeding the UTF-8 storage budget before writes, and treat HTTP 408 as a retryable source timeout.
+
+### Source revision review
+
+A source hash change at publication remains private and records a review outcome that survives Workflow step serialization.
+
+### Missing manual workout
+
+A nonexistent manual workout cannot create an orphaned track link or consume a sequence position.
+
+### Deferred programming text
+
+Collapsed daily entries do not mount Markdown; opening and closing a disclosure mounts and removes only that day's text.
+
+### Track mutation authorization
+
+Non-admin users cannot add, remove, edit, hide, or delete the CrossFit source track's content through the programming server functions.
+
+### Automatic append contract
+
+CrossFit additions omit caller-selected order, while other tracks retain required explicit ordering and their existing access behavior.
+
+### Administrator track edits
+
+Administrators can perform the protected CrossFit edits after authorization, preserving the intended maintenance workflow.

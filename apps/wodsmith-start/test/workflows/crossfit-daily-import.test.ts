@@ -10,6 +10,7 @@ vi.mock("@/db", () => ({ getDb: () => ({}) }))
 vi.mock("@/server/crossfit-converter", () => ({ convertCrossFitSource: mocks.convert }))
 vi.mock("@/server/crossfit-import", () => ({ beginCrossFitImport: mocks.begin, snapshotCrossFitImport: mocks.snapshot, publishCrossFitImport: mocks.publish, failCrossFitImport: mocks.fail, getCrossFitImport: vi.fn() }))
 vi.mock("@/lib/crossfit/source", async (actual) => ({ ...await actual<object>(), fetchCrossFitSource: mocks.fetch }))
+import { CrossFitImportReviewError } from "@/lib/crossfit/errors"
 import { CrossFitSourceError } from "@/lib/crossfit/source"
 import { CrossFitDailyImportWorkflowBase } from "@/workflows/crossfit-daily-import-workflow"
 
@@ -71,4 +72,12 @@ describe("CrossFit durable orchestration", () => {
     expect(mocks.publish).not.toHaveBeenCalled()
     expect(mocks.fail).toHaveBeenCalledWith({}, "2026-09-06", "failed", "wrong date")
   })
+  // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Source revision review]]
+  it("holds a source revision detected during publication for review", async () => {
+    mocks.publish.mockRejectedValue(new CrossFitImportReviewError("Source changed during import; restart for review"))
+    const workflow = new CrossFitDailyImportWorkflowBase({} as never, {} as never)
+    await expect(workflow.run(event() as never, step() as never)).rejects.toThrow("Source changed")
+    expect(mocks.fail).toHaveBeenCalledWith({}, "2026-09-06", "needs_review", "Source changed during import; restart for review")
+  })
+
 })

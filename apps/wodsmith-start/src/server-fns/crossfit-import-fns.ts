@@ -7,6 +7,8 @@ import { CROSSFIT_TRACK_ID, sourceDateSchema } from "@/lib/crossfit/source"
 import { getPublishedCrossFitDays } from "@/server/crossfit-import"
 import { requireAdmin } from "@/utils/auth"
 
+// Intentionally public: returns published programming for the public CrossFit.com track only.
+// Import IDs are deterministic public date keys; pending entries and workflow diagnostics are excluded.
 export const getCrossFitTrackDaysFn = createServerFn({ method: "GET" })
   .inputValidator(z.object({ trackId: z.string() }))
   .handler(({ data }) => getPublishedCrossFitDays(getDb(), data.trackId))
@@ -15,15 +17,19 @@ export const getCrossFitImportsFn = createServerFn({ method: "GET" }).handler(
   async () => {
     await requireAdmin()
     const rows = await getDb()
-      .select()
+      .select({
+        id: externalWorkoutImportsTable.id,
+        sourceDate: externalWorkoutImportsTable.sourceDate,
+        status: externalWorkoutImportsTable.status,
+        kind: externalWorkoutImportsTable.kind,
+        error: externalWorkoutImportsTable.error,
+        sourceMarkdown: externalWorkoutImportsTable.sourceMarkdown,
+      })
       .from(externalWorkoutImportsTable)
       .where(eq(externalWorkoutImportsTable.trackId, CROSSFIT_TRACK_ID))
       .orderBy(desc(externalWorkoutImportsTable.sourceDate))
       .limit(60)
-    return rows.map(({ normalized, ...row }) => ({
-      ...row,
-      normalizedJson: JSON.stringify(normalized),
-    }))
+    return rows
   },
 )
 

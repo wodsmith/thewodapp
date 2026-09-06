@@ -4,6 +4,7 @@ import {
   createTrackWorkoutId,
   programmingTracksTable,
   trackWorkoutsTable,
+  workouts,
 } from "@/db/schema"
 import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 
@@ -19,6 +20,12 @@ export async function appendCrossFitWorkout(
       .where(eq(programmingTracksTable.id, CROSSFIT_TRACK_ID))
       .for("update")
     if (!track) throw new Error("CrossFit.com track not found")
+    const [workout] = await tx
+      .select({ id: workouts.id })
+      .from(workouts)
+      .where(eq(workouts.id, workoutId))
+      .for("update")
+    if (!workout) throw new Error("Workout not found")
     const [last] = await tx
       .select({ order: max(trackWorkoutsTable.trackOrder) })
       .from(trackWorkoutsTable)

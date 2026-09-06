@@ -3,7 +3,7 @@ import { z } from "zod"
 export const CROSSFIT_TRACK_ID = "ptrk_crossfit_dotcom"
 export const CROSSFIT_OWNER_TEAM_ID = "team_cokkpu1klwo0ulfhl1iwzpvn"
 export const CROSSFIT_CRON = "0 13 * * *"
-export const CROSSFIT_PARSER_VERSION = "1"
+export const CROSSFIT_PARSER_VERSION = "2"
 const MAX_SOURCE_BYTES = 256_000
 
 export const sourceDateSchema = z
@@ -79,10 +79,14 @@ export async function parseCrossFitResponse(
     throw new CrossFitSourceError("CrossFit day is not published yet", true)
   const markdown = wods.wodRaw.replaceAll("\r\n", "\n").trim()
   if (!markdown) throw new CrossFitSourceError("CrossFit workout is empty")
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(markdown),
-  )
+  // Both the ledger and workout description use MySQL TEXT (65,535 bytes).
+  // Leave room for the score label and attribution added during publication.
+  const encoded = new TextEncoder().encode(markdown)
+  if (encoded.byteLength > 60_000)
+    throw new CrossFitSourceError(
+      "CrossFit Markdown exceeds the storage byte limit",
+    )
+  const digest = await crypto.subtle.digest("SHA-256", encoded)
   const hash = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("")
@@ -114,6 +118,7 @@ export async function fetchCrossFitSource(
   if (!response.ok) {
     const retryable =
       response.status === 404 ||
+      response.status === 408 ||
       response.status === 429 ||
       response.status >= 500
     const retryAfter = response.headers.get("retry-after")

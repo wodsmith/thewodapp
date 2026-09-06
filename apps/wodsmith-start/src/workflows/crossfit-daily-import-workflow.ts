@@ -6,6 +6,7 @@ import {
 import * as Sentry from "@sentry/cloudflare"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { CrossFitImportReviewError } from "@/lib/crossfit/errors"
 import {
   CrossFitSourceError,
   fetchCrossFitSource,
@@ -118,14 +119,29 @@ export class CrossFitDailyImportWorkflowBase extends WorkflowEntrypoint<
           ...conversion,
         }
       phase = "publication"
-      const result = await step.do("publish", () =>
-        publishCrossFitImport(
-          getDb(),
-          snapshot,
-          conversion.normalized,
-          conversion.model,
-        ),
-      )
+      const publication = await step.do("publish", async () => {
+        try {
+          return {
+            status: "published" as const,
+            result: await publishCrossFitImport(
+              getDb(),
+              snapshot,
+              conversion.normalized,
+              conversion.model,
+            ),
+          }
+        } catch (error) {
+          // Preserve the classification across Workflow step serialization.
+          if (error instanceof CrossFitImportReviewError)
+            return { status: "needs_review" as const, message: error.message }
+          throw error
+        }
+      })
+      if (publication.status === "needs_review") {
+        phase = "review"
+        throw new CrossFitImportReviewError(publication.message)
+      }
+      const result = publication.result
       console.info(
         JSON.stringify({
           action: "crossfit.import",
@@ -144,7 +160,9 @@ export class CrossFitDailyImportWorkflowBase extends WorkflowEntrypoint<
           failCrossFitImport(
             getDb(),
             params.sourceDate,
-            phase === "conversion" ? "needs_review" : "failed",
+            phase === "conversion" || phase === "review"
+              ? "needs_review"
+              : "failed",
             error instanceof Error ? error.message : "Import failed",
           ),
         )
