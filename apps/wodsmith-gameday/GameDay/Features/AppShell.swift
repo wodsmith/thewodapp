@@ -42,7 +42,8 @@ struct SyncStatus: View {
             }
             if let date = state.updatedAt {
                 Text("Updated \(date.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(Color.gameDaySecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .accessibilityElement(children: .contain)
@@ -76,7 +77,7 @@ struct CompetitionHome: View {
             }
             if store.status(.home).error != nil { Section { SyncStatus() } }
             if store.isSignedIn && search.isEmpty {
-                Section("Your competitions") {
+                Section {
                     if store.home.myCompetitions.isEmpty {
                         Text("No registrations on this account. Sign in with the email you used to register.").foregroundStyle(.secondary)
                     }
@@ -85,9 +86,9 @@ struct CompetitionHome: View {
                             CompetitionCard(competition: competition, registered: true)
                         }
                     }
-                }
+                } header: { Text("Your competitions").foregroundStyle(Color.gameDaySecondary) }
             }
-            Section(store.isSignedIn ? "More competitions" : "Upcoming competitions") {
+            Section {
                 if store.status(.home).isLoading && store.home.competitions.isEmpty {
                     ProgressView("Loading competitions…")
                 } else if competitions.isEmpty && store.status(.home).error == nil {
@@ -96,12 +97,12 @@ struct CompetitionHome: View {
                 ForEach(competitions) { competition in
                     NavigationLink { CompetitionView(competitionID: competition.id) } label: { CompetitionCard(competition: competition) }
                 }
-            }
+            } header: { Text(store.isSignedIn ? "More competitions" : "Upcoming competitions").foregroundStyle(Color.gameDaySecondary) }
             if store.status(.home).error == nil { Section { SyncStatus() }.listRowBackground(Color.clear) }
         }
         .navigationTitle("Competitions")
         .accessibilityIdentifier("homeHeading")
-        .searchable(text: $search, prompt: "Competition or city")
+        .searchable(text: $search, prompt: "Search")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu { Toggle("Include past competitions", isOn: $includePast) } label: {

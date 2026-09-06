@@ -89,7 +89,8 @@ struct AthleteSchedule: View {
                     }.font(.subheadline)
                 }
                 NavigationLink { ReminderSettingsView() } label: {
-                    Label("Heat reminders", systemImage: "bell").font(.subheadline.weight(.semibold)).frame(minHeight: 44)
+                    Label("Heat reminders", systemImage: "bell").font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.primary).frame(minHeight: 44)
                 }
             }
         }
@@ -164,13 +165,13 @@ struct HeatRow: View {
         layout {
             VStack(alignment: .leading, spacing: 4) {
                 Text(heat.timeLabel(in: competition.timeZone)).font(.headline).monospacedDigit()
-                Text(heat.dayLabel(in: competition.timeZone)).font(.caption).foregroundStyle(.secondary)
+                Text(heat.dayLabel(in: competition.timeZone)).font(.caption).foregroundStyle(Color.gameDaySecondary)
             }.frame(minWidth: dynamicTypeSize.isAccessibilitySize ? nil : 80, alignment: .leading)
             VStack(alignment: .leading, spacing: 5) {
                 Text(heat.eventName).font(.headline)
                 Text(["Heat \(heat.heatNumber)", lane.map { "Lane \($0)" }, heat.venue].compactMap { $0 }.joined(separator: " · "))
-                    .font(.subheadline).foregroundStyle(.secondary)
-                if let division = heat.division { Text(division).font(.caption).foregroundStyle(.secondary) }
+                    .font(.subheadline).foregroundStyle(Color.gameDaySecondary)
+                if let division = heat.division { Text(division).font(.caption).foregroundStyle(Color.gameDaySecondary) }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }.padding(.vertical, 10).accessibilityElement(children: .combine)
     }

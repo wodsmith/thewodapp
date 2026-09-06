@@ -9,6 +9,9 @@ extension Color {
     })
     static let gameDayInk = Color(red: 0.09, green: 0.10, blue: 0.12)
     static let gameDayPaper = Color(uiColor: .systemGroupedBackground)
+    static let gameDaySecondary = Color(uiColor: UIColor { traits in
+        UIColor(white: traits.userInterfaceStyle == .dark ? 0.72 : 0.36, alpha: 1)
+    })
 }
 
 struct SectionEyebrow: View {
@@ -47,8 +50,11 @@ struct CompetitionCard: View {
                 Text(competition.name).font(.headline).foregroundStyle(.primary)
                 Text(competition.dateLabel).font(.subheadline).foregroundStyle(.primary)
                 Text(competition.location.isEmpty ? competition.competitionType.capitalized : competition.location)
-                    .font(.subheadline).foregroundStyle(.secondary)
-                if registered { Label("Registered", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary) }
+                    .font(.subheadline).foregroundStyle(Color.gameDaySecondary)
+                if registered {
+                    Label("Registered", systemImage: "checkmark.circle").font(.footnote)
+                        .foregroundStyle(Color.gameDaySecondary).fixedSize(horizontal: false, vertical: true)
+                }
             }
         }.padding(.vertical, 8).accessibilityElement(children: .combine)
     }

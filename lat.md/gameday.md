@@ -24,6 +24,10 @@ Workout detail includes the base instructions and native division standards, def
 
 Athletes opt into local notifications and choose their lead time. Reconciliation replaces notifications when a refreshed schedule changes and removes reminders when signing out. Local notifications use the last downloaded schedule and cannot learn organizer changes while the app is closed.
 
+Notification mutations run in order across asynchronous iOS calls. Sign-out clears after any earlier add finishes, and a newer assignment refresh replaces earlier scheduling work. A failed add does not block subsequent cleanup.
+
+Live Activity start, refresh, and end operations use their own ordered queue. A start already waiting on ActivityKit cannot create a countdown after a later sign-out cleanup has finished.
+
 Live Activities show a user-started countdown to a downloaded heat on the Lock Screen and Dynamic Island. Foreground refresh updates the activity. Server-driven APNs changes require separate push infrastructure and verified delivery before they can be promised.
 
 ## Offline and privacy
@@ -33,6 +37,8 @@ Downloaded competition data is available during temporary connection loss with a
 Directory, competition, and leaderboard resources keep independent download timestamps, errors, and loading state. Each retry targets its own resource; an unrelated successful request cannot clear a stale-schedule warning or advance its timestamp.
 
 The app uses no advertising or tracking SDKs. App Store privacy and support pages must describe the actual data flow, and release validation must include real server authentication, published competition data, signing, screenshots, and Apple submission requirements.
+
+Privacy disclosures include linked name, email, and account identifiers for authentication and personalization, plus linked diagnostic data for server reliability. WODsmith’s existing server monitoring applies to native API requests; the native binary itself contains no analytics SDK.
 
 ## Tests
 
@@ -54,6 +60,18 @@ Reminder times subtract the chosen lead from each assigned heat’s absolute sta
 
 The native decoder accepts ISO 8601 timestamps with and without fractional seconds, rejects malformed dates, and preserves date-only competition dates through cache round trips.
 
+### Sign-out during reminder scheduling
+
+Clearing reminders during a suspended iOS add waits for that operation and then removes pending and delivered notifications. An old add cannot restore athlete reminders after sign-out completes.
+
+### Overlapping reminder refreshes
+
+A newer empty assignment response removes reminders even when an earlier schedule is still adding notifications. Completion order cannot restore stale heats.
+
+### Reminder failure recovery
+
+A notification-center add error reaches its caller without preventing a queued clear from completing. Cleanup must work after partial scheduling failure.
+
 ### Native division standards
 
 Workout details prefer an athlete’s active registered division and preserve its standards through a download/cache round trip. Spectators default to the first applicable division; missing standards remain explicit.
@@ -73,6 +91,26 @@ An athlete can move from My day to their competition, see the next-heat countdow
 ### Accessible heat controls
 
 At the largest accessibility text size, an athlete can scroll to the next heat’s Lock Screen action and subsequent workout details without clipped or unreachable controls.
+
+### Live Activity controls
+
+Starting a real simulator Live Activity exposes the end action. Ending it completes and restores the start action, exercising the asynchronous ActivityKit update queue through the athlete screen.
+
+### Discovery accessibility audit
+
+Apple's automated accessibility audit checks discovery descriptions, contrast, clipping, Dynamic Type, traits, and hit regions. Reviewed iOS 26.2 exceptions are recorded with native screenshots in the App Store design review.
+
+### Accessible competition discovery
+
+At the largest accessibility text size, competition discovery retains its search and registration information, and its freshness timestamp grows with Dynamic Type and remains reachable by scrolling.
+
+### Personal schedule accessibility audit
+
+Apple's automated accessibility audit checks the athlete's visible next heat and later schedule, with one documented iOS 26.2 link-contrast exception. Largest-text navigation is verified separately; full VoiceOver traversal is not certified.
+
+### Reminder settings accessibility audit
+
+Apple's automated accessibility audit checks the reminder toggle, lead-time picker, and explanatory text. Native settings must remain understandable to assistive technology.
 
 ### API identity boundary
 
@@ -119,3 +157,11 @@ The confirmation pass covers light/dark athlete schedules and largest-text scrol
 The iOS 1.0 App Store record is WODsmith Game Day (`6809070191`). A signed device archive and App Store distribution IPA have been exported, but neither backend deployment nor build upload nor review submission is complete.
 
 The release checklist tracks live API checks, review-account data, screenshots, Apple metadata, and the outstanding Developer Program agreement. Local fixture tests and exported binaries are preparation evidence, not proof of publication.
+
+App Store privacy data types, purposes, linkage, and tracking answers are saved but not published. Age ratings, content rights, the non-medical-device declaration, and free pricing are prepared; Apple calculated 13+ in most regions from the competition/content features.
+
+Five native iPhone 14 Plus screenshots are saved in Apple's 6.5-inch English listing in athlete-first order. They use fictional records and live in `apps/wodsmith-gameday/AppStore/screenshots/`. Public territory availability is configured, subject to Apple's restrictions.
+
+The user approved reusing Dial Your Espresso's Apple review contact. Its phone and email fields are empty, so Game Day's contact form cannot save until those values are provided. Contact values belong in App Store Connect rather than source documentation.
+
+The implementation branch is `zac/native-game-day`. External source publication is paused for explicit GitHub push approval after automatic review rejected code egress; the saved App Store draft remains available while that approval is pending.

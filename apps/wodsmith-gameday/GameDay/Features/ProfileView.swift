@@ -123,18 +123,19 @@ struct ReminderSettingsView: View {
                 Picker("Before heat starts", selection: $reminders.minutes) {
                     ForEach([5, 10, 15, 20, 30, 45, 60], id: \.self) { Text("\($0) minutes").tag($0) }
                 }.onChange(of: reminders.minutes) { _, _ in Task { await store.syncReminders() } }
-            } header: { Text("Heat reminders") } footer: {
+            } header: { Text("Heat reminders").foregroundStyle(Color.gameDaySecondary) } footer: {
                 Text("Reminders use your downloaded heat assignments. Open Game Day to pick up schedule changes. iPhone notification settings and Focus modes may affect delivery.")
+                    .foregroundStyle(Color.gameDaySecondary)
             }
             if !store.isSignedIn { Text("Sign in to set reminders for your assigned heats.").foregroundStyle(.secondary) }
             if reminders.permissionDenied {
                 Section { Text("Notifications are turned off for Game Day."); Link("Open iPhone Settings", destination: URL(string: UIApplication.openSettingsURLString)!) }
             }
             if let error { Text(error).foregroundStyle(.red) }
-            Section("Lock Screen countdown") {
+            Section {
                 Text("Tap Show on Lock Screen on your next heat to start a Live Activity. It shows your heat, lane, venue, and countdown. Start it within eight hours of your heat.")
-                Text("The countdown uses the last downloaded start time. Reopen the app after organizer schedule changes.").font(.footnote).foregroundStyle(.secondary)
-            }
+                Text("The countdown uses the last downloaded start time. Reopen the app after organizer schedule changes.").font(.footnote).foregroundStyle(Color.gameDaySecondary)
+            } header: { Text("Lock Screen countdown").foregroundStyle(Color.gameDaySecondary) }
         }.navigationTitle("Heat reminders").navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -150,6 +151,7 @@ struct LegalView: View {
                     Text("Game Day connects to WODsmith to show competitions and, when you sign in, your profile, registrations, heat assignments, and announcements. Your password is sent over HTTPS for authentication. Your session is stored in the iPhone Keychain.")
                     Text("Downloaded schedules and account information are cached on this iPhone so you can read them during connection loss. Signing out clears the app’s athlete cache and heat reminders. Reminder preferences stay on your device.")
                     Text("Notifications are optional. Local heat reminders are scheduled on this iPhone. Live Activities display the heat details you choose on your Lock Screen. Game Day includes no advertising or tracking SDKs.")
+                    Text("WODsmith uses server diagnostics to investigate errors and slow requests. These records can include request details and account identifiers when available, and are used for reliability and security.")
                     Link("Read WODsmith’s full privacy policy", destination: URL(string: "https://wodsmith.com/gameday/privacy/")!)
                 } else {
                     Text("Game Day support").font(.title.bold())

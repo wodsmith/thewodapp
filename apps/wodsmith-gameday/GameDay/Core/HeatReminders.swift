@@ -27,16 +27,37 @@ enum ReminderPlanner {
     }
 }
 
+@MainActor
+protocol HeatNotificationCenter: AnyObject {
+    var authorizationStatus: UNAuthorizationStatus { get async }
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
+    func pendingNotificationRequests() async -> [UNNotificationRequest]
+    func add(_ request: UNNotificationRequest) async throws
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String])
+    func removeAllPendingNotificationRequests()
+    func removeAllDeliveredNotifications()
+}
+
+extension UNUserNotificationCenter: HeatNotificationCenter {
+    var authorizationStatus: UNAuthorizationStatus {
+        get async { await notificationSettings().authorizationStatus }
+    }
+}
+
 @Observable @MainActor
 final class HeatReminderManager {
-    var enabled: Bool { didSet { UserDefaults.standard.set(enabled, forKey: "heatRemindersEnabled") } }
-    var minutes: Int { didSet { UserDefaults.standard.set(minutes, forKey: "heatReminderMinutes") } }
+    var enabled: Bool { didSet { defaults.set(enabled, forKey: "heatRemindersEnabled") } }
+    var minutes: Int { didSet { defaults.set(minutes, forKey: "heatReminderMinutes") } }
     var permissionDenied = false
-    private let center = UNUserNotificationCenter.current()
+    private let center: any HeatNotificationCenter
+    private let defaults: UserDefaults
+    private let updates = HeatUpdateQueue()
 
-    init() {
-        enabled = UserDefaults.standard.bool(forKey: "heatRemindersEnabled")
-        let saved = UserDefaults.standard.integer(forKey: "heatReminderMinutes")
+    init(center: any HeatNotificationCenter = UNUserNotificationCenter.current(), defaults: UserDefaults = .standard) {
+        self.center = center
+        self.defaults = defaults
+        enabled = defaults.bool(forKey: "heatRemindersEnabled")
+        let saved = defaults.integer(forKey: "heatReminderMinutes")
         minutes = [5, 10, 15, 20, 30, 45, 60].contains(saved) ? saved : 15
     }
     func requestPermission() async throws -> Bool {
@@ -46,11 +67,14 @@ final class HeatReminderManager {
         return granted
     }
     func reconcile(details: [CompetitionDetail]) async throws {
-        let settings = await center.notificationSettings()
-        permissionDenied = settings.authorizationStatus == .denied
+        try await updates.run { try await self.replaceReminders(details: details) }
+    }
+    private func replaceReminders(details: [CompetitionDetail]) async throws {
+        let authorization = await center.authorizationStatus
+        permissionDenied = authorization == .denied
         let pending = await center.pendingNotificationRequests()
         center.removePendingNotificationRequests(withIdentifiers: pending.filter { $0.identifier.hasPrefix("heat.") }.map(\.identifier))
-        guard enabled, settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+        guard enabled, authorization == .authorized || authorization == .provisional else { return }
         for reminder in ReminderPlanner.plan(details: details, minutes: minutes) {
             let content = UNMutableNotificationContent()
             content.title = reminder.title
@@ -63,15 +87,41 @@ final class HeatReminderManager {
         }
     }
     func clear() async {
-        center.removeAllPendingNotificationRequests()
-        center.removeAllDeliveredNotifications()
+        try? await updates.run {
+            self.center.removeAllPendingNotificationRequests()
+            self.center.removeAllDeliveredNotifications()
+        }
+    }
+}
+
+@MainActor
+private final class HeatUpdateQueue {
+    private var updateTail: Task<Void, Error>?
+    private var updateID = UUID()
+
+    func run(_ action: @escaping @MainActor () async throws -> Void) async throws {
+        let previous = updateTail
+        let id = UUID()
+        updateID = id
+        let task = Task { @MainActor in
+            // Keep sign-out cleanup behind in-flight system calls, even if one fails.
+            _ = try? await previous?.value
+            try await action()
+        }
+        updateTail = task
+        defer { if updateID == id { updateTail = nil } }
+        try await task.value
     }
 }
 
 @Observable @MainActor
 final class HeatActivityManager {
     private(set) var activeHeatID: String? = Activity<HeatActivityAttributes>.activities.first?.attributes.heatID
+    private let updates = HeatUpdateQueue()
     func start(heat: Heat, detail: CompetitionDetail) async throws {
+        try await updates.run { try await self.startActivity(heat: heat, detail: detail) }
+    }
+    private func startActivity(heat: Heat, detail: CompetitionDetail) async throws {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             throw APIError(status: 0, message: "Enable Live Activities for Game Day in iPhone Settings.")
         }
@@ -79,12 +129,15 @@ final class HeatActivityManager {
               start.timeIntervalSinceNow < 8 * 3600 else {
             throw APIError(status: 0, message: "Start a Live Activity within eight hours of your heat.")
         }
-        await self.end()
+        await endActivities()
         let attributes = HeatActivityAttributes(competitionID: detail.competition.id, competitionName: detail.competition.name, heatID: heat.id)
         _ = try Activity.request(attributes: attributes, content: ActivityContent(state: state(heat, detail), staleDate: end), pushType: nil)
         activeHeatID = heat.id
     }
     func reconcile(details: [CompetitionDetail]) async {
+        try? await updates.run { await self.updateActivities(details: details) }
+    }
+    private func updateActivities(details: [CompetitionDetail]) async {
         for activity in Activity<HeatActivityAttributes>.activities {
             guard let detail = details.first(where: { $0.competition.id == activity.attributes.competitionID }),
                   let heat = detail.myHeats.first(where: { $0.id == activity.attributes.heatID }),
@@ -97,6 +150,9 @@ final class HeatActivityManager {
         }
     }
     func end() async {
+        try? await updates.run { await self.endActivities() }
+    }
+    private func endActivities() async {
         activeHeatID = nil
         for activity in Activity<HeatActivityAttributes>.activities { await activity.end(nil, dismissalPolicy: .immediate) }
     }

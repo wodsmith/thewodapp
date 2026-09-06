@@ -50,3 +50,20 @@ This pass closes the identified design defects in the inspected athlete flow. It
 Workout detail now presents base instructions, a native division selector, division standards, and organizer notes in system list sections. The athlete’s registered division is selected when applicable. A UI workflow verifies the real screen in portrait and landscape; screenshots are saved beside the athlete evidence.
 
 The first landscape run used application-wide swipe/capture coordinates and failed with an invalid partial frame after rotation. Targeting the actual list and capturing the full screen confirmed reachable instructions; the second workflow passed. No app layout change or removal of landscape support was used to make the test pass.
+
+## Apple accessibility audit follow-through
+
+Apple's iOS 26.2 audit initially reported 22 issues across discovery, My day, and reminder settings. Explicit appearance-aware secondary text colors resolved the low-contrast secondary labels; small freshness and registration labels now use Dynamic Type footnotes. Reminder settings passes the full audit without exceptions.
+
+Four reproducible flags remained after those corrections. Each was inspected in native captures instead of broadly disabling an audit category. The test handler accepts only these element/type combinations on iOS 26.2 and records each acceptance as an XCTest attachment:
+
+| Element | Reported flag | Review evidence |
+| --- | --- | --- |
+| Native Search field | Text clipped | The complete placeholder is visible at default size and AX5. `design-evidence/discovery-largest-text.png`. |
+| Registered label | Text clipped | The checkmark and complete label remain visible at AX5 in the same capture. |
+| Updated timestamp | Dynamic Type partially unsupported | A UI test confirms its height grows from standard text to AX5 and that scrolling reaches it. `design-evidence/discovery-freshness-largest-text.png` shows its full wrapped text. |
+| Heat reminders link on My day | Contrast | The final explicit primary text is readable against the light surface above the native tab bar. `design-evidence/my-day-audit-contrast.png` preserves the audit's own capture. |
+
+The three audits pass with those four reviewed exceptions; this is not an unfiltered clean result or a VoiceOver certification. Other labels, issue types, and OS versions still fail normally. Results are in `/tmp/GameDayReviewedAccessibility.xcresult`; the unfiltered four-issue result and largest-text reachability checks are in `/tmp/GameDayFinalAccessibility.xcresult`.
+
+Ten native domain/resource tests pass after serializing reminder updates. The Live Activity start/end UI test also passes against real simulator ActivityKit after applying the same queue discipline. Its result is `/tmp/GameDayActivityControls.xcresult`.
