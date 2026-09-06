@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 import { loginAsTestUser, waitForHydration } from "./fixtures/auth"
+import { cleanupCrewScheduleTestEvent, requireCrewScheduleTestDatabase } from "./fixtures/crew-schedule-cleanup"
 import { TEST_DATA } from "./fixtures/test-data"
 
 const demo = TEST_DATA.crewDemo
@@ -23,52 +24,57 @@ test.describe("Crew organizer scheduling flow", () => {
 
   // @lat: [[crew#Crew Launch Verification]]
   test("creates a volunteer schedule and requires purchase before exporting", async ({ page }) => {
-    const eventName = `Crew launch ${Date.now()}`
-    await page.goto("/events/new")
-    await waitForHydration(page)
-    await page.getByLabel("Event name", { exact: true }).fill(eventName)
-    await page.getByRole("button", { name: "Create Crew event" }).click()
-    await expect(page.getByRole("heading", { name: eventName })).toBeVisible()
-    const eventPath = new URL(page.url()).pathname.replace(/\/$/, "")
-    await expect(page.getByRole("heading", { name: "Import volunteers" })).toBeVisible()
-    await page.getByRole("link", { name: "Import volunteers", exact: true }).click()
-    await page.getByRole("button", { name: "Add volunteer", exact: true }).click()
-    const volunteerDialog = page.getByRole("dialog", { name: "Add volunteer" })
-    await volunteerDialog.getByRole("textbox", { name: "Name", exact: true }).fill("Launch Volunteer")
-    await volunteerDialog.getByRole("checkbox", { name: "Judge", exact: true }).check()
-    await volunteerDialog.getByRole("button", { name: "Add volunteer", exact: true }).click()
-    await expect(volunteerDialog).not.toBeVisible()
-    await expect(page.getByText("Launch Volunteer", { exact: true })).toBeVisible()
+    const databaseUrl = requireCrewScheduleTestDatabase()
+    const eventName = `Crew launch ${crypto.randomUUID()}`
+    try {
+      await page.goto("/events/new")
+      await waitForHydration(page)
+      await page.getByLabel("Event name", { exact: true }).fill(eventName)
+      await page.getByRole("button", { name: "Create Crew event" }).click()
+      await expect(page.getByRole("heading", { name: eventName })).toBeVisible()
+      const eventPath = new URL(page.url()).pathname.replace(/\/$/, "")
+      await expect(page.getByRole("heading", { name: "Import volunteers" })).toBeVisible()
+      await page.getByRole("link", { name: "Import volunteers", exact: true }).click()
+      await page.getByRole("button", { name: "Add volunteer", exact: true }).click()
+      const volunteerDialog = page.getByRole("dialog", { name: "Add volunteer" })
+      await volunteerDialog.getByRole("textbox", { name: "Name", exact: true }).fill("Launch Volunteer")
+      await volunteerDialog.getByRole("checkbox", { name: "Judge", exact: true }).check()
+      await volunteerDialog.getByRole("button", { name: "Add volunteer", exact: true }).click()
+      await expect(volunteerDialog).not.toBeVisible()
+      await expect(page.getByText("Launch Volunteer", { exact: true })).toBeVisible()
 
-    await page.getByRole("link", { name: "Volunteer Shifts", exact: true }).click()
-    await page.getByRole("button", { name: "Add shift", exact: true }).click()
-    const shiftDialog = page.getByRole("dialog", { name: "Add shift" })
-    await shiftDialog.getByRole("textbox", { name: "Shift Name", exact: true }).fill("Morning judges")
-    await shiftDialog.getByRole("combobox", { name: "Role Type" }).click()
-    await page.getByRole("option", { name: "Judge", exact: true }).click()
-    await shiftDialog.getByRole("button", { name: "Create shift", exact: true }).click()
-    await expect(shiftDialog).not.toBeVisible()
-    const shiftRow = page.getByRole("row").filter({ hasText: "Morning judges" })
-    await shiftRow.click()
-    const assignments = page.getByRole("dialog", { name: "Morning judges" })
-    await assignments.getByRole("button", { name: "Add Launch Volunteer", exact: true }).click()
-    await expect(assignments.getByText("1/1 assigned")).toBeVisible()
-    await assignments.getByRole("button", { name: "Close", exact: true }).click()
+      await page.getByRole("link", { name: "Volunteer Shifts", exact: true }).click()
+      await page.getByRole("button", { name: "Add shift", exact: true }).click()
+      const shiftDialog = page.getByRole("dialog", { name: "Add shift" })
+      await shiftDialog.getByRole("textbox", { name: "Shift Name", exact: true }).fill("Morning judges")
+      await shiftDialog.getByRole("combobox", { name: "Role Type" }).click()
+      await page.getByRole("option", { name: "Judge", exact: true }).click()
+      await shiftDialog.getByRole("button", { name: "Create shift", exact: true }).click()
+      await expect(shiftDialog).not.toBeVisible()
+      const shiftRow = page.getByRole("row").filter({ hasText: "Morning judges" })
+      await shiftRow.click()
+      const assignments = page.getByRole("dialog", { name: "Morning judges" })
+      await assignments.getByRole("button", { name: "Add Launch Volunteer", exact: true }).click()
+      await expect(assignments.getByText("1/1 assigned")).toBeVisible()
+      await assignments.getByRole("button", { name: "Close", exact: true }).click()
 
-    await page.getByRole("link", { name: "Export Schedule", exact: true }).click()
-    await expect(page).toHaveURL(new RegExp(`${eventPath}/billing$`))
-    await expect(page.getByRole("heading", { name: "Purchase event access" })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Checkout unavailable" })).toBeDisabled()
-    await expect(page.getByRole("button", { name: "Master CSV" })).toHaveCount(0)
+      await page.getByRole("link", { name: "Export Schedule", exact: true }).click()
+      await expect(page).toHaveURL(new RegExp(`${eventPath}/billing$`))
+      await expect(page.getByRole("heading", { name: "Purchase event access" })).toBeVisible()
+      await expect(page.getByRole("button", { name: "Checkout unavailable" })).toBeDisabled()
+      await expect(page.getByRole("button", { name: "Master CSV" })).toHaveCount(0)
 
-    await page.goto(`${eventPath}/billing?crew_checkout=success`)
-    await expect(page.getByText(/We are waiting for payment confirmation/)).toBeVisible()
-    await page.getByRole("link", { name: "Export Schedule", exact: true }).click()
-    await expect(page.getByRole("heading", { name: "Purchase event access" })).toBeVisible()
-    await page.goto(`${eventPath}/billing?crew_checkout=canceled`)
-    await expect(page.getByText(/Checkout was canceled. Your schedule is saved/)).toBeVisible()
-    await page.getByRole("link", { name: "Continue editing your schedule" }).click()
-    await expect(page.getByRole("row").filter({ hasText: "Morning judges" })).toContainText("1 / 1")
+      await page.goto(`${eventPath}/billing?crew_checkout=success`)
+      await expect(page.getByText(/We are waiting for payment confirmation/)).toBeVisible()
+      await page.getByRole("link", { name: "Export Schedule", exact: true }).click()
+      await expect(page.getByRole("heading", { name: "Purchase event access" })).toBeVisible()
+      await page.goto(`${eventPath}/billing?crew_checkout=canceled`)
+      await expect(page.getByText(/Checkout was canceled. Your schedule is saved/)).toBeVisible()
+      await page.getByRole("link", { name: "Continue editing your schedule" }).click()
+      await expect(page.getByRole("row").filter({ hasText: "Morning judges" })).toContainText("1 / 1")
+    } finally {
+      await cleanupCrewScheduleTestEvent(databaseUrl, eventName)
+    }
   })
 
 
