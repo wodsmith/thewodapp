@@ -189,7 +189,7 @@
     --card-foreground: 20 14.3% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 20 14.3% 4.1%;
-    --primary: 24.6 95% 53.1%;
+    --primary: 22 90% 40%;
     --primary-foreground: 60 9.1% 97.8%;
     --secondary: 60 4.8% 95.9%;
     --secondary-foreground: 24 9.8% 10%;
@@ -262,6 +262,19 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  /* Let nested layouts shrink around their own scrollable tables. */
+  .crew-app :where(.grid > *, .flex > *) {
+    min-width: 0;
+  }
+  h1, h2, h3, p {
+    overflow-wrap: anywhere;
+  }
+  :where(a, button, input, select, textarea):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
   }
 }
 
@@ -300,4 +313,23 @@ input[type="range"].range-visible-track::-moz-range-thumb {
   border-radius: 9999px;
   background: #ea580c;
   cursor: pointer;
+}
+
+/* Native fields stay legible without triggering iOS focus zoom. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  button:not([role="checkbox"]):not([role="radio"]):not([data-sidebar="rail"]) {
+    min-height: 44px;
+  }
+  button:has(> svg:only-child) {
+    min-width: 44px;
+  }
+  .crew-app {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

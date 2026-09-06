@@ -234,7 +234,19 @@ export function ShiftList({
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="divide-y md:hidden">
+              {group.shifts.map((shift) => (
+                <ShiftCard
+                  key={shift.id}
+                  shift={shift}
+                  timezone={timezone}
+                  onAssign={() => handleOpenAssignmentPanel(shift)}
+                  onEdit={() => handleOpenEditDialog(shift)}
+                  onDelete={() => setDeletingShiftId(shift.id)}
+                />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -407,5 +419,81 @@ function ShiftListHeader({ onAdd }: { onAdd: () => void }) {
         Add shift
       </Button>
     </div>
+  )
+}
+
+function ShiftCard({
+  shift,
+  timezone,
+  onAssign,
+  onEdit,
+  onDelete,
+}: {
+  shift: CrewShiftBoardItem
+  timezone: string
+  onAssign: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  return (
+    <article className="space-y-4 p-4" aria-label={shift.name}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h3 className="font-semibold">{shift.name}</h3>
+          <p className="text-sm text-muted-foreground">{shift.roleLabel}</p>
+        </div>
+        <Badge
+          className="shrink-0"
+          variant={getCapacityBadgeVariant(
+            shift.assignments.length,
+            shift.capacity,
+          )}
+        >
+          {shift.assignments.length} / {shift.capacity}
+        </Badge>
+      </div>
+      <div className="space-y-2 text-sm">
+        <p className="flex items-start gap-2">
+          <Clock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <span>
+            {formatDateTimeInTimezone(shift.startTime, timezone, "h:mm a")} –{" "}
+            {formatDateTimeInTimezone(shift.endTime, timezone, "h:mm a")}
+          </span>
+        </p>
+        {shift.location && (
+          <p className="flex items-start gap-2">
+            <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <span>{shift.location}</span>
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={onAssign}
+          aria-label={`Assign volunteers to ${shift.name}`}
+        >
+          <Users />
+          Assign volunteers
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEdit}
+          aria-label={`Edit ${shift.name}`}
+        >
+          <Edit2 />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDelete}
+          aria-label={`Delete ${shift.name}`}
+        >
+          <Trash2 className="text-destructive" />
+        </Button>
+      </div>
+    </article>
   )
 }

@@ -5,44 +5,41 @@ export const Route = createFileRoute("/")({ component: HomePage })
 
 function HomePage() {
   return (
-    <main className="mx-auto grid min-h-[calc(100vh-73px)] max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+    <main className="mx-auto grid min-h-[calc(100svh-73px)] max-w-6xl gap-10 px-5 py-10 sm:gap-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center">
       <section className="space-y-6">
         <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Volunteer scheduling
-          </p>
-          <h1 className="max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
+          <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.12] tracking-tight sm:text-5xl">
             Give every volunteer a place and a time.
           </h1>
-          <p className="max-w-2xl text-lg text-muted-foreground">
+          <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             Bring your volunteer list, create shifts, and assign your judges.
             Keep the registration platform you already use and leave with a
             schedule ready to share.
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link
             to="/events/new"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 py-3 text-base font-medium text-primary-foreground hover:bg-primary/90"
           >
             Create your schedule
           </Link>
           <Link
             to="/events"
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+            className="inline-flex min-h-12 items-center justify-center rounded-lg border px-5 py-3 text-base font-medium hover:bg-muted"
           >
             Open an event
           </Link>
         </div>
         <Link
           to="/calculator"
-          className="inline-block text-sm text-muted-foreground underline underline-offset-4"
+          className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4"
         >
           Estimate how many volunteers you need
         </Link>
       </section>
-      <section className="rounded-md border bg-card p-6 shadow-sm">
-        <h2 className="text-xl font-semibold">
+      <section className="min-w-0 rounded-xl border bg-card p-5 sm:p-7">
+        <h2 className="text-balance text-xl font-semibold">
           From volunteer list to ready schedule
         </h2>
         <ol className="mt-6 space-y-6">
@@ -66,7 +63,7 @@ function HomePage() {
               </span>
               <div>
                 <h3 className="font-semibold">{title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-base leading-relaxed text-muted-foreground">
                   {description}
                 </p>
               </div>

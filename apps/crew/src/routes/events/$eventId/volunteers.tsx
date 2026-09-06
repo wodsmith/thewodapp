@@ -1,5 +1,5 @@
 // @lat: [[crew#Roster Volunteer Editing]]
-import type { FormEvent, ReactNode } from "react"
+
 import {
   createFileRoute,
   getRouteApi,
@@ -7,9 +7,18 @@ import {
   useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ClipboardPaste, FileUp, History, Loader2, Pencil, UserPlus } from "lucide-react"
+import {
+  ClipboardPaste,
+  FileUp,
+  History,
+  Loader2,
+  Pencil,
+  UserPlus,
+} from "lucide-react"
+import type { FormEvent, ReactNode } from "react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { VolunteerImportFlow } from "@/components/crew/volunteer-import-flow"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,7 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { VolunteerImportFlow } from "@/components/crew/volunteer-import-flow"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -36,7 +44,6 @@ import {
   VOLUNTEER_AVAILABILITY,
   VOLUNTEER_ROLE_OPTIONS,
 } from "@/db/schemas/volunteers"
-import { formatCrewValue } from "@/lib/crew-event-display"
 import type { CrewReturningVolunteerSuggestion } from "@/lib/crew/returning-volunteers"
 import type {
   CrewRosterStatus,
@@ -46,6 +53,7 @@ import {
   formatVolunteerAvailability,
   formatVolunteerRole,
 } from "@/lib/crew/roster-shifts"
+import { formatCrewValue } from "@/lib/crew-event-display"
 import type { ManualCrewVolunteerMutationResult } from "@/server-fns/crew-roster-shift-fns"
 import {
   createManualCrewVolunteerFn,
@@ -65,8 +73,13 @@ const parentRoute = getRouteApi("/events/$eventId")
 
 function VolunteersPage() {
   const { eventId } = parentRoute.useParams()
-  const { event, roster, summary, shiftSummary, returningVolunteerSuggestions } =
-    Route.useLoaderData()
+  const {
+    event,
+    roster,
+    summary,
+    shiftSummary,
+    returningVolunteerSuggestions,
+  } = Route.useLoaderData()
   const router = useRouter()
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
@@ -84,7 +97,8 @@ function VolunteersPage() {
 
   const allIds = roster.map((v) => v.sourceId)
   const selectedCount = selectedIds.size
-  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id))
+  const allSelected =
+    allIds.length > 0 && allIds.every((id) => selectedIds.has(id))
   const someSelected = selectedCount > 0 && !allSelected
 
   function handleSelectAll(checked: boolean) {
@@ -162,7 +176,7 @@ function VolunteersPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <StatusPanel label="Pending" value={summary.pending} />
         <StatusPanel label="Accepted" value={summary.accepted} />
         <StatusPanel label="Active" value={summary.active} />
@@ -189,7 +203,9 @@ function VolunteersPage() {
           <select
             id="bulk-role-select"
             value={bulkRole}
-            onChange={(e) => setBulkRole(e.target.value as VolunteerRoleType | "")}
+            onChange={(e) =>
+              setBulkRole(e.target.value as VolunteerRoleType | "")
+            }
             className="h-9 rounded-md border bg-background px-3 text-sm"
             disabled={isBulkSubmitting}
           >
@@ -223,45 +239,74 @@ function VolunteersPage() {
 
       <section className="overflow-hidden rounded-md border bg-card shadow-sm">
         {roster.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] text-sm">
-              <thead className="border-b bg-muted/50 text-left text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      aria-label="Select all volunteers"
-                      checked={allSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = someSelected
-                      }}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="size-4"
+          <>
+            <div className="divide-y md:hidden">
+              <label className="flex min-h-12 items-center gap-3 bg-muted/50 px-4 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected
+                  }}
+                  onChange={(event) => handleSelectAll(event.target.checked)}
+                  className="size-5"
+                />
+                Select all volunteers
+              </label>
+              {roster.map((volunteer) => (
+                <VolunteerCard
+                  key={volunteer.id}
+                  volunteer={volunteer}
+                  selected={selectedIds.has(volunteer.sourceId)}
+                  onSelectChange={(checked) =>
+                    handleSelectVolunteer(volunteer.sourceId, checked)
+                  }
+                  onEdit={() => setEditingVolunteer(volunteer)}
+                />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[800px] text-sm">
+                <thead className="border-b bg-muted/50 text-left text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all volunteers"
+                        checked={allSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someSelected
+                        }}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="size-4"
+                      />
+                    </th>
+                    <th className="px-4 py-3 font-medium">Volunteer</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Roles</th>
+                    <th className="px-4 py-3 font-medium">Availability</th>
+                    <th className="px-4 py-3 font-medium">Source</th>
+                    <th className="px-4 py-3 text-right font-medium">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster.map((volunteer) => (
+                    <VolunteerRow
+                      key={volunteer.id}
+                      volunteer={volunteer}
+                      selected={selectedIds.has(volunteer.sourceId)}
+                      onSelectChange={(checked) =>
+                        handleSelectVolunteer(volunteer.sourceId, checked)
+                      }
+                      onEdit={() => setEditingVolunteer(volunteer)}
                     />
-                  </th>
-                  <th className="px-4 py-3 font-medium">Volunteer</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Roles</th>
-                  <th className="px-4 py-3 font-medium">Availability</th>
-                  <th className="px-4 py-3 font-medium">Source</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roster.map((volunteer) => (
-                  <VolunteerRow
-                    key={volunteer.id}
-                    volunteer={volunteer}
-                    selected={selectedIds.has(volunteer.sourceId)}
-                    onSelectChange={(checked) =>
-                      handleSelectVolunteer(volunteer.sourceId, checked)
-                    }
-                    onEdit={() => setEditingVolunteer(volunteer)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <div className="p-8 text-center">
             <h3 className="font-semibold">No volunteers yet</h3>
@@ -942,7 +987,7 @@ function RoleTypeCheckboxes({
         {VOLUNTEER_ROLE_OPTIONS.map((option) => (
           <label
             key={option.value}
-            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+            className="flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-sm"
           >
             <input
               type="checkbox"
@@ -1161,6 +1206,84 @@ function VolunteerRow({
         </TooltipProvider>
       </td>
     </tr>
+  )
+}
+
+function VolunteerCard({
+  volunteer,
+  selected,
+  onSelectChange,
+  onEdit,
+}: {
+  volunteer: CrewRosterVolunteer
+  selected: boolean
+  onSelectChange: (checked: boolean) => void
+  onEdit: () => void
+}) {
+  const name = volunteer.name.trim() || volunteer.email.trim() || "Volunteer"
+  return (
+    <article className="space-y-3 p-4" aria-label={name}>
+      <div className="flex items-start gap-2">
+        <label className="flex min-h-11 flex-1 items-start gap-3 py-2">
+          <input
+            type="checkbox"
+            aria-label={`Select ${name}`}
+            checked={selected}
+            onChange={(event) => onSelectChange(event.target.checked)}
+            className="mt-0.5 size-5 shrink-0"
+          />
+          <span className="break-words font-semibold">{name}</span>
+        </label>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEdit}
+          aria-label={`Edit ${name}`}
+        >
+          <Pencil />
+        </Button>
+      </div>
+      <div className="space-y-1 break-words text-sm text-muted-foreground">
+        <p>{volunteer.email.trim() || "No email"}</p>
+        {volunteer.phone && <p>{volunteer.phone}</p>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge status={volunteer.status} />
+        {volunteer.roleTypes.map((role) => (
+          <span key={role} className="rounded-md border px-2 py-1 text-xs">
+            {formatVolunteerRole(role)}
+          </span>
+        ))}
+      </div>
+      <dl className="space-y-2 text-sm">
+        <div>
+          <dt className="text-muted-foreground">Availability</dt>
+          <dd>
+            {formatVolunteerAvailability(volunteer.availability)}
+            {volunteer.availabilityNotes && (
+              <p className="mt-1">{volunteer.availabilityNotes}</p>
+            )}
+          </dd>
+        </div>
+        {volunteer.credentials && (
+          <div>
+            <dt className="text-muted-foreground">Credentials</dt>
+            <dd>{volunteer.credentials}</dd>
+          </div>
+        )}
+        <div>
+          <dt className="text-muted-foreground">Source</dt>
+          <dd>
+            {volunteer.imported
+              ? "Imported"
+              : formatCrewValue(volunteer.source)}
+            {volunteer.signupSource
+              ? ` · ${formatCrewValue(volunteer.signupSource)}`
+              : ""}
+          </dd>
+        </div>
+      </dl>
+    </article>
   )
 }
 
