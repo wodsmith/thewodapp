@@ -778,4 +778,152 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
       scoreValue: 180000,
     })
   })
+  // @lat: [[training-personal#Verification#Removed library results remain editable]]
+  it("preserves library scoring and scaling after removal and source deletion", async () => {
+    await db
+      .insert(workouts)
+      .values({
+        id: "history_library",
+        name: "Original intervals",
+        description: "Two rounds",
+        scheme: "time-with-cap",
+        timeCap: 180,
+        roundsToScore: 2,
+        scoreType: "sum",
+        teamId: day.teamId,
+      })
+    const session = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [{ id: "history", kind: "library", workoutId: "history_library" }],
+    })
+    const input = {
+      personalSessionId: session.id,
+      itemId: "history",
+      expectedRevision: 1,
+      score: "",
+      asRx: true,
+      roundScores: [{ score: "CAP+25" }, { score: "2:00" }],
+    }
+    const saved = await savePersonalLibraryResult(input)
+    const [stored] = await db
+      .select()
+      .from(personalTrainingResultsTable)
+      .where(eq(personalTrainingResultsTable.legacyScoreId, saved.scoreId))
+    expect(stored.libraryItem).toMatchObject({
+      id: "history",
+      workoutId: "history_library",
+      workout: {
+        name: "Original intervals",
+        timeCap: 180,
+        roundsToScore: 2,
+        scalingGroupId: "personal_scaling",
+      },
+    })
+    const empty = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 1,
+      items: [],
+    })
+    await db.delete(workouts).where(eq(workouts.id, "history_library"))
+    expect(
+      await getPersonalLibraryScalingLevels({
+        personalSessionId: session.id,
+        itemId: "history",
+      }),
+    ).toEqual({ levels: [{ id: "personal_rx", label: "Rx", position: 0 }] })
+    await expect(
+      savePersonalLibraryResult({ ...input, replaceExisting: true }),
+    ).rejects.toThrow("CONFLICT")
+    const edited = await savePersonalLibraryResult({
+      ...input,
+      expectedRevision: empty.revision,
+      replaceExisting: true,
+      roundScores: [{ score: "CAP+30" }, { score: "2:10" }],
+    })
+    expect(edited.scoreId).toBe(saved.scoreId)
+    const [score] = await db
+      .select()
+      .from(scoresTable)
+      .where(eq(scoresTable.id, saved.scoreId))
+    expect(score).toMatchObject({
+      workoutId: "history_library",
+      status: "cap",
+      secondaryValue: 30,
+      scoreValue: 310000,
+    })
+    expect((await getPersonalTrainingDay(day)).items).toEqual([])
+    state.userId = "personal_other"
+    await expect(
+      getPersonalLibraryScalingLevels({
+        personalSessionId: session.id,
+        itemId: "history",
+      }),
+    ).rejects.toThrow("FORBIDDEN")
+    await expect(
+      savePersonalLibraryResult({
+        ...input,
+        expectedRevision: empty.revision,
+        replaceExisting: true,
+      }),
+    ).rejects.toThrow("FORBIDDEN")
+  })
+
+  // @lat: [[training-personal#Verification#Earlier library links gain historical snapshots]]
+  it("captures linked scores and protects earlier null snapshots before removing their item", async () => {
+    const session = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [
+        { id: "library", kind: "library", workoutId: "personal_library" },
+      ],
+    })
+    await db
+      .insert(scoresTable)
+      .values({
+        id: "own_linked_history",
+        userId: state.userId,
+        teamId: day.teamId,
+        workoutId: "personal_library",
+        scheme: "reps",
+        recordedAt: new Date(`${day.trainingDate}T00:00:00Z`),
+      })
+    await linkPersonalTrainingScore({
+      personalSessionId: session.id,
+      itemId: "library",
+      expectedRevision: 1,
+      scoreId: "own_linked_history",
+    })
+    const [linked] = await db
+      .select()
+      .from(personalTrainingResultsTable)
+      .where(
+        eq(personalTrainingResultsTable.legacyScoreId, "own_linked_history"),
+      )
+    expect(linked.libraryItem).toMatchObject({
+      workoutId: "personal_library",
+      workout: { scheme: "reps", roundsToScore: 3 },
+    })
+    await db
+      .update(personalTrainingResultsTable)
+      .set({ libraryItem: null })
+      .where(eq(personalTrainingResultsTable.id, linked.id))
+    await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 1,
+      items: [],
+    })
+    await db
+      .update(workouts)
+      .set({ scheme: "time", roundsToScore: 1 })
+      .where(eq(workouts.id, "personal_library"))
+    const [preserved] = await db
+      .select()
+      .from(personalTrainingResultsTable)
+      .where(eq(personalTrainingResultsTable.id, linked.id))
+    expect(preserved.libraryItem).toMatchObject({
+      workoutId: "personal_library",
+      workout: { scheme: "reps", roundsToScore: 3 },
+    })
+  })
 })

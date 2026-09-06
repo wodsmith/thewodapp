@@ -275,3 +275,42 @@ it("logs a workout borrowed from another date privately without updating its ori
  await waitFor(() => expect(savePersonalTrainingResultFn).toHaveBeenCalledWith({ data: expect.objectContaining({ personalSessionId: "personal-tuesday", itemId: "moved-squat", expectedRevision: 1, score: "185" }) }))
  expect(saveTrainingResultFn).not.toHaveBeenCalled()
 })
+
+// @lat: [[training#Athlete Interface Tests#Published updates preserve composed source results]]
+it("keeps the exact saved source score visible and read-only after a coach republishes", async () => {
+  const item = { id: "saved-source", kind: "source" as const, block, trackId: session.trackId, trackName: "Everyday", sourceTrainingDate: session.trainingDate, sourceSessionId: session.id, sourceBlockId: block.id, sourcePublishedVersion: session.publishedVersion, sourceIsCurrent: false }
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({ defaultTrackId: "everyday", selectedTrackId: "everyday", sourceSession: { ...session, publishedVersion: 3 }, personalSession: { id: "my-composition", teamId: "gym", trainingDate: session.trainingDate, revision: 1, items: [item] }, items: [item], results: [result], libraryResults: [] })
+  render(<AthletePersonalSession team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[{ ...result, id: "new-version", publishedVersion: 3, displayScore: "300" }]} onSaved={vi.fn()} />)
+  await screen.findByRole("heading", { name: "Back squat" })
+  expect(screen.getByText("225 lb", { exact: false })).toBeVisible()
+  expect(screen.queryByText("300 lb", { exact: false })).not.toBeInTheDocument()
+  expect(screen.getByText(/Saved against an earlier published version/)).toBeVisible()
+  expect(screen.queryByRole("button", { name: "Log result" })).not.toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Edit result" })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByText("Private notes"))
+  expect(screen.getByText("Private memory")).toBeVisible()
+  expect(saveTrainingResultFn).not.toHaveBeenCalled()
+  expect(savePersonalTrainingResultFn).not.toHaveBeenCalled()
+})
+
+// @lat: [[training#Athlete Interface Tests#Cancelled library requests stay dismissed]]
+it("clears a cancelled library deep link and does not reopen it when the date changes", async () => {
+  window.history.replaceState({ test: "preserve" }, "", `/training?teamId=gym&date=${session.trainingDate}&workoutId=fran`)
+  render(<AthleteTraining context={context} initialDate={session.trainingDate} libraryWorkoutId="fran" />)
+  await screen.findByRole("heading", { name: "Add Fran?" })
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+  expect(new URL(window.location.href).searchParams.has("workoutId")).toBe(false)
+  expect(window.history.state).toEqual({ test: "preserve" })
+  fireEvent.change(screen.getByLabelText("Choose training date"), { target: { value: "2026-09-08" } })
+  await screen.findByText("No session is published for this day. You can still build your own.")
+  expect(screen.queryByRole("heading", { name: "Add Fran?" })).not.toBeInTheDocument()
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+})
+
+// @lat: [[training#Athlete Interface Tests#Personal titles match server limits]]
+it("limits personal workout names to the server-supported length", async () => {
+  render(<AthletePersonalSession team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[]} onSaved={vi.fn()} />)
+  await screen.findByRole("heading", { name: "Back squat" })
+  fireEvent.click(screen.getByRole("button", { name: "Create workout" }))
+  expect(screen.getByLabelText("Workout name")).toHaveAttribute("maxlength", "160")
+})

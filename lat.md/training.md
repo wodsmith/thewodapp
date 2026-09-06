@@ -102,6 +102,18 @@ A library deep link previews the accessible workout for a selected gym and date.
 
 A workout borrowed from another programmed date records a private result against the personal session's date. The original track occurrence and its team results remain unchanged.
 
+### Published updates preserve composed source results
+
+A saved result remains attached to its exact source session, block, date, and publication after a coach update. Earlier source results display their score and private notes without offering another save or an unsupported edit.
+
+### Cancelled library requests stay dismissed
+
+Cancelling a library addition clears its URL request and parent pending state. Changing dates or refreshing does not reopen the cancelled addition, and cancellation creates no personal session.
+
+### Personal titles match server limits
+
+Personal workout names enforce the same 160-character input limit as the server, avoiding otherwise valid-looking edits that cannot be saved.
+
 ## Coach Interface Tests
 
 These interaction tests protect unsaved programming, publication review, copying, and faithful preview content.
@@ -156,6 +168,14 @@ Another gym member cannot retrieve the detail or round breakdown of a library sc
 
 Editing a linked score cannot move its date away from the owning personal session and make calendar history contradict the session.
 
+### Removed library prescription
+
+A removed library item retains its performed prescription on the result so history and edits use the original scoring rules after session or source changes.
+
 ### Personal library result editing
 
 Linked library edits use the personal session API to preserve workout snapshots, capped rep counts, and individual rounds while keeping the original result ID and session date.
+
+## Workout Library Navigation Test
+
+The browser test opens Workout library, finds seeded workouts, and follows one into its detail page so the renamed library remains discoverable and usable.

@@ -326,9 +326,15 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
         createdAt: scoresTable.createdAt,
         updatedAt: scoresTable.updatedAt,
         workoutName: workouts.name,
+        personalLibraryItem: personalTrainingResultsTable.libraryItem,
+        personalDisplayScore: personalTrainingResultsTable.displayScore,
       })
       .from(scoresTable)
       .leftJoin(workouts, eq(scoresTable.workoutId, workouts.id))
+      .leftJoin(
+        personalTrainingResultsTable,
+        eq(personalTrainingResultsTable.legacyScoreId, scoresTable.id),
+      )
       .leftJoin(
         scalingLevelsTable,
         eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
@@ -375,8 +381,9 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
 
       return {
         ...log,
-        displayScore,
-        workoutName: log.workoutName || undefined,
+        displayScore: log.personalDisplayScore ?? displayScore,
+        workoutName:
+          log.personalLibraryItem?.workout.name ?? log.workoutName ?? undefined,
         scalingLevelLabel: log.scalingLevelLabel || undefined,
         scalingLevelPosition:
           log.scalingLevelPosition !== null
@@ -458,6 +465,7 @@ export const getLogByIdFn = createServerFn({ method: "GET" })
     const [personalResult] = await db
       .select({
         itemId: personalTrainingResultsTable.itemId,
+        libraryItem: personalTrainingResultsTable.libraryItem,
         personalSessionId: personalTrainingSessionsTable.id,
         revision: personalTrainingSessionsTable.revision,
         trainingDate: personalTrainingSessionsTable.trainingDate,
@@ -475,9 +483,9 @@ export const getLogByIdFn = createServerFn({ method: "GET" })
       .limit(1)
     if (personalResult && !isOwner)
       throw new Error("Not authorized to access this score")
-    const personalItem = personalResult?.items?.find(
-      (item) => item.id === personalResult.itemId,
-    )
+    const personalItem =
+      personalResult?.libraryItem ??
+      personalResult?.items?.find((item) => item.id === personalResult.itemId)
     return {
       score: {
         ...score,

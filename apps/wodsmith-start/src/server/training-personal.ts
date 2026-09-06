@@ -481,6 +481,16 @@ export async function savePersonalTrainingSession(
       for (const result of previousResults) {
         const before = previous.find((i) => i.id === result.itemId)
         const after = items.find((i) => i.id === result.itemId)
+        if (
+          result.legacyScoreId &&
+          !result.libraryItem &&
+          before?.kind === "library"
+        ) {
+          await tx
+            .update(personalTrainingResultsTable)
+            .set({ libraryItem: before })
+            .where(eq(personalTrainingResultsTable.id, result.id))
+        }
         if (after && JSON.stringify(before) !== JSON.stringify(after))
           throw new Error(
             "CONFLICT: This workout has a result. Add a new remix to change it.",
@@ -528,12 +538,32 @@ async function ownedSession(
     throw new Error("FORBIDDEN: This session belongs to another athlete")
   return { session, userId }
 }
+async function storedLibraryResultItem(
+  db: Pick<Db, "select">,
+  personalSessionId: string,
+  userId: string,
+  itemId: string,
+) {
+  const [result] = await db
+    .select({ libraryItem: personalTrainingResultsTable.libraryItem })
+    .from(personalTrainingResultsTable)
+    .where(
+      and(
+        eq(personalTrainingResultsTable.personalSessionId, personalSessionId),
+        eq(personalTrainingResultsTable.userId, userId),
+        eq(personalTrainingResultsTable.itemId, itemId),
+      ),
+    )
+  return result?.libraryItem ?? null
+}
+
 async function lockOwnedItem(
   tx: Tx,
   sessionId: string,
   userId: string,
   itemId: string,
   revision: number,
+  includeHistoricalLibrary = false,
 ) {
   const [session] = await tx
     .select()
@@ -547,9 +577,13 @@ async function lockOwnedItem(
     .for("update")
   if (!session) throw new Error("NOT_FOUND: Personal session not found")
   assertTrainingRevision(session.revision, revision)
-  const item = (session.items as PersonalTrainingItem[]).find(
+  const currentItem = (session.items as PersonalTrainingItem[]).find(
     (i) => i.id === itemId,
   )
+  const historicalItem = includeHistoricalLibrary
+    ? await storedLibraryResultItem(tx, sessionId, userId, itemId)
+    : null
+  const item = historicalItem ?? currentItem
   if (!item) throw new Error("NOT_FOUND: Workout is no longer in your session")
   return { session, item }
 }
@@ -656,6 +690,7 @@ export async function linkPersonalTrainingScore(input: {
       itemId: item.id,
       userId,
       block: null,
+      libraryItem: existing?.libraryItem ?? item,
       scoreValue: null,
       displayScore: "Logged",
       notes: "",
@@ -690,6 +725,7 @@ export async function savePersonalLibraryResult(input: {
       userId,
       data.itemId,
       data.expectedRevision,
+      true,
     )
     if (item.kind !== "library")
       throw new Error("Use the session score entry for this workout")
@@ -795,6 +831,7 @@ export async function savePersonalLibraryResult(input: {
         .set({
           displayScore: result.formatted.slice(0, 100),
           legacyScoreId: scoreId,
+          libraryItem: existing.libraryItem ?? item,
         })
         .where(eq(personalTrainingResultsTable.id, existing.id))
     else
@@ -804,6 +841,7 @@ export async function savePersonalLibraryResult(input: {
         itemId: item.id,
         userId,
         block: null,
+        libraryItem: item,
         scoreValue: null,
         displayScore: result.formatted.slice(0, 100),
         notes: "",
@@ -858,10 +896,18 @@ export async function getPersonalLibraryScalingLevels(input: {
   const data = personalTrainingResultSchema
     .pick({ personalSessionId: true, itemId: true })
     .parse(input)
-  const { session } = await ownedSession(data.personalSessionId)
-  const item = (session.items as PersonalTrainingItem[]).find(
-    (value) => value.id === data.itemId,
+  const { session, userId } = await ownedSession(data.personalSessionId)
+  const historicalItem = await storedLibraryResultItem(
+    getDb(),
+    session.id,
+    userId,
+    data.itemId,
   )
+  const item =
+    historicalItem ??
+    (session.items as PersonalTrainingItem[]).find(
+      (value) => value.id === data.itemId,
+    )
   if (!item || item.kind !== "library")
     throw new Error("NOT_FOUND: Library workout is not in your session")
   let groupId = item.workout.scalingGroupId

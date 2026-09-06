@@ -16,6 +16,13 @@ export interface PersonalItemSnapshot {
   workoutId?: string
   workout?: { name: string; description: string; scheme: string; scoreType?: string | null; timeCap?: number | null; roundsToScore?: number | null; repsPerRound?: number | null; tiebreakScheme?: string | null; scalingGroupId?: string | null }
 }
+export interface PersonalLibraryItemSnapshot {
+  id: string
+  kind: "library"
+  workoutId: string
+  workout: NonNullable<PersonalItemSnapshot["workout"]>
+}
+
 export const trainingPreferencesTable = mysqlTable("training_preferences", {
   ...commonColumns,
   id: varchar({ length: 64 }).primaryKey(),
@@ -41,6 +48,7 @@ export const personalTrainingResultsTable = mysqlTable("personal_training_result
   itemId: varchar({ length: 64 }).notNull(),
   userId: varchar({ length: 255 }).notNull(),
   block: json().$type<TrainingBlockSnapshot>(),
+  libraryItem: json().$type<PersonalLibraryItemSnapshot>(),
   scoreValue: bigint({ mode: "number" }),
   displayScore: varchar({ length: 100 }).notNull(),
   notes: text().notNull(),

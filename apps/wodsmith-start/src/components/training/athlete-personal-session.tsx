@@ -45,6 +45,7 @@ export function AthletePersonalSession({
   sourceResults,
   onSaved,
   libraryWorkoutId,
+  onLibraryWorkoutHandled,
   onInteractionBusy,
 }: {
   team: TrainingTeam
@@ -53,6 +54,7 @@ export function AthletePersonalSession({
   sourceResults: OwnTrainingResult[]
   onSaved: (result: OwnTrainingResult) => void
   libraryWorkoutId?: string
+  onLibraryWorkoutHandled?: () => void
   onInteractionBusy?: (busy: boolean) => void
 }) {
   const [day, setDay] = useState<PersonalTrainingDay | null>(null)
@@ -137,6 +139,16 @@ export function AthletePersonalSession({
       cancelled = true
     }
   }, [team.id, date, trackId, retry])
+
+  function clearLibraryRequest() {
+    setLibraryPending(undefined)
+    if (onLibraryWorkoutHandled) onLibraryWorkoutHandled()
+    else {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("workoutId")
+      window.history.replaceState(window.history.state, "", url)
+    }
+  }
 
   async function save(items: PersonalTrainingItemInput[]) {
     if (!day || saving) return false
@@ -326,10 +338,7 @@ export function AthletePersonalSession({
                     },
                   ])
                 ) {
-                  setLibraryPending(undefined)
-                  const url = new URL(window.location.href)
-                  url.searchParams.delete("workoutId")
-                  window.history.replaceState(null, "", url)
+                  clearLibraryRequest()
                 }
               }}
             >
@@ -338,7 +347,7 @@ export function AthletePersonalSession({
             <Button
               variant="outline"
               disabled={saving}
-              onClick={() => setLibraryPending(undefined)}
+              onClick={clearLibraryRequest}
             >
               Cancel
             </Button>
@@ -351,15 +360,25 @@ export function AthletePersonalSession({
           (item.kind === "source" &&
             (item.sourceIsCurrent === false ||
               item.sourceTrainingDate !== date))
-        const result =
-          item.kind === "source" && !personalResult
-            ? ([...sourceResults, ...day.results].find(
+        const sourceOccurrenceResult =
+          item.kind === "source" && item.sourceTrainingDate === date
+            ? [...sourceResults, ...day.results].find(
                 (result) =>
                   result.sessionId === item.sourceSessionId &&
                   result.blockId === item.sourceBlockId &&
                   result.publishedVersion === item.sourcePublishedVersion,
-              ) ?? day.results.find((result) => result.blockId === item.id))
-            : day.results.find((result) => result.blockId === item.id)
+              )
+            : undefined
+        const ownedResult = day.results.find(
+          (result) =>
+            result.sessionId === personal?.id && result.blockId === item.id,
+        )
+        const result = ownedResult ?? sourceOccurrenceResult
+        const readOnlySourceResult =
+          item.kind === "source" &&
+          item.sourceIsCurrent === false &&
+          !ownedResult &&
+          !!sourceOccurrenceResult
         const sourceLabel =
           item.kind === "source"
             ? item.trackName
@@ -390,7 +409,9 @@ export function AthletePersonalSession({
                 <p className="py-3 text-sm text-muted-foreground">
                   {sourceLabel}
                   {item.kind === "source" && item.sourceIsCurrent === false
-                    ? " · Earlier prescription · Private results"
+                    ? readOnlySourceResult
+                      ? " · Earlier prescription"
+                      : " · Earlier prescription · Private results"
                     : ""}
                   {item.kind === "source" && item.sourceTrainingDate !== date
                     ? ` · ${item.sourceTrainingDate}`
@@ -506,6 +527,11 @@ export function AthletePersonalSession({
                   gymName={team.name}
                   trackName={sourceLabel}
                   result={result}
+                  readOnlyMessage={
+                    readOnlySourceResult
+                      ? "Saved against an earlier published version. This result is preserved in My progress and cannot be edited here."
+                      : undefined
+                  }
                   privateOnly={personalResult}
                   saveResult={
                     personalResult && personal
@@ -603,7 +629,7 @@ export function AthletePersonalSession({
                 ref={editorInput}
                 id="personal-title"
                 required
-                maxLength={200}
+                maxLength={160}
                 value={editor.block.title}
                 onChange={(event) =>
                   setEditor({

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { AthleteTraining } from "@/components/training/athlete-training"
 import { trainingDateSchema } from "@/server/training-validation"
 import { getTrainingContextFn } from "@/server-fns/training-fns"
@@ -31,6 +31,7 @@ export const Route = createFileRoute("/_protected/training/")({
 
 function TrainingPage() {
   const context = Route.useLoaderData()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { view, teamId, date, workoutId } = Route.useSearch()
   return (
     <AthleteTraining
@@ -39,6 +40,12 @@ function TrainingPage() {
       initialTeamId={teamId}
       initialDate={date}
       libraryWorkoutId={workoutId}
+      onLibraryWorkoutHandled={() => {
+        void navigate({
+          search: (previous) => ({ ...previous, workoutId: undefined }),
+          replace: true,
+        })
+      }}
     />
   )
 }

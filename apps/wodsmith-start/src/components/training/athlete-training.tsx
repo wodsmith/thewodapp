@@ -64,13 +64,20 @@ export function AthleteTraining({
   initialTeamId,
   initialDate,
   libraryWorkoutId,
+  onLibraryWorkoutHandled,
 }: {
   context: TrainingContext
   initialView?: TrainingView
   initialTeamId?: string
   initialDate?: string
   libraryWorkoutId?: string
+  onLibraryWorkoutHandled?: () => void
 }) {
+  const [pendingLibraryWorkoutId, setPendingLibraryWorkoutId] =
+    useState(libraryWorkoutId)
+  useEffect(() => {
+    setPendingLibraryWorkoutId(libraryWorkoutId)
+  }, [libraryWorkoutId])
   const [selectedTeamId, setSelectedTeamId] = useState(
     initialTeamId ?? context.activeTeamId ?? context.teams[0]?.id ?? "",
   )
@@ -101,7 +108,16 @@ export function AthleteTraining({
       context={context}
       initialView={initialView}
       initialDate={initialDate}
-      libraryWorkoutId={libraryWorkoutId}
+      libraryWorkoutId={pendingLibraryWorkoutId}
+      onLibraryWorkoutHandled={() => {
+        setPendingLibraryWorkoutId(undefined)
+        if (onLibraryWorkoutHandled) onLibraryWorkoutHandled()
+        else {
+          const url = new URL(window.location.href)
+          url.searchParams.delete("workoutId")
+          window.history.replaceState(window.history.state, "", url)
+        }
+      }}
       onTeamChange={setSelectedTeamId}
     />
   )
@@ -114,12 +130,14 @@ function AthleteTrainingGym({
   onTeamChange,
   initialDate,
   libraryWorkoutId,
+  onLibraryWorkoutHandled,
 }: {
   team: TrainingTeam
   context: TrainingContext
   initialView: TrainingView
   initialDate?: string
   libraryWorkoutId?: string
+  onLibraryWorkoutHandled: () => void
   onTeamChange: (id: string) => void
 }) {
   const [trackId, setTrackId] = useState(team.tracks[0]?.id ?? "")
@@ -526,6 +544,7 @@ function AthleteTrainingGym({
               sourceResults={data?.myResults ?? []}
               onSaved={saved}
               libraryWorkoutId={libraryWorkoutId}
+              onLibraryWorkoutHandled={onLibraryWorkoutHandled}
               onInteractionBusy={setInteractionBusy}
             />
           ) : !session || !content ? (

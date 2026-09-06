@@ -26,7 +26,9 @@ Unchanged current source results keep their existing source occurrence and team 
 
 ## Library Results
 
-Library result submission atomically writes the score, round details, and its private personal-item association. Retrying returns the existing association instead of creating another result.
+Library result submission atomically writes the score, round details, and a private association containing the complete performed library-item snapshot. Retrying returns the existing association instead of creating another result.
+
+The result snapshot preserves prescription, scoring, and scaling after an item is removed or its library workout changes or is deleted. Historical edits retain the score ID and validate the owner's current session revision; they never re-add the item. Existing links without a result snapshot capture their original session item before removal.
 
 The server derives workout, gym, and date from the locked session. The legacy score date uses the stored calendar label at UTC midnight, matching existing log semantics. Linking an existing score verifies athlete, workout, noncompetition status, and the exact calendar date. Shared legacy score reads exclude linked personal scores for other athletes. Single and batch workout-set readers also require authentication, inspect private associations, and never return another athlete’s linked round values or notes.
 
@@ -34,7 +36,7 @@ The server derives workout, gym, and date from the locked session. The legacy sc
 
 The additive migration creates training preferences, personal training sessions, and personal training results. Existing programming, workouts, source results, and legacy logs remain unchanged.
 
-Apply `packages/wodsmith-db/mysql-migrations/0002_training_personal.sql` before deploying the new APIs. The generated snapshot also reflects schema already present on the main branch; the SQL intentionally contains only the three new tables and their index.
+Apply `packages/wodsmith-db/mysql-migrations/0002_training_personal.sql` before deploying the new APIs. The follow-up `0003_training_library_history.sql` adds a nullable `library_item` JSON snapshot to personal results and must precede the historical-library fix. The generated snapshot also reflects schema already present on the main branch; the SQL intentionally contains only the three new tables and their index.
 
 ## Verification
 
@@ -103,3 +105,11 @@ A private library association prevents another athlete from reading a score's ro
 ### Batch round reads isolate private associations
 
 Mixed batch reads omit foreign private associations while retaining the caller's own linked scores and ordinary shared scores. Foreign round notes never enter the returned payload.
+
+### Removed library results remain editable
+
+Removing a logged library item and deleting its source workout retains the performed snapshot, scaling options, and private score editing, while stale revisions and other athletes are rejected.
+
+### Earlier library links gain historical snapshots
+
+Linking a score captures the complete library item, and an earlier association with no snapshot preserves its current session item before removal.

@@ -45,9 +45,11 @@ export const Route = createFileRoute("/_protected/log/$id/edit/")({
     const score = logResult.score
 
     // Fetch workout details
-    const workoutResult = await getWorkoutByIdFn({
-      data: { id: score.workoutId },
-    })
+    const workoutResult = score.personalWorkout
+      ? { workout: { ...score.personalWorkout, id: score.workoutId } }
+      : await getWorkoutByIdFn({
+          data: { id: score.workoutId },
+        })
 
     // Fetch scaling levels for this workout
     const levelsResult =

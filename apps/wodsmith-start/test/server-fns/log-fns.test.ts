@@ -785,6 +785,17 @@ describe('Log Server Functions (TanStack)', () => {
   })
 
   describe('personal training score privacy', () => {
+    // @lat: [[training#Library Result Tests#Removed library prescription]]
+    it('returns the performed library snapshot after its session item is removed', async () => {
+      const libraryItem = {id: 'library-1', kind: 'library', workoutId: 'wk-1', workout: {name: 'Original cap', description: 'Original prescription', scheme: 'time-with-cap', timeCap: 600}}
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      limitMock.mockResolvedValueOnce([createTestScore({id: 'private-score', userId: 'test-user-123'})])
+        .mockResolvedValueOnce([{itemId: 'library-1', libraryItem, items: [], personalSessionId: 'session-1', revision: 3, trainingDate: '2026-09-05'}])
+      const result = await getLogByIdFn({data: {id: 'private-score'}})
+      expect(result.score?.personalWorkout).toEqual(libraryItem.workout)
+      expect(result.score?.personalRevision).toBe(3)
+    })
+
     // @lat: [[training#Library Result Tests#Private scores stay private in older views]]
     it('denies another gym member the detail and rounds of a personal result', async () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
