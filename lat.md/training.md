@@ -56,7 +56,7 @@ A failed score request preserves the entered values, audience, notes, and exact 
 
 ### Encoded scores edit in display units
 
-Editing converts normalized scores into familiar time and load inputs without accidentally displaying milliseconds or grams as entered values.
+Editing converts normalized scores into time and load inputs without showing raw milliseconds or grams. Reopening and saving a duration preserves its full hours and fractional seconds.
 
 ### Calendar preserves gym local dates
 

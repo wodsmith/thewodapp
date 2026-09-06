@@ -31,11 +31,20 @@ interface TrainingResultDialogProps {
 }
 
 function initialFields(result?: OwnTrainingResult) {
-  const time = result?.displayScore.match(/^(\d+):(\d{2})/)
+  const timeMilliseconds =
+    result?.block.kind === "time" && result.scoreValue !== null
+      ? result.scoreValue
+      : null
   return {
     score: result?.displayScore.replaceAll(",", "").match(/^[\d.]+/)?.[0] ?? "",
-    minutes: time?.[1] ?? "",
-    seconds: time?.[2] ?? "",
+    minutes:
+      timeMilliseconds === null
+        ? ""
+        : String(Math.floor(timeMilliseconds / 60000)),
+    seconds:
+      timeMilliseconds === null
+        ? ""
+        : String((timeMilliseconds % 60000) / 1000),
     scaling: result?.scaling ?? ("rx" as TrainingScaling),
     modification: result?.modification ?? "",
     notes: result?.notes ?? "",
@@ -172,10 +181,10 @@ export function TrainingResultDialog({
                   <Input
                     id={`${fieldId}-seconds`}
                     type="number"
-                    inputMode="numeric"
+                    inputMode="decimal"
                     min="0"
-                    max="59"
-                    step="1"
+                    max="59.999"
+                    step="0.001"
                     required
                     value={fields.seconds}
                     onChange={(event) => update("seconds", event.target.value)}

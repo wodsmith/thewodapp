@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AthleteTraining } from "@/components/training/athlete-training"
 import { AthleteTeamResults } from "@/components/training/athlete-team-results"
 import { TrainingResultDialog } from "@/components/training/training-result-dialog"
+import { parseTime } from "@/lib/scoring/parse/time"
 import type { OwnTrainingResult, TrainingBlock, TrainingContext, TrainingSession, TrainingWeek } from "@/lib/training/types"
 import { getTrainingHistoryFn, getTrainingWeekFn, saveTrainingResultFn, setTrainingCheerFn } from "@/server-fns/training-fns"
 
@@ -59,12 +60,23 @@ describe("athlete training", () => {
     expect(screen.getByLabelText("Load unit")).toHaveValue("lb")
     unmount()
     const timeBlock = { ...block, kind: "time" as const }
-    render(<TrainingResultDialog session={session} block={timeBlock} trackName="Everyday" gymName="Test gym" result={{ ...result, block: timeBlock, displayScore: "12:34", scoreValue: 754000 }} onSaved={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
-    expect(screen.getByLabelText("Minutes")).toHaveValue(12)
-    expect(screen.getByLabelText("Seconds")).toHaveValue(34)
-    fireEvent.click(screen.getByRole("button", { name: "Save result" }))
-    await waitFor(() => expect(saveTrainingResultFn).toHaveBeenCalledWith({ data: expect.objectContaining({ score: "12:34" }) }))
+    for (const duration of [
+      { displayScore: "12:34", scoreValue: 754000, minutes: 12, seconds: 34, submittedScore: "12:34" },
+      { displayScore: "1:02:34", scoreValue: 3754000, minutes: 62, seconds: 34, submittedScore: "62:34" },
+      { displayScore: "2:00:04", scoreValue: 7204000, minutes: 120, seconds: 4, submittedScore: "120:04" },
+      { displayScore: "1:02:34.567", scoreValue: 3754567, minutes: 62, seconds: 34.567, submittedScore: "62:34.567" },
+      { displayScore: "1:00:59.999", scoreValue: 3659999, minutes: 60, seconds: 59.999, submittedScore: "60:59.999" },
+    ]) {
+      const { unmount: unmountTime } = render(<TrainingResultDialog session={session} block={timeBlock} trackName="Everyday" gymName="Test gym" result={{ ...result, block: timeBlock, displayScore: duration.displayScore, scoreValue: duration.scoreValue }} onSaved={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+      expect(screen.getByLabelText("Minutes")).toHaveValue(duration.minutes)
+      expect(screen.getByLabelText("Seconds")).toHaveValue(duration.seconds)
+      expect(screen.getByLabelText("Seconds")).toBeValid()
+      fireEvent.click(screen.getByRole("button", { name: "Save result" }))
+      await waitFor(() => expect(saveTrainingResultFn).toHaveBeenLastCalledWith({ data: expect.objectContaining({ score: duration.submittedScore }) }))
+      expect(parseTime(duration.submittedScore).encoded).toBe(duration.scoreValue)
+      unmountTime()
+    }
   })
 
   // @lat: [[training#Athlete Interface Tests#Calendar preserves gym local dates]]
