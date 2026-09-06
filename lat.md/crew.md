@@ -6,7 +6,7 @@ Crew helps organizers using another registration platform import volunteers, bui
 
 Crew launches as a volunteer scheduling product: event details, volunteer import, shifts, optional heat-based judge assignments, and schedule exports. Broadcasting, confirmations, and event-day tracking are outside the launch workflow.
 
-[[apps/crew/src/lib/crew/navigation.ts]] and [[apps/crew/src/components/crew-event-sidebar.tsx]] expose the scheduling steps. The legacy messages and day-of routes redirect to shifts, preserving stored data and volunteer response links without requiring these workflows.
+[[apps/crew/src/lib/crew/navigation.ts]] and [[apps/crew/src/components/crew-event-sidebar.tsx]] expose the scheduling steps. The legacy messages and day-of routes are redirect-only stubs that lead to shifts. Stored data, server-side history helpers, and volunteer response links remain available without requiring these workflows.
 
 [[apps/crew/src/server/crew-organizer-home.server.ts]] derives setup completion from the event name, dates, and timezone rather than the retired setup checklist. [[apps/crew/src/lib/crew/organizer-next-action.ts]] guides organizers from roster to shifts and exports; heat imports are optional for shift-only events, and incomplete coverage points back to assignments.
 
@@ -132,7 +132,7 @@ The Setup page also hosts a "Workouts" section (see [[crew#Workout Shells]]) bel
 
 ## Organizer Home Next Action
 
-The Crew organizer home computes one primary next action from event setup, readiness, billing, import, and scheduling state so the event landing page stays task-focused.
+The Crew organizer home computes one primary next action from event details, volunteer roster size, and shift coverage. Heat imports and confirmation state are not prerequisites for scheduling.
 
 [[apps/crew/src/lib/crew/organizer-next-action.ts]] owns deterministic action ranking, while [[apps/crew/src/server/crew-organizer-home.server.ts]] and [[apps/crew/src/server-fns/crew-organizer-home-fns.ts]] load the server-side facts for [[apps/crew/src/routes/events/$eventId/index.tsx]].
 
@@ -228,7 +228,7 @@ The pilot-ops board renders on [[apps/crew/src/routes/events/$eventId/shifts.tsx
 
 ## Volunteer Shifts Page
 
-The Volunteer Shifts page is a focused shift-management surface ported from the wodsmith-start organizer experience, reached from the Workflow sidebar group and the staffing report.
+The Volunteer Shifts page is a focused shift-management surface ported from the wodsmith-start organizer experience, reached from the Schedule sidebar group and the staffing report.
 
 [[apps/crew/src/routes/events/$eventId/shifts.tsx]] loads the shift board through [[apps/crew/src/server-fns/crew-roster-shift-fns.ts#getCrewShiftBoardFn]] and renders the ported [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-list.tsx|ShiftList]]. Shifts group by event-timezone calendar day in cards; each row opens a [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-assignment-panel.tsx|assignment sheet]] that assigns or removes roster volunteers compatible with the shift role, and an add/edit [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-form-dialog.tsx|dialog]] creates and updates shifts.
 
@@ -502,35 +502,35 @@ Crew assignment confirmation links are token-only volunteer surfaces. Raw tokens
 
 ## Assignment Confirmations
 
-Organizer-facing assignment confirmations reuse `crew_assignment_confirmations` and keep assignments authoritative.
+Retained assignment-confirmation helpers reuse `crew_assignment_confirmations` and keep assignments authoritative. The scheduling launch does not expose a confirmations page.
 
 [[apps/crew/src/lib/crew/assignment-confirmations.ts]] normalizes operational states from persisted status plus timestamps: pending, sent, confirmed, declined, change requested, no-show, and replaced. Sent is represented by pending rows with `sentAt`, and replaced is represented by cancelled confirmation rows; checked-in waits for a later first-class primitive.
 
 [[apps/crew/src/server/crew-confirmation.server.ts]] owns guarded organizer status updates for volunteer shift assignments, creating a confirmation row only when an assignment is missing one and never mutating assignment rows as part of status changes. [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] keeps the createServerFn wrapper thin so DB/runtime imports stay out of route module graphs.
 
-[[apps/crew/src/routes/events/$eventId/shifts.tsx]] shows compact assignment-level status controls and summary counts for sent and action-needed confirmations. [[apps/crew/src/lib/crew/staffing/index.ts]], [[apps/crew/src/routes/events/$eventId/staffing.tsx]], and [[apps/crew/src/lib/crew/readiness.ts]] consume the same normalized state so staffing gaps and readiness summaries treat no-shows, change requests, declines, and replacements consistently.
+The scheduling launch exposes shift creation and assignment through [[apps/crew/src/routes/events/$eventId/shifts.tsx]], without confirmation-send controls. [[apps/crew/src/lib/crew/staffing/index.ts]], [[apps/crew/src/routes/events/$eventId/staffing.tsx]], and [[apps/crew/src/lib/crew/readiness.ts]] consume the same normalized state so staffing gaps and readiness summaries treat no-shows, change requests, declines, and replacements consistently.
 
 ## Confirmation Emails And Reminders
 
-Crew confirmation email operations use `crew_assignment_confirmations` as the source of truth for assignment response status, dispatch timestamps, and reminder counts.
+Retained confirmation email helpers use `crew_assignment_confirmations` for response status, dispatch timestamps, and reminder counts. Broadcasting and reminder controls are outside the scheduling launch.
 
 [[apps/crew/src/lib/crew/assignment-confirmations.ts]] plans initial confirmation sends and 48-hour or 24-hour reminders from pending confirmation rows, normalized recipient emails, shift start times, `sentAt`, and `reminderCount`. Idempotency keys use `crew-confirmation-${confirmationId}-${reminderCount}` so queue retries do not double-send a reminder attempt.
 
 [[apps/crew/src/server/crew-confirmation.server.ts]] loads eligible volunteer shift confirmations, mints fresh raw tokens only for the queued payload, stores only the new token hash, and builds rendered Crew email messages from [[apps/crew/src/react-email/crew/assignment-confirmation.tsx]], [[apps/crew/src/react-email/crew/reminder-48-hour.tsx]], and [[apps/crew/src/react-email/crew/reminder-24-hour.tsx]]. If the shared email queue binding is unavailable, the operation only logs preview payloads and returns preview counts.
 
-[[apps/crew/src/server-fns/crew-confirmation-fns.ts]] exposes the route-safe operation wrapper. [[apps/crew/src/routes/events/$eventId/shifts.tsx]] provides quiet operator actions for event-wide confirmation sends and reminder sends, then reports queued, previewed, and failed counts without sending live email during local validation.
+[[apps/crew/src/server-fns/crew-confirmation-fns.ts]] retains the operation wrapper for legacy use. [[apps/crew/src/routes/events/$eventId/messages.tsx]] redirects to shifts and does not render send or reminder controls.
 
 ## Day Of Operations Board
 
-Crew day-of operations is a compact board for current blocks, response queues, role gaps, no-shows, replacements, active judge lane coverage, and organizer-entered attendance state.
+The day-of operations board is retired from the scheduling launch. Its backend helpers remain for stored attendance history and existing volunteer responses.
 
-[[apps/crew/src/routes/events/$eventId/day-of.tsx]] renders the event board. [[apps/crew/src/server-fns/crew-day-of-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-day-of.server.ts]] reuses staffing hydration and mutates only assignment confirmation state for check-in, no-show, and replacement actions.
+[[apps/crew/src/routes/events/$eventId/day-of.tsx]] is a redirect-only stub leading to shifts. [[apps/crew/src/server-fns/crew-day-of-fns.ts]] retains legacy operation wrappers while [[apps/crew/src/server/crew-day-of.server.ts]] reuses staffing hydration and mutates only assignment confirmation state for check-in, no-show, and replacement actions.
 
 [[apps/crew/src/lib/crew/day-of-operations.ts]] derives current and next blocks, critical unfilled roles, due-soon no-responses, decision queues, no-show/replaced queues, time-block status, judge coverage, and accountless assignment action metadata.
 
 Accountless volunteers keep their invitation identity on `crew_assignment_confirmations`: organizer-entered check-in/no-show writes `invitationId`, null `membershipId`, normalized contact fields when present, and a day-of override note without creating an account, accepting an invite, authenticating the volunteer, or changing public token flows. Replacement remains account-backed only: accountless volunteers are excluded from replacement options because the server accepts only real team memberships.
 
-The board does not add schema, exports, queue bindings, live email sends, public token changes, assignment automation, or published judge-row mutation.
+The launch does not expose check-in, no-show, or replacement controls. Retained helpers do not change the scheduling purchase boundary.
 
 ## Pilot Exports
 
@@ -599,3 +599,15 @@ Real MySQL tests verify event purchase locking, retry recovery, settlement order
 [[apps/crew/test/integration/crew-purchase.test.ts]] runs only with `CREW_TEST_DATABASE_URL` pointing to an isolated database ending in `_test` or `_e2e`. It exercises concurrent requests, a lost Stripe response, cancellation, stale expiration and settlement, webhook-before-response ordering, duplicate payment delivery, and the unpaid-to-paid export boundary.
 
 Event managers can view access status and the purchase handoff. Starting Checkout still requires the organizing team’s billing permission; managers without it are directed to the event owner. Production secret selection never falls back to test keys.
+
+## Crew Launch Verification
+
+Crew CI runs the complete unit suite and uses the isolated MySQL browser-test database to verify purchase transactions. Browser coverage follows the organizer from event creation through scheduling and the export purchase boundary.
+
+The unit job in `.github/workflows/ci.yaml` includes Crew. The Crew job in `.github/workflows/e2e.yaml` runs [[crew#Crew Purchase Integration Tests]] before the browser suite. Full-platform refund and revenue component tests remain in WODsmith Start, where those components exist.
+
+Volunteer add, edit, and email-paste dialogs scroll within the viewport so their submit actions remain reachable on small screens. The fresh-event browser test creates a volunteer and shift, assigns coverage, and checks that success URLs cannot bypass purchase.
+
+The seeded demo includes a Basic plan with its complimentary grant. Browser tests verify that active access produces a downloadable CSV containing the assigned volunteers.
+
+[[apps/crew/e2e/fixtures/crew-schedule-cleanup.ts]] requires an isolated test database and removes the fresh-event scenario’s event, event team, invitation, shifts, and confirmation rows in a `finally` cleanup, including after assertion failures.

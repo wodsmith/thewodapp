@@ -504,7 +504,7 @@ function AddVolunteerDialog({
         onOpenChange(nextOpen)
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add volunteer</DialogTitle>
         </DialogHeader>
@@ -658,7 +658,7 @@ function PasteVolunteerEmailsDialog({
         onOpenChange(nextOpen)
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Paste emails</DialogTitle>
         </DialogHeader>
@@ -799,7 +799,7 @@ function EditRosterVolunteerDialog({
         onOpenChange(nextOpen)
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit volunteer</DialogTitle>
         </DialogHeader>

@@ -187,8 +187,8 @@ export async function seedCrewDemoEvent(
 	)
 
 	await connection.execute(
-		`INSERT IGNORE INTO \`crew_event_settings\` (id, competition_id, crew_only, source_platform, lifecycle, concierge_status, crew_plan, crew_billing_state, crew_billing_source, crew_billing_amount_cents, crew_billing_currency, settings, created_at, updated_at, update_counter)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT IGNORE INTO \`crew_event_settings\` (id, competition_id, crew_only, source_platform, lifecycle, concierge_status, crew_plan, crew_billing_plan_id, crew_billing_state, crew_billing_source, crew_billing_amount_cents, crew_billing_currency, settings, created_at, updated_at, update_counter)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		[
 			"e2e_crew_event_settings",
 			EVENT_ID,
@@ -197,6 +197,7 @@ export async function seedCrewDemoEvent(
 			"ready",
 			"ready",
 			"self_serve",
+			"crew_basic",
 			"comped",
 			"comp",
 			0,

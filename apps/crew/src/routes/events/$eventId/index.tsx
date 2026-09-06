@@ -66,12 +66,6 @@ function EventOverviewPage() {
           </div>
         </section>
       ) : null}
-
-      {view.setupParseError ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Setup settings need attention before the checklist can be edited.
-        </p>
-      ) : null}
     </section>
   )
 }
