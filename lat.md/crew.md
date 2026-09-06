@@ -622,7 +622,7 @@ After signature verification, [[apps/crew/src/routes/api/webhooks/stripe.ts]] pr
 
 Crew reuses the existing WODsmith Stripe credentials and Alchemy webhook provisioning, with separate demo and production purchase switches.
 
-[[.github/workflows/deploy-crew.yml]] uses `STRIPE_SECRET_KEY` for production and `STRIPE_SECRET_KEY_DEMO` for demo. Other deployed stages receive no Stripe API key. Alchemy rejects a test key in production or a live key in demo and creates a stage-specific webhook for completed and expired Checkout Sessions using the account default event API version, matching the existing WODsmith Alchemy provider.
+`.github/workflows/deploy-crew.yml` uses `STRIPE_SECRET_KEY` for production and `STRIPE_SECRET_KEY_DEMO` for demo. Other deployed stages receive no Stripe API key. Alchemy rejects a test key in production or a live key in demo and creates a stage-specific webhook for completed and expired Checkout Sessions using the account default event API version, matching the existing WODsmith Alchemy provider.
 
 [[apps/crew/alchemy.run.ts]] binds the resource's signing secret directly to the Crew worker and refuses enabled checkout without it; operators do not copy WODsmith's endpoint secret or create duplicate Crew key secrets. `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` enables demo purchases; `CREW_STRIPE_CHECKOUT_ENABLED` enables production. Both default to false. Other stages keep checkout disabled.
 
