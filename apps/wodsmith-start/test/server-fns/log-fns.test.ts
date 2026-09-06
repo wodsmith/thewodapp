@@ -785,6 +785,12 @@ describe('Log Server Functions (TanStack)', () => {
   })
 
   describe('personal training score privacy', () => {
+    // @lat: [[training#Library Result Tests#Invalid result date]]
+    it('rejects malformed result dates before querying storage', async () => {
+      await expect(updateLogFn({data: {id: 'private-score', date: 'not-a-date'}})).rejects.toThrow('Enter a valid result date')
+      expect(mockDb.getChainMock().limit).not.toHaveBeenCalled()
+    })
+
     // @lat: [[training#Library Result Tests#Removed library prescription]]
     it('returns the performed library snapshot after its session item is removed', async () => {
       const libraryItem = {id: 'library-1', kind: 'library', workoutId: 'wk-1', workout: {name: 'Original cap', description: 'Original prescription', scheme: 'time-with-cap', timeCap: 600}}
@@ -857,6 +863,23 @@ describe('Log Server Functions (TanStack)', () => {
   })
 
   describe('getLogsByUserFn', () => {
+    // @lat: [[training#Library Result Tests#History API bounds optional pagination]]
+    it('bounds opt-in pages and preserves unpaged callers', async () => {
+      mockDb.setMockReturnValue([])
+      await getLogsByUserFn({data: {userId: 'test-user-123', limit: 20, offset: 40}})
+      expect(mockDb.getChainMock().limit).toHaveBeenCalledWith(20)
+      expect(mockDb.getChainMock().offset).toHaveBeenCalledWith(40)
+      expect(vi.mocked(mockDb.getChainMock().orderBy).mock.calls[0]).toHaveLength(2)
+      vi.mocked(mockDb.getChainMock().limit).mockClear()
+      vi.mocked(mockDb.getChainMock().offset).mockClear()
+      await getLogsByUserFn({data: {userId: 'test-user-123'}})
+      expect(mockDb.getChainMock().limit).not.toHaveBeenCalled()
+      expect(mockDb.getChainMock().offset).not.toHaveBeenCalled()
+      await expect(getLogsByUserFn({data: {userId: 'test-user-123', limit: 101}})).rejects.toThrow()
+      await expect(getLogsByUserFn({data: {userId: 'test-user-123', limit: 20, offset: -1}})).rejects.toThrow()
+      await expect(getLogsByUserFn({data: {userId: 'test-user-123', offset: 20}})).rejects.toThrow()
+    })
+
     it('returns logs with workout names and scaling levels', async () => {
       const logs = [
         createTestScore({

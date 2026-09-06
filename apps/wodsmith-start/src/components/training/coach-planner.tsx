@@ -583,6 +583,7 @@ function CoachDayEditor({
   const [restConfirm, setRestConfirm] = useState(false)
   const [deleteBlock, setDeleteBlock] = useState<string | null>(null)
   const [editingBlock, setEditingBlock] = useState<string | null>(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [copyDate, setCopyDate] = useState(shiftDate(trainingDate, 1))
   const [copyTrack, setCopyTrack] = useState(trackId)
   const [copyError, setCopyError] = useState("")
@@ -990,7 +991,7 @@ function CoachDayEditor({
               type="button"
               variant="outline"
               className={actionClass}
-              disabled={content.blocks.length >= 20}
+              disabled={libraryOpen || content.blocks.length >= 20}
               onClick={() => {
                 const block: TrainingBlock = {
                   id: crypto.randomUUID(),
@@ -1014,6 +1015,7 @@ function CoachDayEditor({
             <CoachLibraryPicker
               key={team.id}
               teamId={team.id}
+              onOpenChange={setLibraryOpen}
               disabled={busy || content.blocks.length >= 20}
               onAdd={(block) => {
                 setContent((current) => ({

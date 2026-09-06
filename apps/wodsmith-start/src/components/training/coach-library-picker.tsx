@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,10 +13,12 @@ export function CoachLibraryPicker({
   teamId,
   disabled,
   onAdd,
+  onOpenChange,
 }: {
   teamId: string
   disabled: boolean
   onAdd: (block: TrainingBlock) => void
+  onOpenChange?: (open: boolean) => void
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
@@ -26,37 +28,63 @@ export function CoachLibraryPicker({
   const [searched, setSearched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const requestSequence = useRef(0)
+  useEffect(() => {
+    onOpenChange?.(open)
+    return () => onOpenChange?.(false)
+  }, [open, onOpenChange])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Changing gym invalidates in-flight library requests.
+  useEffect(() => {
+    requestSequence.current += 1
+    setItems([])
+    setSearched(false)
+    setError("")
+    setBusy(false)
+    return () => {
+      requestSequence.current += 1
+    }
+  }, [teamId])
   async function findWorkouts() {
+    if (disabled) return
+    const request = ++requestSequence.current
     setBusy(true)
+    setItems([])
     setError("")
     try {
-      setItems(
-        await listTrainingLibraryWorkoutsFn({ data: { teamId, search } }),
-      )
+      const result = await listTrainingLibraryWorkoutsFn({
+        data: { teamId, search },
+      })
+      if (request !== requestSequence.current) return
+      setItems(result)
       setSearched(true)
     } catch {
-      setError("Could not load the workout library. Try searching again.")
+      if (request === requestSequence.current)
+        setError("Could not load the workout library. Try searching again.")
     } finally {
-      setBusy(false)
+      if (request === requestSequence.current) setBusy(false)
     }
   }
   async function addWorkout(workoutId: string) {
+    if (disabled || busy) return
+    const request = ++requestSequence.current
     setBusy(true)
     setError("")
     try {
       const workout = await getTrainingLibraryWorkoutFn({
         data: { teamId, workoutId },
       })
+      if (request !== requestSequence.current) return
       onAdd(libraryWorkoutToBlock(workout, crypto.randomUUID()))
       setOpen(false)
     } catch (error) {
+      if (request !== requestSequence.current) return
       setError(
         error instanceof Error
           ? error.message
           : "Could not add this workout. Try again.",
       )
     } finally {
-      setBusy(false)
+      if (request === requestSequence.current) setBusy(false)
     }
   }
   return (
@@ -84,6 +112,7 @@ export function CoachLibraryPicker({
             <div className="flex flex-wrap gap-2">
               <Input
                 id="coach-library-search"
+                disabled={disabled}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 className="min-w-0 flex-1"

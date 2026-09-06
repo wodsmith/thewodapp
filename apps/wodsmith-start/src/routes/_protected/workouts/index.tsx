@@ -5,7 +5,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import { LayoutGrid, LayoutList, Plus, Search } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { z } from "zod"
 import { Pagination } from "@/components/pagination"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ import {
   type WorkoutFilters as WorkoutFiltersType,
 } from "@/components/workout-filters"
 import { WORKOUT_SCHEME_VALUES } from "@/db/schemas/workouts"
+import { trainingDateSchema } from "@/server/training-validation"
 import { getTrainingContextFn } from "@/server-fns/training-fns"
 import {
   getWorkoutFilterOptionsFn,
@@ -33,10 +34,7 @@ const workoutsSearchSchema = z.object({
   view: z.enum(["row", "card"]).optional(),
   q: z.string().optional(),
   teamId: z.string().optional(),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
+  date: trainingDateSchema.optional().catch(undefined),
   // Pagination params
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(100).optional(),
@@ -180,6 +178,7 @@ function WorkoutsPage() {
   const q = search.q ?? ""
   const { tagIds, movementIds, workoutType, trackId, type } = search
   const [searchQuery, setSearchQuery] = useState(q)
+  useEffect(() => setSearchQuery(q), [q])
 
   // Build search params for pagination navigation
   const buildPaginationSearchParams = (page: number) => ({
@@ -224,11 +223,7 @@ function WorkoutsPage() {
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newQuery = e.target.value
-    setSearchQuery(newQuery)
-    navigate({
-      search: (prev) => ({ ...prev, q: newQuery, page: 1 }),
-    })
+    setSearchQuery(e.target.value)
   }
 
   // Handle filters change - update URL params and refetch (reset to page 1)
@@ -285,15 +280,19 @@ function WorkoutsPage() {
             id="library-gym"
             className="min-h-11 w-full rounded-md border border-input bg-background px-3"
             value={teamId ?? ""}
-            onChange={(event) =>
-              navigate({
+            onChange={(event) => {
+              const nextTeamId = event.currentTarget.value
+              void navigate({
                 search: (prev) => ({
                   ...prev,
-                  teamId: event.target.value,
+                  teamId: nextTeamId,
+                  trackId: undefined,
+                  tagIds: undefined,
+                  movementIds: undefined,
                   page: 1,
                 }),
               })
-            }
+            }}
           >
             {teams.map((team) => (
               <option key={team.id} value={team.id}>
@@ -321,16 +320,30 @@ function WorkoutsPage() {
       </div>
       {/* Search + View Toggle */}
       <div className="mb-4 flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            aria-label="Search workout library"
-            placeholder="Search workouts..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={handleSearchChange}
-          />
-        </div>
+        <form
+          className="flex min-w-0 flex-1 gap-2"
+          aria-label="Workout library search"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void navigate({
+              search: (prev) => ({ ...prev, q: searchQuery, page: 1 }),
+            })
+          }}
+        >
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              aria-label="Search workout library"
+              placeholder="Search workouts..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
+          </div>
+          <Button type="submit" variant="outline">
+            Search
+          </Button>
+        </form>
         <div className="flex border rounded-md">
           <Button
             variant={view === "row" ? "default" : "ghost"}
@@ -363,7 +376,7 @@ function WorkoutsPage() {
       {filteredWorkouts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg">
-            {searchQuery.trim() || hasActiveFilters
+            {q.trim() || hasActiveFilters
               ? "No workouts found matching your filters."
               : "No workouts found. Create your first workout to get started."}
           </p>

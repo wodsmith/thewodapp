@@ -285,11 +285,18 @@ export const getWorkoutScoresFn = createServerFn({ method: "GET" })
 /**
  * Get all logs (scores) by user ID with workout names and scaling level details
  */
-const getLogsByUserInputSchema = z.object({
-  userId: z.string().min(1, "User ID is required"),
-  teamId: z.string().optional(),
-  personalOnly: z.boolean().optional(),
-})
+const getLogsByUserInputSchema = z
+  .object({
+    userId: z.string().min(1, "User ID is required"),
+    teamId: z.string().optional(),
+    personalOnly: z.boolean().optional(),
+    limit: z.number().int().min(1).max(100).optional(),
+    offset: z.number().int().min(0).max(100000).optional(),
+  })
+  .refine((data) => data.offset === undefined || data.limit !== undefined, {
+    message: "A page limit is required with an offset",
+    path: ["limit"],
+  })
 
 export const getLogsByUserFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getLogsByUserInputSchema.parse(data))
@@ -307,7 +314,7 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
       throw new Error("Not authorized to view these logs")
     }
 
-    const logs = await db
+    const logsQuery = db
       .select({
         id: scoresTable.id,
         userId: scoresTable.userId,
@@ -348,7 +355,11 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
             : undefined,
         ),
       )
-      .orderBy(desc(scoresTable.recordedAt))
+      .orderBy(desc(scoresTable.recordedAt), desc(scoresTable.id))
+
+    const logs = await (data.limit === undefined
+      ? logsQuery
+      : logsQuery.limit(data.limit).offset(data.offset ?? 0))
 
     // Format the display score for each log
     const formattedLogs = logs.map((log) => {
@@ -609,7 +620,13 @@ const updateLogInputSchema = z.object({
   notes: z.string().optional(),
   asRx: z.boolean().optional(),
   scalingLevelId: z.string().optional(),
-  date: z.string().optional(),
+  date: z
+    .string()
+    .refine(
+      (value) => Number.isFinite(Date.parse(value)),
+      "Enter a valid result date",
+    )
+    .optional(),
   // Multi-round support
   roundScores: z
     .array(

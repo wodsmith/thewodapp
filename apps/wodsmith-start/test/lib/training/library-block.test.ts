@@ -9,3 +9,10 @@ describe("workout library composer compatibility", () => {
     expect(()=>libraryWorkoutToBlock({...source,...extra},"new")).toThrow("cannot preserve")
   })
 })
+
+// @lat: [[training#Workout Library#Library text limits]]
+it("accepts the text limits and rejects oversized imports before they enter a draft", () => {
+  expect(libraryWorkoutToBlock({...source, name:"n".repeat(160), description:"d".repeat(6000)}, "fits")).toMatchObject({id:"fits"})
+  expect(() => libraryWorkoutToBlock({...source,name:"n".repeat(161)}, "long-title")).toThrow("160 characters")
+  expect(() => libraryWorkoutToBlock({...source,description:"d".repeat(6001)}, "long-prescription")).toThrow("6,000 characters")
+})

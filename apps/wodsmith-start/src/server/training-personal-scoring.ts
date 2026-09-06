@@ -1,6 +1,7 @@
 import {
   aggregateValues,
   decodeScore,
+  isCountBasedScheme,
   parseScore,
   sortKeyToString,
   type WorkoutScheme,
@@ -42,7 +43,14 @@ export function normalizePersonalLibraryScore(
           secondaryValue: reps,
         }
       }
-      const parsed = parseScore(round.score, scheme)
+      const raw = round.score.trim()
+      if (isCountBasedScheme(scheme) && !/^\d+$/.test(raw))
+        throw new Error(
+          "Enter a whole number without letters or decimal places",
+        )
+      if (scheme === "rounds-reps" && !/^\d+(?:\s*[+.]\s*\d+)?$/.test(raw))
+        throw new Error("Enter complete rounds or rounds+reps, such as 5+12")
+      const parsed = parseScore(raw, scheme)
       if (
         !parsed.isValid ||
         parsed.encoded == null ||

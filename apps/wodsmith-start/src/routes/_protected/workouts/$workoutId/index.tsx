@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { WorkoutRemixInfo } from "@/components/workout-remix-info"
 import { trackEvent } from "@/lib/posthog"
+import { trainingDateSchema } from "@/server/training-validation"
 import { getWorkoutScoresFn, type WorkoutScore } from "@/server-fns/log-fns"
 import { getTrainingContextFn } from "@/server-fns/training-fns"
 import {
@@ -29,10 +30,7 @@ export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
     search: Record<string, unknown>,
   ): { teamId?: string; date?: string } => ({
     teamId: typeof search.teamId === "string" ? search.teamId : undefined,
-    date:
-      typeof search.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.date)
-        ? search.date
-        : undefined,
+    date: trainingDateSchema.safeParse(search.date).data,
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ params, deps }) => {
@@ -259,7 +257,7 @@ function WorkoutDetailPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
-              <h2 className="text-lg font-semibold">EARLIER SCHEDULED DATES</h2>
+              <h2 className="text-lg font-semibold">Scheduled dates</h2>
             </div>
             <Button asChild variant="outline">
               <Link

@@ -16,6 +16,16 @@ export function libraryWorkoutToBlock(
   workout: LibraryBlockSource,
   id: string,
 ): TrainingBlock {
+  if (workout.name.length > 160) {
+    throw new Error(
+      "This workout name exceeds the session limit of 160 characters. Shorten its name in the library before adding it.",
+    )
+  }
+  if (workout.description.length > 6000) {
+    throw new Error(
+      "This workout prescription exceeds the session limit of 6,000 characters. Shorten it in the library before adding it.",
+    )
+  }
   if (
     !["time", "load", "reps"].includes(workout.scheme) ||
     (workout.roundsToScore ?? 1) !== 1 ||

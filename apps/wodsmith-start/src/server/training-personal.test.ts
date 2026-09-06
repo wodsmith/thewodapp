@@ -125,6 +125,77 @@ it("accepts explicit capped reps and rejects ambiguous or malformed cap scores",
   for (const score of ["CAP", "CAP+", "CAP+-1", "CAP+1.5", "3:01"])
     expect(() => normalizePersonalLibraryScore(workout, { score })).toThrow()
 })
+// @lat: [[training-personal#Verification#Numeric scores require complete input]]
+it("rejects numeric prefixes without changing supported time and load formats", () => {
+  const definition = {
+    name: "Workout",
+    description: "Prescribed work",
+    roundsToScore: 1,
+  }
+  for (const scheme of ["reps", "calories", "points"]) {
+    const workout = { ...definition, scheme }
+    for (const score of ["30abc", "30 reps", "30.5", "1e2", "0x20", "30+1"])
+      expect(() => normalizePersonalLibraryScore(workout, { score })).toThrow(
+        "whole number",
+      )
+    for (const [score, value] of [
+      [" 30 ", 30],
+      ["0", 0],
+      ["003", 3],
+    ] as const)
+      expect(normalizePersonalLibraryScore(workout, { score }).scoreValue).toBe(
+        value,
+      )
+    expect(() =>
+      normalizePersonalLibraryScore(
+        { ...workout, roundsToScore: 2 },
+        { score: "", roundScores: [{ score: "30" }, { score: "30abc" }] },
+      ),
+    ).toThrow("whole number")
+  }
+  const rounds = { ...definition, scheme: "rounds-reps" }
+  for (const score of [
+    "5abc",
+    "5+12abc",
+    "5abc+12",
+    "5+1.5",
+    "5+12+3",
+    "1e2+3",
+    "5+",
+    "5.",
+  ])
+    expect(() => normalizePersonalLibraryScore(rounds, { score })).toThrow(
+      "rounds+reps",
+    )
+  for (const [score, value] of [
+    ["5+12", 500012],
+    ["5.12", 500012],
+    [" 5 + 12 ", 500012],
+    ["5", 500000],
+    ["0+0", 0],
+  ] as const)
+    expect(normalizePersonalLibraryScore(rounds, { score }).scoreValue).toBe(
+      value,
+    )
+  expect(
+    normalizePersonalLibraryScore(
+      { ...definition, scheme: "time" },
+      { score: "1:02:34.567" },
+    ).scoreValue,
+  ).toBe(3754567)
+  expect(
+    normalizePersonalLibraryScore(
+      { ...definition, scheme: "load" },
+      { score: "225.5" },
+    ).scoreValue,
+  ).toBe(102285)
+  expect(
+    normalizePersonalLibraryScore(
+      { ...definition, scheme: "time-with-cap", timeCap: 180 },
+      { score: "3:00" },
+    ),
+  ).toMatchObject({ status: "scored", scoreValue: 180000 })
+})
 const databaseUrl = process.env.TRAINING_TEST_DATABASE_URL
 describe.skipIf(!databaseUrl)("personal training database invariants", () => {
   let pool: ReturnType<typeof mysql.createPool>
@@ -226,7 +297,13 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     await db.delete(scoresTable)
     await db
       .update(workouts)
-      .set({ scheme: "reps", roundsToScore: 3, scalingGroupId: null })
+      .set({
+        scheme: "reps",
+        roundsToScore: 3,
+        scalingGroupId: null,
+        timeCap: null,
+        scoreType: null,
+      })
       .where(eq(workouts.id, "personal_library"))
     await db
       .update(teamMembershipTable)
@@ -780,18 +857,16 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
   })
   // @lat: [[training-personal#Verification#Removed library results remain editable]]
   it("preserves library scoring and scaling after removal and source deletion", async () => {
-    await db
-      .insert(workouts)
-      .values({
-        id: "history_library",
-        name: "Original intervals",
-        description: "Two rounds",
-        scheme: "time-with-cap",
-        timeCap: 180,
-        roundsToScore: 2,
-        scoreType: "sum",
-        teamId: day.teamId,
-      })
+    await db.insert(workouts).values({
+      id: "history_library",
+      name: "Original intervals",
+      description: "Two rounds",
+      scheme: "time-with-cap",
+      timeCap: 180,
+      roundsToScore: 2,
+      scoreType: "sum",
+      teamId: day.teamId,
+    })
     const session = await savePersonalTrainingSession({
       ...day,
       expectedRevision: 0,
@@ -878,16 +953,14 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
         { id: "library", kind: "library", workoutId: "personal_library" },
       ],
     })
-    await db
-      .insert(scoresTable)
-      .values({
-        id: "own_linked_history",
-        userId: state.userId,
-        teamId: day.teamId,
-        workoutId: "personal_library",
-        scheme: "reps",
-        recordedAt: new Date(`${day.trainingDate}T00:00:00Z`),
-      })
+    await db.insert(scoresTable).values({
+      id: "own_linked_history",
+      userId: state.userId,
+      teamId: day.teamId,
+      workoutId: "personal_library",
+      scheme: "reps",
+      recordedAt: new Date(`${day.trainingDate}T00:00:00Z`),
+    })
     await linkPersonalTrainingScore({
       personalSessionId: session.id,
       itemId: "library",

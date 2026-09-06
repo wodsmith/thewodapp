@@ -113,3 +113,7 @@ Removing a logged library item and deleting its source workout retains the perfo
 ### Earlier library links gain historical snapshots
 
 Linking a score captures the complete library item, and an earlier association with no snapshot preserves its current session item before removal.
+
+### Numeric scores require complete input
+
+Count scores require whole numbers and rounds-reps scores require complete supported syntax. Numeric prefixes with trailing text are rejected in individual and round results, while valid time and load parsing remains unchanged.
