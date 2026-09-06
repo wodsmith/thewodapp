@@ -13,8 +13,6 @@ describe("getCrewEventNavItems", () => {
       "volunteers",
       "shifts",
       "judges",
-      "confirmations",
-      "event-day",
       "print-packet",
     ])
   })

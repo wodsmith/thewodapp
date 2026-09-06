@@ -1,6 +1,7 @@
 // @lat: [[crew#Day Of Operations Board]]
 import {
   createFileRoute,
+  redirect,
   getRouteApi,
   Link,
   useRouter,
@@ -38,6 +39,10 @@ import {
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/events/$eventId/day-of")({
+  // @lat: [[crew#Scheduling Launch Scope]]
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/events/$eventId/shifts", params })
+  },
   loader: async ({ params }) =>
     await getCrewDayOfOperationsPageFn({
       data: { eventId: params.eventId },

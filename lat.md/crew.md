@@ -1,6 +1,14 @@
 # Crew
 
-Crew is a concierge-first event operations surface that reuses normal WODsmith competitions while adding thin Crew-specific setup, import, and assignment confirmation records.
+Crew helps organizers using another registration platform import volunteers, build shifts and judge assignments, and export a staffing schedule using normal WODsmith competition records.
+
+## Scheduling Launch Scope
+
+Crew launches as a volunteer scheduling product: event details, volunteer import, shifts, optional heat-based judge assignments, and schedule exports. Broadcasting, confirmations, and event-day tracking are outside the launch workflow.
+
+[[apps/crew/src/lib/crew/navigation.ts]] and [[apps/crew/src/components/crew-event-sidebar.tsx]] expose the scheduling steps. The legacy messages and day-of routes redirect to shifts, preserving stored data and volunteer response links without requiring these workflows.
+
+[[apps/crew/src/server/crew-organizer-home.server.ts]] derives setup completion from the event name, dates, and timezone rather than the retired setup checklist. [[apps/crew/src/lib/crew/organizer-next-action.ts]] guides organizers from roster to shifts and exports; heat imports are optional for shift-only events, and incomplete coverage points back to assignments.
 
 ## Crew Billing Catalog
 
