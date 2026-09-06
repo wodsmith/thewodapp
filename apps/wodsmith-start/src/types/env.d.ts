@@ -16,6 +16,7 @@ declare global {
     // Augment the wrangler-generated Env with bindings declared in alchemy.run.ts
     // that aren't included in `wrangler types` output (Durable Objects, AI, etc.).
     interface Env {
+      CROSSFIT_DAILY_IMPORT_WORKFLOW: EnvBinding["CROSSFIT_DAILY_IMPORT_WORKFLOW"]
       JUDGE_SCHEDULER_AGENT: DurableObjectNamespace
       AI: Ai
       /** Cloudflare account id — routed through AI Gateway by the agents */
@@ -25,3 +26,5 @@ declare global {
     }
   }
 }
+
+type EnvBinding = Env

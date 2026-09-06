@@ -29,6 +29,13 @@
       "when": 1788668930970,
       "tag": "0003_training_library_history",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1788714139484,
+      "tag": "0004_crossfit_daily_import",
+      "breakpoints": true
     }
   ]
 }
