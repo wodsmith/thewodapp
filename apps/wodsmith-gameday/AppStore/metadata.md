@@ -40,7 +40,7 @@ Find your next heat, check your lane, and follow your competition from iPhone. A
 
 ## Reviewer notes
 
-Spectator browsing does not require an account. Athlete sign-in uses an existing verified WODsmith email/password account. A verified live review account has been created and its login is saved in App Store Connect. Its competition registration and assigned heats still await approval of the small production review event; fictional Debug fixtures are not a reviewer login.
+Spectator browsing does not require an account. Athlete sign-in uses an existing verified WODsmith email/password account. A verified live review account has been created and its login is saved in App Store Connect. The account is registered for the approved unlisted Game Day App Review event with three workouts, three lane-4 heat assignments, sample results, and one announcement. Actual reviewer instructions are saved in App Store Connect, including the fixed practice times and contact procedure.
 
 To test local notifications, sign in, open Profile → Heat reminders, grant notification permission, and choose a lead time. A future assigned heat must start after that lead time for a reminder to be scheduled. The app must open to download changes.
 

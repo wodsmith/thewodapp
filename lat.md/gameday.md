@@ -164,20 +164,38 @@ The confirmation pass covers light/dark athlete schedules and largest-text scrol
 
 ## Release preparation
 
-The iOS 1.0 App Store record is WODsmith Game Day (`6809070191`). The backend is deployed and a signed App Store IPA is exported. Build upload and review submission remain incomplete.
+The iOS 1.0 App Store record is WODsmith Game Day (`6809070191`). The backend is deployed. Apple validated, processed, and attached build 1 to the version draft. Review submission remains incomplete.
 
-The App Store icon is encoded as opaque RGB over its white background. Apple's distribution validation rejected the earlier alpha channel, so a fresh signed archive is required before upload.
+The App Store icon is encoded as opaque RGB over its white background. Apple rejected the earlier alpha channel. The corrected signed archive and IPA pass Apple's distribution validation.
 
-The release checklist tracks live API checks, review-account data, screenshots, Apple metadata, and the outstanding Developer Program agreement. Local fixture tests and exported binaries are preparation evidence, not proof of publication.
+The release checklist tracks live API checks, review-account data, screenshots, Apple metadata, and the remaining Apple confirmation requirements. Local fixture tests and exported binaries are preparation evidence, not proof of publication.
 
 App Store privacy data types, purposes, linkage, and tracking answers are saved but not published. Age ratings, content rights, the non-medical-device declaration, and free pricing are prepared; Apple calculated 13+ in most regions from the competition/content features.
 
 Five native iPhone 14 Plus screenshots are saved in Apple's 6.5-inch English listing in athlete-first order. They use fictional records and live in `apps/wodsmith-gameday/AppStore/screenshots/`. Public territory availability is configured, subject to Apple's restrictions.
 
-The user supplied the review contact and authorized a test account. Both are saved in App Store Connect. The ordinary test account is verified and native authentication succeeds; a small review event still awaits approval. Credentials stay outside source control.
+The user supplied the review contact and authorized a test account. Both are saved in App Store Connect. The ordinary test account is verified and native authentication succeeds; the approved small review event is created and athlete behavior is verified. Credentials stay outside source control.
 
-The user authorized GitHub push and merge. PR #672 merged and production deployment 34005256436 succeeded. Live native validation then exposed decimal-string workout positions; the API now returns integer list positions, pending follow-up deployment and verification.
+The user authorized GitHub push and merge. PR #672 merged and production deployment 34005256436 succeeded. Live native validation then exposed decimal-string workout positions; PR #674 returns integer list positions and its production deployment passed native integration verification.
+
+The unmodified native client verified all four public competition details and leaderboards, authenticated home, profile update/restoration, and revoked-session rejection on production. The approved review account now has three verified lane-4 assignments.
+
+Apple's Add for Review check now reports only unpublished App Privacy responses. The user explicitly authorized the final privacy attestation and submission. The public policy now states the equivalent protection required of service providers; publication and final submission are next. Build UUID is `888f8f4f-e04f-4459-adde-d86ceb6f2676`; no review submission has been created.
+
+### Production leaderboard schema
+
+The deployed leaderboard required three nullable benchmark columns absent from production. PlanetScale deploy request #40 added those fields and matching indexes on track_workouts and scores through the normal schema migration process.
+
+Existing web and native leaderboard responses recovered for three published competitions. This migration changes schema only; the separately approved fictional review event contains only three fixed heats.
 
 ### Native screenshot evidence
 
 The App Store screenshots show fictional data in real native views. All five current images, including three refreshed contrast captures, are saved in the intended order and verified after reloading Apple's listing.
+
+### Approved review event
+
+The ordinary Apple test athlete is registered in one unlisted fictional event with three workouts, three lane-4 heat assignments, sample results, and one announcement. The user explicitly approved this small fixture; no emails were sent.
+
+Production checks verify ownership boundaries, division standards, announcements, offline schedule encoding, and reminder timing. The simulator displayed the live athlete schedule, started its Live Activity, and received its actual 30-minute local notification.
+
+Reviewer notes list the fixed September 5, 6, and 12, 2026 practice heat times in America/Denver. Contact can adjust the schedule if needed; there is no repeating fixture or automatic rescheduling. Credentials remain outside source control.
