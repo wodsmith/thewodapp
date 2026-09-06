@@ -31,4 +31,6 @@ Each requirement below remains pending until its evidence is recorded. Mocked mo
 
 Baseline `lat check` passes. Semantic `lat search` could not resolve `api.openai.com`; direct `lat locate` and source reads supplied design context. Initial offline dependency install failed because the package cache was incomplete; a frozen online install succeeded. Tests use Node 24 to match the repository engine requirement.
 
+Baseline main-app type checking passes. The four existing workout, remix and scheduler test files pass all 97 tests. The initial Worker build cannot load Vite configuration because this new checkout lacks `.alchemy/local/wrangler.jsonc`; no application compilation occurred in that attempt.
+
 No production deployment, entitlement grant or merge is authorized. Database schema/catalog provisioning, private bucket/DO/Gateway deployment, and live model evaluation must be distinguished from local deterministic tests. A draft PR is the review deliverable when GitHub access permits.
