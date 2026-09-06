@@ -33,7 +33,7 @@ export default function MainNav({
           href={
             session?.user
               ? hasWorkoutTracking
-                ? "/workouts"
+                ? "/training"
                 : // @lat: [[architecture#Route Groups#compete]]
                   "/"
               : // @lat: [[architecture#Route Groups#compete]]
@@ -66,6 +66,12 @@ export default function MainNav({
             <>
               {hasWorkoutTracking && (
                 <>
+                  <a
+                    href="/training"
+                    className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+                  >
+                    Training
+                  </a>
                   <Link
                     to="/workouts"
                     search={{ view: "row", q: "" }}
@@ -80,7 +86,7 @@ export default function MainNav({
                     Log
                   </a>
                   <a
-                    href="/team"
+                    href="/training?view=team"
                     className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
                   >
                     Team

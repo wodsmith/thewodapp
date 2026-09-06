@@ -45,6 +45,7 @@ import { Route as AdminDocsIndexRouteImport } from './routes/admin/docs/index'
 import { Route as AdminDemoCompetitionsIndexRouteImport } from './routes/admin/demo-competitions/index'
 import { Route as AdminCompetitionsIndexRouteImport } from './routes/admin/competitions/index'
 import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
+import { Route as ProtectedTrainingIndexRouteImport } from './routes/_protected/training/index'
 import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
 import { Route as ProtectedSettingsIndexRouteImport } from './routes/_protected/settings/index'
 import { Route as ProtectedProgrammingIndexRouteImport } from './routes/_protected/programming/index'
@@ -83,6 +84,7 @@ import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/sch
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
 import { Route as AdminDocsNewRouteImport } from './routes/admin/docs/new'
 import { Route as AdminDocsDocIdRouteImport } from './routes/admin/docs/$docId'
+import { Route as ProtectedTrainingProgrammingRouteImport } from './routes/_protected/training/programming'
 import { Route as ProtectedSettingsDownloadsRouteImport } from './routes/_protected/settings/downloads'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as CompeteOrganizerOnboardIndexRouteImport } from './routes/compete/organizer/onboard/index'
@@ -408,6 +410,11 @@ const ProtectedWorkoutsIndexRoute = ProtectedWorkoutsIndexRouteImport.update({
   path: '/workouts/',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const ProtectedTrainingIndexRoute = ProtectedTrainingIndexRouteImport.update({
+  id: '/training/',
+  path: '/training/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedTeamIndexRoute = ProtectedTeamIndexRouteImport.update({
   id: '/team/',
   path: '/team/',
@@ -606,6 +613,12 @@ const AdminDocsDocIdRoute = AdminDocsDocIdRouteImport.update({
   path: '/docs/$docId',
   getParentRoute: () => AdminRoute,
 } as any)
+const ProtectedTrainingProgrammingRoute =
+  ProtectedTrainingProgrammingRouteImport.update({
+    id: '/training/programming',
+    path: '/training/programming',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 const ProtectedSettingsDownloadsRoute =
   ProtectedSettingsDownloadsRouteImport.update({
     id: '/downloads',
@@ -1493,6 +1506,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
   '/settings/downloads': typeof ProtectedSettingsDownloadsRoute
+  '/training/programming': typeof ProtectedTrainingProgrammingRoute
   '/admin/docs/$docId': typeof AdminDocsDocIdRoute
   '/admin/docs/new': typeof AdminDocsNewRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
@@ -1530,6 +1544,7 @@ export interface FileRoutesByFullPath {
   '/programming': typeof ProtectedProgrammingIndexRoute
   '/settings/': typeof ProtectedSettingsIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
+  '/training': typeof ProtectedTrainingIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
   '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
@@ -1706,6 +1721,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
   '/settings/downloads': typeof ProtectedSettingsDownloadsRoute
+  '/training/programming': typeof ProtectedTrainingProgrammingRoute
   '/admin/docs/$docId': typeof AdminDocsDocIdRoute
   '/admin/docs/new': typeof AdminDocsNewRoute
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
@@ -1739,6 +1755,7 @@ export interface FileRoutesByTo {
   '/programming': typeof ProtectedProgrammingIndexRoute
   '/settings': typeof ProtectedSettingsIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
+  '/training': typeof ProtectedTrainingIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
   '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
@@ -1914,6 +1931,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
   '/_protected/settings/downloads': typeof ProtectedSettingsDownloadsRoute
+  '/_protected/training/programming': typeof ProtectedTrainingProgrammingRoute
   '/admin/docs/$docId': typeof AdminDocsDocIdRoute
   '/admin/docs/new': typeof AdminDocsNewRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
@@ -1952,6 +1970,7 @@ export interface FileRoutesById {
   '/_protected/programming/': typeof ProtectedProgrammingIndexRoute
   '/_protected/settings/': typeof ProtectedSettingsIndexRoute
   '/_protected/team/': typeof ProtectedTeamIndexRoute
+  '/_protected/training/': typeof ProtectedTrainingIndexRoute
   '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions/': typeof AdminCompetitionsIndexRoute
   '/admin/demo-competitions/': typeof AdminDemoCompetitionsIndexRoute
@@ -2134,6 +2153,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/compete/'
     | '/settings/downloads'
+    | '/training/programming'
     | '/admin/docs/$docId'
     | '/admin/docs/new'
     | '/admin/teams/$teamId'
@@ -2171,6 +2191,7 @@ export interface FileRouteTypes {
     | '/programming'
     | '/settings/'
     | '/team'
+    | '/training'
     | '/workouts'
     | '/admin/competitions'
     | '/admin/demo-competitions'
@@ -2347,6 +2368,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/compete'
     | '/settings/downloads'
+    | '/training/programming'
     | '/admin/docs/$docId'
     | '/admin/docs/new'
     | '/api/auth/token'
@@ -2380,6 +2402,7 @@ export interface FileRouteTypes {
     | '/programming'
     | '/settings'
     | '/team'
+    | '/training'
     | '/workouts'
     | '/admin/competitions'
     | '/admin/demo-competitions'
@@ -2554,6 +2577,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/compete/'
     | '/_protected/settings/downloads'
+    | '/_protected/training/programming'
     | '/admin/docs/$docId'
     | '/admin/docs/new'
     | '/admin/teams/$teamId'
@@ -2592,6 +2616,7 @@ export interface FileRouteTypes {
     | '/_protected/programming/'
     | '/_protected/settings/'
     | '/_protected/team/'
+    | '/_protected/training/'
     | '/_protected/workouts/'
     | '/admin/competitions/'
     | '/admin/demo-competitions/'
@@ -3039,6 +3064,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedWorkoutsIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/training/': {
+      id: '/_protected/training/'
+      path: '/training'
+      fullPath: '/training'
+      preLoaderRoute: typeof ProtectedTrainingIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/team/': {
       id: '/_protected/team/'
       path: '/team'
@@ -3304,6 +3336,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/docs/$docId'
       preLoaderRoute: typeof AdminDocsDocIdRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/_protected/training/programming': {
+      id: '/_protected/training/programming'
+      path: '/training/programming'
+      fullPath: '/training/programming'
+      preLoaderRoute: typeof ProtectedTrainingProgrammingRouteImport
+      parentRoute: typeof ProtectedRoute
     }
     '/_protected/settings/downloads': {
       id: '/_protected/settings/downloads'
@@ -4383,11 +4422,13 @@ const ProtectedSettingsRouteWithChildren =
 interface ProtectedRouteChildren {
   ProtectedDashboardRoute: typeof ProtectedDashboardRoute
   ProtectedSettingsRoute: typeof ProtectedSettingsRouteWithChildren
+  ProtectedTrainingProgrammingRoute: typeof ProtectedTrainingProgrammingRoute
   ProtectedCalculatorIndexRoute: typeof ProtectedCalculatorIndexRoute
   ProtectedLogIndexRoute: typeof ProtectedLogIndexRoute
   ProtectedMovementsIndexRoute: typeof ProtectedMovementsIndexRoute
   ProtectedProgrammingIndexRoute: typeof ProtectedProgrammingIndexRoute
   ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
+  ProtectedTrainingIndexRoute: typeof ProtectedTrainingIndexRoute
   ProtectedWorkoutsIndexRoute: typeof ProtectedWorkoutsIndexRoute
   ProtectedCalculatorSpreadsheetIndexRoute: typeof ProtectedCalculatorSpreadsheetIndexRoute
   ProtectedLogNewIndexRoute: typeof ProtectedLogNewIndexRoute
@@ -4408,11 +4449,13 @@ interface ProtectedRouteChildren {
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedDashboardRoute: ProtectedDashboardRoute,
   ProtectedSettingsRoute: ProtectedSettingsRouteWithChildren,
+  ProtectedTrainingProgrammingRoute: ProtectedTrainingProgrammingRoute,
   ProtectedCalculatorIndexRoute: ProtectedCalculatorIndexRoute,
   ProtectedLogIndexRoute: ProtectedLogIndexRoute,
   ProtectedMovementsIndexRoute: ProtectedMovementsIndexRoute,
   ProtectedProgrammingIndexRoute: ProtectedProgrammingIndexRoute,
   ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
+  ProtectedTrainingIndexRoute: ProtectedTrainingIndexRoute,
   ProtectedWorkoutsIndexRoute: ProtectedWorkoutsIndexRoute,
   ProtectedCalculatorSpreadsheetIndexRoute:
     ProtectedCalculatorSpreadsheetIndexRoute,
