@@ -86,6 +86,8 @@ Alchemy provisions the SQLite namespace, private source bucket with a 24-hour li
 
 The main app pins Cloudflare Vite plugin 1.32.3 and Wrangler 4.83.0, whose April 2026 workerd supports native named Durable Object IDs required by Agents 0.22. The former December 2025 local runtime failed before session creation despite passing mocked tests. Crew keeps its own existing tooling.
 
+A real workerd probe with fresh isolated storage verified `getAgentByName` and native Agent RPC at the unchanged 2025-09-02 compatibility date. Frozen installation, both app type checks, 19 importer tests and 97 existing workout/remix/scheduler tests per app passed after this tooling update.
+
 Run `node scripts/workout-import-local-config.mjs` inside the main app to create an isolated build fixture only if one does not already exist. It does not configure remote AI or deploy resources. Run `pnpm test:workout-import-runtime` for Node binding/transport tests and normal app tests for scheduler regression.
 
 `scripts/workout-import-smoke.worker.ts` is a local-loopback-only synthetic-fixture harness, never exported from the app. Live smoke requires an explicitly configured remote AI binding and Gateway; mocked binding results do not establish live model quality or deployed payload-log suppression.
