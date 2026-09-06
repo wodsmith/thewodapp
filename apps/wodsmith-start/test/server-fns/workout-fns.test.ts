@@ -114,6 +114,7 @@ function createTestWorkout(
     repsPerRound: overrides?.repsPerRound ?? null,
     roundsToScore: overrides?.roundsToScore ?? null,
     tiebreakScheme: overrides?.tiebreakScheme ?? null,
+    scalingGroupId: null,
     createdAt: overrides?.createdAt ?? now,
     updatedAt: overrides?.updatedAt ?? now,
     ...overrides,
@@ -431,7 +432,7 @@ describe('Workout Server Functions (TanStack)', () => {
 
       const result = await getWorkoutByIdFn({data: {id: 'wk-123'}})
 
-      expect(result.workout).toEqual(workout)
+      expect(result.workout).toEqual({...workout, movements: []})
       expect(mockDb.select).toHaveBeenCalled()
       expect(mockDb.from).toHaveBeenCalled()
     })

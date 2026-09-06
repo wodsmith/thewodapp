@@ -5,6 +5,7 @@
  * This file uses top-level imports for server-only modules.
  */
 
+import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
 import {
   and,
@@ -353,6 +354,7 @@ export const getWorkoutByIdFn = createServerFn({ method: "GET" })
         roundsToScore: workouts.roundsToScore,
         timeCap: workouts.timeCap,
         tiebreakScheme: workouts.tiebreakScheme,
+        scalingGroupId: workouts.scalingGroupId,
         createdAt: workouts.createdAt,
         updatedAt: workouts.updatedAt,
       })
@@ -364,7 +366,10 @@ export const getWorkoutByIdFn = createServerFn({ method: "GET" })
       return { workout: null }
     }
 
-    return { workout: workout[0] }
+    const movementMap = await fetchMovementsByWorkoutId(db, [data.id])
+    return {
+      workout: { ...workout[0], movements: movementMap.get(data.id) ?? [] },
+    }
   })
 
 // Schema for creating a workout
@@ -455,10 +460,14 @@ const updateWorkoutInputSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().min(1, "Description is required"),
   scheme: z.enum(WORKOUT_SCHEME_VALUES),
-  scoreType: z.enum(SCORE_TYPE_VALUES).optional(),
+  scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
   scope: z.enum(["private", "public"]),
-  timeCap: z.number().int().min(1).optional(),
-  roundsToScore: z.number().int().min(1).optional(),
+  movementIds: z.array(z.string().min(1)).max(100).optional(),
+  repsPerRound: z.number().int().positive().nullable().optional(),
+  tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
+  scalingGroupId: z.string().min(1).nullable().optional(),
+  timeCap: z.number().int().min(1).nullable().optional(),
+  roundsToScore: z.number().int().min(1).nullable().optional(),
 })
 
 export type UpdateWorkoutInput = z.infer<typeof updateWorkoutInputSchema>
@@ -477,28 +486,75 @@ export const updateWorkoutFn = createServerFn({ method: "POST" })
       throw new Error("Not authenticated")
     }
 
-    // Update the workout
-    await db
-      .update(workouts)
-      .set({
+    const updatedWorkout = await db.transaction(async (tx) => {
+      const existing = await tx.query.workouts.findFirst({
+        where: eq(workouts.id, data.id),
+      })
+      if (!existing) throw new Error("Workout not found")
+      if (!existing.teamId)
+        throw new Error("Workout has no editable owner team")
+      await requireWorkoutTeamWrite(
+        session.userId,
+        existing.teamId,
+        TEAM_PERMISSIONS.EDIT_COMPONENTS,
+        tx,
+      )
+      const normalized = normalizedWorkoutSaveSchema.parse({
         name: data.name,
         description: data.description,
         scheme: data.scheme,
-        scoreType: data.scoreType ?? null,
         scope: data.scope,
-        timeCap: data.timeCap ?? null,
-        roundsToScore: data.roundsToScore ?? null,
-        updatedAt: new Date(),
+        scoreType:
+          data.scoreType === undefined ? existing.scoreType : data.scoreType,
+        timeCapSeconds:
+          data.timeCap === undefined
+            ? data.scheme === "time-with-cap"
+              ? existing.timeCap
+              : null
+            : data.timeCap,
+        roundsToScore:
+          data.roundsToScore === undefined
+            ? (existing.roundsToScore ?? 1)
+            : (data.roundsToScore ?? 1),
+        repsPerRound:
+          data.repsPerRound === undefined
+            ? existing.repsPerRound
+            : data.repsPerRound,
+        tiebreakScheme:
+          data.tiebreakScheme === undefined
+            ? existing.tiebreakScheme
+            : data.tiebreakScheme,
+        scalingGroupId:
+          data.scalingGroupId === undefined
+            ? existing.scalingGroupId
+            : data.scalingGroupId,
+        movementIds: data.movementIds ?? [],
       })
-      .where(eq(workouts.id, data.id))
-
-    const updatedWorkout = await db.query.workouts.findFirst({
-      where: eq(workouts.id, data.id),
+      await validateWorkoutReferences(tx, normalized, existing.teamId)
+      const { movementIds, timeCapSeconds, ...fields } = normalized
+      await tx
+        .update(workouts)
+        .set({ ...fields, timeCap: timeCapSeconds, updatedAt: new Date() })
+        .where(eq(workouts.id, data.id))
+      if (data.movementIds !== undefined) {
+        await tx
+          .delete(workoutMovements)
+          .where(eq(workoutMovements.workoutId, data.id))
+        if (movementIds.length)
+          await tx.insert(workoutMovements).values(
+            movementIds.map((movementId) => ({
+              id: `wm_${createId()}`,
+              workoutId: data.id,
+              movementId,
+            })),
+          )
+      }
+      const updated = await tx.query.workouts.findFirst({
+        where: eq(workouts.id, data.id),
+      })
+      if (!updated) throw new Error("Workout not found")
+      return updated
     })
-
-    if (!updatedWorkout) {
-      throw new Error("Workout not found")
-    }
 
     return { workout: updatedWorkout }
   })

@@ -45,3 +45,9 @@ Manual creation validates references, persists scoring fields, and checks destin
 Manual creation stays independent of AI entitlements. Import saves always use the dedicated server-owned session service, even when the reviewed proposal has been edited locally.
 
 Admin revocation writes an inactive import snapshot even when access came only from a plan or manual override. This prevents a missing snapshot from preserving access after a successful revoke action.
+
+## Saved workout edit roundtrip
+
+Saved imports use ordinary workout edit permissions. Reads include movements and scaling references; updates validate and atomically persist all reviewed scoring fields and movement replacements, independently of AI access.
+
+Omitted new metadata or movements preserves existing values for older callers. Explicit null clears optional scoring metadata and an empty movement list clears junction rows. Real MySQL tests verify reload, replacement, clearing, invalid-reference rollback, and denied writes after permission loss.

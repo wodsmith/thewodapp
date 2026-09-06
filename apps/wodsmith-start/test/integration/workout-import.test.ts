@@ -74,7 +74,7 @@ vi.mock("@tanstack/react-start", () => ({
   }),
   createServerOnlyFn: (fn: unknown) => fn,
 }))
-import { createWorkoutFn } from "@/server-fns/workout-fns"
+import { createWorkoutFn, updateWorkoutFn, getWorkoutByIdFn } from "@/server-fns/workout-fns"
 import { addWorkoutToTrackFn } from "@/server-fns/programming-fns"
 import {
   getWorkoutImportAccessFn,
@@ -663,6 +663,28 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
     await db.update(teamMembershipTable).set({isActive:false}).where(eq(teamMembershipTable.teamId,"gym"))
     await expect(addWorkoutToTrackFn({data:{trackId:"track",workoutId:"public-workout",trackOrder:3}})).rejects.toThrow("access required")
     expect(await rowCounts()).toEqual([3,0,2,0])
+  })
+  // @lat: [[workout-import#Workout Import#Saved workout edit roundtrip]]
+  it("reloads and edits all imported metadata atomically after the AI grant is revoked",async()=>{
+    await grantTeamFeature("personal",FEATURES.AI_WORKOUT_IMPORT)
+    const input=await draft();const saved=await saveWorkoutImport({userId:"athlete",input},db)
+    await revokeTeamFeature("personal",FEATURES.AI_WORKOUT_IMPORT)
+    const initial=await getWorkoutByIdFn({data:{id:saved.workoutId}})
+    expect(initial.workout).toMatchObject({scalingGroupId:"scaling",repsPerRound:10,tiebreakScheme:"reps",movements:[{id:"pull-up"}]})
+    await seed(movements,{id:"squat",name:"Squat",type:"weightlifting"})
+    const edit={id:saved.workoutId,name:"Edited",description:"Five recorded time scores",scheme:"time-with-cap" as const,scope:"private" as const,scoreType:"max" as const,timeCap:720,roundsToScore:5,repsPerRound:20,tiebreakScheme:"time" as const,scalingGroupId:"scaling",movementIds:["squat"]}
+    await updateWorkoutFn({data:edit})
+    const updated=await getWorkoutByIdFn({data:{id:saved.workoutId}})
+    expect(updated.workout).toMatchObject({scoreType:"max",timeCap:720,roundsToScore:5,repsPerRound:20,tiebreakScheme:"time",scalingGroupId:"scaling",movements:[{id:"squat"}]})
+    await updateWorkoutFn({data:{id:saved.workoutId,name:"Edited",description:edit.description,scheme:edit.scheme,scope:edit.scope}})
+    expect((await getWorkoutByIdFn({data:{id:saved.workoutId}})).workout).toMatchObject({scoreType:"max",timeCap:720,roundsToScore:5,repsPerRound:20,tiebreakScheme:"time",scalingGroupId:"scaling",movements:[{id:"squat"}]})
+    await expect(updateWorkoutFn({data:{...edit,name:"Must rollback",movementIds:["unknown"]}})).rejects.toThrow("catalog movements")
+    expect((await getWorkoutByIdFn({data:{id:saved.workoutId}})).workout?.name).toBe("Edited")
+    await updateWorkoutFn({data:{...edit,roundsToScore:null,repsPerRound:null,tiebreakScheme:null,scalingGroupId:null,movementIds:[]}})
+    expect((await getWorkoutByIdFn({data:{id:saved.workoutId}})).workout).toMatchObject({roundsToScore:1,repsPerRound:null,tiebreakScheme:null,scalingGroupId:null,movements:[]})
+    await db.update(teamMembershipTable).set({isActive:false}).where(eq(teamMembershipTable.teamId,"personal"))
+    await expect(updateWorkoutFn({data:{...edit,name:"Forbidden"}})).rejects.toThrow("access required")
+    expect((await getWorkoutByIdFn({data:{id:saved.workoutId}})).workout?.name).toBe("Edited")
   })
   it("manual creation persists metadata and movements with actual destination authorization", async () => {
     const data = {
