@@ -156,6 +156,7 @@ import { Route as CompeteSlugWorkoutsEventIdRouteImport } from './routes/compete
 import { Route as CompeteSlugRegisterSuccessRouteImport } from './routes/compete/$slug/register/success'
 import { Route as CompeteSlugClaimTokenRouteImport } from './routes/compete/$slug/claim/$token'
 import { Route as ApiStripeConnectCallbackRouteImport } from './routes/api/stripe/connect/callback'
+import { Route as ApiGamedayV1SplatRouteImport } from './routes/api/gameday/v1/$'
 import { Route as ApiCompeteVideoSubmitRouteImport } from './routes/api/compete/video/submit'
 import { Route as ApiCompeteScoresWindowStatusRouteImport } from './routes/api/compete/scores/window-status'
 import { Route as ApiCompeteScoresSubmitRouteImport } from './routes/api/compete/scores/submit'
@@ -1036,6 +1037,11 @@ const ApiStripeConnectCallbackRoute =
     path: '/api/stripe/connect/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiGamedayV1SplatRoute = ApiGamedayV1SplatRouteImport.update({
+  id: '/api/gameday/v1/$',
+  path: '/api/gameday/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCompeteVideoSubmitRoute = ApiCompeteVideoSubmitRouteImport.update({
   id: '/api/compete/video/submit',
   path: '/api/compete/video/submit',
@@ -1554,6 +1560,7 @@ export interface FileRoutesByFullPath {
   '/api/compete/scores/submit': typeof ApiCompeteScoresSubmitRoute
   '/api/compete/scores/window-status': typeof ApiCompeteScoresWindowStatusRoute
   '/api/compete/video/submit': typeof ApiCompeteVideoSubmitRoute
+  '/api/gameday/v1/$': typeof ApiGamedayV1SplatRoute
   '/api/stripe/connect/callback': typeof ApiStripeConnectCallbackRoute
   '/compete/$slug/claim/$token': typeof CompeteSlugClaimTokenRouteWithChildren
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
@@ -1763,6 +1770,7 @@ export interface FileRoutesByTo {
   '/api/compete/scores/submit': typeof ApiCompeteScoresSubmitRoute
   '/api/compete/scores/window-status': typeof ApiCompeteScoresWindowStatusRoute
   '/api/compete/video/submit': typeof ApiCompeteVideoSubmitRoute
+  '/api/gameday/v1/$': typeof ApiGamedayV1SplatRoute
   '/api/stripe/connect/callback': typeof ApiStripeConnectCallbackRoute
   '/compete/$slug/claim/$token': typeof CompeteSlugClaimTokenRouteWithChildren
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
@@ -1976,6 +1984,7 @@ export interface FileRoutesById {
   '/api/compete/scores/submit': typeof ApiCompeteScoresSubmitRoute
   '/api/compete/scores/window-status': typeof ApiCompeteScoresWindowStatusRoute
   '/api/compete/video/submit': typeof ApiCompeteVideoSubmitRoute
+  '/api/gameday/v1/$': typeof ApiGamedayV1SplatRoute
   '/api/stripe/connect/callback': typeof ApiStripeConnectCallbackRoute
   '/compete/$slug/claim/$token': typeof CompeteSlugClaimTokenRouteWithChildren
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
@@ -2195,6 +2204,7 @@ export interface FileRouteTypes {
     | '/api/compete/scores/submit'
     | '/api/compete/scores/window-status'
     | '/api/compete/video/submit'
+    | '/api/gameday/v1/$'
     | '/api/stripe/connect/callback'
     | '/compete/$slug/claim/$token'
     | '/compete/$slug/register/success'
@@ -2404,6 +2414,7 @@ export interface FileRouteTypes {
     | '/api/compete/scores/submit'
     | '/api/compete/scores/window-status'
     | '/api/compete/video/submit'
+    | '/api/gameday/v1/$'
     | '/api/stripe/connect/callback'
     | '/compete/$slug/claim/$token'
     | '/compete/$slug/register/success'
@@ -2616,6 +2627,7 @@ export interface FileRouteTypes {
     | '/api/compete/scores/submit'
     | '/api/compete/scores/window-status'
     | '/api/compete/video/submit'
+    | '/api/gameday/v1/$'
     | '/api/stripe/connect/callback'
     | '/compete/$slug/claim/$token'
     | '/compete/$slug/register/success'
@@ -2773,6 +2785,7 @@ export interface RootRouteChildren {
   ApiCompeteScoresSubmitRoute: typeof ApiCompeteScoresSubmitRoute
   ApiCompeteScoresWindowStatusRoute: typeof ApiCompeteScoresWindowStatusRoute
   ApiCompeteVideoSubmitRoute: typeof ApiCompeteVideoSubmitRoute
+  ApiGamedayV1SplatRoute: typeof ApiGamedayV1SplatRoute
   ApiStripeConnectCallbackRoute: typeof ApiStripeConnectCallbackRoute
   DemoStartSsrDataOnlyRoute: typeof DemoStartSsrDataOnlyRoute
   DemoStartSsrFullSsrRoute: typeof DemoStartSsrFullSsrRoute
@@ -3814,6 +3827,13 @@ declare module '@tanstack/react-router' {
       path: '/api/stripe/connect/callback'
       fullPath: '/api/stripe/connect/callback'
       preLoaderRoute: typeof ApiStripeConnectCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gameday/v1/$': {
+      id: '/api/gameday/v1/$'
+      path: '/api/gameday/v1/$'
+      fullPath: '/api/gameday/v1/$'
+      preLoaderRoute: typeof ApiGamedayV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/compete/video/submit': {
@@ -5074,6 +5094,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCompeteScoresSubmitRoute: ApiCompeteScoresSubmitRoute,
   ApiCompeteScoresWindowStatusRoute: ApiCompeteScoresWindowStatusRoute,
   ApiCompeteVideoSubmitRoute: ApiCompeteVideoSubmitRoute,
+  ApiGamedayV1SplatRoute: ApiGamedayV1SplatRoute,
   ApiStripeConnectCallbackRoute: ApiStripeConnectCallbackRoute,
   DemoStartSsrDataOnlyRoute: DemoStartSsrDataOnlyRoute,
   DemoStartSsrFullSsrRoute: DemoStartSsrFullSsrRoute,

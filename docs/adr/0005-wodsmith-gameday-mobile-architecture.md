@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 date: 2026-03-14
 decision-makers: [Ian Jones]
 consulted: []
@@ -7,6 +7,8 @@ informed: []
 ---
 
 # ADR-0005: Wodsmith Gameday Mobile Architecture
+
+Superseded September 5, 2026 by the native SwiftUI rebuild requested by the product owner. See `lat.md/gameday.md` and `apps/wodsmith-gameday/README.md` for the current implementation. This record preserves the earlier Capacitor decision.
 
 ## Context and Problem Statement
 
