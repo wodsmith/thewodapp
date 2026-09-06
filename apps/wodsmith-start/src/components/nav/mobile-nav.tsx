@@ -70,6 +70,13 @@ export default function MobileNav({
               <hr className="my-2" />
               {hasWorkoutTracking && (
                 <>
+                  <a
+                    href="/training"
+                    className="hover:text-primary"
+                    onClick={handleLinkClick}
+                  >
+                    Training
+                  </a>
                   <Link
                     to="/workouts"
                     search={{ view: "row", q: "" }}
@@ -86,7 +93,7 @@ export default function MobileNav({
                     Log
                   </a>
                   <a
-                    href="/team"
+                    href="/training?view=team"
                     className="hover:text-primary"
                     onClick={handleLinkClick}
                   >

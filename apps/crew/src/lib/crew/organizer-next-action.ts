@@ -5,8 +5,6 @@ export type CrewOrganizerNextAction =
   | { key: "import_heat_schedule"; ctaTo: "/heats" }
   | { key: "build_staffing_plan"; ctaTo: "/staffing" }
   | { key: "create_assignments"; ctaTo: "/shifts" }
-  | { key: "send_confirmations"; ctaTo: "/messages" }
-  | { key: "run_day_of"; ctaTo: "/day-of" }
   | { key: "print_packet"; ctaTo: "/exports" }
 
 export interface CrewOrganizerNextActionInput {
@@ -51,10 +49,7 @@ export function deriveCrewOrganizerNextAction({
   setup,
   imports,
   roster,
-  heatSchedule,
   shifts,
-  confirmations,
-  dayOfState,
 }: CrewOrganizerNextActionInput): CrewOrganizerNextAction {
   if (setup.completed < setup.total) {
     return { key: "finish_setup", ctaTo: "/setup" }
@@ -68,31 +63,12 @@ export function deriveCrewOrganizerNextAction({
     return { key: "import_volunteers", ctaTo: "/volunteers" }
   }
 
-  if (
-    imports.appliedHeatScheduleImportCount === 0 &&
-    heatSchedule.heatCount === 0 &&
-    heatSchedule.scheduledHeatCount === 0
-  ) {
-    return {
-      key: "import_heat_schedule",
-      ctaTo: "/heats",
-    }
-  }
-
   if (shifts.totalShifts === 0 || shifts.capacity === 0) {
     return { key: "build_staffing_plan", ctaTo: "/staffing" }
   }
 
-  if (shifts.assignedSlots === 0) {
+  if (shifts.assignedSlots < shifts.capacity) {
     return { key: "create_assignments", ctaTo: "/shifts" }
-  }
-
-  if (confirmations.missing > 0 || confirmations.pending > 0) {
-    return { key: "send_confirmations", ctaTo: "/messages" }
-  }
-
-  if (!dayOfState.hasActiveDayOfData || !dayOfState.isComplete) {
-    return { key: "run_day_of", ctaTo: "/day-of" }
   }
 
   return { key: "print_packet", ctaTo: "/exports" }

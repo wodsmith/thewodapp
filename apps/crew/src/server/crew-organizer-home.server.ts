@@ -11,10 +11,7 @@ import {
   type CrewOrganizerNextAction,
   deriveCrewOrganizerNextAction,
 } from "../lib/crew/organizer-next-action"
-import {
-  calculateSetupProgress,
-  parseCrewSettings,
-} from "../lib/crew-event-setup"
+import { parseCrewSettings } from "../lib/crew-event-setup"
 import { getCrewEvent } from "./crew-event-settings.server"
 import { getCrewEventRosterShiftSummary } from "./crew-roster-shift.server"
 
@@ -54,7 +51,16 @@ export async function getCrewOrganizerHome(data: {
   ])
 
   const parsedSettings = parseCrewSettings(event.settings.settings)
-  const setup = calculateSetupProgress(parsedSettings.setup)
+  const basics = [
+    event.competition.name,
+    event.competition.startDate,
+    event.competition.endDate,
+    event.competition.timezone,
+  ]
+  const setup = {
+    completed: basics.filter(Boolean).length,
+    total: basics.length,
+  }
   const confirmations =
     rosterShiftSummary.shiftSummary.confirmationOperationalSummary
   const nextAction = deriveCrewOrganizerNextAction({
@@ -91,13 +97,6 @@ export async function getCrewOrganizerHome(data: {
         rosterTotal: rosterShiftSummary.rosterSummary.total,
         totalShifts: rosterShiftSummary.shiftSummary.totalShifts,
         assignedSlots: rosterShiftSummary.shiftSummary.assignedSlots,
-        sentAssignments: countSentAssignments({
-          assignedSlots: rosterShiftSummary.shiftSummary.assignedSlots,
-          missing: confirmations.missing,
-          pending: confirmations.pending,
-        }),
-        confirmedAssignments:
-          rosterShiftSummary.shiftSummary.confirmationSummary.confirmed,
         setup,
       }),
       secondaryActions: buildSecondaryActions(nextAction.key),
@@ -158,36 +157,12 @@ function buildSupportingFacts(input: {
   rosterTotal: number
   totalShifts: number
   assignedSlots: number
-  sentAssignments: number
-  confirmedAssignments: number
-  setup: {
-    completed: number
-    total: number
-  }
+  setup: { completed: number; total: number }
 }): CrewOrganizerHomeFact[] {
-  if (input.assignedSlots > 0) {
-    return [
-      { label: "Assigned", value: input.assignedSlots.toString() },
-      { label: "Sent", value: input.sentAssignments.toString() },
-      { label: "Confirmed", value: input.confirmedAssignments.toString() },
-    ]
-  }
-
-  if (input.setup.completed < input.setup.total) {
-    return [
-      {
-        label: "Setup",
-        value: `${input.setup.completed}/${input.setup.total}`,
-      },
-      { label: "Volunteers imported", value: input.rosterTotal.toString() },
-      { label: "Shifts created", value: input.totalShifts.toString() },
-    ]
-  }
-
   return [
-    { label: "Volunteers imported", value: input.rosterTotal.toString() },
-    { label: "Shifts created", value: input.totalShifts.toString() },
-    { label: "Assignments sent", value: input.sentAssignments.toString() },
+    { label: "Volunteers", value: input.rosterTotal.toString() },
+    { label: "Shifts", value: input.totalShifts.toString() },
+    { label: "Assignments", value: input.assignedSlots.toString() },
   ]
 }
 
@@ -201,14 +176,6 @@ function buildSecondaryActions(
   )
 }
 
-function countSentAssignments(input: {
-  assignedSlots: number
-  missing: number
-  pending: number
-}) {
-  return Math.max(input.assignedSlots - input.missing - input.pending, 0)
-}
-
 const actionCtaByKey: Record<
   CrewOrganizerNextAction["key"],
   CrewOrganizerNextAction["ctaTo"]
@@ -218,8 +185,6 @@ const actionCtaByKey: Record<
   import_heat_schedule: "/heats",
   build_staffing_plan: "/staffing",
   create_assignments: "/shifts",
-  send_confirmations: "/messages",
-  run_day_of: "/day-of",
   print_packet: "/exports",
 }
 
@@ -229,8 +194,7 @@ const actionCopy: Record<
 > = {
   finish_setup: {
     title: "Finish event setup",
-    description:
-      "Confirm the event basics, floor layout, and staffing assumptions.",
+    description: "Set the event name, dates, and timezone.",
     ctaLabel: "Finish setup",
   },
   import_volunteers: {
@@ -254,22 +218,10 @@ const actionCopy: Record<
       "Fill the staffing plan with the volunteers who are ready to help.",
     ctaLabel: "Open assignments",
   },
-  send_confirmations: {
-    title: "Send confirmations",
-    description:
-      "Email assignments so volunteers can confirm, decline, or request changes.",
-    ctaLabel: "Open confirmations",
-  },
-  run_day_of: {
-    title: "Run event day",
-    description:
-      "Track responses and keep staffing coverage moving during the event.",
-    ctaLabel: "Open event day",
-  },
   print_packet: {
-    title: "Print packet",
+    title: "Export your schedule",
     description: "Prepare the event-day staffing packet for leads and judges.",
-    ctaLabel: "Open exports",
+    ctaLabel: "Export schedule",
   },
 }
 

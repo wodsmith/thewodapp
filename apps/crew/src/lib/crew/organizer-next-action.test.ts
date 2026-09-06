@@ -26,7 +26,7 @@ describe("deriveCrewOrganizerNextAction", () => {
     ).toEqual({ key: "build_staffing_plan", ctaTo: "/staffing" })
   })
 
-  it("asks for confirmations when assignments exist but unsent confirmations remain", () => {
+  it("keeps incomplete coverage in assignments without requiring messages", () => {
     expect(
       deriveCrewOrganizerNextAction({
         ...readyInput,
@@ -39,21 +39,21 @@ describe("deriveCrewOrganizerNextAction", () => {
           confirmed: 0,
         },
       }),
-    ).toEqual({ key: "send_confirmations", ctaTo: "/messages" })
+    ).toEqual({ key: "create_assignments", ctaTo: "/shifts" })
   })
 
-  it("moves to event day after assignments are sent", () => {
+  it("exports a filled schedule without requiring confirmations or event-day tracking", () => {
     expect(
       deriveCrewOrganizerNextAction({
         ...readyInput,
-        shifts: { totalShifts: 8, assignedSlots: 32, capacity: 40 },
+        shifts: { totalShifts: 8, assignedSlots: 40, capacity: 40 },
         confirmations: {
           ...readyInput.confirmations,
           sent: 20,
           confirmed: 12,
         },
       }),
-    ).toEqual({ key: "run_day_of", ctaTo: "/day-of" })
+    ).toEqual({ key: "print_packet", ctaTo: "/exports" })
   })
 })
 
