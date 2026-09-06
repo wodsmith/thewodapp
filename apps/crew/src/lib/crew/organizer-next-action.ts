@@ -12,42 +12,19 @@ export interface CrewOrganizerNextActionInput {
     completed: number
     total: number
   }
-  imports: {
-    appliedVolunteerImportCount: number
-    appliedHeatScheduleImportCount: number
-  }
   roster: {
     total: number
     assignable: number
-  }
-  heatSchedule: {
-    heatCount: number
-    scheduledHeatCount: number
   }
   shifts: {
     totalShifts: number
     assignedSlots: number
     capacity: number
   }
-  confirmations: {
-    pending: number
-    missing: number
-    sent: number
-    confirmed: number
-    declined: number
-    changeRequested: number
-    noShow: number
-    replaced: number
-  }
-  dayOfState: {
-    hasActiveDayOfData: boolean
-    isComplete: boolean
-  }
 }
 
 export function deriveCrewOrganizerNextAction({
   setup,
-  imports,
   roster,
   shifts,
 }: CrewOrganizerNextActionInput): CrewOrganizerNextAction {
@@ -55,11 +32,7 @@ export function deriveCrewOrganizerNextAction({
     return { key: "finish_setup", ctaTo: "/setup" }
   }
 
-  if (
-    imports.appliedVolunteerImportCount === 0 &&
-    roster.total === 0 &&
-    roster.assignable === 0
-  ) {
+  if (roster.total === 0 && roster.assignable === 0) {
     return { key: "import_volunteers", ctaTo: "/volunteers" }
   }
 

@@ -70,7 +70,7 @@ function NewEventPage() {
       <div>
         <h1 className="text-3xl font-semibold">New Crew event</h1>
         <p className="text-muted-foreground">
-          Create a normal competition and attach its Crew settings row.
+          Add your event details to start building a volunteer schedule.
         </p>
       </div>
 
@@ -88,7 +88,7 @@ function NewEventPage() {
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
             />
           </Field>
-          <Field label="Slug" htmlFor="crew-event-slug">
+          <Field label="Event URL name" htmlFor="crew-event-slug">
             <input
               id="crew-event-slug"
               value={slug}
@@ -117,7 +117,11 @@ function NewEventPage() {
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
             />
           </Field>
-          <Field label="Source event URL" htmlFor="crew-source-event-url" wide>
+          <Field
+            label="Event website (optional)"
+            htmlFor="crew-source-event-url"
+            wide
+          >
             <input
               id="crew-source-event-url"
               value={sourceEventUrl}
@@ -126,7 +130,7 @@ function NewEventPage() {
             />
           </Field>
           <Field
-            label="External registration URL"
+            label="Registration page (optional)"
             htmlFor="crew-external-registration-url"
             wide
           >

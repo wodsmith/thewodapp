@@ -6,7 +6,7 @@ Crew helps organizers using another registration platform import volunteers, bui
 
 Crew launches as a volunteer scheduling product: event details, volunteer import, shifts, optional heat-based judge assignments, and schedule exports. Broadcasting, confirmations, and event-day tracking are outside the launch workflow.
 
-[[apps/crew/src/lib/crew/navigation.ts]] and [[apps/crew/src/components/crew-event-sidebar.tsx]] expose the scheduling steps. The legacy messages and day-of routes redirect to shifts, preserving stored data and volunteer response links without requiring these workflows.
+[[apps/crew/src/lib/crew/navigation.ts]] and [[apps/crew/src/components/crew-event-sidebar.tsx]] expose the scheduling steps. The legacy messages and day-of routes are redirect-only stubs that lead to shifts. Stored data, server-side history helpers, and volunteer response links remain available without requiring these workflows.
 
 [[apps/crew/src/server/crew-organizer-home.server.ts]] derives setup completion from the event name, dates, and timezone rather than the retired setup checklist. [[apps/crew/src/lib/crew/organizer-next-action.ts]] guides organizers from roster to shifts and exports; heat imports are optional for shift-only events, and incomplete coverage points back to assignments.
 
@@ -599,3 +599,13 @@ Real MySQL tests verify event purchase locking, retry recovery, settlement order
 [[apps/crew/test/integration/crew-purchase.test.ts]] runs only with `CREW_TEST_DATABASE_URL` pointing to an isolated database ending in `_test` or `_e2e`. It exercises concurrent requests, a lost Stripe response, cancellation, stale expiration and settlement, webhook-before-response ordering, duplicate payment delivery, and the unpaid-to-paid export boundary.
 
 Event managers can view access status and the purchase handoff. Starting Checkout still requires the organizing team’s billing permission; managers without it are directed to the event owner. Production secret selection never falls back to test keys.
+
+## Crew Launch Verification
+
+Crew CI runs the complete unit suite and uses the isolated MySQL browser-test database to verify purchase transactions. Browser coverage follows the organizer from event creation through scheduling and the export purchase boundary.
+
+The unit job in `.github/workflows/ci.yaml` includes Crew. The Crew job in `.github/workflows/e2e.yaml` runs [[crew#Crew Purchase Integration Tests]] before the browser suite. Full-platform refund and revenue component tests remain in WODsmith Start, where those components exist.
+
+Volunteer add, edit, and email-paste dialogs scroll within the viewport so their submit actions remain reachable on small screens. The fresh-event browser test creates a volunteer and shift, assigns coverage, and checks that success URLs cannot bypass purchase.
+
+The seeded demo includes a Basic plan with its complimentary grant. Browser tests verify that active access produces a downloadable CSV containing the assigned volunteers.

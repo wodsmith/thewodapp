@@ -31,13 +31,6 @@ describe("deriveCrewOrganizerNextAction", () => {
       deriveCrewOrganizerNextAction({
         ...readyInput,
         shifts: { totalShifts: 8, assignedSlots: 32, capacity: 40 },
-        confirmations: {
-          ...readyInput.confirmations,
-          missing: 32,
-          pending: 0,
-          sent: 0,
-          confirmed: 0,
-        },
       }),
     ).toEqual({ key: "create_assignments", ctaTo: "/shifts" })
   })
@@ -47,11 +40,6 @@ describe("deriveCrewOrganizerNextAction", () => {
       deriveCrewOrganizerNextAction({
         ...readyInput,
         shifts: { totalShifts: 8, assignedSlots: 40, capacity: 40 },
-        confirmations: {
-          ...readyInput.confirmations,
-          sent: 20,
-          confirmed: 12,
-        },
       }),
     ).toEqual({ key: "print_packet", ctaTo: "/exports" })
   })
@@ -59,25 +47,6 @@ describe("deriveCrewOrganizerNextAction", () => {
 
 const readyInput: CrewOrganizerNextActionInput = {
   setup: { completed: 5, total: 5 },
-  imports: {
-    appliedVolunteerImportCount: 1,
-    appliedHeatScheduleImportCount: 1,
-  },
   roster: { total: 24, assignable: 24 },
-  heatSchedule: { heatCount: 16, scheduledHeatCount: 16 },
   shifts: { totalShifts: 6, assignedSlots: 0, capacity: 32 },
-  confirmations: {
-    missing: 0,
-    pending: 0,
-    sent: 0,
-    confirmed: 0,
-    declined: 0,
-    changeRequested: 0,
-    noShow: 0,
-    replaced: 0,
-  },
-  dayOfState: {
-    hasActiveDayOfData: false,
-    isComplete: false,
-  },
 }

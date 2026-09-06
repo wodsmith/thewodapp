@@ -1,17 +1,8 @@
 // @lat: [[crew#Organizer Home Next Action]]
-import { eq } from "drizzle-orm"
-import { getDb } from "../db"
-import { competitionHeatsTable } from "../db/schemas/competitions"
-import {
-  CREW_IMPORT_KIND,
-  CREW_IMPORT_STATUS,
-  crewImportsTable,
-} from "../db/schemas/crew-imports"
 import {
   type CrewOrganizerNextAction,
   deriveCrewOrganizerNextAction,
 } from "../lib/crew/organizer-next-action"
-import { parseCrewSettings } from "../lib/crew-event-setup"
 import { getCrewEvent } from "./crew-event-settings.server"
 import { getCrewEventRosterShiftSummary } from "./crew-roster-shift.server"
 
@@ -32,7 +23,6 @@ export interface CrewOrganizerHomeView {
   nextAction: CrewOrganizerHomeActionView
   supportingFacts: CrewOrganizerHomeFact[]
   secondaryActions: CrewOrganizerHomeActionView[]
-  setupParseError: boolean
 }
 
 export async function getCrewOrganizerHome(data: {
@@ -44,13 +34,7 @@ export async function getCrewOrganizerHome(data: {
     throw new Error("Crew event not found")
   }
 
-  const [rosterShiftSummary, imports, heatSchedule] = await Promise.all([
-    getCrewEventRosterShiftSummary(data),
-    loadOrganizerImportSummary(data.eventId),
-    loadOrganizerHeatScheduleSummary(data.eventId),
-  ])
-
-  const parsedSettings = parseCrewSettings(event.settings.settings)
+  const rosterShiftSummary = await getCrewEventRosterShiftSummary(data)
   const basics = [
     event.competition.name,
     event.competition.startDate,
@@ -61,31 +45,13 @@ export async function getCrewOrganizerHome(data: {
     completed: basics.filter(Boolean).length,
     total: basics.length,
   }
-  const confirmations =
-    rosterShiftSummary.shiftSummary.confirmationOperationalSummary
   const nextAction = deriveCrewOrganizerNextAction({
     setup,
-    imports,
     roster: {
       total: rosterShiftSummary.rosterSummary.total,
       assignable: rosterShiftSummary.rosterSummary.assignable,
     },
-    heatSchedule,
     shifts: rosterShiftSummary.shiftSummary,
-    confirmations: {
-      missing: confirmations.missing,
-      pending: confirmations.pending,
-      sent: confirmations.sent,
-      confirmed: confirmations.confirmed,
-      declined: confirmations.declined,
-      changeRequested: confirmations.changeRequested,
-      noShow: confirmations.noShow,
-      replaced: confirmations.replaced,
-    },
-    dayOfState: {
-      hasActiveDayOfData: rosterShiftSummary.shiftSummary.assignedSlots > 0,
-      isComplete: false,
-    },
   })
 
   const actionView = toActionView(nextAction)
@@ -100,56 +66,7 @@ export async function getCrewOrganizerHome(data: {
         setup,
       }),
       secondaryActions: buildSecondaryActions(nextAction.key),
-      setupParseError: Boolean(parsedSettings.parseError),
     },
-  }
-}
-
-async function loadOrganizerImportSummary(competitionId: string) {
-  const db = getDb()
-  const imports = await db
-    .select({
-      kind: crewImportsTable.kind,
-      status: crewImportsTable.status,
-    })
-    .from(crewImportsTable)
-    .where(eq(crewImportsTable.competitionId, competitionId))
-
-  return imports.reduce(
-    (summary, row) => {
-      if (row.kind === CREW_IMPORT_KIND.VOLUNTEERS) {
-        if (row.status === CREW_IMPORT_STATUS.APPLIED) {
-          summary.appliedVolunteerImportCount += 1
-        }
-      } else if (
-        row.kind === CREW_IMPORT_KIND.HEAT_SCHEDULE &&
-        row.status === CREW_IMPORT_STATUS.APPLIED
-      ) {
-        summary.appliedHeatScheduleImportCount += 1
-      }
-      return summary
-    },
-    {
-      appliedVolunteerImportCount: 0,
-      appliedHeatScheduleImportCount: 0,
-    },
-  )
-}
-
-async function loadOrganizerHeatScheduleSummary(competitionId: string) {
-  const db = getDb()
-  const heats = await db
-    .select({
-      id: competitionHeatsTable.id,
-      scheduledTime: competitionHeatsTable.scheduledTime,
-    })
-    .from(competitionHeatsTable)
-    .where(eq(competitionHeatsTable.competitionId, competitionId))
-
-  return {
-    heatCount: heats.length,
-    scheduledHeatCount: heats.filter((heat) => Boolean(heat.scheduledTime))
-      .length,
   }
 }
 

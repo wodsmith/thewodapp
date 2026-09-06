@@ -98,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [wodsmith-start]
+        app: [wodsmith-start, crew]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
