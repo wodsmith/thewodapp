@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { normalizedWorkoutSaveSchema, workoutImportProposalSchema, workoutSecondsToScoreMilliseconds } from "./schemas"
 
-export const cappedWorkout = {name:"Three rounds",description:"3 rounds for time; 15 minute cap; 10 pull-ups",scheme:"time-with-cap" as const,scoreType:null,timeCapSeconds:900,roundsToScore:1,repsPerRound:10,tiebreakScheme:"reps" as const,scalingGroupId:null,movementIds:["pull-up"],scope:"private" as const}
+const cappedWorkout = {name:"Three rounds",description:"3 rounds for time; 15 minute cap; 10 pull-ups",scheme:"time-with-cap" as const,scoreType:null,timeCapSeconds:900,roundsToScore:1,repsPerRound:10,tiebreakScheme:"reps" as const,scalingGroupId:null,movementIds:["pull-up"],scope:"private" as const}
 describe("workout import contract",()=>{
   // @lat: [[workout-import-contract#Workout import contract#Scoring boundary tests]]
   it("keeps prescription rounds separate and converts workout seconds explicitly",()=>{
