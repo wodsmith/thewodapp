@@ -703,64 +703,6 @@ importers:
         specifier: ^4.16.1
         version: 4.56.0(@cloudflare/workers-types@4.20251205.0)
 
-  apps/wodsmith-gameday:
-    dependencies:
-      '@capacitor/core':
-        specifier: ^7.2.0
-        version: 7.6.0
-      '@capacitor/network':
-        specifier: ^7.0.0
-        version: 7.0.4(@capacitor/core@7.6.0)
-      '@capacitor/preferences':
-        specifier: ^7.0.0
-        version: 7.0.4(@capacitor/core@7.6.0)
-      '@effect/platform':
-        specifier: ^0.78.0
-        version: 0.78.1(effect@3.19.19)
-      '@tanstack/react-router':
-        specifier: 1.144.0
-        version: 1.144.0(react-dom@19.2.3(react@19.2.4))(react@19.2.4)
-      effect:
-        specifier: ^3.14.0
-        version: 3.19.19
-      react:
-        specifier: 'catalog:'
-        version: 19.2.4
-      react-dom:
-        specifier: 'catalog:'
-        version: 19.2.3(react@19.2.4)
-      zustand:
-        specifier: ^5.0.5
-        version: 5.0.5(@types/react@19.2.13)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
-    devDependencies:
-      '@biomejs/biome':
-        specifier: 2.0.6
-        version: 2.0.6
-      '@capacitor/cli':
-        specifier: ^7.2.0
-        version: 7.6.0
-      '@tanstack/router-plugin':
-        specifier: 1.144.0
-        version: 1.144.0(@tanstack/react-router@1.144.0(react-dom@19.2.3(react@19.2.4))(react@19.2.4))(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))(webpack@5.102.1)
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.2.13
-      '@types/react-dom':
-        specifier: 'catalog:'
-        version: 19.2.3(@types/react@19.2.13)
-      '@vitejs/plugin-react':
-        specifier: ^5.0.4
-        version: 5.1.2(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-      vite:
-        specifier: ^7.3.0
-        version: 7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2)
-      vite-tsconfig-paths:
-        specifier: ^5.1.4
-        version: 5.1.4(typescript@5.9.3)(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))
-
   apps/wodsmith-start:
     dependencies:
       '@atlaskit/pragmatic-drag-and-drop':

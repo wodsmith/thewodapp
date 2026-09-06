@@ -16,4 +16,5 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[crm-campaigns]] — CRM marketing campaigns, audience selection, and campaign-linked Outreach interactions
 - [[research]] — Product, market, and workflow research notes
 - [[tests]] — Executable characterization and regression specifications
+- [[gameday]] — Native iOS athlete schedules, spectator browsing, secure sessions, and heat reminders.
 - [[training]] — Implemented gym training, versioned results, draft publication, permissions, and interface tests
