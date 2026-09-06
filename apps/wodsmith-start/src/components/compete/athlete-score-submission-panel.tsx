@@ -40,7 +40,10 @@ import {
   type VideoSubmissionResult,
 } from "@/server-fns/video-submission-fns"
 import { SubmissionStatusBadge } from "./submission-status-badge"
-import { VideoSubmissionForm } from "./video-submission-form"
+import {
+  VideoSubmissionForm,
+  type VideoSubmissionDraft,
+} from "./video-submission-form"
 
 interface Division {
   id: string
@@ -130,6 +133,7 @@ interface AthleteScoreSubmissionPanelProps {
   eventDivisionMappings: EventDivisionMappings
   timezone?: string | null
   divisionDescriptionsMap?: Record<string, DivisionDescription[]>
+  draftStore?: Map<string, VideoSubmissionDraft>
 }
 
 export function AthleteScoreSubmissionPanel({
@@ -140,7 +144,10 @@ export function AthleteScoreSubmissionPanel({
   eventDivisionMappings,
   timezone,
   divisionDescriptionsMap,
+  draftStore: sharedDraftStore,
 }: AthleteScoreSubmissionPanelProps) {
+  const [localDraftStore] = useState(() => new Map<string, VideoSubmissionDraft>())
+  const draftStore = sharedDraftStore ?? localDraftStore
   const [selectedDivisionIdx, setSelectedDivisionIdx] = useState(0)
   const [submissions, setSubmissions] = useState<WorkoutSubmission[]>([])
   const [loading, setLoading] = useState(true)
@@ -358,7 +365,11 @@ export function AthleteScoreSubmissionPanel({
               const letter = String.fromCharCode(65 + childIdx)
               return (
                 <WorkoutRow
-                  key={`${child.id}:${division?.id ?? "none"}`}
+                  key={JSON.stringify([
+                    child.id,
+                    registration?.id,
+                    division?.id,
+                  ])}
                   event={child}
                   submission={sub ?? null}
                   slug={slug}
@@ -371,6 +382,8 @@ export function AthleteScoreSubmissionPanel({
                   parentEventId={event.id}
                   badge={letter}
                   onScoreSubmitted={refreshSubmissions}
+                  registrationId={registration?.id}
+                  draftStore={draftStore}
                 />
               )
             })}
@@ -382,7 +395,7 @@ export function AthleteScoreSubmissionPanel({
     const sub = submissionMap.get(event.id)
     return (
       <WorkoutRow
-        key={`${event.id}:${division?.id ?? "none"}`}
+        key={JSON.stringify([event.id, registration?.id, division?.id])}
         event={event}
         submission={sub ?? null}
         slug={slug}
@@ -392,6 +405,8 @@ export function AthleteScoreSubmissionPanel({
         divisionDescriptions={divisionDescriptionsMap?.[event.workoutId]}
         badge={String(position).padStart(2, "0")}
         onScoreSubmitted={refreshSubmissions}
+        registrationId={registration?.id}
+        draftStore={draftStore}
       />
     )
   }
@@ -658,6 +673,8 @@ function WorkoutRow({
   parentEventId,
   badge,
   onScoreSubmitted,
+  registrationId,
+  draftStore,
 }: {
   event: WorkoutInfo
   submission: WorkoutSubmission | null
@@ -669,6 +686,8 @@ function WorkoutRow({
   parentEventId?: string
   badge: string
   onScoreSubmitted: () => void
+  registrationId?: string
+  draftStore: Map<string, VideoSubmissionDraft>
 }) {
   const linkEventId = parentEventId ?? event.id
   const hasSubmitted = submission?.hasScore || submission?.hasVideo
@@ -698,7 +717,9 @@ function WorkoutRow({
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
-    if (next && !formData && !formLoading) {
+    // A save can finish after its editor unmounts. Reload persisted data on
+    // every reopen; the shared draft map still takes precedence over it.
+    if (next && !formLoading) {
       loadFormData()
     }
   }
@@ -811,6 +832,8 @@ function WorkoutRow({
               initialData={formData}
               initialDivisionId={division?.id}
               onSubmitSuccess={onScoreSubmitted}
+              registrationId={registrationId}
+              draftStore={draftStore}
             />
           ) : null}
 

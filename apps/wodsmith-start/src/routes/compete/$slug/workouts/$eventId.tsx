@@ -18,8 +18,12 @@ import {
   Timer,
   Trophy,
 } from "lucide-react"
+import { useState } from "react"
 import { z } from "zod"
-import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import {
+  VideoSubmissionForm,
+  type VideoSubmissionDraft,
+} from "@/components/compete/video-submission-form"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { Badge } from "@/components/ui/badge"
@@ -210,12 +214,22 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
     const event = pageData.event
 
     // Resolve athlete's registered divisions with labels
-    const athleteRegisteredDivisions = athleteRegisteredDivisionIds
-      .map((divId) => {
-        const div = divisions.find((d) => d.id === divId)
-        return div ? { divisionId: div.id, label: div.label } : null
-      })
-      .filter((d): d is { divisionId: string; label: string } => d !== null)
+    const athleteRegisteredDivisions = userRegistrations.flatMap(
+      (registration) => {
+        const div = divisions.find(
+          (division) => division.id === registration.divisionId,
+        )
+        return div
+          ? [
+              {
+                registrationId: registration.id,
+                divisionId: div.id,
+                label: div.label,
+              },
+            ]
+          : []
+      },
+    )
 
     const { childEvents, initialSubmissionDivisionId } =
       resolveSubmissionContext(pageData)
@@ -344,6 +358,9 @@ function formatEventDateFromHeatTime(
 }
 
 function EventDetailsPage() {
+  const [submissionDrafts] = useState(
+    () => new Map<string, VideoSubmissionDraft>(),
+  )
   const {
     competition,
     event,
@@ -663,6 +680,7 @@ function EventDetailsPage() {
                       ) &&
                         childSubmission && (
                           <VideoSubmissionForm
+                            draftStore={submissionDrafts}
                             trackWorkoutId={child.id}
                             competitionId={competition.id}
                             timezone={competition.timezone}
@@ -692,6 +710,7 @@ function EventDetailsPage() {
               childEvents.length === 0 &&
               isEventMappedToAthleteDivision && (
                 <VideoSubmissionForm
+                  draftStore={submissionDrafts}
                   trackWorkoutId={event.id}
                   competitionId={competition.id}
                   timezone={competition.timezone}

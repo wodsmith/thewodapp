@@ -2,7 +2,7 @@
 
 import { useServerFn } from "@tanstack/react-start"
 import { AlertCircle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import {
   RoundCapFields,
   type RoundCapValue,
@@ -62,6 +62,7 @@ interface VideoSubmissionData {
 }
 
 interface RegisteredDivision {
+  registrationId?: string
   divisionId: string
   label: string
 }
@@ -115,11 +116,9 @@ interface VideoSubmissionFormProps {
   initialData?: VideoSubmissionInitialData
   initialDivisionId?: string
   onSubmitSuccess?: () => void
+  registrationId?: string
+  draftStore?: Map<string, VideoSubmissionDraft>
 }
-
-type ExistingRoundScore = NonNullable<
-  NonNullable<VideoSubmissionInitialData["existingScore"]>["roundScores"]
->[number]
 
 function formatSubmissionTime(
   date: Date | string,
@@ -280,234 +279,247 @@ function createEmptyVideoSlot(): VideoSlotState {
   }
 }
 
-export function VideoSubmissionForm({
+export interface VideoSubmissionDraft {
+  revision: number
+  videoSlots: VideoSlotState[]
+  scoreInput: string
+  secondaryScore: string
+  tiebreakScore: string
+  roundScoreInputs: string[]
+  roundCaps: RoundCapValue[]
+}
+
+function createSubmissionDraft(
+  data?: VideoSubmissionInitialData,
+): VideoSubmissionDraft {
+  const tiebreakValue = data?.existingScore?.tiebreakValue
+  const roundsToScore = data?.workout?.roundsToScore ?? 1
+  const existingRounds = data?.existingScore?.roundScores ?? []
+  return {
+    revision: 0,
+    videoSlots: createInitialSlots(
+      data?.teamSize ?? 1,
+      data?.submissions ?? [],
+    ),
+    scoreInput: data?.existingScore?.displayScore ?? "",
+    secondaryScore: data?.existingScore?.secondaryValue?.toString() ?? "",
+    tiebreakScore:
+      tiebreakValue == null
+        ? ""
+        : data?.workout?.tiebreakScheme === "time"
+          ? decodeScore(tiebreakValue, "time", { compact: true })
+          : tiebreakValue.toString(),
+    roundCaps: Array.from({ length: roundsToScore }, (_, i) => {
+      const round = existingRounds.find((round) => round.roundNumber === i + 1)
+      return {
+        status: round?.status === "cap" ? "cap" : "scored",
+        secondaryScore: round?.secondaryValue?.toString() ?? "",
+      }
+    }),
+    roundScoreInputs:
+      roundsToScore > 1
+        ? Array.from(
+            { length: roundsToScore },
+            (_, i) =>
+              existingRounds.find((round) => round.roundNumber === i + 1)
+                ?.displayScore ?? "",
+          )
+        : [],
+  }
+}
+
+// Own drafts above the keyed editor. Panels supply their longer-lived map so
+// switching divisions or collapsing a row can unmount forms without losing edits.
+export function VideoSubmissionForm(props: VideoSubmissionFormProps) {
+  const localScope = useId()
+  const [localDrafts] = useState(() => new Map<string, VideoSubmissionDraft>())
+  const draftStore = props.draftStore ?? localDrafts
+  const defaultDivisionId =
+    props.initialDivisionId ?? props.registeredDivisions?.[0]?.divisionId
+  const defaultRegistrationId =
+    props.registrationId ??
+    props.registeredDivisions?.find(
+      (division) => division.divisionId === defaultDivisionId,
+    )?.registrationId
+  const propKey = JSON.stringify([
+    props.competitionId,
+    props.trackWorkoutId,
+    defaultRegistrationId,
+    defaultDivisionId,
+  ])
+  const [selection, setSelection] = useState({
+    propKey,
+    divisionId: defaultDivisionId,
+    data: props.initialData,
+  })
+  const [isDivisionLoading, setIsDivisionLoading] = useState(false)
+  const [divisionError, setDivisionError] = useState<string | null>(null)
+  const fetchSequence = useRef(0)
+  const previousPropKey = useRef(propKey)
+  const fetchSubmission = useServerFn(getVideoSubmissionFn)
+
+  // A route identity change is immediately rendered from its own loader data.
+  // Later responses for a previous identity cannot change the keyed editor.
+  const current =
+    selection.propKey === propKey
+      ? selection
+      : { propKey, divisionId: defaultDivisionId, data: props.initialData }
+
+  useEffect(() => {
+    if (previousPropKey.current === propKey) return
+    previousPropKey.current = propKey
+    fetchSequence.current++
+    setSelection({
+      propKey,
+      divisionId: defaultDivisionId,
+      data: props.initialData,
+    })
+    setIsDivisionLoading(false)
+    setDivisionError(null)
+  }, [propKey, defaultDivisionId, props.initialData])
+
+  useEffect(
+    () => () => {
+      fetchSequence.current++
+    },
+    [],
+  )
+
+  const handleDivisionChange = useCallback(
+    async (divisionId: string) => {
+      if (divisionId === current.divisionId) return
+      const sequence = ++fetchSequence.current
+      setIsDivisionLoading(true)
+      setDivisionError(null)
+      try {
+        const data = await fetchSubmission({
+          data: {
+            trackWorkoutId: props.trackWorkoutId,
+            competitionId: props.competitionId,
+            divisionId,
+          },
+        })
+        if (sequence !== fetchSequence.current) return
+        setSelection({ propKey, divisionId, data })
+      } catch {
+        if (sequence === fetchSequence.current) {
+          setDivisionError("Failed to load submission data for this division")
+        }
+      } finally {
+        if (sequence === fetchSequence.current) setIsDivisionLoading(false)
+      }
+    },
+    [
+      current.divisionId,
+      fetchSubmission,
+      propKey,
+      props.competitionId,
+      props.trackWorkoutId,
+    ],
+  )
+
+  const registrationId =
+    props.registrationId ??
+    props.registeredDivisions?.find(
+      (division) => division.divisionId === current.divisionId,
+    )?.registrationId
+  const draftKey = JSON.stringify([
+    props.competitionId,
+    props.trackWorkoutId,
+    registrationId ?? localScope,
+    current.divisionId ?? null,
+  ])
+
+  return (
+    <VideoSubmissionEditor
+      key={draftKey}
+      {...props}
+      initialData={current.data}
+      selectedDivisionId={current.divisionId}
+      handleDivisionChange={handleDivisionChange}
+      isDivisionLoading={isDivisionLoading}
+      divisionError={divisionError}
+      draftStore={draftStore}
+      draftKey={draftKey}
+    />
+  )
+}
+
+function VideoSubmissionEditor({
   trackWorkoutId,
   competitionId,
   timezone,
   registeredDivisions,
-  initialData,
-  initialDivisionId,
+  initialData: currentData,
   onSubmitSuccess,
-}: VideoSubmissionFormProps) {
+  selectedDivisionId,
+  handleDivisionChange,
+  isDivisionLoading,
+  divisionError,
+  draftStore,
+  draftKey,
+}: VideoSubmissionFormProps & {
+  selectedDivisionId?: string
+  handleDivisionChange: (divisionId: string) => Promise<void>
+  isDivisionLoading: boolean
+  divisionError: string | null
+  draftStore: Map<string, VideoSubmissionDraft>
+  draftKey: string
+}) {
   const hasMultipleDivisions = (registeredDivisions?.length ?? 0) > 1
-
-  // Division selection state — prefer initialDivisionId (from URL param), fall back to first
-  const [selectedDivisionId, setSelectedDivisionId] = useState<
-    string | undefined
-  >(initialDivisionId ?? registeredDivisions?.[0]?.divisionId)
-
-  // Track the current data (may be swapped when switching divisions)
-  const [currentData, setCurrentData] = useState<
-    VideoSubmissionInitialData | undefined
-  >(initialData)
-  const [isDivisionLoading, setIsDivisionLoading] = useState(false)
-
   const teamSize = currentData?.teamSize ?? 1
   const isCaptain = currentData?.isCaptain ?? true
   const videoRequired = currentData?.videoRequired ?? true
   const existingSubmissions = currentData?.submissions ?? []
-
-  const [videoSlots, setVideoSlots] = useState<VideoSlotState[]>(() =>
-    createInitialSlots(teamSize, existingSubmissions),
+  const [draft, setDraft] = useState(
+    () => draftStore.get(draftKey) ?? createSubmissionDraft(currentData),
   )
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  const draftRef = useRef(draft)
+  const {
+    videoSlots,
+    scoreInput,
+    secondaryScore,
+    tiebreakScore,
+    roundScoreInputs,
+    roundCaps,
+  } = draft
+
+  function updateDraft(updates: Partial<VideoSubmissionDraft>, edited = true) {
+    const next = {
+      ...draftRef.current,
+      ...updates,
+      revision: draftRef.current.revision + (edited ? 1 : 0),
+    }
+    draftRef.current = next
+    setDraft(next)
+    // URL validation can fire on mount. It must not create a dirty draft by itself.
+    if (edited || draftStore.has(draftKey)) draftStore.set(draftKey, next)
+  }
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const hasAnySubmission = existingSubmissions.length > 0
   const [hasSubmitted, setHasSubmitted] = useState(hasAnySubmission)
-  // Show preview by default if there's an existing submission
-  const [isEditing, setIsEditing] = useState(!hasAnySubmission)
-
-  // Local state for submissions/score to avoid mutating props
+  const [isEditing, setIsEditing] = useState(
+    draftStore.has(draftKey) || !hasAnySubmission,
+  )
   const [submissionsData, setSubmissionsData] =
     useState<VideoSubmissionData[]>(existingSubmissions)
   const [scoreData, setScoreData] = useState(currentData?.existingScore ?? null)
-
-  // Score form state
-  const [scoreInput, setScoreInput] = useState(
-    currentData?.existingScore?.displayScore ?? "",
-  )
-  const [secondaryScore, setSecondaryScore] = useState(
-    currentData?.existingScore?.secondaryValue?.toString() ?? "",
-  )
-  const [tiebreakScore, setTiebreakScore] = useState(() => {
-    const tiebreakValue = currentData?.existingScore?.tiebreakValue
-    const tiebreakScheme = currentData?.workout?.tiebreakScheme
-    if (tiebreakValue === null || tiebreakValue === undefined) return ""
-    if (tiebreakScheme === "time") {
-      return decodeScore(tiebreakValue, "time", { compact: true })
-    }
-    return tiebreakValue.toString()
-  })
-  // Per-round score inputs for multi-round workouts
-  const [roundScoreInputs, setRoundScoreInputs] = useState<string[]>(() => {
-    const roundsToScore = currentData?.workout?.roundsToScore ?? 1
-    if (roundsToScore <= 1) return []
-    const existingRounds = currentData?.existingScore?.roundScores ?? []
-    return Array.from({ length: roundsToScore }, (_, i) => {
-      const existing = existingRounds.find((r) => r.roundNumber === i + 1)
-      return existing?.displayScore ?? ""
-    })
-  })
-  const [roundCaps, setRoundCaps] = useState<RoundCapValue[]>(() =>
-    Array.from({ length: currentData?.workout?.roundsToScore ?? 1 }, (_, i) => {
-      const round = currentData?.existingScore?.roundScores?.find(
-        (r) => r.roundNumber === i + 1,
-      )
-      return {
-        status: round?.status === "cap" ? "cap" : "scored",
-        secondaryScore: round?.secondaryValue?.toString() ?? "",
-      }
-    }),
-  )
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const submitVideo = useServerFn(submitVideoFn)
-  const fetchSubmission = useServerFn(getVideoSubmissionFn)
-
   const workout = currentData?.workout
   const roundsToScore = workout?.roundsToScore ?? 1
   const isMultiRound = roundsToScore > 1
-
-  // Handle division switch — fetch submission data for the new division
-  const handleDivisionChange = useCallback(
-    async (divisionId: string) => {
-      if (divisionId === selectedDivisionId) return
-      setIsDivisionLoading(true)
-      setError(null)
-      setSuccess(null)
-
-      try {
-        const result = await fetchSubmission({
-          data: {
-            trackWorkoutId,
-            competitionId,
-            divisionId,
-          },
-        })
-
-        setSelectedDivisionId(divisionId)
-        // Reset all form state for the new division
-        setCurrentData(result)
-        const subs = result.submissions ?? []
-        setSubmissionsData(subs)
-        setVideoSlots(createInitialSlots(result.teamSize, subs))
-        setScoreData(result.existingScore ?? null)
-        setScoreInput(result.existingScore?.displayScore ?? "")
-        setSecondaryScore(
-          result.existingScore?.secondaryValue?.toString() ?? "",
-        )
-        if (
-          result.existingScore?.tiebreakValue != null &&
-          result.workout?.tiebreakScheme
-        ) {
-          setTiebreakScore(
-            result.workout.tiebreakScheme === "time"
-              ? decodeScore(result.existingScore.tiebreakValue, "time", {
-                  compact: true,
-                })
-              : result.existingScore.tiebreakValue.toString(),
-          )
-        } else {
-          setTiebreakScore("")
-        }
-        // Reset round score inputs for the new division's workout
-        const newRoundsToScore = result.workout?.roundsToScore ?? 1
-        if (newRoundsToScore > 1) {
-          const existingRounds: ExistingRoundScore[] =
-            result.existingScore?.roundScores ?? []
-          setRoundCaps(
-            Array.from({ length: newRoundsToScore }, (_, i) => {
-              const round = existingRounds.find((r) => r.roundNumber === i + 1)
-              return {
-                status: round?.status === "cap" ? "cap" : "scored",
-                secondaryScore: round?.secondaryValue?.toString() ?? "",
-              }
-            }),
-          )
-          setRoundScoreInputs(
-            Array.from({ length: newRoundsToScore }, (_, i) => {
-              const existing = existingRounds.find(
-                (r) => r.roundNumber === i + 1,
-              )
-              return existing?.displayScore ?? ""
-            }),
-          )
-        } else {
-          setRoundScoreInputs([])
-          setRoundCaps([])
-        }
-        setHasSubmitted(subs.length > 0)
-        setIsEditing(subs.length === 0)
-      } catch {
-        setError("Failed to load submission data for this division")
-      } finally {
-        setIsDivisionLoading(false)
-      }
-    },
-    [selectedDivisionId, trackWorkoutId, competitionId, fetchSubmission],
-  )
-
-  // Sync form state from loader props when initialDivisionId changes (e.g., URL navigation).
-  // The route loader already re-fetches with the correct division, so initialData is fresh —
-  // no need to trigger another network request via handleDivisionChange.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only react to initialDivisionId — initialData is read but shouldn't trigger re-sync
-  useEffect(() => {
-    if (initialDivisionId && initialDivisionId !== selectedDivisionId) {
-      setSelectedDivisionId(initialDivisionId)
-      if (initialData) {
-        setCurrentData(initialData)
-        const subs = initialData.submissions ?? []
-        setSubmissionsData(subs)
-        setVideoSlots(createInitialSlots(initialData.teamSize, subs))
-        setScoreData(initialData.existingScore ?? null)
-        setScoreInput(initialData.existingScore?.displayScore ?? "")
-        setSecondaryScore(
-          initialData.existingScore?.secondaryValue?.toString() ?? "",
-        )
-        if (
-          initialData.existingScore?.tiebreakValue != null &&
-          initialData.workout?.tiebreakScheme
-        ) {
-          setTiebreakScore(
-            initialData.workout.tiebreakScheme === "time"
-              ? decodeScore(initialData.existingScore.tiebreakValue, "time", {
-                  compact: true,
-                })
-              : initialData.existingScore.tiebreakValue.toString(),
-          )
-        } else {
-          setTiebreakScore("")
-        }
-        const newRoundsToScore = initialData.workout?.roundsToScore ?? 1
-        if (newRoundsToScore > 1) {
-          const existingRounds = initialData.existingScore?.roundScores ?? []
-          setRoundCaps(
-            Array.from({ length: newRoundsToScore }, (_, i) => {
-              const round = existingRounds.find((r) => r.roundNumber === i + 1)
-              return {
-                status: round?.status === "cap" ? "cap" : "scored",
-                secondaryScore: round?.secondaryValue?.toString() ?? "",
-              }
-            }),
-          )
-          setRoundScoreInputs(
-            Array.from({ length: newRoundsToScore }, (_, i) => {
-              const existing = existingRounds.find(
-                (r) => r.roundNumber === i + 1,
-              )
-              return existing?.displayScore ?? ""
-            }),
-          )
-        } else {
-          setRoundScoreInputs([])
-          setRoundCaps([])
-        }
-        setHasSubmitted(subs.length > 0)
-        setIsEditing(subs.length === 0)
-      }
-    }
-  }, [initialDivisionId])
 
   // Transition to preview mode after success message displays
   useEffect(() => {
@@ -562,8 +574,13 @@ export function VideoSubmissionForm({
 
   // Helper to update a specific video slot
   const updateSlot = (index: number, updates: Partial<VideoSlotState>) => {
-    setVideoSlots((prev) =>
-      prev.map((slot, i) => (i === index ? { ...slot, ...updates } : slot)),
+    updateDraft(
+      {
+        videoSlots: draftRef.current.videoSlots.map((slot, i) =>
+          i === index ? { ...slot, ...updates } : slot,
+        ),
+      },
+      "url" in updates || "notes" in updates,
     )
   }
 
@@ -921,6 +938,11 @@ export function VideoSubmissionForm({
 
       const allSuccess = results.every((r) => r.success)
       if (allSuccess) {
+        // A late save must not erase newer edits made after reopening this draft.
+        if (draftStore.get(draftKey)?.revision === draft.revision) {
+          draftStore.delete(draftKey)
+        }
+        if (!mounted.current) return
         const anyUpdate = results.some((r) => r.isUpdate)
         setSuccess(
           anyUpdate
@@ -948,18 +970,9 @@ export function VideoSubmissionForm({
                 ? newSubmissions[existingIdx].submittedAt
                 : new Date(),
             updatedAt: new Date(),
-            reviewStatus:
-              existingIdx >= 0
-                ? newSubmissions[existingIdx].reviewStatus
-                : "pending",
-            statusUpdatedAt:
-              existingIdx >= 0
-                ? newSubmissions[existingIdx].statusUpdatedAt
-                : null,
-            reviewerNotes:
-              existingIdx >= 0
-                ? newSubmissions[existingIdx].reviewerNotes
-                : null,
+            reviewStatus: "pending",
+            statusUpdatedAt: new Date(),
+            reviewerNotes: null,
           }
           if (existingIdx >= 0) {
             newSubmissions[existingIdx] = newSub
@@ -1036,9 +1049,10 @@ export function VideoSubmissionForm({
         onSubmitSuccess?.()
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit")
+      if (mounted.current)
+        setError(err instanceof Error ? err.message : "Failed to submit")
     } finally {
-      setIsSubmitting(false)
+      if (mounted.current) setIsSubmitting(false)
     }
   }
 
@@ -1136,7 +1150,7 @@ export function VideoSubmissionForm({
                           onChange={(e) => {
                             const updated = [...roundScoreInputs]
                             updated[i] = e.target.value
-                            setRoundScoreInputs(updated)
+                            updateDraft({ roundScoreInputs: updated })
                           }}
                           placeholder={getPlaceholder(workout.scheme)}
                           className={cn(
@@ -1161,29 +1175,28 @@ export function VideoSubmissionForm({
                               }
                               disabled={isSubmitting}
                               onChange={(value) => {
-                                setRoundCaps((prev) =>
-                                  Array.from(
+                                updateDraft({
+                                  roundCaps: Array.from(
                                     { length: roundsToScore },
                                     (_, index) =>
                                       index === i
                                         ? value
-                                        : (prev[index] ?? {
+                                        : (draftRef.current.roundCaps[index] ?? {
                                             status: "scored",
                                             secondaryScore: "",
                                           }),
                                   ),
-                                )
-                                if (value.status === "cap")
-                                  setRoundScoreInputs((prev) =>
-                                    prev.map((score, index) =>
-                                      index === i
-                                        ? decodeScore(
-                                            (workout.timeCap ?? 0) * 1000,
-                                            "time-with-cap",
-                                          )
-                                        : score,
+                                  roundScoreInputs:
+                                    draftRef.current.roundScoreInputs.map(
+                                      (score, index) =>
+                                        index === i && value.status === "cap"
+                                          ? decodeScore(
+                                              (workout.timeCap ?? 0) * 1000,
+                                              "time-with-cap",
+                                            )
+                                          : score,
                                     ),
-                                  )
+                                })
                               }}
                             />
                           )}
@@ -1221,7 +1234,9 @@ export function VideoSubmissionForm({
                   <Input
                     id="score-input"
                     value={scoreInput}
-                    onChange={(e) => setScoreInput(e.target.value)}
+                    onChange={(e) =>
+                      updateDraft({ scoreInput: e.target.value })
+                    }
                     placeholder={getPlaceholder(workout.scheme)}
                     className={cn(
                       "font-mono",
@@ -1268,7 +1283,9 @@ export function VideoSubmissionForm({
                     id="secondary-input"
                     type="number"
                     value={secondaryScore}
-                    onChange={(e) => setSecondaryScore(e.target.value)}
+                    onChange={(e) =>
+                      updateDraft({ secondaryScore: e.target.value })
+                    }
                     placeholder="e.g., 150"
                     min="0"
                     disabled={isSubmitting}
@@ -1290,7 +1307,9 @@ export function VideoSubmissionForm({
                   <Input
                     id="tiebreak-input"
                     value={tiebreakScore}
-                    onChange={(e) => setTiebreakScore(e.target.value)}
+                    onChange={(e) =>
+                      updateDraft({ tiebreakScore: e.target.value })
+                    }
                     placeholder={
                       workout.tiebreakScheme === "time"
                         ? "e.g., 3:45"
@@ -1396,10 +1415,10 @@ export function VideoSubmissionForm({
           )}
 
           {/* Error Message */}
-          {error && (
+          {(error || divisionError) && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{error || divisionError}</AlertDescription>
             </Alert>
           )}
 
