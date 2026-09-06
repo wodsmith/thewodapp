@@ -19,3 +19,9 @@ The corpus is `apps/wodsmith-start/test/fixtures/workout-import/evaluation.json`
 Committed saves schedule private source cleanup without changing their successful receipt when cleanup fails. Denied saves retain the draft and never schedule successful-save cleanup.
 
 [[apps/wodsmith-start/src/server-fns/workout-import-fns.ts#saveWorkoutImportFn]] extends the Worker request lifetime for cleanup after the database commit. The existing expiry schedule remains the fallback if cleanup is temporarily unavailable.
+
+## Browser verification boundary
+
+The integration browser runner uses a loopback Worker and a fixed disposable MySQL database. It seeds model proposals explicitly, then exercises real session authorization, review controls and persistence without claiming extraction quality.
+
+The runner is `apps/wodsmith-start/scripts/verify-workout-import-browser.mjs`; it requires the existing synthetic E2E users and catalog seed. Screenshots stay under `/tmp/workout-import-browser-evidence`. Live extraction observations remain separate in [[workout-import-runtime#Workout Import Runtime]].
