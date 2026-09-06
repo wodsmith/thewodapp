@@ -4,9 +4,10 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { ROLES_ENUM } from "@/db/schema"
 import {
   createProgrammingTrackId,
   createTrackWorkoutId,
@@ -22,6 +23,10 @@ import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import { appendCrossFitWorkout } from "@/server/append-crossfit-workout"
+import {
+  requireWorkoutTeamWrite,
+  WorkoutImportAccessError,
+} from "@/server/workout-import/access"
 import { getSessionFromCookie, requireAdmin } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -287,7 +292,25 @@ export const getProgrammingTrackByIdFn = createServerFn({ method: "GET" })
       .where(eq(programmingTracksTable.id, data.trackId))
       .limit(1)
 
-    return { track: result[0] || null }
+    const track = result[0] || null
+    const session = await getSessionFromCookie()
+    let canManageWorkouts = false
+    if (track?.id === CROSSFIT_TRACK_ID) {
+      canManageWorkouts = session?.user?.role === ROLES_ENUM.ADMIN
+    } else if (track?.ownerTeamId && session?.userId) {
+      try {
+        await requireWorkoutTeamWrite(
+          session.userId,
+          track.ownerTeamId,
+          TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+          db,
+        )
+        canManageWorkouts = true
+      } catch (error) {
+        if (!(error instanceof WorkoutImportAccessError)) throw error
+      }
+    }
+    return { track, canManageWorkouts }
   })
 
 /**
@@ -488,11 +511,33 @@ export const addWorkoutToTrackFn = createServerFn({ method: "POST" })
       throw new Error("Not authenticated")
     }
 
-    // Create the track workout
     if (data.trackId === CROSSFIT_TRACK_ID) {
       await requireAdmin()
       return appendCrossFitWorkout(db, data.workoutId, data.notes)
     }
+
+    const track = await db.query.programmingTracksTable.findFirst({
+      where: eq(programmingTracksTable.id, data.trackId),
+    })
+    if (!track?.ownerTeamId) throw new Error("Track not found")
+    await requireWorkoutTeamWrite(
+      session.userId,
+      track.ownerTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+      db,
+    )
+    const workout = await db.query.workouts.findFirst({
+      where: and(
+        eq(workoutsTable.id, data.workoutId),
+        or(
+          eq(workoutsTable.teamId, track.ownerTeamId),
+          eq(workoutsTable.scope, "public"),
+        ),
+      ),
+    })
+    if (!workout) throw new Error("Workout unavailable for this track")
+
+    // Create the track workout
     if (data.trackOrder === undefined)
       throw new Error("Track order is required")
     const trackWorkoutId = createTrackWorkoutId()

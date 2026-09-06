@@ -48,3 +48,4 @@ export * from "./schemas/workouts"
 
 // Note: Cross-schema relations have been merged into their primary definitions
 // teamTable relations (including programmingTracks) are in schemas/teams.ts
+export * from "./schemas/workout-import"

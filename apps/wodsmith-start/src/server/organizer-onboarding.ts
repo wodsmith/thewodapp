@@ -56,6 +56,9 @@ export async function grantTeamFeature(
     .onDuplicateKeyUpdate({
       set: {
         isActive: 1,
+        ...(featureKey === FEATURES.AI_WORKOUT_IMPORT
+          ? { expiresAt: null }
+          : {}),
         source: "override",
       },
     })
@@ -82,6 +85,19 @@ export async function revokeTeamFeature(
 
   if (!feature) {
     throw new Error(`Feature not found: ${featureKey}`)
+  }
+
+  // Import revocation must also deny plan/override-only grants without a snapshot.
+  if (featureKey === FEATURES.AI_WORKOUT_IMPORT) {
+    await db
+      .insert(teamFeatureEntitlementTable)
+      .values({
+        teamId,
+        featureId: feature.id,
+        source: "override",
+        isActive: 0,
+      })
+      .onDuplicateKeyUpdate({ set: { isActive: 0 } })
   }
 
   // Deactivate the feature entitlement (set isActive = 0)

@@ -36,6 +36,13 @@
       "when": 1788714139484,
       "tag": "0004_crossfit_daily_import",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1788714139485,
+      "tag": "0005_workout_import_domain",
+      "breakpoints": true
     }
   ]
 }

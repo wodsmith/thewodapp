@@ -3,40 +3,44 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { WorkoutForm, type WorkoutFormData } from "@/components/workout-form"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
+import { getWorkoutEditScalingGroupsFn } from "@/server-fns/workout-edit-fns"
 import { getWorkoutByIdFn, updateWorkoutFn } from "@/server-fns/workout-fns"
 
 export const Route = createFileRoute("/_protected/workouts/$workoutId/edit/")({
   component: EditWorkoutPage,
   loader: async ({ params }) => {
-    const [workoutResult, movementsResult] = await Promise.all([
+    const [workoutResult, movementsResult, scalingResult] = await Promise.all([
       getWorkoutByIdFn({ data: { id: params.workoutId } }),
       getAllMovementsFn(),
+      getWorkoutEditScalingGroupsFn({ data: { workoutId: params.workoutId } }),
     ])
     return {
       workout: workoutResult.workout,
       movements: movementsResult.movements,
+      scalingGroups: scalingResult.scalingGroups,
     }
   },
 })
 
 function EditWorkoutPage() {
   const navigate = useNavigate()
-  const { workout, movements } = Route.useLoaderData()
+  const { workout, movements, scalingGroups } = Route.useLoaderData()
   const { workoutId } = Route.useParams()
 
-  // Extract initial movement IDs from the workout's current movements
-  // Note: movements property is added when getWorkoutByIdFn is updated to include workout movements
-  const workoutWithMovements = workout as typeof workout & {
-    movements?: Array<{ id: string }>
-  }
   const initialMovementIds =
-    workoutWithMovements?.movements?.map((m) => m.id) ?? []
+    workout?.movements?.map((movement) => movement.id) ?? []
 
   const handleSubmit = async (data: WorkoutFormData) => {
     await updateWorkoutFn({
       data: {
         id: workoutId,
         ...data,
+        timeCap: data.timeCap ?? null,
+        roundsToScore: data.roundsToScore ?? 1,
+        repsPerRound: data.repsPerRound ?? null,
+        tiebreakScheme: data.tiebreakScheme ?? null,
+        scalingGroupId: data.scalingGroupId ?? null,
+        movementIds: data.movementIds ?? [],
       },
     })
 
@@ -79,10 +83,14 @@ function EditWorkoutPage() {
         scope: workout.scope,
         timeCap: workout.timeCap ?? undefined,
         roundsToScore: workout.roundsToScore ?? undefined,
+        repsPerRound: workout.repsPerRound ?? undefined,
+        tiebreakScheme: workout.tiebreakScheme ?? undefined,
+        scalingGroupId: workout.scalingGroupId ?? undefined,
       }}
       onSubmit={handleSubmit}
       backUrl={`/workouts/${workoutId}`}
       movements={movements}
+      scalingGroups={scalingGroups}
       initialMovementIds={initialMovementIds}
     />
   )

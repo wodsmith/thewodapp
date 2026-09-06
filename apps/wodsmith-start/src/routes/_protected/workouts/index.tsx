@@ -16,6 +16,7 @@ import {
   WorkoutFilters,
   type WorkoutFilters as WorkoutFiltersType,
 } from "@/components/workout-filters"
+import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
 import { WORKOUT_SCHEME_VALUES } from "@/db/schemas/workouts"
 import { trainingDateSchema } from "@/server/training-validation"
 import { getTrainingContextFn } from "@/server-fns/training-fns"
@@ -255,17 +256,30 @@ function WorkoutsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-4xl font-bold">Workout library</h1>
-        <Button asChild>
-          <Link
-            to="/workouts/new"
-            search={{ remixFrom: undefined, teamId: teamId ?? undefined }}
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create workout
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <WorkoutImportEntry
+            destination={{ kind: "personal" }}
+            saveLabel="Create workout"
+            onSaved={(result) =>
+              navigate({
+                to: "/workouts/$workoutId",
+                params: { workoutId: result.workoutId },
+                search: { teamId: teamId ?? undefined, date },
+              })
+            }
+          />
+          <Button asChild>
+            <Link
+              to="/workouts/new"
+              search={{ remixFrom: undefined, teamId: teamId ?? undefined }}
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create workout
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <p className="mb-6 max-w-2xl text-muted-foreground">

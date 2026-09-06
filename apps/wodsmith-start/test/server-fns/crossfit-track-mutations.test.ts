@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import { addWorkoutToTrackFn, deleteProgrammingTrackFn, removeWorkoutFromTrackFn, updateProgrammingTrackFn, updateTrackVisibilityFn } from "@/server-fns/programming-fns"
 import { appendCrossFitWorkout } from "@/server/append-crossfit-workout"
+import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
 import { requireAdmin } from "@/utils/auth"
 
 const db = new FakeDrizzleDb()
 vi.mock("@/db", () => ({ getDb: () => db }))
 vi.mock("@/server/append-crossfit-workout", () => ({ appendCrossFitWorkout: vi.fn() }))
 vi.mock("@/utils/auth", () => ({ getSessionFromCookie: vi.fn(async () => ({ userId: "user" })), requireAdmin: vi.fn() }))
+vi.mock("@/server/workout-import/access", () => ({ requireWorkoutTeamWrite: vi.fn(async () => undefined) }))
 vi.mock("@/utils/team-auth", () => ({ requireTeamPermission: vi.fn() }))
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({ inputValidator: (parse: (data: unknown) => unknown) => ({ handler: (handler: (ctx: { data: unknown }) => unknown) => (ctx: { data: unknown }) => handler({ data: parse(ctx.data) }) }) }),
@@ -45,9 +47,14 @@ describe("CrossFit track mutation authorization", () => {
     expect(appendCrossFitWorkout).toHaveBeenCalledWith(db, "workout", undefined)
     await expect(async () => addWorkoutToTrackFn({ data: { trackId: CROSSFIT_TRACK_ID, workoutId: "workout", trackOrder: 4 } })).rejects.toThrow("assigned automatically")
     await expect(async () => addWorkoutToTrackFn({ data: { trackId: "other", workoutId: "workout" } as never })).rejects.toThrow()
+    db.registerTable("programmingTracksTable")
+    db.registerTable("workouts")
+    vi.mocked(db.query.programmingTracksTable.findFirst).mockResolvedValue({ id: "other", ownerTeamId: "owner" } as never)
+    vi.mocked(db.query.workouts.findFirst).mockResolvedValue({ id: "workout", teamId: "owner" } as never)
     vi.mocked(requireAdmin).mockClear()
     await addWorkoutToTrackFn({ data: { trackId: "other", workoutId: "workout", trackOrder: 4 } })
     expect(requireAdmin).not.toHaveBeenCalled()
+    expect(requireWorkoutTeamWrite).toHaveBeenCalledWith("user", "owner", "manage_programming", db)
     expect(db.insert).toHaveBeenCalled()
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Administrator track edits]]

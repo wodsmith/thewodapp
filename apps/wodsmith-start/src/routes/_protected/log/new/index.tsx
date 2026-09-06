@@ -1,12 +1,13 @@
-import { createFileRoute, redirect } from "@tanstack/react-router"
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
 import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
 import { trackEvent } from "@/lib/posthog"
 import { cn } from "@/lib/utils"
@@ -14,6 +15,7 @@ import {
   getPersonalLibraryScalingLevelsFn,
   getPersonalTrainingDayFn,
   savePersonalLibraryResultFn,
+  savePersonalTrainingSessionFn,
 } from "@/server-fns/training-personal-fns"
 import { parseScore } from "@/utils/score-parser-new"
 
@@ -106,6 +108,8 @@ function LogNewPage() {
     personalItemId,
     personalRevision,
   } = Route.useLoaderData()
+  const navigate = useNavigate()
+  const importedItems = useRef(new Map<string, string>())
   const workoutId = selectedWorkout?.id
   const returnTo = `/training?teamId=${encodeURIComponent(teamId)}&date=${trainingDate}`
 
@@ -125,6 +129,14 @@ function LogNewPage() {
   const [roundScores, setRoundScores] = useState<string[]>(() =>
     Array(numRounds).fill(""),
   )
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: A different personal occurrence needs fresh score inputs even when its scoring shape is unchanged.
+  useEffect(() => {
+    setScore("")
+    setRoundScores(Array(numRounds).fill(""))
+    setSelectedScalingLevelId(scalingLevels[0]?.id)
+    setAsRx(true)
+  }, [personalItemId, numRounds, scalingLevels])
 
   // Handle round score changes
   const handleRoundScoreChange = (roundIndex: number, value: string) => {
@@ -213,6 +225,70 @@ function LogNewPage() {
         <h1 className="text-2xl font-bold">Log result</h1>
       </div>
 
+      <div className="mb-6 space-y-2">
+        <WorkoutImportEntry
+          destination={{ kind: "personal" }}
+          saveLabel="Create and use workout"
+          onSaved={async (result) => {
+            // A retried save receipt must reuse its personal occurrence, even
+            // when the composition was saved but its response was lost.
+            let itemId = importedItems.current.get(result.workoutId)
+            if (!itemId) {
+              itemId = crypto.randomUUID()
+              importedItems.current.set(result.workoutId, itemId)
+            }
+            const day = await getPersonalTrainingDayFn({
+              data: { teamId, trainingDate },
+            })
+            const personal = day.personalSession
+            if (!personal || personal.id !== personalSessionId) {
+              throw new Error("Your session is no longer available.")
+            }
+            const existing = personal.items.find((item) => item.id === itemId)
+            if (
+              existing &&
+              (existing.kind !== "library" ||
+                existing.workoutId !== result.workoutId)
+            ) {
+              throw new Error(
+                "Your session changed. Reload before adding this workout.",
+              )
+            }
+            const saved = existing
+              ? personal
+              : await savePersonalTrainingSessionFn({
+                  data: {
+                    teamId,
+                    trainingDate,
+                    expectedRevision: personal.revision,
+                    items: [
+                      ...personal.items,
+                      {
+                        id: itemId,
+                        kind: "library",
+                        workoutId: result.workoutId,
+                      },
+                    ],
+                  },
+                })
+            await navigate({
+              to: "/log/new",
+              search: {
+                workoutId: result.workoutId,
+                teamId: saved.teamId,
+                date: saved.trainingDate,
+                personalSessionId: saved.id,
+                personalItemId: itemId,
+                personalRevision: saved.revision,
+              },
+            })
+          }}
+        />
+        <p className="text-sm text-muted-foreground">
+          Create a missing workout and add it to your session on {trainingDate}.
+          Notes are kept; score and scaling start fresh for the new workout.
+        </p>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Workout Selection */}
         <div>

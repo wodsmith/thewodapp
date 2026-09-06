@@ -132,7 +132,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
-    "@cloudflare/workers-types": "^4.20250508.0",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@playwright/test": "^1.60.0",
     "@repo/test-utils": "workspace:*",
     "@tanstack/devtools-vite": "^0.3.11",
