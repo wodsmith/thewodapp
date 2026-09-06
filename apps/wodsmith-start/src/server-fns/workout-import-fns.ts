@@ -1,3 +1,4 @@
+import { waitUntil } from "cloudflare:workers"
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq, isNull, or } from "drizzle-orm"
 import { z } from "zod"
@@ -75,5 +76,24 @@ export const saveWorkoutImportFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const session = await getSessionFromCookie()
     if (!session?.userId) throw new Error("Not authenticated")
-    return saveWorkoutImport({ userId: session.userId, input: data })
+    const result = await saveWorkoutImport({
+      userId: session.userId,
+      input: data,
+    })
+    const cleanup = import("@/server/workout-import/cleanup")
+      .then(({ cleanupSavedWorkoutImport }) =>
+        cleanupSavedWorkoutImport({
+          userId: session.userId,
+          importId: data.importId,
+        }),
+      )
+      .catch(() => undefined)
+    try {
+      waitUntil(cleanup)
+    } catch {
+      // Non-Worker test contexts cannot extend request lifetime; cleanup remains
+      // best effort, with the existing expiry schedule as the retention fallback.
+      void cleanup
+    }
+    return result
   })

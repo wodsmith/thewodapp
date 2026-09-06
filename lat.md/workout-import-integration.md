@@ -13,3 +13,9 @@ The integration acceptance matrix lives in `docs/plans/2026-09-05-workout-import
 Thirty authored prescriptions cover precise scoring, ambiguous inputs, units, multiple parts and hostile instructions. A test-only renderer creates matching printed screenshots; labels require human review before launch evaluation.
 
 The corpus is `apps/wodsmith-start/test/fixtures/workout-import/evaluation.json`. Generated images and manifests stay outside the repository. Printed-source checks do not establish handwriting robustness or live model quality, cost or latency.
+
+## Post-save cleanup tests
+
+Committed saves schedule private source cleanup without changing their successful receipt when cleanup fails. Denied saves retain the draft and never schedule successful-save cleanup.
+
+[[apps/wodsmith-start/src/server-fns/workout-import-fns.ts#saveWorkoutImportFn]] extends the Worker request lifetime for cleanup after the database commit. The existing expiry schedule remains the fallback if cleanup is temporarily unavailable.
