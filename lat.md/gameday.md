@@ -165,3 +165,7 @@ Five native iPhone 14 Plus screenshots are saved in Apple's 6.5-inch English lis
 The user approved reusing Dial Your Espresso's Apple review contact. Its phone and email fields are empty, so Game Day's contact form cannot save until those values are provided. Contact values belong in App Store Connect rather than source documentation.
 
 The implementation branch is `zac/native-game-day`. External source publication is paused for explicit GitHub push approval after automatic review rejected code egress; the saved App Store draft remains available while that approval is pending.
+
+### Native screenshot evidence
+
+The App Store screenshot set uses fictional Debug competition data captured from real native views. Three local replacements reflect the final contrast changes and are ready to save after completing Apple's required review-contact fields.

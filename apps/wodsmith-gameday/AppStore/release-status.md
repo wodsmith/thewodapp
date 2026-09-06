@@ -20,7 +20,7 @@ The native app is in implementation and validation. It has not been uploaded or 
 
 ## Required before submission
 
-- Refresh the three affected App Store screenshots (My day, discovery, reminders) for the latest contrast/text styling before final submission. The saved five-image draft predates these small visual changes.
+- Replace the three affected App Store screenshots (My day, discovery, reminders) with the refreshed local captures. They are visually checked and ready in `AppStore/screenshots/6.5-inch/`; the saved five-image draft predates these small visual changes. Complete the missing contact fields so Apple can save the updated draft.
 - Deploy the new WODsmith API and public support/privacy pages; the production API currently returns 404.
 - Verify real athlete login, teammate assignments, profile editing, refresh/offline recovery, and notifications against deployed data.
 - Complete the App Store draft's privacy publication and review details. The user authorized reusing Dial Your Espresso's review contact. Its saved name is Zachary Jones, but phone and email are blank in both the read-only listing and edit dialog. The name is entered in Game Day's current form; Apple refuses to save it until phone and email are supplied. A request for those two missing values is pending. No Espresso review information was modified.
@@ -32,6 +32,6 @@ Full VoiceOver traversal, RTL, and unusually long organizer content have not bee
 
 ## Source release gate
 
-Implementation commit `00a4c9b89` is on local branch `zac/native-game-day`, rebased onto main at `129445f74`. The GitHub push was rejected by automatic approval review because explicit authorization to send source/history to `github.com/wodsmith/thewodapp` is required. A user approval request is pending; do not retry the push or use an alternate transport until authorized.
+The implementation starts at commit `00a4c9b89`; privacy, concurrency, and accessibility follow-through is in `35e5d34b4`. These and the refreshed screenshot assets are on local branch `zac/native-game-day`, based on main at `129445f74`. The GitHub push was rejected by automatic approval review because explicit authorization to send source/history to `github.com/wodsmith/thewodapp` is required. A user approval request is pending; do not retry the push or use an alternate transport until authorized.
 
 The initial pre-push lint failure was caused by missing worktree dependencies. Restoring links to the saved project’s installed packages resolved it. The full repository lint and type-check commands subsequently passed. No hook was bypassed.
