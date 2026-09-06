@@ -68,9 +68,11 @@ const r2Bucket = await R2Bucket("wodsmith-crew-uploads", {
 // @lat: [[crew#Crew Deployment Configuration]]
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const managedStripeStage = stage === "prod" || stage === "demo"
-const checkoutEnabled = process.env.CREW_STRIPE_CHECKOUT_ENABLED === "true"
+const checkoutEnabled =
+  (!process.env.CI || managedStripeStage) &&
+  process.env.CREW_STRIPE_CHECKOUT_ENABLED === "true"
 
-if (managedStripeStage && stripeSecretKey) {
+if (stripeSecretKey) {
   const expectedMode = stage === "prod" ? "live" : "test"
   if (!new RegExp(`^(sk|rk)_${expectedMode}_`).test(stripeSecretKey)) {
     throw new Error(`Crew ${stage} requires a Stripe ${expectedMode} API key.`)
@@ -111,8 +113,7 @@ const website = await TanStackStart("crew-app", {
     // biome-ignore lint/style/noNonNullAssertion: Set by deploy workflow.
     APP_URL: process.env.APP_URL!,
     SITE_URL: process.env.APP_URL ?? "https://crew.wodsmith.com",
-    CREW_STRIPE_CHECKOUT_ENABLED:
-      process.env.CREW_STRIPE_CHECKOUT_ENABLED ?? "false",
+    CREW_STRIPE_CHECKOUT_ENABLED: checkoutEnabled ? "true" : "false",
     ...(process.env.STRIPE_SECRET_KEY && {
       STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY),
     }),
