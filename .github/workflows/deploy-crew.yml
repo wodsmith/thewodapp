@@ -169,7 +169,7 @@ jobs:
           TURNSTILE_SECRET_KEY: ${{ secrets.CREW_TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           CREW_STRIPE_CHECKOUT_ENABLED: ${{ env.STAGE == 'prod' && (vars.CREW_STRIPE_CHECKOUT_ENABLED || 'false') || (env.STAGE == 'demo' && vars.CREW_STRIPE_CHECKOUT_ENABLED_DEMO || 'false') }}
-          STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || (env.STAGE != 'prod' && secrets.STRIPE_SECRET_KEY_DEMO || '') }}
+          STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || (env.STAGE == 'demo' && secrets.STRIPE_SECRET_KEY_DEMO || '') }}
           POSTHOG_KEY: ${{ secrets.CREW_POSTHOG_KEY }}
           SENTRY_DSN: ${{ secrets.CREW_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
