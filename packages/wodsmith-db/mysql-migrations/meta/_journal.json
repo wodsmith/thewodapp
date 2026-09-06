@@ -33,8 +33,15 @@
     {
       "idx": 4,
       "version": "5",
-      "when": 1788668930971,
-      "tag": "0004_workout_import_domain",
+      "when": 1788714139484,
+      "tag": "0004_crossfit_daily_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1788714139485,
+      "tag": "0005_workout_import_domain",
       "breakpoints": true
     }
   ]

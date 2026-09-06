@@ -39,3 +39,9 @@ Run `apps/wodsmith-start/scripts/verify-workout-import-review.mjs` after the bas
 The September 6 review follow-up records reproduced findings, regression fixes, and intentional behavior retained after triage. It does not turn live model-quality or deployed privacy gaps into completed release checks.
 
 See `docs/plans/2026-09-06-workout-import-review.md` for the bounded review decisions and `scripts/verify-workout-import-review.mjs` in the main app for real browser regressions.
+
+## Managed source track integration
+
+The CrossFit source track retains administrator-only manual appends and automatic ordering. Its management capability uses the site role; ordinary tracks continue to require current owner-team permission.
+
+The dedicated CrossFit Workflow and AI import Agent coexist in the Worker. Main's CrossFit migration keeps index 0004; reviewed AI import is appended as 0005. AI import excludes the managed source track so explicit order cannot bypass its publication contract.

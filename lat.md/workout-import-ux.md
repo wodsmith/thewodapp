@@ -35,3 +35,7 @@ Transient access-check failures preserve the last confirmed entitlement but bloc
 ## Track manager visibility
 
 The settings track page shows add-workout actions only when a fresh owner-team management check succeeds. Subscription access alone never grants composition writes; mutations retain their own authorization checks.
+
+## Managed source tracks
+
+The managed CrossFit source track uses its administrator-only manual append contract with server-assigned order. AI creation remains available on ordinary editable tracks and is hidden for this managed source.

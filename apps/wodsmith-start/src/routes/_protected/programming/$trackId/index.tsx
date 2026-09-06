@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start"
 import { ArrowLeft, Dumbbell, Loader2, Minus, Plus, Users } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { CrossFitImportAdmin } from "@/components/crossfit-import-admin"
+import { CrossFitTrackDays } from "@/components/crossfit-track-days"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,6 +15,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
+import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
+import { getCrossFitTrackDaysFn } from "@/server-fns/crossfit-import-fns"
 import {
   getProgrammingTrackByIdFn,
   getTrackSubscribedTeamsFn,
@@ -35,6 +39,8 @@ interface SubscribedTeam {
 }
 
 interface LoaderData {
+  canManageImports: boolean
+  days: Awaited<ReturnType<typeof getCrossFitTrackDaysFn>>
   track: ProgrammingTrackWithOwner | null
   trackWorkouts: TrackWorkoutWithDetails[]
   subscribedTeams: SubscribedTeam[]
@@ -49,7 +55,7 @@ export const Route = createFileRoute("/_protected/programming/$trackId/")({
     const userTeamIds = userTeams.map((t) => t.id)
 
     // Fetch track, workouts, and subscribed teams in parallel
-    const [trackResult, workoutsResult, subscribedTeamsResult] =
+    const [trackResult, workoutsResult, subscribedTeamsResult, days] =
       await Promise.all([
         getProgrammingTrackByIdFn({ data: { trackId: params.trackId } }),
         getTrackWorkoutsFn({ data: { trackId: params.trackId } }),
@@ -58,9 +64,13 @@ export const Route = createFileRoute("/_protected/programming/$trackId/")({
               data: { trackId: params.trackId, userTeamIds },
             })
           : Promise.resolve({ teams: [] as SubscribedTeam[] }),
+        getCrossFitTrackDaysFn({ data: { trackId: params.trackId } }),
       ])
 
     return {
+      canManageImports:
+        session?.user?.role === "admin" && params.trackId === CROSSFIT_TRACK_ID,
+      days,
       track: trackResult.track,
       trackWorkouts: workoutsResult.workouts,
       subscribedTeams: subscribedTeamsResult.teams,
@@ -70,8 +80,14 @@ export const Route = createFileRoute("/_protected/programming/$trackId/")({
 })
 
 function PublicTrackDetailPage() {
-  const { track, trackWorkouts, subscribedTeams, userTeams } =
-    Route.useLoaderData() as LoaderData
+  const {
+    track,
+    trackWorkouts,
+    subscribedTeams,
+    userTeams,
+    days,
+    canManageImports,
+  } = Route.useLoaderData() as LoaderData
   const router = useRouter()
   const [loadingTeamId, setLoadingTeamId] = useState<string | null>(null)
 
@@ -275,6 +291,8 @@ function PublicTrackDetailPage() {
       )}
 
       {/* Track Workouts Section */}
+      <CrossFitTrackDays days={days} />
+      {canManageImports && <CrossFitImportAdmin />}
       <div>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold font-mono">TRACK WORKOUTS</h2>

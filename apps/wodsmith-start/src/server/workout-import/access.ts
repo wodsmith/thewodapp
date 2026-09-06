@@ -15,6 +15,7 @@ import {
   teamTable,
   userTable,
 } from "@/db/schema"
+import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import {
   type WorkoutImportAccess,
   type WorkoutImportDestination,
@@ -143,6 +144,8 @@ export async function requireWorkoutDestinationWrite(
     if (!team) throw new WorkoutImportAccessError()
     teamId = team.id
   } else {
+    if (destination.trackId === CROSSFIT_TRACK_ID)
+      throw new WorkoutImportAccessError()
     const track = await db.query.programmingTracksTable.findFirst({
       where: eq(programmingTracksTable.id, destination.trackId),
     })

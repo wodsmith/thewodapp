@@ -43,4 +43,10 @@ These reports either describe intentional behavior or extend beyond the importer
 
 ## Verification boundary
 
-The real local browser checks passed for expiry recovery, revoked-expiry denial, and changing team/system scaling after AI revocation. The full main suite passed 3,464 tests (25 skipped), with 30 separate runtime tests, a client/Worker build and current-permission browser regressions. CI results are recorded in the PR; representative model quality and deployed privacy checks remain rollout gates.
+The real local browser checks passed for expiry recovery, revoked-expiry denial, and changing team/system scaling after AI revocation. The full main suite passed 3,494 tests (25 skipped), with 30 separate runtime tests, a client/Worker build and current-permission browser regressions. CI results are recorded in the PR; representative model quality and deployed privacy checks remain rollout gates.
+
+## Current main integration
+
+PR #681 merged while review fixes were being verified. Its CrossFit Workflow, source track maintenance rules and 0004 migration are preserved; reviewed AI import moves to 0005.
+
+CrossFit manual additions retain site administration and server-assigned ordering. Generic AI import cannot target the managed source track; ordinary track management still uses current owner permission. Shared Worker exports, source resources and both database snapshots retain both features.

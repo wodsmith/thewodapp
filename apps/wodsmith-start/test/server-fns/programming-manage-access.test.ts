@@ -5,6 +5,7 @@ vi.mock("@/db", () => ({ getDb: () => ({ select: mock.select }) }))
 vi.mock("@/utils/auth", () => ({ getSessionFromCookie: mock.session }))
 vi.mock("@/utils/team-auth", () => ({ requireTeamPermission: vi.fn() }))
 vi.mock("@/server/workout-import/access", () => ({ requireWorkoutTeamWrite: mock.access, WorkoutImportAccessError: class extends Error {} }))
+import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import { getProgrammingTrackByIdFn } from "@/server-fns/programming-fns"
 import { WorkoutImportAccessError } from "@/server/workout-import/access"
 beforeEach(() => {
@@ -22,4 +23,16 @@ it("resolves management against the current track owner and preserves read acces
   expect(await getProgrammingTrackByIdFn(input)).toMatchObject({ track: { id: "track" }, canManageWorkouts: false })
   mock.access.mockRejectedValueOnce(new Error("Database unavailable"))
   await expect(getProgrammingTrackByIdFn(input)).rejects.toThrow("Database unavailable")
+})
+
+// @lat: [[workout-import-integration#Workout Import Integration#Managed source track integration]]
+it("uses site administration for the managed CrossFit source track", async () => {
+  const chain = { from: () => chain, leftJoin: () => chain, where: () => chain, limit: async () => [{ id: CROSSFIT_TRACK_ID, ownerTeamId: "crossfit-team" }] }
+  mock.select.mockReturnValue(chain)
+  mock.access.mockClear()
+  mock.session.mockResolvedValue({ userId: "admin", user: { role: "admin" } })
+  expect(await getProgrammingTrackByIdFn({ data: { trackId: CROSSFIT_TRACK_ID } })).toMatchObject({ canManageWorkouts: true })
+  mock.session.mockResolvedValue({ userId: "user", user: { role: "user" } })
+  expect(await getProgrammingTrackByIdFn({ data: { trackId: CROSSFIT_TRACK_ID } })).toMatchObject({ canManageWorkouts: false })
+  expect(mock.access).not.toHaveBeenCalled()
 })

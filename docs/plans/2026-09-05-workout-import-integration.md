@@ -41,7 +41,7 @@ A forced GitNexus rebuild recovered an internal FTS index error. Comparison agai
 
 ## Current main integration
 
-The PR incorporates main `8f340eec1`, including athlete-owned training sessions. The import migration is now `0004_workout_import_domain.sql`, after main's unchanged `0002_training_personal` and `0003_training_library_history` migrations. The generated snapshot preserves all main tables and adds only the two import tables.
+The PR incorporates main `4ab9cbb1c`, including athlete-owned training sessions and CrossFit daily import. The AI import migration is `0005_workout_import_domain.sql`, after main's unchanged `0004_crossfit_daily_import.sql`. The 0005 snapshot preserves all main tables, including both CrossFit import tables, and adds only the two AI import tables.
 
 The workout library retains main's gym/date context and training navigation while exposing the entitled private import action. Logging retains main's required personal-session occurrence and server-derived date; creating an imported workout adds a new library occurrence through the existing versioned composition API before selecting it. Existing occurrences remain intact and no result is submitted by this handoff. The merged real-browser run verifies all of these properties and both track aliases. The handoff suite now covers lost-response retry without duplicate occurrences and stale composition failure. Main training/private-log regressions add 83 passing tests; 13 opt-in training database cases remain skipped, separate from the 19 importer MySQL cases that run.
 

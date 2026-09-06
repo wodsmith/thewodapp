@@ -15,6 +15,7 @@ import {
 } from "vitest"
 import type { Database } from "@/db"
 import { FEATURES } from "@/config/features"
+import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import {
   featureTable,
   planFeatureTable,
@@ -587,7 +588,7 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
       .delete(featureTable)
       .where(eq(featureTable.key, FEATURES.AI_WORKOUT_IMPORT))
     const migration = readFileSync(
-      "../../packages/wodsmith-db/mysql-migrations/0004_workout_import_domain.sql",
+      "../../packages/wodsmith-db/mysql-migrations/0005_workout_import_domain.sql",
       "utf8",
     )
     for (let n = 0; n < 2; n++)
@@ -804,6 +805,25 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
     const edit = { id: created.workout.id, name: "Legacy intervals", description: "Three separate scores", scheme: "time" as const, scope: "private" as const }
     expect((await updateWorkoutFn({ data: edit })).workout).toMatchObject({ roundsToScore: 3, scoreType: "min" })
     expect((await updateWorkoutFn({ data: { ...edit, scheme: "reps", scoreType: null } })).workout).toMatchObject({ roundsToScore: 3, scoreType: "max" })
+  })
+
+  // @lat: [[workout-import#Workout Import#CrossFit destination isolation tests]]
+  it("denies the CrossFit source destination even with owner permissions and current AI grants", async () => {
+    await grantTeamFeature("gym", FEATURES.AI_WORKOUT_IMPORT)
+    await seed(programmingTracksTable, {
+      id: CROSSFIT_TRACK_ID,
+      ownerTeamId: "gym",
+      name: "CrossFit.com",
+      isPublic: true,
+    })
+    const destination = { kind: "track" as const, trackId: CROSSFIT_TRACK_ID }
+    expect(await getWorkoutImportAccessFn({ data: { destination } })).toEqual({ hasAccess: false })
+    await expect(createWorkoutImportSession({ userId: "athlete", destination }, db)).rejects.toThrow("access required")
+    expect(await db.select().from(workoutImportSessionsTable)).toHaveLength(0)
+    const input = await draft("track")
+    await db.update(workoutImportSessionsTable).set({ trackId: CROSSFIT_TRACK_ID }).where(eq(workoutImportSessionsTable.id, input.importId))
+    await expect(saveWorkoutImport({ userId: "athlete", input }, db)).rejects.toThrow("access required")
+    expect(await rowCounts()).toEqual([0, 0, 0, 0])
   })
 
 })

@@ -105,6 +105,7 @@ import {
 } from "alchemy/planetscale"
 import { CloudflareStateStore } from "alchemy/state"
 import { WebhookEndpoint } from "alchemy/stripe"
+import type { CrossFitImportParams } from "./src/workflows/crossfit-daily-import-workflow"
 
 /**
  * Initialize the Alchemy application context.
@@ -525,6 +526,11 @@ const stripeCheckoutWorkflow = Workflow(`stripe-checkout-workflow-${stage}`, {
   workflowName: `stripe-checkout-workflow-${stage}`,
 })
 
+const crossFitDailyImportWorkflow = Workflow<CrossFitImportParams>(`crossfit-daily-import-workflow-${stage}`, {
+  className: "CrossFitDailyImportWorkflow",
+  workflowName: `crossfit-daily-import-workflow-${stage}`,
+})
+
 const manualRegistrationWorkflow = Workflow(
   `manual-registration-workflow-${stage}`,
   {
@@ -647,6 +653,8 @@ const broadcastEmailQueue = await Queue(`broadcast-email-queue-${stage}`, {
  * @see {@link https://tanstack.com/start/latest TanStack Start Docs}
  */
 const website = await TanStackStart("app", {
+  // 05:00 PST (UTC-8) year-round, followed by a publication health check.
+  crons: stage === "prod" ? ["0 13 * * *", "15 15 * * *"] : [],
   /**
    * Queue consumer registration.
    *
@@ -687,6 +695,7 @@ const website = await TanStackStart("app", {
     HYPERDRIVE: hyperdrive,
     /** Workflow for async Stripe checkout processing */
     STRIPE_CHECKOUT_WORKFLOW: stripeCheckoutWorkflow,
+    CROSSFIT_DAILY_IMPORT_WORKFLOW: crossFitDailyImportWorkflow,
     /** Workflow for manual registration notification with waiver info */
     MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
     /** Queue for async broadcast email delivery */

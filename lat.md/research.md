@@ -22,6 +22,16 @@ The runnable artifacts live in `docs/mockups/benchmark-density/`: Domain Rail us
 
 The Domain Rail is now selected for production benchmark competitions; Benchmark Matrix and Domain Board remain comparison prototypes.
 
+## CrossFit Daily Import Proposal
+
+The approved daily importer uses CrossFit's public workout JSON and a Cloudflare Workflow to publish dated programming into the existing production CrossFit.com track. The implementation is documented in [[crossfit-import]].
+
+The proposal is `docs/plans/crossfit-daily-import.md`. Read-only inspection confirmed `ptrk_crossfit_dotcom`, 114 existing workouts, three active subscriptions, and deployed Workflows, Hyperdrive, and AI bindings. CrossFit's `/workout/YYYY/MM/DD` endpoint returns original Markdown and publication metadata; the short daily page alone contains only the initial page shell and metadata.
+
+The design adds a unique provider/track/date import ledger with ordered scoreable items, explicit rest days, validated scoring conversion, and atomic publication. Literal 05:00 PST maps to 13:00 UTC; the proposal separately describes a daylight-saving-aware Pacific schedule. AI only assists ambiguous scoring conversion and cannot publish directly.
+
+Existing [[domain#Domain Model#Programming]] track rows have sequence order rather than source dates. Rest days and multiple scoreable components need a dated track read model. Track publication does not automatically create gym sessions under [[training#Training#Session Model]], whose publication and ownership rules remain distinct.
+
 ## Benchmark Competition Workout Directory
 
 Benchmark competitions use a dense domain directory while every other competition type retains the existing workout-card presentation.

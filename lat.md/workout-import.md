@@ -52,7 +52,7 @@ Saved imports use ordinary workout edit permissions. Reads include movements and
 
 Omitted new metadata or movements preserves existing values for older callers. Explicit null clears optional scoring metadata and an empty movement list clears junction rows. Real MySQL tests verify reload, replacement, clearing, invalid-reference rollback, and denied writes after permission loss.
 
-The import migration is `packages/wodsmith-db/mysql-migrations/0004_workout_import_domain.sql`, after main’s `0002_training_personal.sql` and `0003_training_library_history.sql`. Its snapshot extends main’s 0003 schema with only the two import tables.
+The import migration is `packages/wodsmith-db/mysql-migrations/0005_workout_import_domain.sql`, after main’s unchanged `0004_crossfit_daily_import.sql`. Its snapshot extends main’s 0004 schema, retaining both CrossFit tables and adding only the two AI import tables.
 
 ## Ordinary edit scaling choices
 
@@ -71,3 +71,9 @@ Ordinary multi-score creation and edits normalize a missing aggregation to the s
 ## Programming order validation tests
 
 Importer saves to ordinary programming tracks use the manual API’s positive integer ordering contract. Zero, negative, fractional, and out-of-range orders fail validation; competition decimal ordering is unchanged.
+
+## CrossFit destination isolation tests
+
+AI import excludes the CrossFit.com source track even with current team grants and owner permissions. Real MySQL tests deny access, session creation, and saves from stale sessions without writing workouts or receipts.
+
+CrossFit publication retains its separate administrator authorization and automatic append ordering through [[crossfit-import#CrossFit Daily Import#Publication]].

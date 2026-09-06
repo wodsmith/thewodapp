@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { WorkoutImportAccessButton } from "@/components/workout-import/workout-import-entry"
 import { WorkoutImportPanel } from "@/components/workout-import/workout-import-panel"
+import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import { addWorkoutToTrackFn } from "@/server-fns/programming-fns"
 import { getWorkoutsFn } from "@/server-fns/workout-fns"
 
@@ -36,8 +37,10 @@ export function AddWorkoutToTrackDialog({
   teamId,
   onSuccess,
 }: AddWorkoutToTrackDialogProps) {
+  const autoOrder = trackId === CROSSFIT_TRACK_ID
   const [open, setOpen] = useState(false)
   const [createWithAI, setCreateWithAI] = useState(false)
+  const importingWithAI = createWithAI && !autoOrder
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>("")
   const [trackOrder, setTrackOrder] = useState<string>("1")
   const [notes, setNotes] = useState<string>("")
@@ -77,7 +80,7 @@ export function AddWorkoutToTrackDialog({
     }
 
     const orderNumber = Number.parseInt(trackOrder, 10)
-    if (Number.isNaN(orderNumber) || orderNumber < 1) {
+    if (!autoOrder && (Number.isNaN(orderNumber) || orderNumber < 1)) {
       setError("Track order must be a positive number")
       return
     }
@@ -86,12 +89,18 @@ export function AddWorkoutToTrackDialog({
     setError(null)
     try {
       await addWorkoutToTrackFn({
-        data: {
-          trackId,
-          workoutId: selectedWorkoutId,
-          trackOrder: orderNumber,
-          notes: notes.trim() || undefined,
-        },
+        data: autoOrder
+          ? {
+              trackId: CROSSFIT_TRACK_ID,
+              workoutId: selectedWorkoutId,
+              notes: notes.trim() || undefined,
+            }
+          : {
+              trackId,
+              workoutId: selectedWorkoutId,
+              trackOrder: orderNumber,
+              notes: notes.trim() || undefined,
+            },
       })
 
       setSuccessMessage("Workout added to track")
@@ -136,10 +145,10 @@ export function AddWorkoutToTrackDialog({
       </DialogTrigger>
       <DialogContent
         onInteractOutside={(event) => {
-          if (createWithAI) event.preventDefault()
+          if (importingWithAI) event.preventDefault()
         }}
         className={
-          createWithAI
+          importingWithAI
             ? "max-h-[95dvh] overflow-y-auto sm:max-w-3xl"
             : "max-h-[95dvh] overflow-y-auto sm:max-w-[500px]"
         }
@@ -147,17 +156,19 @@ export function AddWorkoutToTrackDialog({
         <DialogHeader>
           <DialogTitle>Add workout to track</DialogTitle>
           <DialogDescription>
-            Select a workout and specify its position in the programming track.
+            {autoOrder
+              ? "Select a workout to append to the track."
+              : "Select a workout and specify its position in the programming track."}
           </DialogDescription>
         </DialogHeader>
 
-        {!createWithAI && (
+        {!autoOrder && !importingWithAI && (
           <WorkoutImportAccessButton
             destination={{ kind: "track", trackId }}
             onClick={() => setCreateWithAI(true)}
           />
         )}
-        {createWithAI && (
+        {importingWithAI && (
           <Button
             type="button"
             variant="outline"
@@ -179,7 +190,7 @@ export function AddWorkoutToTrackDialog({
         )}
 
         <div className="grid gap-4 py-4">
-          {!createWithAI && (
+          {!importingWithAI && (
             <div className="grid gap-2">
               <Label htmlFor="workout">Workout</Label>
               <Select
@@ -210,21 +221,23 @@ export function AddWorkoutToTrackDialog({
               </Select>
             </div>
           )}
-          <div className="grid gap-2">
-            <Label htmlFor="trackOrder">Track Order</Label>
-            <Input
-              id="trackOrder"
-              type="number"
-              min="1"
-              value={trackOrder}
-              onChange={(e) => setTrackOrder(e.target.value)}
-              disabled={isSubmitting}
-              placeholder="1"
-            />
-            <p className="text-sm text-muted-foreground">
-              Position of this workout in the track (e.g., Day 1, Day 2)
-            </p>
-          </div>
+          {!autoOrder && (
+            <div className="grid gap-2">
+              <Label htmlFor="trackOrder">Track Order</Label>
+              <Input
+                id="trackOrder"
+                type="number"
+                min="1"
+                value={trackOrder}
+                onChange={(e) => setTrackOrder(e.target.value)}
+                disabled={isSubmitting}
+                placeholder="1"
+              />
+              <p className="text-sm text-muted-foreground">
+                Position of this workout in the track (e.g., Day 1, Day 2)
+              </p>
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="notes">Notes (optional)</Label>
             <Input
@@ -236,7 +249,7 @@ export function AddWorkoutToTrackDialog({
             />
           </div>
         </div>
-        {createWithAI && open && (
+        {importingWithAI && open && (
           <WorkoutImportPanel
             key={trackId}
             destination={{ kind: "track", trackId }}
@@ -252,7 +265,7 @@ export function AddWorkoutToTrackDialog({
             }}
           />
         )}
-        {!createWithAI && (
+        {!importingWithAI && (
           <DialogFooter>
             <Button
               type="button"

@@ -133,3 +133,7 @@ Subscribed tracks without current owner-team management permission hide both man
 ## Track management capability
 
 Track reads check management permission against the current owner team, preserve read-only access on denial, and propagate unexpected failures rather than reporting false permission results.
+
+## Managed track append
+
+The managed CrossFit source track hides explicit order and AI creation, submitting existing-workout additions through its server-assigned append contract.

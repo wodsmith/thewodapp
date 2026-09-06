@@ -100,6 +100,7 @@ initWorkersLogger({
 // Workers runtime requires Durable Object classes to be exported from the entry point
 export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 export { WorkoutImportAgent } from "./agents/workout-import-agent"
+export { CrossFitDailyImportWorkflow } from "./workflows/crossfit-daily-import-workflow"
 export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -280,6 +281,38 @@ async function fetchWithLogging(
 export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
   // HTTP requests with logging and request context
   fetch: fetchWithLogging,
+
+  async scheduled(controller, env) {
+    const { CROSSFIT_CRON, crossFitScheduledDate } = await import(
+      "./lib/crossfit/source"
+    )
+    const date = crossFitScheduledDate(controller.scheduledTime)
+    if (controller.cron === "15 15 * * *") {
+      const { checkCrossFitImportHealth } = await import(
+        "./workflows/crossfit-daily-import-workflow"
+      )
+      await checkCrossFitImportHealth(date)
+      return
+    }
+    if (controller.cron !== CROSSFIT_CRON)
+      throw new Error("Unknown scheduled job")
+    const id = `crossfit-${date}`
+    try {
+      await env.CROSSFIT_DAILY_IMPORT_WORKFLOW.create({
+        id,
+        params: { sourceDate: date, mode: "publish" },
+      })
+    } catch (error) {
+      // Confirm an existing instance before treating dispatch as a duplicate.
+      // Do not restart failed or completed imports automatically.
+      try {
+        const existing = await env.CROSSFIT_DAILY_IMPORT_WORKFLOW.get(id)
+        await existing.status()
+      } catch {
+        throw error
+      }
+    }
+  },
 
   // Cloudflare Queue consumer for broadcast email delivery.
   // Messages are enqueued by sendBroadcastFn and processed here asynchronously.
