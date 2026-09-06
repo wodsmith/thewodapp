@@ -14,7 +14,7 @@ The additive model uses existing owned or actively subscribed programming tracks
 
 Every training read and write validates current, active, unexpired gym membership and the selected gym's workout-tracking entitlement. Coaching also requires programming permission.
 
-System owners and admins can program; custom roles require `manage_programming`. Session-cookie memberships and global administrator status do not bypass the database check. Athletes receive only published content. Draft saves permit unfinished titles; publishing requires a title, titled blocks, and either blocks or a rest day.
+System owners and admins can program; custom roles require `manage_programming`. Session-cookie memberships and global administrator status do not bypass the database check. Athletes receive only published content. Draft saves permit unfinished titles; publishing requires a title, titled blocks with nonempty prescriptions, and either blocks or a rest day.
 
 Saving and publishing use expected revisions and row locks. Publication copies the draft to the published snapshot, clears the draft, and increments its version. Copying creates an independent draft with new block identities and rejects any occupied destination, including concurrent copies.
 
@@ -22,7 +22,7 @@ Saving and publishing use expected revisions and row locks. Publication copies t
 
 A result is unique to its session, block, athlete, and published version. Repeated workouts never match by workout identity alone.
 
-Results snapshot their performed block. Time is normalized to milliseconds, load to grams, and reps to integers using existing score parsing. Result writes and publication lock the same session so an outdated score cannot enter a newer version. Earlier versions remain in the athlete's history.
+Results snapshot their performed block. Time is normalized to milliseconds, load to grams, and reps to integers using existing score parsing. Result writes and publication lock the same session so an outdated score cannot enter a newer version. Earlier versions remain in the athlete's history and own week results, allowing a notice when a coach republishes. Team comparison includes only the current published version. Loads must remain positive after normalization; zero reps are valid.
 
 Notes remain private. Scored results default to private and may be shared with gym members. Checkoffs remain private and never enter rankings. Cheers are unique per result and athlete; changing a score to private removes its cheers. Team reads exclude private notes and results at the server boundary.
 
@@ -30,7 +30,7 @@ Notes remain private. Scored results default to private and may be shared with g
 
 `/training` opens the athlete's gym, remembered track, gym-local week, and selected day. Training, Team, and My progress stay close to the day context.
 
-The interface distinguishes loading, failed reads, no track access, rest days, and unpublished days. Score dialogs retain entered data after failed saves and return to the same occurrence. Team comparison selects one section, version, and load unit; only Rx results receive comparable rankings. Progress shows the latest 100 own results, including previous prescriptions.
+The interface distinguishes loading, failed reads, no track access, rest days, and unpublished days. Score dialogs retain entered data after failed saves and return to the same occurrence. Dismissing the dialog discards unsaved edits; completion and notes saves cannot overlap for the same section. Team comparison selects one section, version, and load unit; only Rx results receive comparable rankings. Progress shows the latest 100 own results, including previous prescriptions.
 
 The selected gym travels to `/training/programming` when an authorized coach follows Program sessions. This local selection does not change the global active-team cookie. Durable offline synchronization, timed publication, class bookings, week templates, and historical score editing remain outside this release.
 
@@ -57,6 +57,14 @@ A failed score request preserves the entered values, audience, notes, and exact 
 ### Encoded scores edit in display units
 
 Editing converts normalized scores into time and load inputs without showing raw milliseconds or grams. Reopening and saving a duration preserves its full hours and fractional seconds.
+
+### Section saves are coordinated
+
+Completion and notes writes cannot overlap for the same section. A later successful dialog save clears errors from an earlier completion attempt.
+
+### Dismissed result edits are discarded
+
+Discarding or dismissing a result dialog drops unsaved fields, and reopening uses the latest saved result. Failed saves preserve inputs while the dialog remains open.
 
 ### Calendar preserves gym local dates
 

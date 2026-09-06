@@ -216,6 +216,18 @@ describe("training input and score rules", () => {
     expect(() =>
       normalizeTrainingResult(block, { ...score, score: "NaN" }),
     ).toThrow()
+    expect(() =>
+      normalizeTrainingResult(block, { ...score, score: "0" }),
+    ).toThrow("positive load")
+    expect(() =>
+      normalizeTrainingResult(block, { ...score, score: "0.001", unit: "lb" }),
+    ).toThrow("positive load")
+    expect(
+      normalizeTrainingResult(
+        { ...block, kind: "reps" },
+        { ...score, score: "0" },
+      ).scoreValue,
+    ).toBe(0)
   })
 
   it("keeps check-offs and notes private with no ranked score", () => {
@@ -249,6 +261,76 @@ describe("training input and score rules", () => {
       publishedTrainingBlock({ ...session, published: null }, score),
     ).toThrow("CONFLICT")
     expect(() => assertTrainingRevision(3, 2)).toThrow("CONFLICT")
+  })
+
+  it("never leaks a newer result version than the weekly session snapshot", async () => {
+    const owner = "training_test_coach"
+    const result = {
+      ...score,
+      id: "result_old",
+      userId: owner,
+      block,
+      scoreValue: 102058,
+      displayScore: "225",
+      audience: "private",
+    }
+    const latestSession = { ...session, publishedVersion: 2 }
+    const responses: unknown[][] = [
+      [{ membership: { isSystemRole: true, roleId: "owner" } }],
+      [{ track: { id: draft.trackId, name: "Training", description: null } }],
+      [session],
+      [
+        { result, session: latestSession, firstName: "Coach", lastName: null },
+        {
+          result: { ...result, id: "result_new", publishedVersion: 2 },
+          session: latestSession,
+          firstName: "Coach",
+          lastName: null,
+        },
+        {
+          result: {
+            ...result,
+            id: "result_other",
+            publishedVersion: 2,
+            userId: "other",
+            audience: "gym",
+          },
+          session: latestSession,
+          firstName: "Other",
+          lastName: null,
+        },
+      ],
+      [],
+    ]
+    const originalDb = state.db
+    state.userId = owner
+    state.feature = true
+    state.db = {
+      select: () => {
+        const response = responses.shift()
+        const query = Object.assign(Promise.resolve(response), {
+          from: () => query,
+          innerJoin: () => query,
+          leftJoin: () => query,
+          where: () => query,
+          orderBy: () => query,
+        })
+        return query
+      },
+    }
+    try {
+      const week = await getTrainingWeek({
+        ...draft,
+        startDate: draft.trainingDate,
+        mode: "athlete",
+      })
+      expect(week.sessions[0].publishedVersion).toBe(1)
+      expect(week.myResults.map((r) => r.id)).toEqual(["result_old"])
+      expect(week.teamResults).toEqual([])
+      expect(responses).toHaveLength(0)
+    } finally {
+      state.db = originalDb
+    }
   })
 })
 
@@ -476,6 +558,17 @@ describe.skipIf(!databaseUrl)(
           expectedRevision: saved.revision,
         }),
       ).rejects.toThrow("title")
+      const partial = await saveTrainingDraft({
+        ...draft,
+        expectedRevision: saved.revision,
+        content: { ...content, blocks: [{ ...block, prescription: " \n\t " }] },
+      })
+      await expect(
+        publishTrainingSession({
+          sessionId: partial.id,
+          expectedRevision: partial.revision,
+        }),
+      ).rejects.toThrow("prescription")
     })
 
     it("excludes private results and all notes from team responses", async () => {
@@ -539,15 +632,31 @@ describe.skipIf(!databaseUrl)(
       expect(history.find((r) => r.publishedVersion === 1)?.block.title).toBe(
         "Front squat",
       )
+      const week = await getTrainingWeek({
+        ...draft,
+        startDate: draft.trainingDate,
+        mode: "athlete",
+      })
+      expect(week.myResults.map((r) => r.publishedVersion).sort()).toEqual([
+        1, 2,
+      ])
       expect(
-        (
-          await getTrainingWeek({
-            ...draft,
-            startDate: draft.trainingDate,
-            mode: "athlete",
-          })
-        ).teamResults.map((r) => r.publishedVersion),
-      ).toEqual([2])
+        week.myResults.find((r) => r.publishedVersion === 1),
+      ).toMatchObject({
+        block: { title: "Front squat" },
+        notes: score.notes,
+      })
+      expect(week.teamResults.map((r) => r.publishedVersion)).toEqual([2])
+      expect(week.teamResults[0]).not.toHaveProperty("notes")
+      state.userId = userIds[1]
+      const other = await getTrainingWeek({
+        ...draft,
+        startDate: draft.trainingDate,
+        mode: "athlete",
+      })
+      expect(other.myResults).toEqual([])
+      expect(other.teamResults.map((r) => r.publishedVersion)).toEqual([2])
+      expect(JSON.stringify(other)).not.toContain(score.notes)
     })
 
     it("rejects stale draft writes and accepts only one concurrent writer", async () => {

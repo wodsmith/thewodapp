@@ -167,7 +167,10 @@ export function normalizeTrainingResult(
     throw new Error("Enter a completed result before saving")
   if (block.kind === "reps" && !/^\d+$/.test(input.score.trim()))
     throw new Error("Reps must be a whole number")
-  if (block.kind === "load" && !/^\d+(\.\d{1,3})?$/.test(input.score.trim()))
+  if (
+    block.kind === "load" &&
+    (!/^\d+(\.\d{1,3})?$/.test(input.score.trim()) || Number(input.score) <= 0)
+  )
     throw new Error("Enter a positive load")
   const parsed = parseScore(input.score, block.kind, {
     unit: input.unit === "lb" ? "lbs" : "kg",
@@ -180,6 +183,8 @@ export function normalizeTrainingResult(
     parsed.encoded > 1_000_000_000_000
   )
     throw new Error(parsed.error ?? "Enter a valid score")
+  if (block.kind === "load" && parsed.encoded === 0)
+    throw new Error("Enter a positive load")
   return {
     scoreValue: parsed.encoded,
     displayScore: parsed.formatted,

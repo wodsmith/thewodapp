@@ -313,22 +313,24 @@ export async function getTrainingWeek(input: {
           trainingResultsTable.sessionId,
           sessions.map((s) => s.id),
         ),
-        eq(
-          trainingResultsTable.publishedVersion,
-          trainingSessionsTable.publishedVersion,
-        ),
         or(
           eq(trainingResultsTable.userId, userId),
-          eq(trainingResultsTable.audience, "gym"),
+          and(
+            eq(trainingResultsTable.audience, "gym"),
+            eq(
+              trainingResultsTable.publishedVersion,
+              trainingSessionsTable.publishedVersion,
+            ),
+          ),
         ),
       ),
     )
-  // Match the fetched session snapshot as well: a concurrent publish must never mix versions in one response.
+  // Keep earlier own results, but never return versions newer than the fetched session snapshot.
   const versions = new Map(sessions.map((s) => [s.id, s.publishedVersion]))
   const results = await trainingResultViews(
     rows.filter(
       ({ result }) =>
-        versions.get(result.sessionId) === result.publishedVersion,
+        result.publishedVersion <= (versions.get(result.sessionId) ?? 0),
     ),
     userId,
   )
@@ -338,6 +340,7 @@ export async function getTrainingWeek(input: {
       .map((s) => trainingSession(s, input.mode === "coach")),
     myResults: results.filter((r) => r.userId === userId),
     teamResults: results.flatMap((r) => {
+      if (r.publishedVersion !== versions.get(r.sessionId)) return []
       const publicResult = publicTrainingResult(r)
       return publicResult ? [publicResult] : []
     }),
@@ -416,6 +419,8 @@ export async function publishTrainingSession(input: {
       throw new Error(
         "Give the session and each block a title before publishing",
       )
+    if (content.blocks.some((block) => !block.prescription.trim()))
+      throw new Error("Give each block a prescription before publishing")
     if (!content.isRestDay && !content.blocks.length)
       throw new Error(
         "Add a training block or mark this as a rest day before publishing",

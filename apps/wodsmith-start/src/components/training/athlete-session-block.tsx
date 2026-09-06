@@ -151,7 +151,12 @@ export function AthleteSessionBlock({
                 trackName={trackName}
                 gymName={gymName}
                 result={result}
-                onSaved={onSaved}
+                disabled={saving}
+                onSavingChange={setSaving}
+                onSaved={(savedResult) => {
+                  setError(null)
+                  onSaved(savedResult)
+                }}
               />
             </div>
             {error ? (

@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AthleteTraining } from "@/components/training/athlete-training"
+import { AthleteSessionBlock } from "@/components/training/athlete-session-block"
 import { AthleteTeamResults } from "@/components/training/athlete-team-results"
 import { TrainingResultDialog } from "@/components/training/training-result-dialog"
 import { parseTime } from "@/lib/scoring/parse/time"
@@ -50,6 +51,60 @@ describe("athlete training", () => {
     expect(saveTrainingResultFn).toHaveBeenLastCalledWith({ data: expect.objectContaining({ sessionId: "session-mon", blockId: "squat", publishedVersion: 2, score: "225", unit: "lb", audience: "private", notes: "Keep this private" }) })
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  // @lat: [[training#Athlete Interface Tests#Section saves are coordinated]]
+  it("blocks competing completion and notes saves, then clears an earlier completion error", async () => {
+    const checkBlock: TrainingBlock = { ...block, kind: "check", title: "Warm-up" }
+    const savedCheck: OwnTrainingResult = { ...result, block: checkBlock, scoreValue: null, displayScore: "Completed" }
+    let rejectCompletion: (error: Error) => void = () => {}
+    let resolveNotes: (value: OwnTrainingResult) => void = () => {}
+    vi.mocked(saveTrainingResultFn)
+      .mockImplementationOnce(() => new Promise<OwnTrainingResult>((_resolve, reject) => { rejectCompletion = reject }))
+      .mockImplementationOnce(() => new Promise<OwnTrainingResult>((resolve) => { resolveNotes = resolve }))
+    const onSaved = vi.fn()
+    render(<ol><AthleteSessionBlock session={session} block={checkBlock} index={0} trackName="Everyday" gymName="Test gym" onSaved={onSaved} /></ol>)
+    const completionButton = screen.getByRole("button", { name: "Mark complete" })
+    const notesButton = screen.getByRole("button", { name: "Add notes" })
+    fireEvent.click(completionButton)
+    expect(completionButton).toBeDisabled()
+    expect(notesButton).toBeDisabled()
+    fireEvent.click(notesButton)
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(saveTrainingResultFn).toHaveBeenCalledTimes(1)
+    await act(async () => { rejectCompletion(new Error("Completion could not be saved")) })
+    expect(await screen.findByRole("alert")).toHaveTextContent("Completion could not be saved")
+    fireEvent.click(notesButton)
+    fireEvent.change(screen.getByLabelText("Private notes"), { target: { value: "Warm-up complete" } })
+    fireEvent.click(screen.getByRole("button", { name: "Save result" }))
+    expect(completionButton).toBeDisabled()
+    fireEvent.click(completionButton)
+    expect(saveTrainingResultFn).toHaveBeenCalledTimes(2)
+    await act(async () => { resolveNotes(savedCheck) })
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    expect(onSaved).toHaveBeenCalledWith(savedCheck)
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    expect(completionButton).toBeEnabled()
+  })
+
+  // @lat: [[training#Athlete Interface Tests#Dismissed result edits are discarded]]
+  it("discards dismissed edits and reopens from the latest saved result", async () => {
+    const { rerender } = render(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" result={result} onSaved={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.change(screen.getByLabelText("Load"), { target: { value: "300" } })
+    fireEvent.change(screen.getByLabelText("Private notes"), { target: { value: "Unsaved note" } })
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    expect(saveTrainingResultFn).not.toHaveBeenCalled()
+    rerender(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" result={{ ...result, displayScore: "245", notes: "Latest saved note" }} onSaved={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    expect(screen.getByLabelText("Load")).toHaveValue(245)
+    expect(screen.getByLabelText("Private notes")).toHaveValue("Latest saved note")
+    fireEvent.change(screen.getByLabelText("Load"), { target: { value: "275" } })
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    expect(screen.getByLabelText("Load")).toHaveValue(245)
   })
 
   // @lat: [[training#Athlete Interface Tests#Encoded scores edit in display units]]

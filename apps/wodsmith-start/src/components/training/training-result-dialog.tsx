@@ -27,6 +27,8 @@ interface TrainingResultDialogProps {
   trackName: string
   gymName: string
   result?: OwnTrainingResult
+  disabled?: boolean
+  onSavingChange?: (saving: boolean) => void
   onSaved: (result: OwnTrainingResult) => void
 }
 
@@ -60,6 +62,8 @@ export function TrainingResultDialog({
   trackName,
   gymName,
   result,
+  disabled = false,
+  onSavingChange,
   onSaved,
 }: TrainingResultDialogProps) {
   const [open, setOpen] = useState(false)
@@ -77,10 +81,20 @@ export function TrainingResultDialog({
     setDirty(true)
   }
 
+  function changeOpen(next: boolean) {
+    if (saving || disabled) return
+    setFields(initialFields(result))
+    setDirty(false)
+    setError(null)
+    setOpen(next)
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (saving || disabled) return
     setError(null)
     setSaving(true)
+    onSavingChange?.(true)
     try {
       const saved = await saveTrainingResultFn({
         data: {
@@ -112,22 +126,17 @@ export function TrainingResultDialog({
       )
     } finally {
       setSaving(false)
+      onSavingChange?.(false)
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (saving) return
-        if (next && !dirty) setFields(initialFields(result))
-        setOpen(next)
-      }}
-    >
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
         <Button
           variant={result || block.kind === "check" ? "outline" : "default"}
           className={`min-h-11 ${result || block.kind === "check" ? "" : "bg-primary text-black hover:bg-primary hover:brightness-110 dark:text-black dark:hover:bg-primary"}`}
+          disabled={disabled || saving}
         >
           {result
             ? "Edit result"
@@ -339,9 +348,9 @@ export function TrainingResultDialog({
               variant="outline"
               className="min-h-11"
               disabled={saving}
-              onClick={() => setOpen(false)}
+              onClick={() => changeOpen(false)}
             >
-              Close
+              {dirty ? "Discard changes" : "Close"}
             </Button>
             <Button
               type="submit"
