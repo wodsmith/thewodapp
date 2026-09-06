@@ -166,6 +166,8 @@ The confirmation pass covers light/dark athlete schedules and largest-text scrol
 
 The iOS 1.0 App Store record is WODsmith Game Day (`6809070191`). The backend is deployed and a signed App Store IPA is exported. Build upload and review submission remain incomplete.
 
+The App Store icon is encoded as opaque RGB over its white background. Apple's distribution validation rejected the earlier alpha channel, so a fresh signed archive is required before upload.
+
 The release checklist tracks live API checks, review-account data, screenshots, Apple metadata, and the outstanding Developer Program agreement. Local fixture tests and exported binaries are preparation evidence, not proof of publication.
 
 App Store privacy data types, purposes, linkage, and tracking answers are saved but not published. Age ratings, content rights, the non-medical-device declaration, and free pricing are prepared; Apple calculated 13+ in most regions from the competition/content features.

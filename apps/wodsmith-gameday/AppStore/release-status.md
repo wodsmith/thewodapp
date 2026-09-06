@@ -26,6 +26,8 @@ The authorized Apple test account exists as an ordinary verified user, with only
 
 The first production native-client check found a decimal-string workout sort position where the native response requires an integer. The follow-up fix returns the one-based position in the already sorted published workout list and adds a production-shaped regression fixture. Full live verification must pass after that fix is deployed.
 
+Apple's distribution validation rejected the earlier icon's alpha channel. The existing anvil artwork is now encoded as opaque RGB over white; the corrected archive is being prepared at `/tmp/GameDayStore.xcarchive`. Do not upload the older review archive.
+
 ## Required before submission
 
 - Deploy the workout-order contract fix and rerun native-client production verification, including profile update/restoration and session revocation.
