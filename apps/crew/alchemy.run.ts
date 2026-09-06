@@ -84,7 +84,6 @@ const stripeWebhook =
   managedStripeStage && stripeSecretKey
     ? await WebhookEndpoint("crew-stripe-webhook", {
         apiKey: alchemy.secret(stripeSecretKey),
-        apiVersion: "2025-02-24.acacia",
         url: `${stage === "prod" ? "https://crew.wodsmith.com" : "https://crew-demo.wodsmith.com"}/api/webhooks/stripe`,
         enabledEvents: [
           "checkout.session.completed",
