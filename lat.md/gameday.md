@@ -160,17 +160,17 @@ The iOS interface uses native competition rows, a compact next-heat surface, ada
 
 The registered-first home order follows the user’s brief. Subsequent heats do not repeat the current heat; previous heats remain accessible. Native forms, grouped lists, system navigation, and SF Symbols preserve iPhone conventions. Design evidence lives in `apps/wodsmith-gameday/AppStore/design-review.md`.
 
-The confirmation pass covers light/dark athlete schedules and largest-text scrolling to actions and later workouts. Durable simulator evidence is stored in `apps/wodsmith-gameday/AppStore/design-evidence/`. VoiceOver, landscape, RTL, and live-data release checks remain explicit gaps.
+The confirmation pass covers light/dark athlete schedules and largest-text scrolling to actions and later workouts. Durable simulator evidence is stored in `apps/wodsmith-gameday/AppStore/design-evidence/`. Portrait/landscape standards and live production athlete behavior are verified. Full VoiceOver traversal, RTL, and unusually long organizer content remain bounded validation gaps.
 
 ## Release preparation
 
-The iOS 1.0 App Store record is WODsmith Game Day (`6809070191`). The backend is deployed. Apple validated, processed, and attached build 1 to the version draft. Review submission remains incomplete.
+WODsmith Game Day 1.0, build 1 (`6809070191`) is Waiting for Review. Apple accepted the submission on September 6, 2026 UTC. The backend and public policy pages are deployed; Apple approval remains pending.
 
 The App Store icon is encoded as opaque RGB over its white background. Apple rejected the earlier alpha channel. The corrected signed archive and IPA pass Apple's distribution validation.
 
-The release checklist tracks live API checks, review-account data, screenshots, Apple metadata, and the remaining Apple confirmation requirements. Local fixture tests and exported binaries are preparation evidence, not proof of publication.
+The release checklist tracks live API checks, review-account data, screenshots, Apple metadata, and Apple’s accepted submission receipt. Local fixture tests and exported binaries are preparation evidence, not proof of publication.
 
-App Store privacy data types, purposes, linkage, and tracking answers are saved but not published. Age ratings, content rights, the non-medical-device declaration, and free pricing are prepared; Apple calculated 13+ in most regions from the competition/content features.
+App Store privacy data types, purposes, linkage, and tracking answers are published with the user-authorized privacy attestation. Age ratings, content rights, the non-medical-device declaration, and free pricing are prepared; Apple calculated 13+ in most regions from the competition/content features.
 
 Five native iPhone 14 Plus screenshots are saved in Apple's 6.5-inch English listing in athlete-first order. They use fictional records and live in `apps/wodsmith-gameday/AppStore/screenshots/`. Public territory availability is configured, subject to Apple's restrictions.
 
@@ -180,7 +180,7 @@ The user authorized GitHub push and merge. PR #672 merged and production deploym
 
 The unmodified native client verified all four public competition details and leaderboards, authenticated home, profile update/restoration, and revoked-session rejection on production. The approved review account now has three verified lane-4 assignments.
 
-Apple's Add for Review check now reports only unpublished App Privacy responses. The user explicitly authorized the final privacy attestation and submission. The public policy now states the equivalent protection required of service providers; publication and final submission are next. Build UUID is `888f8f4f-e04f-4459-adde-d86ceb6f2676`; no review submission has been created.
+Apple accepted review submission `44ac7f00-1370-4611-aeb3-780c82ed897f` for build `888f8f4f-e04f-4459-adde-d86ceb6f2676`. The public privacy policy’s equivalent-protection clause was deployed in production run 34009157855 and verified live before publication and submission. Automatic release after approval is selected.
 
 ### Production leaderboard schema
 

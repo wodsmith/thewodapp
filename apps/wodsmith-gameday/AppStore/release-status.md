@@ -1,6 +1,6 @@
 # Release status
 
-The native app is built, Apple-validated, and verified against production. Game Day 1.0 (build 1) is uploaded, processed, and selected in the App Store version; review submission has not occurred.
+WODsmith Game Day 1.0 (build 1) was submitted on September 6, 2026 UTC. App Store Connect confirms Waiting for Review. The native app and backend are deployed; Apple approval and public availability remain pending.
 
 ## Verified
 
@@ -12,8 +12,8 @@ The native app is built, Apple-validated, and verified against production. Game 
 - Full monorepo lint and type checks, Game Day API tests, and the production client/server build passed. The local build used the saved project’s generated Alchemy config, relocated into this ignored worktree configuration.
 - A real simulator Live Activity appeared in Dynamic Island.
 - The requested dual-agent Impeccable review is complete, with fixes confirmed in light/dark appearance and an XCTest reachability check at the largest accessibility text size. See `design-review.md`.
-- App Store Connect now lists WODsmith Game Day, Apple ID `6809070191`, version 1.0, in Prepare for Submission under WODSMITH LLC. The description, promotional text, keywords, support/marketing URLs, copyright, subtitle, and Sports/Health & Fitness categories are saved. App record creation is verified. An earlier Developer Program agreement banner is historical; the latest submission check reports only unpublished App Privacy responses.
-- Privacy responses for Name, Email Address, User ID, and Other Diagnostic Data are saved with purposes, account linkage, and no tracking. The final privacy Publish attestation has not been accepted; responses remain unpublished.
+- App Store Connect now lists WODsmith Game Day, Apple ID `6809070191`, version 1.0, in Waiting for Review under WODSMITH LLC. The description, promotional text, keywords, support/marketing URLs, copyright, subtitle, and Sports/Health & Fitness categories are saved. App record creation is verified. Apple accepted the completed submission without additional metadata or agreement blockers.
+- Privacy responses for Name, Email Address, User ID, and Other Diagnostic Data are saved with purposes, account linkage, and no tracking. The user explicitly authorized the privacy attestation; the responses are published.
 - Age-rating responses are saved: organizer-generated content and wellness topics are present, contests are frequent, and the app has no gambling, messaging, social feed, unrestricted browser, ads, or mature content features. Apple calculated 13+ in most regions (12+ on older operating systems, with regional exceptions) and excludes Afghanistan and Morocco. The app is declared not a regulated medical device. Content rights are declared using WODsmith's existing user-content license in its Terms of Service.
 - Free pricing and availability on release were confirmed for all 175 selectable regions and future regions, subject to Apple's age-rating restrictions. Mac and Vision Pro distribution are disabled for the iPhone-focused launch.
 - Five unretouched 1284 × 2778 native screenshots were uploaded to the English (U.S.) iPhone 6.5-inch set. After reloading, Apple showed all five in the intended order: My day, competitions, workout, leaderboard, reminders. The images use fictional competition data and are stored in `AppStore/screenshots/`; they do not establish live-server correctness.
@@ -34,7 +34,7 @@ Live diagnostics also exposed three missing nullable benchmark columns expected 
 
 The unmodified native API client passed against production: four public competitions; authenticated home with the expected test user and no registrations; all four detail and leaderboard responses (41, 27, 5, and 32 standings); profile update and restoration; and session revocation followed by HTTP 401. This initial verification preceded the approved review event; the athlete verification below now covers its assignments and reminders.
 
-Apple processed build `888f8f4f-e04f-4459-adde-d86ceb6f2676`, version 1.0 (1), and TestFlight shows Ready to Submit. The build is saved on the App Store version. Add for Review reports only that an Admin must publish App Privacy responses. No review submission was created.
+Apple processed build `888f8f4f-e04f-4459-adde-d86ceb6f2676`, version 1.0 (1), and TestFlight shows Ready to Submit. The build is saved on the App Store version. After publishing App Privacy responses, Add for Review passed and final Submit for Review succeeded.
 
 ## Apple review event verification
 
@@ -42,14 +42,18 @@ The user approved the small fixture. It was created transactionally on September
 
 The event is `comp_apple_review_gameday_2026`, slug `gameday-app-review-2026`. Its three fixed heat times are September 5 at 9:27 PM, September 6 at 8:52 PM, and September 12 at 8:52 PM, 2026, America/Denver. Reviewer notes list these times and the contact procedure if a different upcoming heat is needed. These are three fixed heats, not a repeating schedule.
 
-The unmodified native API client verifies one registered competition, three assigned heats, and one standings entry. Additional checks verify lane 4 on all assignments, three division standards, one announcement, an offline schedule encode/decode round trip, and three correctly timed 15-minute reminder plans. Anonymous discovery excludes the unlisted event; anonymous detail omits registrations and assignments.
+The unmodified native API client verifies one registered competition, three assigned heats, and one standings entry. Additional checks verify lane 4 on all assignments, three division standards, one announcement, an offline schedule encode/decode round trip, and three correctly timed reminder plans using a 15-minute lead in the verification harness. Anonymous discovery excludes the unlisted event; anonymous detail omits registrations and assignments.
 
-The simulator signed in against production and displayed the registered competition and personal next-heat countdown. The Live Activity started successfully. A real local notification delivered for Engine Room with a 30-minute lead, lane 4, and Practice floor while the app was backgrounded. This delivery used the actual server assignment, not Debug demo data.
+The simulator signed in against production and displayed the registered competition and personal next-heat countdown. The Live Activity started successfully. In a separate device-delivery test, the simulator preference was changed to 30 minutes. A real local notification delivered for Engine Room with that 30-minute lead, lane 4, and Practice floor while the app was backgrounded. This delivery used the actual server assignment, not Debug demo data.
 
-Apple reviewer instructions are saved on version 1.0. Build 1 remains selected. The remaining App Store gate is the final App Privacy accuracy/compliance attestation; no review submission has occurred.
+Apple reviewer instructions, contact, credentials, and build 1 are included in the submitted version. The final App Privacy accuracy/compliance attestation was accepted with the user’s explicit authorization.
 
-## Required before submission
+## Submission receipt
 
-The user explicitly authorized the privacy attestation and review submission. The public privacy policy now states the equivalent data protection required of service providers under Apple guideline 5.1.1(i). Deploy this clarification, publish the prepared App Privacy responses, then complete Apple's final submission flow. Recheck any additional legal gate that actually appears; this task has not accepted a Developer Program agreement.
+Apple confirmed **1 Item Submitted** and **1.0 Waiting for Review** on September 6, 2026 UTC (September 5, 9:38 PM MDT). The [review submission](https://appstoreconnect.apple.com/apps/6809070191/distribution/reviewsubmissions/details/44ac7f00-1370-4611-aeb3-780c82ed897f) is `44ac7f00-1370-4611-aeb3-780c82ed897f`. Automatic release after approval is selected. Submission is complete; approval is not yet granted.
 
-Full VoiceOver traversal, RTL, and unusually long organizer content have not been certified by the bounded design checks. Backend deployment and App Store build upload/selection have occurred. Review submission has not.
+The final service-provider privacy clarification merged in [PR #676](https://github.com/wodsmith/thewodapp/pull/676), commit `e7d2338134d42f8446ebfd94e56e0b742b509704`. Production deployment [34009157855](https://github.com/wodsmith/thewodapp/actions/runs/34009157855) succeeded. The updated public policy was opened and its equivalent-protection clause verified before publishing App Privacy and submitting.
+
+The final requirement check covered working public privacy/support links and contact methods, retention/deletion choices, service-provider protection, in-app Help access, the matching native privacy manifest and App Store disclosures, reviewer credentials, screenshots, age/content declarations, and the selected validated build. The native app uses existing WODsmith sign-in and offers no account-creation or third-party login flow. Review guidance: [Apple App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), particularly 1.5, 2.1, 4.8, and 5.1.1.
+
+Full VoiceOver traversal, RTL, and unusually long organizer content have not been certified by the bounded design checks. Apple may request changes during review; passing submission validation is not a guarantee of approval.
