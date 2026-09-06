@@ -593,3 +593,18 @@ describe('Stripe Webhook Handler', () => {
     })
   })
 })
+
+// @lat: [[crew#Shared Stripe Account Isolation]]
+it.each(['checkout.session.completed', 'checkout.session.expired'])(
+  'leaves Crew %s fulfillment to the Crew webhook', async (type) => {
+    mockConstructEventAsync.mockResolvedValue(buildStripeEvent(type, {
+      id: 'cs_crew_shared',
+      metadata: { product: 'crew', purchaseId: 'purchase-1', competitionId: 'comp-1', userId: 'user-1' },
+    }))
+    const response = await callWebhook('{}')
+    expect(response.status).toBe(200)
+    expect(mockWorkflowCreate).not.toHaveBeenCalled()
+    expect(mockDb.update).not.toHaveBeenCalled()
+    expect(mockDb.query.commercePurchaseTable.findFirst).not.toHaveBeenCalled()
+  },
+)

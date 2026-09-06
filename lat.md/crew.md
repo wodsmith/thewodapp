@@ -72,7 +72,7 @@ Crew Checkout Session creation is feature-flagged with `CREW_STRIPE_CHECKOUT_ENA
 
 Crew Stripe webhooks complete the event-level Checkout flow after Stripe verifies payment.
 
-[[apps/crew/src/routes/api/webhooks/stripe.ts]] routes completed Checkout Sessions by `session.metadata.product`. Sessions with `product=crew` are handled by Crew billing completion, while non-Crew registration sessions continue through the existing athlete registration checkout workflow.
+[[apps/crew/src/routes/api/webhooks/stripe.ts]] routes completed Checkout Sessions by `session.metadata.product`. Sessions with `product=crew` are handled by Crew billing completion; other products are acknowledged without side effects and remain owned by the main WODsmith endpoint.
 
 [[apps/crew/src/lib/crew/checkout-webhooks.ts]] validates the Crew metadata contract, including team/event scope, public Crew plan, event settings row ID, billing event ID, checkout idempotency key, amount, currency, Checkout Session ID, and Stripe event ID. Duplicate delivery is treated as idempotent by both Stripe event ID and Checkout Session ID.
 
@@ -590,7 +590,7 @@ Organizers can draft schedules before purchasing. Exporting requires active even
 
 [[apps/crew/src/routes/events/$eventId/exports.tsx]] redirects unpaid organizers to event billing. [[apps/crew/src/server/crew-pilot-exports.server.ts]] independently enforces the same purchase boundary before returning export data, so direct server-function calls cannot bypass it.
 
-The public purchase page reads the active Basic catalog price from the server and offers one event package. Deployment configuration supplies separate Crew production and test Stripe secrets and the Checkout feature flag. Checkout is available only when the flag and both Stripe secrets are present; existing operator grants remain usable.
+The public purchase page reads the active Basic catalog price from the server and offers one event package. Deployment reuses the existing WODsmith live/test Stripe keys and provisions a separate Crew signing secret with Alchemy. Checkout is available only when the flag and both Stripe secrets are present; existing operator grants remain usable.
 
 ## Crew Purchase Integration Tests
 
@@ -611,3 +611,23 @@ Volunteer add, edit, and email-paste dialogs scroll within the viewport so their
 The seeded demo includes a Basic plan with its complimentary grant. Browser tests verify that active access produces a downloadable CSV containing the assigned volunteers.
 
 [[apps/crew/e2e/fixtures/crew-schedule-cleanup.ts]] requires an isolated test database and removes the fresh-event scenario’s event, event team, invitation, shifts, and confirmation rows in a `finally` cleanup, including after assertion failures.
+
+## Shared Stripe Account Isolation
+
+Crew and WODsmith share a Stripe account but fulfill only their own Checkout Sessions, preventing duplicate effects in the shared database.
+
+After signature verification, [[apps/crew/src/routes/api/webhooks/stripe.ts]] processes completed and expired sessions only when `metadata.product` is `crew`; it ignores registration, Connect, and refund events. [[apps/wodsmith-start/src/routes/api/webhooks/stripe.ts]] acknowledges Crew checkout events without dispatching registration workflows or updating purchases. Each app has its own endpoint signing secret.
+
+## Crew Deployment Configuration
+
+Crew reuses the existing WODsmith Stripe credentials and Alchemy webhook provisioning, with separate demo and production purchase switches.
+
+`.github/workflows/deploy-crew.yml` uses `STRIPE_SECRET_KEY` for production and `STRIPE_SECRET_KEY_DEMO` for demo. Other deployed stages receive no Stripe API key. Alchemy rejects a test key in production or a live key in demo and creates a stage-specific webhook for completed and expired Checkout Sessions using the account default event API version, matching the existing WODsmith Alchemy provider.
+
+[[apps/crew/alchemy.run.ts]] binds the resource's signing secret directly to the Crew worker and refuses enabled checkout without it; operators do not copy WODsmith's endpoint secret or create duplicate Crew key secrets. `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` enables demo purchases; `CREW_STRIPE_CHECKOUT_ENABLED` enables production. Both default to false. CI deployments outside demo/production force checkout off. Local development can enable checkout with a test key and local listener secret; every non-production stage rejects live keys.
+
+## Crew Production Catalog
+
+The launch purchase uses the existing `crew_basic` catalog entry at 20,000 USD cents per event, with no recurring interval.
+
+Production must contain that active, public plan before Checkout is enabled. On September 6, 2026, the missing production row was inserted from the existing billing seed with a `WHERE NOT EXISTS` guard; other plans and existing prices were preserved. Demo already contained the same offer.

@@ -6,6 +6,7 @@ import {
   TanStackStart,
 } from "alchemy/cloudflare"
 import { CloudflareStateStore } from "alchemy/state"
+import { WebhookEndpoint } from "alchemy/stripe"
 
 const stage = process.env.STAGE ?? "dev"
 
@@ -64,6 +65,46 @@ const r2Bucket = await R2Bucket("wodsmith-crew-uploads", {
   devDomain: stage !== "prod",
 })
 
+// @lat: [[crew#Crew Deployment Configuration]]
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+const managedStripeStage = stage === "prod" || stage === "demo"
+const checkoutEnabled =
+  (!process.env.CI || managedStripeStage) &&
+  process.env.CREW_STRIPE_CHECKOUT_ENABLED === "true"
+
+if (stripeSecretKey) {
+  const expectedMode = stage === "prod" ? "live" : "test"
+  if (!new RegExp(`^(sk|rk)_${expectedMode}_`).test(stripeSecretKey)) {
+    throw new Error(`Crew ${stage} requires a Stripe ${expectedMode} API key.`)
+  }
+}
+if (checkoutEnabled && managedStripeStage && !stripeSecretKey) {
+  throw new Error("Crew Checkout requires a Stripe API key before deployment.")
+}
+
+const stripeWebhook =
+  managedStripeStage && stripeSecretKey
+    ? await WebhookEndpoint("crew-stripe-webhook", {
+        apiKey: alchemy.secret(stripeSecretKey),
+        url: `${stage === "prod" ? "https://crew.wodsmith.com" : "https://crew-demo.wodsmith.com"}/api/webhooks/stripe`,
+        enabledEvents: [
+          "checkout.session.completed",
+          "checkout.session.expired",
+        ],
+        description: `WODsmith Crew ${stage} event purchases`,
+        adopt: true,
+      })
+    : undefined
+const stripeWebhookSecret = managedStripeStage
+  ? stripeWebhook?.secret
+  : process.env.STRIPE_WEBHOOK_SECRET
+
+if (checkoutEnabled && !stripeWebhookSecret?.trim()) {
+  throw new Error(
+    "Crew Checkout requires its own webhook signing secret before deployment.",
+  )
+}
+
 const website = await TanStackStart("crew-app", {
   bindings: {
     KV_SESSION: kvSession,
@@ -72,13 +113,12 @@ const website = await TanStackStart("crew-app", {
     // biome-ignore lint/style/noNonNullAssertion: Set by deploy workflow.
     APP_URL: process.env.APP_URL!,
     SITE_URL: process.env.APP_URL ?? "https://crew.wodsmith.com",
-    CREW_STRIPE_CHECKOUT_ENABLED:
-      process.env.CREW_STRIPE_CHECKOUT_ENABLED ?? "false",
+    CREW_STRIPE_CHECKOUT_ENABLED: checkoutEnabled ? "true" : "false",
     ...(process.env.STRIPE_SECRET_KEY && {
       STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY),
     }),
-    ...(process.env.STRIPE_WEBHOOK_SECRET && {
-      STRIPE_WEBHOOK_SECRET: alchemy.secret(process.env.STRIPE_WEBHOOK_SECRET),
+    ...(stripeWebhookSecret && {
+      STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhookSecret),
     }),
     NODE_ENV:
       stage === "prod" || stage === "demo" ? "production" : "development",

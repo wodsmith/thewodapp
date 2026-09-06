@@ -17,7 +17,7 @@ This runbook keeps the first paid Crew launches operator-led while preserving th
 - Confirm the sale path is manual, Payment Link reconciliation, founder/private grant, comp, refund, or Checkout.
 - Confirm no route or script in the planned operation updates team subscription billing.
 - Confirm the operator can read back event billing status on the private Crew billing page.
-- Confirm `CREW_STRIPE_CHECKOUT_ENABLED` is unset or false unless the explicit Checkout launch decision has been made.
+- Check `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` for demo and `CREW_STRIPE_CHECKOUT_ENABLED` for production. Enable demo for sandbox verification; enable production only after that verification passes.
 
 ## Manual Paid And Founder Grants
 
@@ -81,10 +81,12 @@ Only run live Stripe checks after the Checkout flag decision is made and the tar
 
 Crew now offers one public event package backed by the existing `crew_basic` catalog row (seed price: $200 USD). Draft scheduling is free; one purchase unlocks exports for that event. Existing paid, comped, credited, and founder grants continue to work. Pro and private plans remain in historical billing records but are not offered for new self-service purchases.
 
-Provision the GitHub repository secrets `CREW_STRIPE_SECRET_KEY` and `CREW_STRIPE_WEBHOOK_SECRET` for production, and separate `CREW_STRIPE_TEST_SECRET_KEY` and `CREW_STRIPE_TEST_WEBHOOK_SECRET` for demo/staging. Register the corresponding Crew `/api/webhooks/stripe` endpoint for `checkout.session.completed` and `checkout.session.expired`. Set the repository variable `CREW_STRIPE_CHECKOUT_ENABLED=true` only after validating the test flow and confirming the correct active catalog price. The deployment workflow maps these repository secrets to `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`; Alchemy binds those unprefixed names to the Worker. Local development uses the unprefixed names in `.dev.vars`. Production never falls back to test credentials. Missing configuration leaves checkout unavailable and preserves operator grants.
+Reuse the existing GitHub repository secrets `STRIPE_SECRET_KEY` (live) and `STRIPE_SECRET_KEY_DEMO` (test). Alchemy creates a dedicated Crew webhook for `checkout.session.completed` and `checkout.session.expired` and binds its signing secret to the Worker automatically. Do not reuse the main app's webhook secret. Set `CREW_STRIPE_CHECKOUT_ENABLED_DEMO=true` to validate demo purchases, then `CREW_STRIPE_CHECKOUT_ENABLED=true` for production after confirming the active catalog price. Both variables default to false. Production rejects test keys, demo rejects live keys, and other stages keep checkout disabled. Local development uses `STRIPE_SECRET_KEY` and the Stripe CLI's `STRIPE_WEBHOOK_SECRET` in `.dev.vars`. Missing configuration leaves checkout unavailable and preserves operator grants.
 
 Validate in Stripe test mode: purchase an unpaid event, observe access stay pending until the signed webhook arrives, export the schedule, cancel and resume another checkout, and expire it before retrying. Confirm repeated clicks and duplicate webhooks produce one payment and one completion audit row. Production activation also needs a smoke test against the Crew production return URL and webhook endpoint.
 
 An uncertain checkout attempt older than 23 hours is intentionally blocked before Stripe may discard its idempotency key. Reconcile that attempt in Stripe using its metadata before replacing it; never clear a pending state without confirming whether Stripe created or completed a session. Refunds remain operator-managed using the existing refund and grant procedures above.
 
 Local integration tests: provide `CREW_TEST_DATABASE_URL` for a disposable MySQL database ending in `_test` or `_e2e`, push the schema, and run `pnpm --filter crew test test/integration/crew-purchase.test.ts`. Stripe is simulated; the database transactions and billing service are real.
+
+Crew processes only `product=crew` checkout events. The main WODsmith webhook owns registration fulfillment and acknowledges Crew sessions without dispatching athlete registration. Managed demo/production deployments fail if checkout is enabled but the dedicated Crew signing secret is empty or missing; they never fall back to the main app signing secret.
