@@ -21,13 +21,14 @@ export const Route = createFileRoute("/events/$eventId/billing")({
 })
 
 function CrewPurchasePage() {
-  const { event, viewModel, offer } = Route.useLoaderData()
+  const { event, viewModel, offer, canPurchase } = Route.useLoaderData()
   const { crew_checkout } = Route.useSearch()
   const router = useRouter()
   const checkout = useServerFn(createCrewCheckoutSessionFn)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const active = viewModel.plan.hasCrewEventAccess
+  const awaitingPayment = crew_checkout === "success" && !active
 
   useEffect(() => {
     if (active || crew_checkout !== "success") return
@@ -94,15 +95,20 @@ function CrewPurchasePage() {
           >
             Export schedule
           </Link>
-        ) : (
+        ) : canPurchase && !awaitingPayment ? (
           <Button
             onClick={() => void purchase()}
             disabled={busy || viewModel.checkout.status !== "available"}
           >
             {busy ? "Opening secure checkout…" : viewModel.checkout.label}
           </Button>
-        )}
-        {!active && viewModel.checkout.status !== "available" ? (
+        ) : null}
+        {!active && !canPurchase ? (
+          <p className="text-sm text-muted-foreground">
+            Ask the event owner or a team member with billing access to purchase
+            event access. You can keep editing the schedule in the meantime.
+          </p>
+        ) : !active && viewModel.checkout.status !== "available" ? (
           <p className="text-sm text-muted-foreground">
             Checkout is currently unavailable.{" "}
             <a className="underline" href="mailto:support@wodsmith.com">
@@ -117,7 +123,7 @@ function CrewPurchasePage() {
           </p>
         ) : null}
       </div>
-      {crew_checkout === "success" && !active ? (
+      {awaitingPayment ? (
         <div aria-live="polite" className="rounded-md border p-4 space-y-2">
           <p>
             We are waiting for payment confirmation. Your access will update

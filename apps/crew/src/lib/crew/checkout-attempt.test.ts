@@ -43,6 +43,11 @@ describe("durable Crew checkout attempts", () => {
     ).toBe(false)
   })
 
+  it("rejects a future timestamp instead of extending an uncertain retry window", () => {
+    expect(canRetryCrewCheckoutCreation(attempt, attempt.createdAt - 1)).toBe(false)
+    expect(canRetryCrewCheckoutCreation(attempt, attempt.createdAt)).toBe(true)
+  })
+
   it("rejects corrupt settings rather than overwriting the event", () => {
     expect(() => readCrewCheckoutAttempt("not json")).toThrow()
     expect(() => readCrewCheckoutAttempt("[]")).toThrow()

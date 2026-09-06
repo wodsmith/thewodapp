@@ -578,7 +578,7 @@ Regional judge discovery is an event-scoped, organizer-only pilot for blind intr
 
 Crew persists each checkout attempt before calling Stripe so duplicate clicks, uncertain network results, and canceled checkouts can recover without creating another charge. Expired attempts can be replaced safely.
 
-[[apps/crew/src/lib/crew/checkout-attempt.ts]] stores a private attempt identifier, creation time, and frozen price, event name, and return origin in the event settings JSON. Row locks serialize attempt creation; the Stripe request runs outside the transaction with an attempt-specific idempotency key. Uncertain requests older than 23 hours require operator reconciliation before another create call.
+[[apps/crew/src/lib/crew/checkout-attempt.ts]] stores a private attempt identifier, creation time, and frozen price, event name, and return origin in the event settings JSON. Row locks serialize attempt creation; the Stripe request runs outside the transaction with an attempt-specific idempotency key. Uncertain requests older than 23 hours or with future timestamps require operator reconciliation before another create call.
 
 [[apps/crew/src/server/crew-billing.server.ts]] resumes existing open sessions and handles expiration by appending an event-scoped audit entry and releasing only the matching pending attempt. Completion checks the active attempt inside the settlement transaction, and a late session-created write cannot replace paid state with pending state or append a misleading pending audit entry after settlement.
 
@@ -597,3 +597,5 @@ The public purchase page reads the active Basic catalog price from the server an
 Real MySQL tests verify event purchase locking, retry recovery, settlement ordering, authorization, and export access using a fake Stripe transport and the production billing service.
 
 [[apps/crew/test/integration/crew-purchase.test.ts]] runs only with `CREW_TEST_DATABASE_URL` pointing to an isolated database ending in `_test` or `_e2e`. It exercises concurrent requests, a lost Stripe response, cancellation, stale expiration and settlement, webhook-before-response ordering, duplicate payment delivery, and the unpaid-to-paid export boundary.
+
+Event managers can view access status and the purchase handoff. Starting Checkout still requires the organizing team’s billing permission; managers without it are directed to the event owner. Production secret selection never falls back to test keys.

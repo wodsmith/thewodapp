@@ -49,5 +49,6 @@ export function canRetryCrewCheckoutCreation(
 ) {
   // Stop before Stripe can prune the idempotency key. An uncertain old request
   // must be reconciled by an operator, never repeated as a new charge.
-  return now - attempt.createdAt < 23 * 60 * 60 * 1000
+  const age = now - attempt.createdAt
+  return age >= 0 && age < 23 * 60 * 60 * 1000
 }

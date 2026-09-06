@@ -87,7 +87,7 @@ describe.skipIf(!databaseUrl)("Crew purchase persistence", () => {
     })
     await db!.update(planTable).set({ price: 20000 }).where(eq(planTable.id, "crew_basic"))
     sessionCookie.mockResolvedValue({ user: { id: "user_owner", email: "owner@example.com", role: "admin" }, teams: [] })
-    managerAccess.mockResolvedValue(undefined)
+    managerAccess.mockImplementation(() => sessionCookie())
     stripeCreate.mockImplementation(fakeCreate)
     stripeRetrieve.mockImplementation((id: string) => [...sessions.values()].find(s => s.id === id))
   })
@@ -172,6 +172,18 @@ describe.skipIf(!databaseUrl)("Crew purchase persistence", () => {
       eq(crewBillingEventsTable.competitionId, eventId),
     )
     expect(events.map((event) => event.eventType)).toEqual(["checkout_completed"])
+  })
+
+  it("lets schedule managers view access without granting purchase permission", async () => {
+    sessionCookie.mockResolvedValue({ user: { id: "manager", role: "user" }, teams: [] })
+    const { getCrewBillingOrganizerPage } = await import("@/server/crew-billing.server")
+    const page = await getCrewBillingOrganizerPage({ eventId })
+    expect(page.canPurchase).toBe(false)
+    expect(page.viewModel).not.toHaveProperty("billing")
+    expect(page.viewModel.plan.hasCrewEventAccess).toBe(false)
+    expect(page.viewModel.checkout.status).not.toBe("available")
+    await expect(createCrewCheckoutSession({ eventId })).rejects.toThrow(/FORBIDDEN/)
+    expect(stripeCreate).not.toHaveBeenCalled()
   })
 
   it("blocks unauthorized buyers before Stripe and rejects unrelated event settlement", async () => {

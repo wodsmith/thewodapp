@@ -795,8 +795,18 @@ describe('Stripe Webhook Handler', () => {
 // @lat: [[crew#Crew Checkout Recovery]]
 describe('Crew checkout payment boundary', () => {
   it('does not unlock an unpaid completed session', async () => {
+    const { buildCrewCheckoutBillingEventId, buildCrewCheckoutIdempotencyKey } =
+      await import('@/lib/crew/checkout-sessions')
+    const checkoutIdempotencyKey = buildCrewCheckoutIdempotencyKey({
+      competitionId: 'event-crew-1', teamId: 'team-owner-1', crewPlan: 'crew_basic', amountCents: 20000,
+    })
     const event = buildStripeEvent('checkout.session.completed', {
-      id: 'cs_unpaid', payment_status: 'unpaid', metadata: { product: 'crew' },
+      id: 'cs_unpaid', payment_status: 'unpaid', amount_total: 20000, currency: 'usd',
+      metadata: {
+        product: 'crew', teamId: 'team-owner-1', competitionId: 'event-crew-1',
+        eventId: 'event-crew-1', crewPlan: 'crew_basic', crewEventSettingsId: 'crewset_123',
+        billingEventId: buildCrewCheckoutBillingEventId(checkoutIdempotencyKey), checkoutIdempotencyKey,
+      },
     })
     mockConstructEventAsync.mockResolvedValue(event)
     const response = await callWebhook(JSON.stringify(event))

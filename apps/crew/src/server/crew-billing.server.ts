@@ -169,8 +169,9 @@ export interface CrewBillingOrganizerPageData {
     id: string
     name: string
   }
-  viewModel: CrewBillingPageViewModel
+  viewModel: Pick<CrewBillingPageViewModel, "plan" | "checkout">
   offer: { price: number; currency: string } | null
+  canPurchase: boolean
 }
 
 type CrewBillingScope = CrewBillingPageData["event"] & {
@@ -209,18 +210,26 @@ export async function getCrewBillingOrganizerPage(
   data: GetCrewBillingInput,
 ): Promise<CrewBillingOrganizerPageData> {
   const scope = await requireCrewBillingScope(data.eventId)
-  await requireCrewBillingOrganizerAccess(scope)
+  const session = await requireCrewEventManagerAccess(scope, "Crew event access")
+  const canPurchase = canViewCrewBillingPage({
+    isSiteAdmin: session.user.role === ROLES_ENUM.ADMIN,
+    teams: session.teams ?? [],
+    event: scope,
+    billingPermission: TEAM_PERMISSIONS.ACCESS_BILLING,
+  })
   const billing = toCrewBillingSnapshot(scope)
   const enabled = isCrewStripeCheckoutEnabled()
   const plan = enabled ? await requireCrewCheckoutPlan("crew_basic") : null
+  const viewModel = buildCrewBillingPageViewModel({
+    billing,
+    paymentLink: { id: null, url: null },
+    checkoutEnabled: enabled && canPurchase,
+  })
   return {
     event: { id: scope.id, name: scope.name },
     offer: plan ? { price: plan.price, currency: plan.currency } : null,
-    viewModel: buildCrewBillingPageViewModel({
-      billing,
-      paymentLink: { id: null, url: null },
-      checkoutEnabled: enabled,
-    }),
+    canPurchase,
+    viewModel: { plan: viewModel.plan, checkout: viewModel.checkout },
   }
 }
 
