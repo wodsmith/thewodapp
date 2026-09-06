@@ -30,6 +30,7 @@ import {
 } from "./lib/logging"
 import { getSentryOptions } from "./lib/sentry/server"
 import { getSessionFromRequestCookie, withSessionCache } from "./utils/auth"
+import { handleWorkoutImportRequest } from "./server/workout-import/http"
 
 // Sensitive field names to redact as a safety net in the drain.
 // This catches any PII that accidentally leaks through log.set().
@@ -98,6 +99,7 @@ initWorkersLogger({
 
 // Workers runtime requires Durable Object classes to be exported from the entry point
 export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
+export { WorkoutImportAgent } from "./agents/workout-import-agent"
 export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -108,6 +110,8 @@ const SLOW_REQUEST_THRESHOLD_MS = 2000
 // Create the base TanStack Start entry with default fetch handling
 const startEntry = createServerEntry({
   async fetch(request) {
+    const importResponse = await handleWorkoutImportRequest(request, env)
+    if (importResponse) return importResponse
     // Route /agents/<namespace>/<name>/... to the matching Agent DO.
     // We resolve the stub via getAgentByName (which calls setName under the
     // hood and persists the name to DO storage) instead of routeAgentRequest

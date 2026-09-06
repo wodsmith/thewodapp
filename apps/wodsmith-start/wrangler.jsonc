@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"account_id": "317fb84f366ea1ab038ca90000953697",
 	"name": "wodsmith-start",
-	"main": "@tanstack/react-start/server-entry",
+	"main": "src/server.ts",
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": [
 		"nodejs_compat",
@@ -23,6 +23,11 @@
 	"placement": {
 		"mode": "smart"
 	},
+	"durable_objects": {
+		"bindings": [{ "name": "WORKOUT_IMPORT_AGENT", "class_name": "WorkoutImportAgent" }]
+	},
+	"migrations": [{ "tag": "workout-import-v1", "new_sqlite_classes": ["WorkoutImportAgent"] }],
+	"images": { "binding": "WORKOUT_IMPORT_IMAGES" },
 	/**
 	 * Bindings
 	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
@@ -41,6 +46,7 @@
 		"EMAIL_FROM_NAME": "WODsmith",
 		"EMAIL_REPLY_TO": "support@mail.wodsmith.com",
 		"APP_URL": "https://wodsmith.com",
+		"WORKOUT_IMPORT_GATEWAY": "wodsmith-import-prod",
 		"R2_PUBLIC_URL": "https://pub-10ec4eb87e8d4c7383ead07a9dd77fa5.r2.dev",
 		"POSTHOG_KEY": "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
 		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk",
@@ -61,6 +67,10 @@
 	 * Object storage for file uploads
 	 */
 	"r2_buckets": [
+		{
+			"binding": "WORKOUT_IMPORT_SOURCES",
+			"bucket_name": "wodsmith-workout-import-sources-prod"
+		},
 		{
 			"binding": "R2_BUCKET",
 			"bucket_name": "wodsmith-wodsmith-uploads-prod"

@@ -92,6 +92,7 @@ import {
   AiGateway,
   DurableObjectNamespace,
   Hyperdrive,
+  Images,
   KVNamespace,
   Queue,
   R2Bucket,
@@ -407,6 +408,13 @@ const privateDownloadsBucket = await R2Bucket("wodsmith-private-downloads", {
   dev: { remote: true },
 })
 
+// Private, short-lived source data. Never attach a public/custom domain.
+const workoutImportSources = await R2Bucket("workout-import-sources", {
+  devDomain: false,
+  lifecycle: [{ id: "expire-import-sources", enabled: true, conditions: { prefix: "" }, deleteObjectsTransition: { condition: { type: "Age", maxAge: 86400 } } }],
+})
+const workoutImportImages = Images()
+
 /**
  * Validate required Stripe environment variables when Stripe webhook is needed.
  * Fails fast with a clear error message if any required variables are missing.
@@ -539,6 +547,11 @@ const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
   sqlite: true,
 })
 
+const workoutImportAgent = DurableObjectNamespace("workout-import-agent", {
+  className: "WorkoutImportAgent",
+  sqlite: true,
+})
+
 /**
  * Cloudflare Workers AI binding for built-in LLM inference.
  *
@@ -577,6 +590,14 @@ const aiGateway =
         apiToken: alchemy.secret(process.env.CLOUDFLARE_API_TOKEN!),
       })
 const aiGatewayName = aiGateway?.id ?? "wodsmith-gateway"
+
+// Import source payloads must never enter the scheduler's logging gateway.
+const workoutImportGateway = stage === "dev" ? undefined : await AiGateway(`workout-import-gateway-${stage}`, {
+  gatewayName: `wodsmith-import-${stage}`,
+  collectLogs: false,
+  cacheTtl: 0,
+  apiToken: alchemy.secret(process.env.CLOUDFLARE_API_TOKEN!),
+})
 
 /**
  * Cloudflare Queue for async broadcast email delivery.
@@ -672,6 +693,10 @@ const website = await TanStackStart("app", {
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
     /** Durable Object namespace for the AI judge-scheduling agent */
     JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
+    WORKOUT_IMPORT_AGENT: workoutImportAgent,
+    WORKOUT_IMPORT_SOURCES: workoutImportSources,
+    WORKOUT_IMPORT_IMAGES: workoutImportImages,
+    WORKOUT_IMPORT_GATEWAY: workoutImportGateway?.id ?? "wodsmith-import-dev",
     /** Cloudflare Workers AI binding for LLM inference */
     AI: aiBinding,
     /**
