@@ -24,6 +24,7 @@ export interface CrewCheckoutMetadataInput {
   crewEventSettingsId: string
   billingEventId: string
   checkoutIdempotencyKey: string
+  checkoutAttemptId?: string
 }
 
 export interface BuildCrewCheckoutSessionParamsInput
@@ -124,13 +125,22 @@ export function buildCrewCheckoutIdempotencyKey({
   teamId,
   crewPlan,
   amountCents,
+  checkoutAttemptId,
 }: {
   competitionId: string
   teamId: string
   crewPlan: CrewCheckoutPlanId
   amountCents: number
+  checkoutAttemptId?: string
 }) {
-  return ["crew-checkout", competitionId, teamId, crewPlan, amountCents]
+  return [
+    "crew-checkout",
+    competitionId,
+    teamId,
+    crewPlan,
+    amountCents,
+    ...(checkoutAttemptId ? [checkoutAttemptId] : []),
+  ]
     .map((part) => encodeURIComponent(String(part)))
     .join(":")
 }
@@ -169,6 +179,7 @@ export function buildCrewCheckoutMetadata({
   crewEventSettingsId,
   billingEventId,
   checkoutIdempotencyKey,
+  checkoutAttemptId,
 }: CrewCheckoutMetadataInput): Record<string, string> {
   return {
     product: "crew",
@@ -179,6 +190,7 @@ export function buildCrewCheckoutMetadata({
     crewEventSettingsId,
     billingEventId,
     checkoutIdempotencyKey,
+    ...(checkoutAttemptId ? { checkoutAttemptId } : {}),
   }
 }
 

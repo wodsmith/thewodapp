@@ -4,8 +4,10 @@
 // @lat: [[crew#Stripe Payment Link Sales]]
 // @lat: [[crew#Crew Checkout Sessions]]
 // @lat: [[crew#Crew Stripe Webhooks]]
+
 import { env } from "cloudflare:workers"
 import { and, desc, eq, isNull, or } from "drizzle-orm"
+import type Stripe from "stripe"
 import { getDb } from "../db"
 import { ROLES_ENUM } from "../db/schema"
 import { competitionsTable } from "../db/schemas/competitions"
@@ -40,7 +42,14 @@ import {
   type PlanManualCrewBillingActionInput,
   planCrewBillingAuditAppend,
   planManualCrewBillingAction,
+  resolveCrewBillingEntitlements,
 } from "../lib/crew/billing-state"
+import {
+  type CrewCheckoutAttempt,
+  canRetryCrewCheckoutCreation,
+  parseCrewCheckoutSettings,
+  readCrewCheckoutAttempt,
+} from "../lib/crew/checkout-attempt"
 import {
   assertCrewCheckoutCanStart,
   buildCrewCheckoutBillingEventId,
@@ -49,9 +58,7 @@ import {
   type CrewCheckoutCatalogPlan,
   type CrewCheckoutPlanId,
   isCrewStripeCheckoutEnabledValue,
-  isReusableCrewCheckoutPendingClaim,
   normalizeCrewCheckoutCatalogPlan,
-  resolveCrewCheckoutPlanId,
 } from "../lib/crew/checkout-sessions"
 import {
   type CrewCheckoutWebhookCompletionInput,
@@ -60,7 +67,6 @@ import {
 } from "../lib/crew/checkout-webhooks"
 import {
   buildCrewPaymentLinkSaleActionInput,
-  getCrewPaymentLinkUrlFromSettings,
   hasCrewPaymentLinkReference,
   normalizeCrewPaymentLinkReference,
   serializeCrewPaymentLinkSettings,
@@ -68,6 +74,7 @@ import {
 import { getAppUrl } from "../lib/env"
 import { getStripe } from "../lib/stripe"
 import { getSessionFromCookie, requireAdmin } from "../utils/auth"
+import { requireCrewEventManagerAccess } from "./crew-auth.server"
 
 export interface GetCrewBillingInput {
   eventId: string
@@ -162,7 +169,9 @@ export interface CrewBillingOrganizerPageData {
     id: string
     name: string
   }
-  viewModel: CrewBillingPageViewModel
+  viewModel: Pick<CrewBillingPageViewModel, "plan" | "checkout">
+  offer: { price: number; currency: string } | null
+  canPurchase: boolean
 }
 
 type CrewBillingScope = CrewBillingPageData["event"] & {
@@ -201,25 +210,42 @@ export async function getCrewBillingOrganizerPage(
   data: GetCrewBillingInput,
 ): Promise<CrewBillingOrganizerPageData> {
   const scope = await requireCrewBillingScope(data.eventId)
-  await requireCrewBillingOrganizerAccess(scope)
-
+  const session = await requireCrewEventManagerAccess(scope, "Crew event access")
+  const canPurchase = canViewCrewBillingPage({
+    isSiteAdmin: session.user.role === ROLES_ENUM.ADMIN,
+    teams: session.teams ?? [],
+    event: scope,
+    billingPermission: TEAM_PERMISSIONS.ACCESS_BILLING,
+  })
   const billing = toCrewBillingSnapshot(scope)
-  const paymentLinkUrl = getCrewPaymentLinkUrlFromSettings(scope.settingsText)
-
+  const enabled = isCrewStripeCheckoutEnabled()
+  const plan = enabled ? await requireCrewCheckoutPlan("crew_basic") : null
+  const viewModel = buildCrewBillingPageViewModel({
+    billing,
+    paymentLink: { id: null, url: null },
+    checkoutEnabled: enabled && canPurchase,
+  })
   return {
-    event: {
-      id: scope.id,
-      name: scope.name,
-    },
-    viewModel: buildCrewBillingPageViewModel({
-      billing,
-      paymentLink: {
-        id: billing.stripe.paymentLinkId,
-        url: paymentLinkUrl,
-      },
-      checkoutEnabled: isCrewStripeCheckoutEnabled(),
-    }),
+    event: { id: scope.id, name: scope.name },
+    offer: plan ? { price: plan.price, currency: plan.currency } : null,
+    canPurchase,
+    viewModel: { plan: viewModel.plan, checkout: viewModel.checkout },
   }
+}
+
+export async function getCrewScheduleAccess(data: GetCrewBillingInput) {
+  const scope = await requireCrewBillingScope(data.eventId)
+  await requireCrewEventManagerAccess(scope, "Crew schedule")
+  return {
+    hasAccess: resolveCrewBillingEntitlements(toCrewBillingSnapshot(scope))
+      .hasCrewEventAccess,
+  }
+}
+
+export async function requireCrewSchedulePurchase(data: GetCrewBillingInput) {
+  const { hasAccess } = await getCrewScheduleAccess(data)
+  if (!hasAccess)
+    throw new Error("Purchase event access to export this schedule.")
 }
 
 export async function recordCrewBillingEvent(
@@ -309,70 +335,103 @@ export async function reconcileCrewPaymentLinkSale(
 export async function createCrewCheckoutSession(
   data: CreateCrewCheckoutSessionInput,
 ): Promise<CreateCrewCheckoutSessionResult> {
-  if (!isCrewStripeCheckoutEnabled()) {
+  if (!isCrewStripeCheckoutEnabled())
     throw new Error("Crew Checkout is not enabled.")
+  const scope = await requireCrewBillingScope(data.eventId)
+  const actor = await requireCrewBillingOrganizerAccess(scope)
+  if (data.planId && data.planId !== "crew_basic") {
+    throw new Error("New purchases use the Crew event package.")
   }
 
-  const scope = await requireCrewBillingScope(data.eventId)
-  const session = await requireCrewBillingOrganizerAccess(scope)
-  const current = toCrewBillingSnapshot(scope)
+  // Returning from Stripe's cancel page keeps the same open session resumable.
+  if (
+    scope.state === CREW_BILLING_STATE.PENDING &&
+    scope.stripeCheckoutSessionId
+  ) {
+    const existing = await getStripe().checkout.sessions.retrieve(
+      scope.stripeCheckoutSessionId,
+    )
+    if (existing.status === "open" && existing.url)
+      return { checkoutUrl: existing.url }
+    if (existing.status !== "expired") {
+      throw new Error(
+        "Payment is being confirmed. Refresh the purchase page shortly.",
+      )
+    }
+    await expireCrewCheckoutSessionFromWebhook(existing)
+  }
 
-  const planId = resolveCrewCheckoutPlanId({
-    requestedPlanId: data.planId,
-    currentPlanId: current.planId,
+  const claim = await claimCrewCheckoutSessionStart({
+    eventId: scope.id,
+    eventName: scope.name,
+    plan: await requireCrewCheckoutPlan("crew_basic"),
   })
-  const plan = await requireCrewCheckoutPlan(planId)
+  if (claim.billing.stripe.checkoutSessionId) {
+    const existing = await getStripe().checkout.sessions.retrieve(
+      claim.billing.stripe.checkoutSessionId,
+    )
+    if (existing.status === "open" && existing.url)
+      return { checkoutUrl: existing.url }
+    throw new Error(
+      "Checkout has changed. Refresh the purchase page and try again.",
+    )
+  }
+  if (!canRetryCrewCheckoutCreation(claim.attempt)) {
+    throw new Error(
+      "This checkout needs a payment check. Contact support before trying again.",
+    )
+  }
+
+  const plan = claim.attempt.plan
   const checkoutIdempotencyKey = buildCrewCheckoutIdempotencyKey({
     competitionId: scope.id,
     teamId: scope.organizingTeamId,
     crewPlan: plan.id,
     amountCents: plan.price,
+    checkoutAttemptId: claim.attempt.id,
   })
   const billingEventId = buildCrewCheckoutBillingEventId(checkoutIdempotencyKey)
-
-  const claimCurrent = await claimCrewCheckoutSessionStart({
-    eventId: scope.id,
-    current,
-    plan,
-  })
-  const existingEvents = await listCrewBillingEventsForEvent(scope.id)
-
   const checkoutSession = await getStripe().checkout.sessions.create(
     buildCrewCheckoutSessionCreateParams({
-      eventName: scope.name,
+      eventName: claim.attempt.eventName,
       plan,
-      appUrl: getAppUrl(),
+      appUrl: claim.attempt.appUrl,
       teamId: scope.organizingTeamId,
       competitionId: scope.id,
       crewPlan: plan.id,
       crewEventSettingsId: scope.settingsId,
       billingEventId,
       checkoutIdempotencyKey,
+      checkoutAttemptId: claim.attempt.id,
     }),
-    { idempotencyKey: checkoutIdempotencyKey },
+    { idempotencyKey: checkoutIdempotencyKey, timeout: 15000 },
   )
-
-  if (!checkoutSession.url) {
-    throw new Error("Stripe did not return a Checkout URL.")
+  if (checkoutSession.status === "expired") {
+    await expireCrewCheckoutSessionFromWebhook(checkoutSession)
+    throw new Error(
+      "Checkout expired. Please try again to open a new checkout.",
+    )
   }
-
-  const appendPlan = planCrewBillingAuditAppend(existingEvents, {
-    id: billingEventId,
-    competitionId: scope.id,
-    teamId: scope.organizingTeamId,
-    eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
-    current: claimCurrent,
-    planId: plan.id,
-    amountCents: plan.price,
-    currency: plan.currency,
-    stripeCheckoutSessionId: checkoutSession.id,
-    idempotencyKey: checkoutIdempotencyKey,
-    actorUserId: session?.user.id,
-    actorLabel: session?.user.email,
-  })
-
-  await persistCrewCheckoutSessionCreated(data, appendPlan)
-
+  if (!checkoutSession.url)
+    throw new Error("Stripe did not return a Checkout URL.")
+  const appendPlan = planCrewBillingAuditAppend(
+    await listCrewBillingEventsForEvent(scope.id),
+    {
+      id: billingEventId,
+      competitionId: scope.id,
+      teamId: scope.organizingTeamId,
+      eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
+      current: claim.billing,
+      planId: plan.id,
+      amountCents: plan.price,
+      currency: plan.currency,
+      stripeCheckoutSessionId: checkoutSession.id,
+      idempotencyKey: checkoutIdempotencyKey,
+      actorUserId: actor?.user.id,
+      actorLabel: actor?.user.email,
+    },
+  )
+  await persistCrewCheckoutSessionCreated(data, appendPlan, claim.attempt.id)
   return { checkoutUrl: checkoutSession.url }
 }
 
@@ -410,62 +469,138 @@ export async function completeCrewCheckoutSessionFromWebhook(
 
 async function claimCrewCheckoutSessionStart({
   eventId,
-  current,
+  eventName,
   plan,
 }: {
   eventId: string
-  current: CrewBillingStateSnapshot
+  eventName: string
   plan: CrewCheckoutCatalogPlan
 }) {
-  if (
-    isReusableCrewCheckoutPendingClaim({
-      billing: current,
-      crewPlan: plan.id,
-      amountCents: plan.price,
-      currency: plan.currency,
+  return getDb().transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(crewEventSettingsTable)
+      .where(eq(crewEventSettingsTable.competitionId, eventId))
+      .for("update")
+    if (!row) throw new Error("Crew event not found")
+    const current = billingSnapshotFromSettings(row)
+    const existingAttempt = readCrewCheckoutAttempt(row.settings)
+    if (current.state === CREW_BILLING_STATE.PENDING) {
+      if (
+        current.source !== CREW_BILLING_SOURCE.STRIPE_CHECKOUT ||
+        !existingAttempt
+      ) {
+        throw new Error(
+          "An earlier payment needs review. Contact support to resume checkout.",
+        )
+      }
+      return { billing: current, attempt: existingAttempt }
+    }
+    // The free starter catalog is a draft, not a different paid package.
+    assertCrewCheckoutCanStart({
+      ...current,
+      planId: current.planId === "crew_starter" ? null : current.planId,
     })
-  ) {
-    return current
-  }
+    const attempt: CrewCheckoutAttempt = {
+      id: crypto.randomUUID(),
+      createdAt: Date.now(),
+      eventName,
+      appUrl: getAppUrl(),
+      plan: {
+        ...plan,
+        name: "Crew Event",
+        description: "Volunteer scheduling and printable exports for one event",
+      },
+    }
+    const billing = buildCrewCheckoutClaimSnapshot(current, attempt.plan)
+    await tx
+      .update(crewEventSettingsTable)
+      .set({
+        crewBillingState: billing.state,
+        crewBillingSource: billing.source,
+        crewBillingPlanId: billing.planId,
+        crewBillingAmountCents: billing.amountCents,
+        crewBillingCurrency: billing.currency,
+        crewStripeCheckoutSessionId: null,
+        crewStripePaymentIntentId: null,
+        settings: JSON.stringify({
+          ...parseCrewCheckoutSettings(row.settings),
+          checkoutAttempt: attempt,
+        }),
+        updatedAt: new Date(),
+      })
+      .where(eq(crewEventSettingsTable.id, row.id))
+    return { billing, attempt }
+  })
+}
 
-  assertCrewCheckoutCanStart(current)
+function billingSnapshotFromSettings(
+  row: typeof crewEventSettingsTable.$inferSelect,
+) {
+  return normalizeCrewBillingState({
+    state: row.crewBillingState,
+    source: row.crewBillingSource,
+    planId: row.crewBillingPlanId as CrewBillingPlanId | null,
+    amountCents: row.crewBillingAmountCents,
+    currency: row.crewBillingCurrency,
+    stripe: {
+      checkoutSessionId: row.crewStripeCheckoutSessionId,
+      paymentIntentId: row.crewStripePaymentIntentId,
+      paymentLinkId: row.crewStripePaymentLinkId,
+    },
+    founderOverride: row.crewFounderOverride,
+    creditCents: row.crewCreditCents,
+    fullPlatformCreditCents: row.fullPlatformCreditCents,
+    refundedCents: row.crewRefundedCents,
+  })
+}
 
-  const claimPatch = buildCrewCheckoutClaimSnapshot(current, plan)
-  const result = await getDb()
-    .update(crewEventSettingsTable)
-    .set({
-      crewBillingState: claimPatch.state,
-      crewBillingSource: claimPatch.source,
-      crewBillingPlanId: claimPatch.planId,
-      crewBillingAmountCents: claimPatch.amountCents,
-      crewBillingCurrency: claimPatch.currency,
-      crewStripeCheckoutSessionId: null,
-      crewStripePaymentIntentId: null,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(crewEventSettingsTable.competitionId, eventId),
-        eq(crewEventSettingsTable.crewBillingState, current.state),
-      ),
+export async function expireCrewCheckoutSessionFromWebhook(
+  session: Stripe.Checkout.Session,
+) {
+  if (session.status !== "expired" || session.metadata?.product !== "crew")
+    return
+  const eventId = session.metadata.competitionId
+  if (!eventId) return
+  const scope = await requireCrewBillingScope(eventId)
+  if (scope.organizingTeamId !== session.metadata.teamId) return
+  await getDb().transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(crewEventSettingsTable)
+      .where(eq(crewEventSettingsTable.competitionId, eventId))
+      .for("update")
+    if (!row || row.id !== session.metadata?.crewEventSettingsId) return
+    const current = billingSnapshotFromSettings(row)
+    if (current.state !== "pending" || current.source !== "stripe_checkout")
+      return
+    const attempt = readCrewCheckoutAttempt(row.settings)
+    // A late expiration must never cancel a newer attempt or a paid event.
+    if (
+      current.stripe.checkoutSessionId !== session.id &&
+      !(
+        current.stripe.checkoutSessionId === null &&
+        attempt?.id === session.metadata?.checkoutAttemptId
+      )
     )
-
-  if (getAffectedRows(result) > 0) return claimPatch
-
-  const latest = toCrewBillingSnapshot(await requireCrewBillingScope(eventId))
-  if (
-    isReusableCrewCheckoutPendingClaim({
-      billing: latest,
-      crewPlan: plan.id,
-      amountCents: plan.price,
-      currency: plan.currency,
+      return
+    const appendPlan = planCrewBillingAuditAppend([], {
+      competitionId: eventId,
+      teamId: session.metadata.teamId,
+      eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_EXPIRED,
+      current,
+      stripeCheckoutSessionId: session.id,
+      idempotencyKey: `crew-expired:${session.id}`,
     })
-  ) {
-    return latest
-  }
-
-  assertCrewCheckoutCanStart(latest)
-  throw new Error("Crew Checkout could not start because billing changed.")
+    if (appendPlan.action !== "append") return
+    await tx
+      .insert(crewBillingEventsTable)
+      .values(toNewCrewBillingEvent(appendPlan.event))
+    await tx
+      .update(crewEventSettingsTable)
+      .set({ ...appendPlan.settingsPatch, updatedAt: new Date() })
+      .where(eq(crewEventSettingsTable.id, row.id))
+  })
 }
 
 function buildCrewCheckoutClaimSnapshot(
@@ -556,28 +691,34 @@ async function persistCrewBillingAppend(
 async function persistCrewCheckoutSessionCreated(
   data: GetCrewBillingInput,
   appendPlan: CrewBillingAppendPlan,
+  attemptId: string,
 ) {
   if (appendPlan.action === "skip_duplicate") return
-
-  const db = getDb()
-  const { event, settingsPatch } = appendPlan
-
   try {
-    await db.transaction(async (tx) => {
+    await getDb().transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(crewEventSettingsTable)
+        .where(eq(crewEventSettingsTable.competitionId, data.eventId))
+        .for("update")
+      if (!row || readCrewCheckoutAttempt(row.settings)?.id !== attemptId)
+        return
+      // A webhook may settle first. Keep both the audit and access in settled state.
+      if (
+        row.crewBillingState !== "pending" ||
+        row.crewBillingSource !== "stripe_checkout"
+      )
+        return
       await tx
         .insert(crewBillingEventsTable)
-        .values(toNewCrewBillingEvent(event))
+        .values(toNewCrewBillingEvent(appendPlan.event))
       await tx
         .update(crewEventSettingsTable)
-        .set({
-          ...settingsPatch,
-          updatedAt: new Date(),
-        })
-        .where(eq(crewEventSettingsTable.competitionId, data.eventId))
+        .set({ ...appendPlan.settingsPatch, updatedAt: new Date() })
+        .where(eq(crewEventSettingsTable.id, row.id))
     })
   } catch (error) {
-    if (isCrewBillingDuplicateEntryError(error)) return
-    throw error
+    if (!isCrewBillingDuplicateEntryError(error)) throw error
   }
 }
 
@@ -590,6 +731,28 @@ async function persistCrewCheckoutCompletedFromWebhook(
 
   try {
     await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(crewEventSettingsTable)
+        .where(eq(crewEventSettingsTable.competitionId, data.eventId))
+        .for("update")
+      const attempt = row ? readCrewCheckoutAttempt(row.settings) : null
+      if (
+        attempt &&
+        buildCrewCheckoutBillingEventId(
+          buildCrewCheckoutIdempotencyKey({
+            competitionId: data.eventId,
+            teamId: data.teamId,
+            crewPlan: attempt.plan.id,
+            amountCents: attempt.plan.price,
+            checkoutAttemptId: attempt.id,
+          }),
+        ) !== data.billingEventId
+      ) {
+        throw new CrewCheckoutWebhookValidationError(
+          "Checkout attempt has been replaced.",
+        )
+      }
       await tx
         .insert(crewBillingEventsTable)
         .values(toNewCrewBillingEvent(event))
@@ -865,8 +1028,11 @@ function toCrewBillingJsonValue(
 function isCrewStripeCheckoutEnabled() {
   const runtimeEnv = env as typeof env & {
     CREW_STRIPE_CHECKOUT_ENABLED?: string | boolean
+    STRIPE_SECRET_KEY?: string
+    STRIPE_WEBHOOK_SECRET?: string
   }
-  return isCrewStripeCheckoutEnabledValue(
-    runtimeEnv.CREW_STRIPE_CHECKOUT_ENABLED,
+  return (
+    Boolean(runtimeEnv.STRIPE_SECRET_KEY && runtimeEnv.STRIPE_WEBHOOK_SECRET) &&
+    isCrewStripeCheckoutEnabledValue(runtimeEnv.CREW_STRIPE_CHECKOUT_ENABLED)
   )
 }

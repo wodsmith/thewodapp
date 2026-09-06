@@ -237,3 +237,12 @@ export const createCrewCheckoutSessionFn = createServerFn({ method: "POST" })
     )
     return createCrewCheckoutSession(data)
   })
+
+export const getCrewScheduleAccessFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => getCrewBillingInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { getCrewScheduleAccess } = await import(
+      "../server/crew-billing.server"
+    )
+    return getCrewScheduleAccess(data)
+  })

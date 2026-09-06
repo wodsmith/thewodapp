@@ -42,13 +42,13 @@ Full-platform upgrade credit is single-use per Crew event. Setting or applying c
 
 ## Billing Page And Upgrade CTA
 
-The private Crew billing page shows organizer-safe event billing state without exposing operator-only audit metadata.
+The Crew purchase page offers one event package and shows verified event access without exposing operator-only audit metadata.
 
-[[apps/crew/src/routes/events/$eventId/billing.tsx]] renders event plan, billing status/source, fulfillment state, upgrade credit, refund state, and the narrow upgrade CTA for the selected Crew event.
+[[apps/crew/src/routes/events/$eventId/billing.tsx]] renders the server-priced Crew Event package, starts or resumes Stripe Checkout, and polls event access after returning from Stripe. Draft editing stays available before purchase; exporting requires active event access.
 
 [[apps/crew/src/lib/crew/billing-page.ts]] derives public page labels and CTA state from normalized event-level Crew billing state. It does not read team subscription state, expose founder pricing, or pass Stripe IDs through to the route view model.
 
-[[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] keep the organizer billing loader server-only, scoped to the event organizing team's billing permission with local operator fallback. Payment Link buttons only use an already configured safe URL from event settings, and Checkout remains a disabled flag-gated slot until a later slice creates sessions.
+[[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] keep the organizer billing loader server-only, scoped to the event organizing team's billing permission with local operator fallback. The public page uses only the Crew Event offer; manual Payment Link reconciliation and private operator metadata remain in admin tools. Checkout requires the feature flag and both Stripe secret bindings.
 
 ## Stripe Payment Link Sales
 
@@ -573,3 +573,29 @@ Regional judge discovery is an event-scoped, organizer-only pilot for blind intr
 [[apps/crew/src/lib/crew/regional-judge-discovery.ts]] builds the deterministic privacy-safe view model from active volunteer identities, current regional-discovery consent, consented-intro history facts, safe credential facts, and pending intro requests. The model excludes import-only volunteers, same-team inventory, minors, revoked or superseded consent, raw contact fields, private metadata, negative badges, rankings, ratings, and global reputation.
 
 [[apps/crew/src/server/crew-discovery.server.ts]] keeps discovery server-only and disabled unless `CREW_REGIONAL_JUDGE_DISCOVERY_ENABLED` is explicitly enabled. The event route [[apps/crew/src/routes/events/$eventId/discovery/judges.tsx]] renders the gated pilot under the organizer event shell; when enabled it can record a `crew_volunteer_intro_requests` audit row without revealing direct contact, sending email/SMS, creating invitations, or implementing acceptance/contact reveal.
+
+## Crew Checkout Recovery
+
+Crew persists each checkout attempt before calling Stripe so duplicate clicks, uncertain network results, and canceled checkouts can recover without creating another charge. Expired attempts can be replaced safely.
+
+[[apps/crew/src/lib/crew/checkout-attempt.ts]] stores a private attempt identifier, creation time, and frozen price, event name, and return origin in the event settings JSON. Row locks serialize attempt creation; the Stripe request runs outside the transaction with an attempt-specific idempotency key. Uncertain requests older than 23 hours or with future timestamps require operator reconciliation before another create call.
+
+[[apps/crew/src/server/crew-billing.server.ts]] resumes existing open sessions and handles expiration by appending an event-scoped audit entry and releasing only the matching pending attempt. Completion checks the active attempt inside the settlement transaction, and a late session-created write cannot replace paid state with pending state or append a misleading pending audit entry after settlement.
+
+[[apps/crew/src/routes/api/webhooks/stripe.ts]] requires a verified signature and a paid Checkout Session before granting access. The browser success URL never grants access. Existing legacy Basic and Pro checkout metadata remains supported, while new purchases use the single Basic-backed Crew Event package.
+
+## Schedule Purchase Boundary
+
+Organizers can draft schedules before purchasing. Exporting requires active event-level Crew access, including existing paid, comped, credited, or founder grants; unpaid, pending, and refunded events cannot export.
+
+[[apps/crew/src/routes/events/$eventId/exports.tsx]] redirects unpaid organizers to event billing. [[apps/crew/src/server/crew-pilot-exports.server.ts]] independently enforces the same purchase boundary before returning export data, so direct server-function calls cannot bypass it.
+
+The public purchase page reads the active Basic catalog price from the server and offers one event package. Deployment configuration supplies separate Crew production and test Stripe secrets and the Checkout feature flag. Checkout is available only when the flag and both Stripe secrets are present; existing operator grants remain usable.
+
+## Crew Purchase Integration Tests
+
+Real MySQL tests verify event purchase locking, retry recovery, settlement ordering, authorization, and export access using a fake Stripe transport and the production billing service.
+
+[[apps/crew/test/integration/crew-purchase.test.ts]] runs only with `CREW_TEST_DATABASE_URL` pointing to an isolated database ending in `_test` or `_e2e`. It exercises concurrent requests, a lost Stripe response, cancellation, stale expiration and settlement, webhook-before-response ordering, duplicate payment delivery, and the unpaid-to-paid export boundary.
+
+Event managers can view access status and the purchase handoff. Starting Checkout still requires the organizing team’s billing permission; managers without it are directed to the event owner. Production secret selection never falls back to test keys.

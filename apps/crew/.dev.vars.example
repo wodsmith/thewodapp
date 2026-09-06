@@ -13,7 +13,7 @@ STRIPE_CLIENT_ID=replace_me_stripe_connect_client_id
 
 # Webhook secret for Stripe webhook signature verification
 # Get from Stripe Dashboard > Developers > Webhooks > Add endpoint
-# For local dev, use Stripe CLI: `stripe listen --forward-to localhost:5173/api/stripe/webhook`
+# For local dev, use Stripe CLI: `stripe listen --forward-to localhost:3002/api/webhooks/stripe`
 STRIPE_WEBHOOK_SECRET=replace_me_stripe_webhook_secret
 
 ### Client-side Stripe (VITE_ prefix exposes to client)
@@ -58,3 +58,6 @@ CRON_SECRET=replace_me_cron_secret
 # Comma-separated list of purchase types to notify on (optional, defaults to all)
 # Valid types: COMPETITION_REGISTRATION, ADDON, CREDITS, SUBSCRIPTION
 # SLACK_PURCHASE_NOTIFICATION_TYPES=COMPETITION_REGISTRATION,ADDON
+
+# Crew uses a dedicated Stripe webhook endpoint and one-time event billing.
+CREW_STRIPE_CHECKOUT_ENABLED=false

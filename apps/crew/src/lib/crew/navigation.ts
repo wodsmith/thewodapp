@@ -17,6 +17,7 @@ export type CrewEventNavRoute =
   | "/events/$eventId/messages"
   | "/events/$eventId/day-of"
   | "/events/$eventId/exports"
+  | "/events/$eventId/billing"
 
 export interface CrewEventNavigationState {
   assignmentCount?: number
@@ -86,6 +87,12 @@ export const CREW_EVENT_NAV_ITEMS = [
     label: "Export Schedule",
     to: "/events/$eventId/exports",
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
+  },
+  {
+    key: "billing",
+    label: "Event Access",
+    to: "/events/$eventId/billing",
+    persona: ["wodsmith_operator", "organizer_admin"],
   },
 ] as const satisfies readonly CrewNavItem[]
 

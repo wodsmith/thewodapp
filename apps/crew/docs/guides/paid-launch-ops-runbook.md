@@ -76,3 +76,15 @@ git diff --check
 ```
 
 Only run live Stripe checks after the Checkout flag decision is made and the target environment is explicitly approved.
+
+## Scheduling launch checkout
+
+Crew now offers one public event package backed by the existing `crew_basic` catalog row (seed price: $200 USD). Draft scheduling is free; one purchase unlocks exports for that event. Existing paid, comped, credited, and founder grants continue to work. Pro and private plans remain in historical billing records but are not offered for new self-service purchases.
+
+Provision the GitHub repository secrets `CREW_STRIPE_SECRET_KEY` and `CREW_STRIPE_WEBHOOK_SECRET` for production, and separate `CREW_STRIPE_TEST_SECRET_KEY` and `CREW_STRIPE_TEST_WEBHOOK_SECRET` for demo/staging. Register the corresponding Crew `/api/webhooks/stripe` endpoint for `checkout.session.completed` and `checkout.session.expired`. Set the repository variable `CREW_STRIPE_CHECKOUT_ENABLED=true` only after validating the test flow and confirming the correct active catalog price. The deployment workflow maps these repository secrets to `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`; Alchemy binds those unprefixed names to the Worker. Local development uses the unprefixed names in `.dev.vars`. Production never falls back to test credentials. Missing configuration leaves checkout unavailable and preserves operator grants.
+
+Validate in Stripe test mode: purchase an unpaid event, observe access stay pending until the signed webhook arrives, export the schedule, cancel and resume another checkout, and expire it before retrying. Confirm repeated clicks and duplicate webhooks produce one payment and one completion audit row. Production activation also needs a smoke test against the Crew production return URL and webhook endpoint.
+
+An uncertain checkout attempt older than 23 hours is intentionally blocked before Stripe may discard its idempotency key. Reconcile that attempt in Stripe using its metadata before replacing it; never clear a pending state without confirming whether Stripe created or completed a session. Refunds remain operator-managed using the existing refund and grant procedures above.
+
+Local integration tests: provide `CREW_TEST_DATABASE_URL` for a disposable MySQL database ending in `_test` or `_e2e`, push the schema, and run `pnpm --filter crew test test/integration/crew-purchase.test.ts`. Stripe is simulated; the database transactions and billing service are real.

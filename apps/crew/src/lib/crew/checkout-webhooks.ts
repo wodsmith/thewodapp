@@ -125,6 +125,7 @@ export function parseCrewCheckoutSessionWebhook(
     teamId,
     crewPlan: crewPlanRaw,
     amountCents,
+    checkoutAttemptId: normalizeText(metadata.checkoutAttemptId) ?? undefined,
   })
 
   if (checkoutIdempotencyKey !== expectedCheckoutIdempotencyKey) {
