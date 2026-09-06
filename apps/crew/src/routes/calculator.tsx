@@ -57,10 +57,7 @@ function StaffingCalculatorPage() {
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Staffing calculator
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold">
+          <h1 className="text-balance text-3xl font-semibold tracking-tight">
             Estimate judges, volunteers, and shift coverage.
           </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
@@ -154,7 +151,16 @@ function StaffingCalculatorPage() {
                 Tune the default role mix without creating assignments.
               </p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="divide-y lg:hidden">
+              {estimate.roleEstimates.map((role) => (
+                <RoleCard
+                  key={role.id}
+                  role={role}
+                  onChange={(updates) => updateRole(role.id, updates)}
+                />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
@@ -252,6 +258,7 @@ function RoleRow({ role, onChange }: RoleRowProps) {
       <td className="px-5 py-3 font-medium">{role.label}</td>
       <td className="px-5 py-3">
         <select
+          aria-label={`${role.label} type`}
           value={role.group}
           onChange={(event) =>
             onChange({ group: event.target.value as StaffingRoleGroup })
@@ -264,6 +271,7 @@ function RoleRow({ role, onChange }: RoleRowProps) {
       </td>
       <td className="px-5 py-3">
         <select
+          aria-label={`${role.label} basis`}
           value={role.basis}
           onChange={(event) =>
             onChange({ basis: event.target.value as StaffingRoleBasis })
@@ -281,6 +289,7 @@ function RoleRow({ role, onChange }: RoleRowProps) {
           type="number"
           min={0}
           step={0.25}
+          aria-label={`${role.label} people per unit`}
           value={role.peoplePerUnit}
           onChange={(event) =>
             onChange({ peoplePerUnit: Number(event.target.value) })
@@ -294,6 +303,69 @@ function RoleRow({ role, onChange }: RoleRowProps) {
   )
 }
 
+function RoleCard({ role, onChange }: RoleRowProps) {
+  return (
+    <section className="space-y-4 p-5" aria-label={role.label}>
+      <h3 className="font-semibold">{role.label}</h3>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="grid gap-1.5 text-sm font-medium">
+          Type
+          <select
+            value={role.group}
+            onChange={(event) =>
+              onChange({ group: event.target.value as StaffingRoleGroup })
+            }
+            className="w-full rounded-md border bg-background px-3 py-2"
+          >
+            <option value="judge">Judge</option>
+            <option value="volunteer">Volunteer</option>
+          </select>
+        </label>
+        <label className="grid gap-1.5 text-sm font-medium">
+          Basis
+          <select
+            value={role.basis}
+            onChange={(event) =>
+              onChange({ basis: event.target.value as StaffingRoleBasis })
+            }
+            className="w-full rounded-md border bg-background px-3 py-2"
+          >
+            <option value="event">Event</option>
+            <option value="floor">Floor</option>
+            <option value="lane">Lane</option>
+            <option value="lanePerFloor">Lane per floor</option>
+          </select>
+        </label>
+        <label className="grid gap-1.5 text-sm font-medium">
+          People per unit
+          <input
+            type="number"
+            min={0}
+            step={0.25}
+            value={role.peoplePerUnit}
+            onChange={(event) =>
+              onChange({ peoplePerUnit: Number(event.target.value) })
+            }
+            className="w-full rounded-md border bg-background px-3 py-2"
+          />
+        </label>
+      </div>
+      <dl className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-3 text-sm">
+        <div>
+          <dt className="text-muted-foreground">Concurrent</dt>
+          <dd className="mt-1 text-lg font-semibold">
+            {role.concurrentPeople}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Shift slots</dt>
+          <dd className="mt-1 text-lg font-semibold">{role.shiftSlots}</dd>
+        </div>
+      </dl>
+    </section>
+  )
+}
+
 interface SummaryPanelProps {
   label: string
   primary: number
@@ -304,7 +376,9 @@ function SummaryPanel({ label, primary, secondary }: SummaryPanelProps) {
   return (
     <section className="rounded-md border bg-card p-5 shadow-sm">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-2 text-3xl font-semibold">{primary}</p>
+      <p className="text-balance text-3xl font-semibold tracking-tight">
+        {primary}
+      </p>
       <p className="mt-1 text-sm text-muted-foreground">{secondary}</p>
     </section>
   )

@@ -10,6 +10,18 @@ Crew launches as a volunteer scheduling product: event details, volunteer import
 
 [[apps/crew/src/server/crew-organizer-home.server.ts]] derives setup completion from the event name, dates, and timezone rather than the retired setup checklist. [[apps/crew/src/lib/crew/organizer-next-action.ts]] guides organizers from roster to shifts and exports; heat imports are optional for shift-only events, and incomplete coverage points back to assignments.
 
+## Mobile Layout and Navigation
+
+Crew supports narrow phones with drawer navigation, readable scheduling cards, and dialogs that stay within the viewport. Desktop tables and printed schedules retain their full detail.
+
+[[apps/crew/src/components/crew-header.tsx#CrewHeader]] collapses public navigation below 1024px. Event navigation uses the existing sidebar drawer below 768px, closes after selection, and provides a visible close action. Native inputs remain at least 16px on phones and buttons provide 44px touch targets. Dismissible notifications sit below the mobile header so save confirmations cannot block navigation.
+
+The homepage stacks its primary actions on phones. Calculator assumptions, roster entries, shifts, and print-packet previews use labeled cards on narrow screens. The roster preserves bulk selection, availability, credentials, source, and edit actions; shift cards expose assignment, edit, and delete actions. Both layouts use the same data and handlers.
+
+Nested flex and grid regions shrink around scrollable scheduling tools instead of widening the page. Dialogs have inset edges and scroll within the dynamic viewport. Print previews use a fixed-layout outer table and restore full tables and repeated headers when printing.
+
+[[apps/crew/e2e/crew-mobile.spec.ts]] checks public and populated organizer pages at 320, 390, 768, and 1280 pixels, navigation focus restoration, short-phone form sizing, schedule creation and assignments, and the purchase/export boundary. Export checks verify downloadable CSV and complete print columns. The Crew E2E job runs these checks in Chromium and iPhone WebKit, alongside the existing organizer and volunteer scenarios.
+
 ## Crew Billing Catalog
 
 Crew billing catalog rows live in the existing billing seed and entitlement config surfaces while paid event access remains separate from WODsmith team subscription state.
