@@ -92,6 +92,8 @@ An athlete opens a published workout through the competition and reads the defau
 
 The API exposes standards only for published workouts and competition divisions applicable to each event. Internal workout identifiers and competition settings stay out of the public response.
 
+Published workouts retain database sort order and expose their one-based list position as an integer. The regression fixture uses a decimal-string database position, matching production, so native decoding never receives the internal sort representation.
+
 ### Athlete navigation
 
 An athlete can move from My day to their competition, see the next-heat countdown, open leaderboard results, and reach configurable reminder settings.
@@ -162,7 +164,7 @@ The confirmation pass covers light/dark athlete schedules and largest-text scrol
 
 ## Release preparation
 
-The iOS 1.0 App Store record is WODsmith Game Day (`6809070191`). A signed device archive and App Store distribution IPA have been exported, but neither backend deployment nor build upload nor review submission is complete.
+The iOS 1.0 App Store record is WODsmith Game Day (`6809070191`). The backend is deployed and a signed App Store IPA is exported. Build upload and review submission remain incomplete.
 
 The release checklist tracks live API checks, review-account data, screenshots, Apple metadata, and the outstanding Developer Program agreement. Local fixture tests and exported binaries are preparation evidence, not proof of publication.
 
@@ -170,10 +172,10 @@ App Store privacy data types, purposes, linkage, and tracking answers are saved 
 
 Five native iPhone 14 Plus screenshots are saved in Apple's 6.5-inch English listing in athlete-first order. They use fictional records and live in `apps/wodsmith-gameday/AppStore/screenshots/`. Public territory availability is configured, subject to Apple's restrictions.
 
-The user approved reusing Dial Your Espresso's Apple review contact. Its phone and email fields are empty, so Game Day's contact form cannot save until those values are provided. Contact values belong in App Store Connect rather than source documentation.
+The user supplied the review contact and authorized a test account. Both are saved in App Store Connect. The ordinary test account is verified and native authentication succeeds; a small review event still awaits approval. Credentials stay outside source control.
 
-The implementation branch is `zac/native-game-day`. External source publication is paused for explicit GitHub push approval after automatic review rejected code egress; the saved App Store draft remains available while that approval is pending.
+The user authorized GitHub push and merge. PR #672 merged and production deployment 34005256436 succeeded. Live native validation then exposed decimal-string workout positions; the API now returns integer list positions, pending follow-up deployment and verification.
 
 ### Native screenshot evidence
 
-The App Store screenshot set uses fictional Debug competition data captured from real native views. Three local replacements reflect the final contrast changes and are ready to save after completing Apple's required review-contact fields.
+The App Store screenshots show fictional data in real native views. All five current images, including three refreshed contrast captures, are saved in the intended order and verified after reloading Apple's listing.

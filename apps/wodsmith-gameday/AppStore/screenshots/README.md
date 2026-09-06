@@ -1,6 +1,6 @@
 # App Store screenshots
 
-These five native simulator captures are saved in the English (U.S.) iPhone 6.5-inch screenshot set for WODsmith Game Day 1.0, Apple ID `6809070191`. Their original count and order were verified after reloading App Store Connect. The local My day, competitions, and reminders images have since been refreshed for the final contrast/text changes and need replacement in the draft after its missing review-contact fields are completed.
+These five native simulator captures are saved in the English (U.S.) iPhone 6.5-inch screenshot set for WODsmith Game Day 1.0, Apple ID `6809070191`. Their count and order were verified after reloading App Store Connect. The refreshed My day, competitions, and reminders captures are also saved in this five-image set.
 
 ## Capture details
 

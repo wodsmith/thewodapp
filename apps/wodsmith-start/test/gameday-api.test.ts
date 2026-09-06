@@ -188,7 +188,7 @@ describe("Game Day API", () => {
           "time",
           720,
           null,
-          1,
+          "1.50000",
         ],
       ],
       [
@@ -209,6 +209,7 @@ describe("Game Day API", () => {
     )
     expect(response.status).toBe(200)
     const detail = await response.json()
+    expect(detail).toHaveProperty("workouts.0.order", 1)
     expect(detail).toHaveProperty("workouts.0.divisions", [
       { id: "rx", label: "RX", description: "24 kg kettlebell" },
     ])

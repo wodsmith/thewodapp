@@ -290,12 +290,13 @@ async function gameDayCompetition(id: string, userId?: string) {
         .where(eq(eventDivisionMappingsTable.competitionId, competition.id))
     : []
   const publishedWorkouts = events.map(
-    ({ workoutId, parentEventId, ...event }) => {
+    ({ workoutId, parentEventId, ...event }, index) => {
       const assigned = mappings
         .filter((mapping) => mapping.eventId === (parentEventId ?? event.id))
         .map((mapping) => mapping.divisionId)
       return {
         ...event,
+        order: index + 1,
         divisions: divisions
           .filter(
             (division) => !assigned.length || assigned.includes(division.id),
