@@ -6,6 +6,8 @@ AI workout import turns source text or an image into a reviewed prescription wit
 
 Browser, model, and persistence contracts distinguish nullable proposals from complete saves. Ownership is resolved on the server and visibility is chosen during review.
 
+Authorized access responses include labels for the destination team and permitted team/system scaling groups.
+
 [[apps/wodsmith-start/src/lib/workout-import/schemas.ts]] preserves movement IDs, aggregation, tiebreak, scaling references, separately recorded scores, and workout time caps in seconds. Prescription rounds remain in the description; score-library milliseconds use an explicit conversion.
 
 ## Authorization
@@ -41,3 +43,5 @@ The Drizzle migration journal and snapshot include only the two import tables. O
 Manual creation validates references, persists scoring fields, and checks destination-team write access. Adding a workout to a track requires programming permission and visibility of that workout.
 
 Manual creation stays independent of AI entitlements. Import saves always use the dedicated server-owned session service, even when the reviewed proposal has been edited locally.
+
+Admin revocation writes an inactive import snapshot even when access came only from a plan or manual override. This prevents a missing snapshot from preserving access after a successful revoke action.

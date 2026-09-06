@@ -87,6 +87,19 @@ export async function revokeTeamFeature(
     throw new Error(`Feature not found: ${featureKey}`)
   }
 
+  // Import revocation must also deny plan/override-only grants without a snapshot.
+  if (featureKey === FEATURES.AI_WORKOUT_IMPORT) {
+    await db
+      .insert(teamFeatureEntitlementTable)
+      .values({
+        teamId,
+        featureId: feature.id,
+        source: "override",
+        isActive: 0,
+      })
+      .onDuplicateKeyUpdate({ set: { isActive: 0 } })
+  }
+
   // Deactivate the feature entitlement (set isActive = 0)
   await db
     .update(teamFeatureEntitlementTable)

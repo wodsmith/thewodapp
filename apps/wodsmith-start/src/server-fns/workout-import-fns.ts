@@ -1,8 +1,12 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { and, eq, isNull, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { programmingTracksTable, teamTable } from "@/db/schema"
+import {
+  programmingTracksTable,
+  scalingGroupsTable,
+  teamTable,
+} from "@/db/schema"
 import {
   workoutImportDestinationSchema,
   workoutImportSaveInputSchema,
@@ -38,11 +42,27 @@ export const getWorkoutImportAccessFn = createServerFn({ method: "GET" })
                 columns: { name: true },
               })
             : null
+        const scalingGroups = await tx
+          .select({
+            id: scalingGroupsTable.id,
+            title: scalingGroupsTable.title,
+          })
+          .from(scalingGroupsTable)
+          .where(
+            or(
+              eq(scalingGroupsTable.teamId, scope.teamId),
+              and(
+                isNull(scalingGroupsTable.teamId),
+                eq(scalingGroupsTable.isSystem, true),
+              ),
+            ),
+          )
         return {
           hasAccess: true as const,
           scope,
           teamName: team?.name ?? "Personal team",
           trackName: track?.name ?? null,
+          scalingGroups,
         }
       })
     } catch {

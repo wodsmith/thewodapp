@@ -75,6 +75,7 @@ vi.mock("@tanstack/react-start", () => ({
   createServerOnlyFn: (fn: unknown) => fn,
 }))
 import { createWorkoutFn } from "@/server-fns/workout-fns"
+import { addWorkoutToTrackFn } from "@/server-fns/programming-fns"
 import {
   getWorkoutImportAccessFn,
   saveWorkoutImportFn,
@@ -639,6 +640,29 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
         db,
       ),
     ).rejects.toThrow("access required")
+  })
+  it("admin revocation denies an override-only or plan-only import grant",async()=>{
+    await seed(teamEntitlementOverrideTable,{id:"override",teamId:"personal",type:"feature",key:FEATURES.AI_WORKOUT_IMPORT,value:"true"})
+    expect((await requireWorkoutImportAccess({userId:"athlete",destination:{kind:"personal"}},db)).teamId).toBe("personal")
+    await revokeTeamFeature("personal",FEATURES.AI_WORKOUT_IMPORT)
+    await expect(requireWorkoutImportAccess({userId:"athlete",destination:{kind:"personal"}},db)).rejects.toThrow("access required")
+    await grantTeamFeature("personal",FEATURES.AI_WORKOUT_IMPORT)
+    expect((await requireWorkoutImportAccess({userId:"athlete",destination:{kind:"personal"}},db)).teamId).toBe("personal")
+  })
+  it("lists only permitted scaling labels and keeps manual track selection authorized",async()=>{
+    await grantTeamFeature("personal",FEATURES.AI_WORKOUT_IMPORT)
+    await seed(scalingGroupsTable,{id:"private-gym",title:"Gym levels",teamId:"gym",isSystem:false})
+    const access=await getWorkoutImportAccessFn({data:{destination:{kind:"personal"}}})
+    expect(access).toMatchObject({hasAccess:true,scalingGroups:[{id:"scaling",title:"Rx"}]})
+    await seed(workouts,{id:"gym-workout",name:"Gym",description:"source",teamId:"gym",scope:"private",scheme:"time"})
+    await seed(workouts,{id:"public-workout",name:"Public",description:"source",teamId:"someone-else",scope:"public",scheme:"time"})
+    await seed(workouts,{id:"private-workout",name:"Private",description:"source",teamId:"personal",scope:"private",scheme:"time"})
+    await addWorkoutToTrackFn({data:{trackId:"track",workoutId:"gym-workout",trackOrder:1}})
+    await addWorkoutToTrackFn({data:{trackId:"track",workoutId:"public-workout",trackOrder:2}})
+    await expect(addWorkoutToTrackFn({data:{trackId:"track",workoutId:"private-workout",trackOrder:3}})).rejects.toThrow("unavailable")
+    await db.update(teamMembershipTable).set({isActive:false}).where(eq(teamMembershipTable.teamId,"gym"))
+    await expect(addWorkoutToTrackFn({data:{trackId:"track",workoutId:"public-workout",trackOrder:3}})).rejects.toThrow("access required")
+    expect(await rowCounts()).toEqual([3,0,2,0])
   })
   it("manual creation persists metadata and movements with actual destination authorization", async () => {
     const data = {
