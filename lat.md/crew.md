@@ -616,15 +616,15 @@ The seeded demo includes a Basic plan with its complimentary grant. Browser test
 
 Crew and WODsmith share a Stripe account but fulfill only their own Checkout Sessions, preventing duplicate effects in the shared database.
 
-After signature verification, Crew processes completed and expired sessions only when `metadata.product` is `crew`; it ignores registration, Connect, and refund events. WODsmith acknowledges Crew checkout events without dispatching registration workflows or updating purchases. Each app has its own endpoint signing secret.
+After signature verification, [[apps/crew/src/routes/api/webhooks/stripe.ts]] processes completed and expired sessions only when `metadata.product` is `crew`; it ignores registration, Connect, and refund events. [[apps/wodsmith-start/src/routes/api/webhooks/stripe.ts]] acknowledges Crew checkout events without dispatching registration workflows or updating purchases. Each app has its own endpoint signing secret.
 
 ## Crew Deployment Configuration
 
 Crew reuses the existing WODsmith Stripe credentials and Alchemy webhook provisioning, with separate demo and production purchase switches.
 
-The deploy workflow uses `STRIPE_SECRET_KEY` for production and `STRIPE_SECRET_KEY_DEMO` for demo. Other deployed stages receive no Stripe API key. Alchemy rejects a test key in production or a live key in demo and creates a stage-specific webhook for completed and expired Checkout Sessions using the account default event API version, matching the existing WODsmith Alchemy provider.
+[[.github/workflows/deploy-crew.yml]] uses `STRIPE_SECRET_KEY` for production and `STRIPE_SECRET_KEY_DEMO` for demo. Other deployed stages receive no Stripe API key. Alchemy rejects a test key in production or a live key in demo and creates a stage-specific webhook for completed and expired Checkout Sessions using the account default event API version, matching the existing WODsmith Alchemy provider.
 
-The resource's signing secret is bound directly to the Crew worker; operators do not copy WODsmith's endpoint secret or create duplicate Crew key secrets. `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` enables demo purchases; `CREW_STRIPE_CHECKOUT_ENABLED` enables production. Both default to false. Other stages keep checkout disabled.
+[[apps/crew/alchemy.run.ts]] binds the resource's signing secret directly to the Crew worker and refuses enabled checkout without it; operators do not copy WODsmith's endpoint secret or create duplicate Crew key secrets. `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` enables demo purchases; `CREW_STRIPE_CHECKOUT_ENABLED` enables production. Both default to false. Other stages keep checkout disabled.
 
 ## Crew Production Catalog
 

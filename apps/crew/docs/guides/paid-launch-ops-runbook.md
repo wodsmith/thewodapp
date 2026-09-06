@@ -17,7 +17,7 @@ This runbook keeps the first paid Crew launches operator-led while preserving th
 - Confirm the sale path is manual, Payment Link reconciliation, founder/private grant, comp, refund, or Checkout.
 - Confirm no route or script in the planned operation updates team subscription billing.
 - Confirm the operator can read back event billing status on the private Crew billing page.
-- Confirm `CREW_STRIPE_CHECKOUT_ENABLED` is unset or false unless the explicit Checkout launch decision has been made.
+- Check `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` for demo and `CREW_STRIPE_CHECKOUT_ENABLED` for production. Enable demo for sandbox verification; enable production only after that verification passes.
 
 ## Manual Paid And Founder Grants
 
@@ -88,3 +88,5 @@ Validate in Stripe test mode: purchase an unpaid event, observe access stay pend
 An uncertain checkout attempt older than 23 hours is intentionally blocked before Stripe may discard its idempotency key. Reconcile that attempt in Stripe using its metadata before replacing it; never clear a pending state without confirming whether Stripe created or completed a session. Refunds remain operator-managed using the existing refund and grant procedures above.
 
 Local integration tests: provide `CREW_TEST_DATABASE_URL` for a disposable MySQL database ending in `_test` or `_e2e`, push the schema, and run `pnpm --filter crew test test/integration/crew-purchase.test.ts`. Stripe is simulated; the database transactions and billing service are real.
+
+Crew processes only `product=crew` checkout events. The main WODsmith webhook owns registration fulfillment and acknowledges Crew sessions without dispatching athlete registration. Managed demo/production deployments fail if checkout is enabled but the dedicated Crew signing secret is empty or missing; they never fall back to the main app signing secret.

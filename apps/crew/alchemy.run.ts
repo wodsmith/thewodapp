@@ -93,8 +93,15 @@ const stripeWebhook =
         adopt: true,
       })
     : undefined
-const stripeWebhookSecret =
-  stripeWebhook?.secret ?? process.env.STRIPE_WEBHOOK_SECRET
+const stripeWebhookSecret = managedStripeStage
+  ? stripeWebhook?.secret
+  : process.env.STRIPE_WEBHOOK_SECRET
+
+if (checkoutEnabled && !stripeWebhookSecret?.trim()) {
+  throw new Error(
+    "Crew Checkout requires its own webhook signing secret before deployment.",
+  )
+}
 
 const website = await TanStackStart("crew-app", {
   bindings: {
