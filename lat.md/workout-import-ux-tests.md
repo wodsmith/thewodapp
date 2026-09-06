@@ -44,7 +44,7 @@ A labeled file picker, full-image link, and remove button make source inspection
 
 ## Log date and notes
 
-Create-and-return selects the new workout in the existing log route, preserves date and notes, resets incompatible score inputs, and never calls result submission.
+Create-and-return appends the saved workout to the current personal day using its latest revision, navigates to its private occurrence, preserves session date and notes, resets score/scaling, and never submits a result.
 
 ## Track alias placement
 
@@ -81,3 +81,15 @@ Reading a source again safely cancels its prior session and begins a fresh impor
 ## Cancellation is not revocation
 
 A source-expired socket close prompts a fresh source session; an access-required close revokes the UI's active AI controls. Safe cancellation must not falsely mark destination access as denied.
+
+## Personal attachment retry
+
+A lost composition-save response can retry the import receipt without appending a duplicate personal occurrence or logging a result.
+
+## Personal attachment conflict
+
+A rejected composition save retains the current score and notes, does not navigate, and never submits a result.
+
+## Legacy log handoff
+
+Workout-only logging links still redirect to Training for explicit session composition and do not create a session or result while loading.

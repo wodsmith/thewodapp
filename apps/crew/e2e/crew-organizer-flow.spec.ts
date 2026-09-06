@@ -41,7 +41,7 @@ test.describe("Crew organizer scheduling flow", () => {
       await volunteerDialog.getByRole("checkbox", { name: "Judge", exact: true }).check()
       await volunteerDialog.getByRole("button", { name: "Add volunteer", exact: true }).click()
       await expect(volunteerDialog).not.toBeVisible()
-      await expect(page.getByText("Launch Volunteer", { exact: true })).toBeVisible()
+      await expect(page.getByRole("table").getByText("Launch Volunteer", { exact: true })).toBeVisible()
 
       await page.getByRole("link", { name: "Volunteer Shifts", exact: true }).click()
       await page.getByRole("button", { name: "Add shift", exact: true }).click()

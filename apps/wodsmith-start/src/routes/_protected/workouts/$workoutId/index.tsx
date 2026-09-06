@@ -9,12 +9,14 @@ import {
   ListChecks,
 } from "lucide-react"
 import { useEffect } from "react"
-import { trackEvent } from "@/lib/posthog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { WorkoutRemixInfo } from "@/components/workout-remix-info"
+import { trackEvent } from "@/lib/posthog"
+import { trainingDateSchema } from "@/server/training-validation"
 import { getWorkoutScoresFn, type WorkoutScore } from "@/server-fns/log-fns"
+import { getTrainingContextFn } from "@/server-fns/training-fns"
 import {
   getWorkoutByIdFn,
   getWorkoutScheduledInstancesFn,
@@ -24,9 +26,28 @@ import { getWorkoutRemixInfoFn } from "@/server-fns/workout-remix-fns"
 
 export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
   component: WorkoutDetailPage,
-  loader: async ({ params, context }) => {
-    const session = context.session
-    const teamId = session?.teams?.[0]?.id
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { teamId?: string; date?: string } => ({
+    teamId: typeof search.teamId === "string" ? search.teamId : undefined,
+    date: trainingDateSchema.safeParse(search.date).data,
+  }),
+  loaderDeps: ({ search }) => search,
+  loader: async ({ params, deps }) => {
+    const training = await getTrainingContextFn()
+    const team =
+      training.teams.find((item) => item.id === deps.teamId) ??
+      training.teams.find((item) => item.id === training.activeTeamId) ??
+      training.teams[0]
+    const teamId = team?.id
+    const date =
+      deps.date ??
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: team?.timezone ?? "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date())
 
     // Fetch workout and remix info in parallel
     const [result, remixInfoResult] = await Promise.all([
@@ -53,9 +74,11 @@ export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
 
     return {
       workout: result.workout,
+      canEdit: Boolean(team?.canProgram && result.workout?.teamId === team.id),
       scores,
       scheduledInstances,
       teamId,
+      date,
       sourceWorkout: remixInfoResult.sourceWorkout,
       remixCount: remixInfoResult.remixCount,
     }
@@ -65,9 +88,11 @@ export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
 function WorkoutDetailPage() {
   const {
     workout,
+    canEdit,
     scores,
     scheduledInstances,
     teamId,
+    date,
     sourceWorkout,
     remixCount,
   } = Route.useLoaderData()
@@ -93,7 +118,7 @@ function WorkoutDetailPage() {
             The workout you're looking for doesn't exist or has been removed.
           </p>
           <Button asChild>
-            <Link to="/workouts" search={{ view: "row", q: "" }}>
+            <Link to="/workouts" search={{ view: "row", q: "", teamId, date }}>
               Back to Workouts
             </Link>
           </Button>
@@ -108,29 +133,31 @@ function WorkoutDetailPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" asChild>
-            <Link to="/workouts" search={{ view: "row", q: "" }}>
+            <Link to="/workouts" search={{ view: "row", q: "", teamId, date }}>
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
           <h1 className="text-3xl font-bold">{workout.name}</h1>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" asChild>
-            <Link
-              to="/workouts/$workoutId/edit"
-              params={{ workoutId: workout.id }}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Link>
-          </Button>
+          {canEdit && (
+            <Button variant="outline" asChild>
+              <Link
+                to="/workouts/$workoutId/edit"
+                params={{ workoutId: workout.id }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit source workout
+              </Link>
+            </Button>
+          )}
           <Button asChild>
             <Link
-              to="/workouts/$workoutId/schedule"
-              params={{ workoutId: workout.id }}
+              to="/training"
+              search={{ view: "training", teamId, date, workoutId: workout.id }}
             >
               <Calendar className="h-4 w-4 mr-2" />
-              Schedule
+              Add to my session
             </Link>
           </Button>
         </div>
@@ -230,15 +257,20 @@ function WorkoutDetailPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
-              <h2 className="text-lg font-semibold">SCHEDULED DATES</h2>
+              <h2 className="text-lg font-semibold">Scheduled dates</h2>
             </div>
             <Button asChild variant="outline">
               <Link
-                to="/workouts/$workoutId/schedule"
-                params={{ workoutId: workout.id }}
+                to="/training"
+                search={{
+                  view: "training",
+                  teamId,
+                  date,
+                  workoutId: workout.id,
+                }}
               >
                 <Calendar className="h-4 w-4 mr-2" />
-                Schedule Again
+                Add to my session
               </Link>
             </Button>
           </div>
@@ -271,11 +303,14 @@ function WorkoutDetailPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ListChecks className="h-5 w-5" />
-            <h2 className="text-lg font-semibold">WORKOUT RESULTS</h2>
+            <h2 className="text-lg font-semibold">EARLIER WORKOUT RESULTS</h2>
           </div>
           <Button asChild>
-            <Link to="/log/new" search={{ workoutId: workout.id }}>
-              Log result
+            <Link
+              to="/training"
+              search={{ view: "training", teamId, date, workoutId: workout.id }}
+            >
+              Add to my session
             </Link>
           </Button>
         </div>

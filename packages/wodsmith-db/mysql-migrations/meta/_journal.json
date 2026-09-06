@@ -19,8 +19,22 @@
     {
       "idx": 2,
       "version": "5",
-      "when": 1788667767314,
-      "tag": "0002_workout_import_domain",
+      "when": 1788667082026,
+      "tag": "0002_training_personal",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1788668930970,
+      "tag": "0003_training_library_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1788668930971,
+      "tag": "0004_workout_import_domain",
       "breakpoints": true
     }
   ]

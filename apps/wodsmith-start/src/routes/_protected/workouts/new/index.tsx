@@ -3,15 +3,24 @@ import { WorkoutForm, type WorkoutFormData } from "@/components/workout-form"
 import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
 import { trackEvent } from "@/lib/posthog"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
+import { getTrainingContextFn } from "@/server-fns/training-fns"
 import { createWorkoutFn, getWorkoutByIdFn } from "@/server-fns/workout-fns"
 
 export const Route = createFileRoute("/_protected/workouts/new/")({
   component: CreateWorkoutPage,
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { remixFrom?: string; teamId?: string } => ({
     remixFrom: (search.remixFrom as string) || undefined,
+    teamId: typeof search.teamId === "string" ? search.teamId : undefined,
   }),
-  loaderDeps: ({ search }) => ({ remixFrom: search.remixFrom }),
+  loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
+    const training = await getTrainingContextFn()
+    const team =
+      training.teams.find((item) => item.id === deps.teamId) ??
+      training.teams.find((item) => item.id === training.activeTeamId) ??
+      training.teams[0]
     const { movements } = await getAllMovementsFn()
 
     // If remixFrom is provided, fetch the source workout data
@@ -21,15 +30,19 @@ export const Route = createFileRoute("/_protected/workouts/new/")({
       sourceWorkout = result.workout
     }
 
-    return { movements, sourceWorkout, sourceWorkoutId: deps.remixFrom }
+    return {
+      movements,
+      sourceWorkout,
+      sourceWorkoutId: deps.remixFrom,
+      teamId: team?.id,
+    }
   },
 })
 
 function CreateWorkoutPage() {
   const navigate = useNavigate()
-  const { session } = Route.useRouteContext()
-  const { movements, sourceWorkout, sourceWorkoutId } = Route.useLoaderData()
-  const teamId = session?.teams?.[0]?.id
+  const { movements, sourceWorkout, sourceWorkoutId, teamId } =
+    Route.useLoaderData()
 
   const handleSubmit = async (data: WorkoutFormData) => {
     if (!teamId) {
@@ -57,6 +70,7 @@ function CreateWorkoutPage() {
         navigate({
           to: "/workouts/$workoutId",
           params: { workoutId: result.workout.id },
+          search: { teamId },
         })
       }
     } catch (error) {
@@ -106,6 +120,7 @@ function CreateWorkoutPage() {
               navigate({
                 to: "/workouts/$workoutId",
                 params: { workoutId: result.workoutId },
+                search: { teamId },
               })
             }
           />

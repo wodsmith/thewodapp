@@ -130,7 +130,7 @@ async function eligibleTrainingTracks(
   }))
 }
 
-async function requireTrainingAccess(
+export async function requireTrainingAccess(
   teamId: string,
   trackId?: string,
   programming = false,

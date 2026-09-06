@@ -267,8 +267,11 @@ export default function WorkoutRowCard({
               variant="secondary"
               className="flex-1 sm:flex-initial"
             >
-              <Link to="/log/new" search={{ workoutId: workout.id }}>
-                {result ? "Log another" : "Log result"}
+              <Link
+                to="/training"
+                search={{ view: "training", workoutId: workout.id }}
+              >
+                Add to my session
               </Link>
             </Button>
           </div>

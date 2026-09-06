@@ -150,7 +150,7 @@ export function EventPilotExportsView({
 
       {/* The thead repeats on every printed page, giving each page a compact
           branded header without any screen-layout impact. */}
-      <table className="w-full">
+      <table className="w-full table-fixed">
         <thead className="hidden print:table-header-group">
           <tr>
             <td className="pb-4">
@@ -400,32 +400,51 @@ function PacketTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-left text-sm">
-        <thead>
-          <tr>
-            {headers.map((header) => (
-              <th
+    <div className="min-w-0">
+      <div className="space-y-3 md:hidden print:hidden">
+        {rows.map((row) => (
+          <dl key={row.key} className="space-y-3 rounded-lg border p-4 text-sm">
+            {headers.map((header, cellIndex) => (
+              <div
                 key={header}
-                className="border px-2 py-1 text-xs font-semibold uppercase text-muted-foreground print:text-black"
+                className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3"
               >
-                {header}
-              </th>
+                <dt className="text-muted-foreground">{header}</dt>
+                <dd className="break-words font-medium">
+                  {row.cells[cellIndex] ?? "—"}
+                </dd>
+              </div>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.key}>
-              {headers.map((header, cellIndex) => (
-                <td key={header} className="border px-2 py-1 align-top">
-                  {row.cells[cellIndex]}
-                </td>
+          </dl>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block print:block print:overflow-visible">
+        <table className="w-full border-collapse text-left text-sm">
+          <thead>
+            <tr>
+              {headers.map((header) => (
+                <th
+                  key={header}
+                  className="border px-2 py-1 text-xs font-semibold uppercase text-muted-foreground print:text-black"
+                >
+                  {header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key}>
+                {headers.map((header, cellIndex) => (
+                  <td key={header} className="border px-2 py-1 align-top">
+                    {row.cells[cellIndex]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

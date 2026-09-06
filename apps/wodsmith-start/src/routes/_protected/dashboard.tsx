@@ -236,7 +236,11 @@ function DashboardPage() {
         ) : scheduledWorkouts.length > 0 ? (
           <div className="space-y-4">
             {scheduledWorkouts.map((scheduled) => (
-              <WorkoutCard key={scheduled.id} scheduled={scheduled} />
+              <WorkoutCard
+                key={scheduled.id}
+                scheduled={scheduled}
+                teamId={teamId ?? undefined}
+              />
             ))}
           </div>
         ) : (
@@ -264,8 +268,10 @@ function DashboardPage() {
 
 function WorkoutCard({
   scheduled,
+  teamId,
 }: {
   scheduled: ScheduledWorkoutWithDetails
+  teamId?: string
 }) {
   const workout = scheduled.workout
 
@@ -294,8 +300,16 @@ function WorkoutCard({
             </Link>
           </Button>
           <Button asChild>
-            <Link to="/log/new" search={{ workoutId: workout.id }}>
-              Log result
+            <Link
+              to="/training"
+              search={{
+                view: "training",
+                workoutId: workout.id,
+                teamId,
+                date: format(scheduled.scheduledDate, "yyyy-MM-dd"),
+              }}
+            >
+              Add to my session
             </Link>
           </Button>
         </div>

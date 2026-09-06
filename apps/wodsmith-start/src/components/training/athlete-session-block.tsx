@@ -3,6 +3,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import type {
   OwnTrainingResult,
+  SaveTrainingResultInput,
   TrainingBlock,
   TrainingSession,
 } from "@/lib/training/types"
@@ -16,7 +17,10 @@ export function AthleteSessionBlock({
   trackName,
   gymName,
   result,
+  readOnlyMessage,
   onSaved,
+  privateOnly = false,
+  saveResult = (data) => saveTrainingResultFn({ data }),
 }: {
   session: TrainingSession
   block: TrainingBlock
@@ -24,6 +28,9 @@ export function AthleteSessionBlock({
   trackName: string
   gymName: string
   result?: OwnTrainingResult
+  readOnlyMessage?: string
+  privateOnly?: boolean
+  saveResult?: (input: SaveTrainingResultInput) => Promise<OwnTrainingResult>
   onSaved: (result: OwnTrainingResult) => void
 }) {
   const [saving, setSaving] = useState(false)
@@ -34,19 +41,17 @@ export function AthleteSessionBlock({
     setError(null)
     try {
       onSaved(
-        await saveTrainingResultFn({
-          data: {
-            sessionId: session.id,
-            blockId: block.id,
-            publishedVersion: session.publishedVersion,
-            score: "",
-            scaling: result?.scaling ?? "rx",
-            modification: result?.modification ?? "",
-            notes: result?.notes ?? "",
-            audience: result?.audience ?? "private",
-            unit: result?.unit ?? "lb",
-            completed: !result?.completed,
-          },
+        await saveResult({
+          sessionId: session.id,
+          blockId: block.id,
+          publishedVersion: session.publishedVersion,
+          score: "",
+          scaling: result?.scaling ?? "rx",
+          modification: result?.modification ?? "",
+          notes: result?.notes ?? "",
+          audience: result?.audience ?? "private",
+          unit: result?.unit ?? "lb",
+          completed: !result?.completed,
         }),
       )
     } catch (cause) {
@@ -129,36 +134,54 @@ export function AthleteSessionBlock({
                 ) : null}
               </div>
             ) : null}
-            <div className="flex flex-wrap gap-2">
-              {block.kind === "check" ? (
-                <Button
-                  variant={result?.completed ? "outline" : "default"}
-                  className={`min-h-11 ${result?.completed ? "" : "bg-primary text-black hover:bg-primary hover:brightness-110 dark:text-black dark:hover:bg-primary"}`}
+            {readOnlyMessage ? (
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>{readOnlyMessage}</p>
+                {result?.notes ? (
+                  <details>
+                    <summary className="min-h-11 cursor-pointer py-3 font-medium">
+                      Private notes
+                    </summary>
+                    <p className="whitespace-pre-wrap break-words">
+                      {result.notes}
+                    </p>
+                  </details>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {block.kind === "check" ? (
+                  <Button
+                    variant={result?.completed ? "outline" : "default"}
+                    className={`min-h-11 ${result?.completed ? "" : "bg-primary text-black hover:bg-primary hover:brightness-110 dark:text-black dark:hover:bg-primary"}`}
+                    disabled={saving}
+                    aria-pressed={result?.completed ?? false}
+                    onClick={toggleCompletion}
+                  >
+                    {saving
+                      ? "Saving…"
+                      : result?.completed
+                        ? "Undo completion"
+                        : "Mark complete"}
+                  </Button>
+                ) : null}
+                <TrainingResultDialog
+                  privateOnly={privateOnly}
+                  saveResult={saveResult}
+                  session={session}
+                  block={block}
+                  trackName={trackName}
+                  gymName={gymName}
+                  result={result}
                   disabled={saving}
-                  aria-pressed={result?.completed ?? false}
-                  onClick={toggleCompletion}
-                >
-                  {saving
-                    ? "Saving…"
-                    : result?.completed
-                      ? "Undo completion"
-                      : "Mark complete"}
-                </Button>
-              ) : null}
-              <TrainingResultDialog
-                session={session}
-                block={block}
-                trackName={trackName}
-                gymName={gymName}
-                result={result}
-                disabled={saving}
-                onSavingChange={setSaving}
-                onSaved={(savedResult) => {
-                  setError(null)
-                  onSaved(savedResult)
-                }}
-              />
-            </div>
+                  onSavingChange={setSaving}
+                  onSaved={(savedResult) => {
+                    setError(null)
+                    onSaved(savedResult)
+                  }}
+                />
+              </div>
+            )}
             {error ? (
               <p role="alert" className="text-sm text-destructive">
                 {error}

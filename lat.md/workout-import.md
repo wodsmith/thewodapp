@@ -51,3 +51,5 @@ Admin revocation writes an inactive import snapshot even when access came only f
 Saved imports use ordinary workout edit permissions. Reads include movements and scaling references; updates validate and atomically persist all reviewed scoring fields and movement replacements, independently of AI access.
 
 Omitted new metadata or movements preserves existing values for older callers. Explicit null clears optional scoring metadata and an empty movement list clears junction rows. Real MySQL tests verify reload, replacement, clearing, invalid-reference rollback, and denied writes after permission loss.
+
+The import migration is `packages/wodsmith-db/mysql-migrations/0004_workout_import_domain.sql`, after main’s `0002_training_personal.sql` and `0003_training_library_history.sql`. Its snapshot extends main’s 0003 schema with only the two import tables.

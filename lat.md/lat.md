@@ -26,3 +26,5 @@ This directory defines the high-level concepts, business logic, and architecture
 
 - [[workout-import-ux]] — Shared reviewed import workspace, destinations, access and recovery
 - [[workout-import-ux-tests]] — Draft, access, source, cancellation and destination interaction tests
+
+- [[training-personal]] — Athlete-owned composition, durable defaults, source snapshots, and private results.

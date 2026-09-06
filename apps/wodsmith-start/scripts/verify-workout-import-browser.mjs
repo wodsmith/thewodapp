@@ -117,12 +117,21 @@ try {
   console.log("PASS duplicate receipt replay, revoked retry and snapshot denial")
 
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto(`${baseURL}/log/new?workoutId=e2e_workout_fran`)
+  await db.execute("INSERT INTO team_entitlement_overrides (id,team_id,type,`key`,value,reason,created_at,updated_at) VALUES (?,?,'feature','workout_tracking','true','Disposable browser fixture',UTC_TIMESTAMP(),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE value='true'", ["browser_gym_tracking", gym])
+  const [franRows] = await db.execute("SELECT * FROM workouts WHERE id='e2e_workout_fran'")
+  const fran = franRows[0]
+  const originalItemId = `browser_fran_${randomUUID().slice(0, 8)}`
+  const existingItems = [{ id: originalItemId, kind: "library", workoutId: fran.id, workout: { name: fran.name, description: fran.description ?? "", scheme: fran.scheme, scoreType: fran.score_type, timeCap: fran.time_cap, roundsToScore: fran.rounds_to_score, repsPerRound: fran.reps_per_round, tiebreakScheme: fran.tiebreak_scheme, scalingGroupId: fran.scaling_group_id } }]
+  await db.execute("INSERT INTO personal_training_sessions (id,user_id,team_id,training_date,revision,items,created_at,updated_at) VALUES (?,?,?,'2026-09-01',1,?,UTC_TIMESTAMP(),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE items=VALUES(items),revision=revision+1", [`browser_personal_${randomUUID().slice(0, 8)}`, actor, gym, JSON.stringify(existingItems)])
+  const [personalSessions] = await db.execute("SELECT * FROM personal_training_sessions WHERE user_id=? AND team_id=? AND training_date='2026-09-01'", [actor, gym])
+  const personalSession = personalSessions[0]
+  const logQuery = new URLSearchParams({ workoutId: fran.id, teamId: gym, date: "2026-09-01", personalSessionId: personalSession.id, personalItemId: originalItemId, personalRevision: String(personalSession.revision) })
+  await page.goto(`${baseURL}/log/new?${logQuery}`)
   await page.waitForLoadState("networkidle")
   const logging = await seedDraft({ kind: "personal" }, `Browser import logging ${randomUUID().slice(0, 8)}`)
   await page.reload()
   await page.waitForLoadState("networkidle")
-  await page.getByLabel("Date", { exact: true }).fill("2026-09-01")
+  await expect(page.getByLabel("Date", { exact: true })).toHaveValue("2026-09-01")
   await page.getByLabel("Notes (optional)", { exact: true }).fill("Preserve this unsaved log note")
   await page.getByRole("button", { name: "Create with AI", exact: true }).click()
   await reviewAndSave("Create and use workout")
@@ -130,7 +139,13 @@ try {
   await page.waitForURL((u) => u.pathname === "/log/new" && u.searchParams.get("workoutId") === logged.workout_id)
   await expect(page.getByLabel("Date", { exact: true })).toHaveValue("2026-09-01")
   await expect(page.getByLabel("Notes (optional)", { exact: true })).toHaveValue("Preserve this unsaved log note")
-  console.log("PASS logging selects saved workout and retains date/notes")
+  const [updatedSessions] = await db.execute("SELECT items FROM personal_training_sessions WHERE id=?", [personalSession.id])
+  const updatedItems = typeof updatedSessions[0].items === "string" ? JSON.parse(updatedSessions[0].items) : updatedSessions[0].items
+  assert(updatedItems.some((item) => item.id === originalItemId), "Import must retain the existing occurrence")
+  assert(updatedItems.some((item) => item.workoutId === logged.workout_id), "Imported workout must be added to the personal session")
+  const [results] = await db.execute("SELECT id FROM personal_training_results WHERE personal_session_id=?", [personalSession.id])
+  assert.equal(results.length, 0, "Create and use must not submit a result")
+  console.log("PASS logging adds/selects saved workout, retains session date/notes and existing items, and creates no result")
 
   await db.execute("INSERT INTO team_entitlement_overrides (id,team_id,type,`key`,value,reason,created_at,updated_at) VALUES (?,?,'feature','workout_tracking','true','Disposable browser fixture',UTC_TIMESTAMP(),UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE value='true'", ["browser_gym_tracking", gym])
   const trackId = `browser_track_${randomUUID().slice(0, 8)}`

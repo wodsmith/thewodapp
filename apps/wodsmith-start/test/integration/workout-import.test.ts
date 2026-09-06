@@ -567,7 +567,7 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
       .delete(featureTable)
       .where(eq(featureTable.key, FEATURES.AI_WORKOUT_IMPORT))
     const migration = readFileSync(
-      "../../packages/wodsmith-db/mysql-migrations/0002_workout_import_domain.sql",
+      "../../packages/wodsmith-db/mysql-migrations/0004_workout_import_domain.sql",
       "utf8",
     )
     for (let n = 0; n < 2; n++)

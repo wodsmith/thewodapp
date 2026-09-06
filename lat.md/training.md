@@ -82,6 +82,38 @@ Team comparison isolates the selected section, publication version, and compatib
 
 Progress shows the performed prescription snapshot for an earlier version rather than replacing it with current programming.
 
+### Default track is explicit
+
+Opening Training uses the saved default track. Browsing another track does not change the preference or create a personal session; Make default track persists the athlete's choice.
+
+### Composition creates personal ownership lazily
+
+Viewing programming, logging an unchanged source workout, and opening customization do not create a session. Removing a workout saves the athlete's ordered composition with an expected revision.
+
+### Remixes preserve references until saved
+
+Published source items remain references until an athlete saves an explicit remix. Failed saves retain edited prescriptions and remix provenance without altering the original programming.
+
+### Library additions require confirmation
+
+A library deep link previews the accessible workout for a selected gym and date. Only confirming Add to my session creates or updates the composition, preserving the workout's original score format.
+
+### Moved workouts log on the performed date
+
+A workout borrowed from another programmed date records a private result against the personal session's date. The original track occurrence and its team results remain unchanged.
+
+### Published updates preserve composed source results
+
+A saved result remains attached to its exact source session, block, date, and publication after a coach update. Earlier source results display their score and private notes without offering another save or an unsupported edit.
+
+### Cancelled library requests stay dismissed
+
+Cancelling a library addition clears its URL request and parent pending state. Changing dates or refreshing does not reopen the cancelled addition, and cancellation creates no personal session.
+
+### Personal titles match server limits
+
+Personal workout names enforce the same 160-character input limit as the server, avoiding otherwise valid-looking edits that cannot be saved.
+
 ## Coach Interface Tests
 
 These interaction tests protect unsaved programming, publication review, copying, and faithful preview content.
@@ -105,3 +137,99 @@ A slow response for the previous programming track cannot replace the selected t
 ### Preview matches programming
 
 The preview includes scoring units, prescriptions, scaling, and coach guidance, and converting to rest requires confirming removal of sections.
+
+## Workout Library
+
+The workout library keeps reusable workout identities, editing, remixes, and earlier history. Athletes choose a gym and date before previewing an addition to their personal session.
+
+Library search runs across the catalog before pagination. Old schedule bookmarks open a personal-session preview without writing a legacy schedule. Coaches can copy supported single-score time, load, or reps workouts into an independent draft section; rounds, caps, tiebreaks, and incompatible ranking semantics are rejected rather than flattened.
+
+Switching gyms clears track, tag, and movement filters from the previous gym. Search text stays local until Search or Enter submits it. Library date parameters use the same valid-calendar-date validation as Training; invalid dates fall back to the gym's current date.
+
+### Library Reuse Tests
+
+Library conversion tests reject unsupported scoring metadata so coached sessions never change the meaning of a workout score. Picker tests verify selected-gym search, independent section identity, and recoverable rejection without adding a section.
+
+### Library gym filters reset
+
+Changing the library gym clears track, tag, and movement filters while preserving the search text and generic workout type so the new gym never inherits unavailable filters.
+
+### Library search submits once
+
+Typing a search does not navigate or reload the catalog. Search or Enter submits the current input and resets pagination to the first page.
+
+### Library dates match training dates
+
+Library and detail routes reject impossible dates and dates outside 2000–2100 while preserving valid leap days, so their session links always use valid training dates.
+
+### Library request ordering
+
+The coach picker ignores older search responses so a slow request cannot replace the results of the latest search.
+
+### Library requests retain gym context
+
+Changing gyms or leaving the picker invalidates outstanding requests so a late workout response cannot add a section from the prior gym context.
+
+### Library additions respect session capacity
+
+Opening the library picker temporarily disables adding manual sections. A delayed library result cannot race a manual addition and exceed the session's 20-section limit.
+
+### Library text limits
+
+Workout imports reject names over 160 characters or prescriptions over 6,000 characters before adding a section, keeping the coach draft within its save limits.
+
+## Navigation and History
+
+Training is the athlete destination; Workout library supplies reusable content. Older result history stays accessible within My progress and through existing detail URLs.
+
+The old `/team` dashboard redirects to Training. Both competition navigation menus expose Training for signed-in athletes. Main navigation keeps Training and Workout library together; Team and My progress remain within Training. The legacy `/log` page remains an archive, while new library scores use the personal-session result form and return to that day.
+
+My progress reads only the current athlete's non-competition library and earlier scores for the selected gym, twenty rows per request. Pagination orders by recorded date and score ID; failed later pages preserve existing rows, and gym changes reset paging. Editing from history returns to Training. Linked personal results are excluded from shared workout lists and denied to other users in legacy detail/round readers. Their session date cannot change through the older score editor.
+
+## Library Result Tests
+
+These regressions preserve privacy and occurrence identity when personal sessions reuse existing score storage and editing tools.
+
+### Private scores stay private in older views
+
+Another gym member cannot retrieve the detail or round breakdown of a library score linked to an athlete's personal session.
+
+### Linked results retain their session date
+
+Editing a linked score cannot move its date away from the owning personal session and make calendar history contradict the session.
+
+### Invalid result date
+
+Malformed result dates fail input validation before any storage query or ISO date conversion.
+
+### Removed library prescription
+
+A removed library item retains its performed prescription on the result so history and edits use the original scoring rules after session or source changes.
+
+### Personal library result editing
+
+Linked library edits use the personal session API to preserve workout snapshots, capped rep counts, and individual rounds while keeping the original result ID and session date.
+
+### Earlier history loads bounded pages
+
+The real history component requests twenty results at a time and appends later pages without fetching the athlete's entire note history.
+
+### History pagination failures retain earlier results
+
+Failed additional-page requests keep previously loaded rows visible, and retry uses the failed offset rather than skipping or duplicating a page.
+
+### History gym changes discard stale pages
+
+Changing gym resets history to its first page and cancels late replies from the previous context so old results cannot appear under the new gym.
+
+### History API bounds optional pagination
+
+Optional history pages validate a limit of at most one hundred rows and a nonnegative offset, with recorded date and score ID providing stable order. Existing callers without pagination still receive their full history.
+
+## Workout Library Navigation Test
+
+The browser test opens Workout library, finds seeded workouts, and follows one into its detail page so the renamed library remains discoverable and usable.
+
+## Legacy Session Entry Links
+
+Legacy dashboard and scheduled workout actions explicitly add work to Training, carrying the selected gym and scheduled date. Older logging bookmarks show an import confirmation before creating a personal session.

@@ -18,7 +18,7 @@ The import dialog accepts text or one PNG, JPEG, or WebP up to 10 MiB. It displa
 
 Access checks resolve the personal team or track owner before allocating sessions or uploads. Every AI completion calls the dedicated entitled save endpoint, including manual corrections and idempotent retries.
 
-Library entry points return to workout detail. Both writable track managers use [[apps/wodsmith-start/src/components/add-workout-to-track-dialog.tsx#AddWorkoutToTrackDialog]] and preserve position and notes for atomic creation. Logging creates and selects a workout in place, retaining date and notes while resetting score/scaling. Creation never logs a result, schedules a workout, or publishes a track.
+Library entry points return to workout detail. Both writable track managers use [[apps/wodsmith-start/src/components/add-workout-to-track-dialog.tsx#AddWorkoutToTrackDialog]] and preserve position and notes for atomic creation. Logging appends the created library workout to the current personal day with the existing composition API, then selects that private occurrence with its session, item, gym, date, and revision. The session date and unsaved notes are retained while score/scaling reset. A fresh day read preserves concurrent additions; the save uses its optimistic revision and retries reuse the same item ID. Legacy workout-only logging links still redirect to Training. Creation never logs a result, schedules a workout, or publishes a track.
 
 ## Recovery
 
