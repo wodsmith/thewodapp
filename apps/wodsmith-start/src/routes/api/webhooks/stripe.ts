@@ -483,6 +483,15 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
           return json({ error: "Invalid signature" }, { status: 401 })
         }
 
+        // @lat: [[crew#Shared Stripe Account Isolation]]
+        if (
+          event.type.startsWith("checkout.session.") &&
+          (event.data.object as Stripe.Checkout.Session).metadata?.product ===
+            "crew"
+        ) {
+          return json({ received: true })
+        }
+
         // Step 2: Process verified event
         try {
           switch (event.type) {
