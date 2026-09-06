@@ -20,3 +20,5 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[training]] — Implemented gym training, versioned results, draft publication, permissions, and interface tests
 - [[workout-import-integration]] — Workout import acceptance, current-access checks, and reviewed save boundaries
 - [[workout-import-contract]] — Browser-safe import schemas and scoring boundary tests
+
+- [[workout-import]] — Reviewed AI import contracts, current destination authorization, and atomic persistence

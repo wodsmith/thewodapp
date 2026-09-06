@@ -20,6 +20,7 @@ export const FEATURES = {
   CUSTOM_SCALING_GROUPS: "custom_scaling_groups",
 
   // AI features (PRIORITY - Coming Soon)
+  AI_WORKOUT_IMPORT: "ai_workout_import",
   AI_WORKOUT_GENERATION: "ai_workout_generation",
   AI_PROGRAMMING_ASSISTANT: "ai_programming_assistant",
   AI_JUDGE_SCHEDULING: "ai_judge_scheduling",

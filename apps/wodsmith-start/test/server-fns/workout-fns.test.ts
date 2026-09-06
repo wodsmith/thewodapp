@@ -17,6 +17,10 @@ vi.mock('@/db', () => ({
   getDb: vi.fn(() => mockDb),
 }))
 
+vi.mock("@/server/workout-import/access", () => ({
+  requireWorkoutTeamWrite: vi.fn(async () => undefined),
+}))
+
 // Create test sessions
 const mockAuthenticatedSession = {
   userId: 'test-user-123',

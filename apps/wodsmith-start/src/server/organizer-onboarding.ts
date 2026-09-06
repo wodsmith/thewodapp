@@ -56,6 +56,9 @@ export async function grantTeamFeature(
     .onDuplicateKeyUpdate({
       set: {
         isActive: 1,
+        ...(featureKey === FEATURES.AI_WORKOUT_IMPORT
+          ? { expiresAt: null }
+          : {}),
         source: "override",
       },
     })

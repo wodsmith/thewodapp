@@ -5,7 +5,6 @@
  * This file uses top-level imports for server-only modules.
  */
 
-import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
 import {
   and,
@@ -29,15 +28,23 @@ import {
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
   movements,
   SCORE_TYPE_VALUES,
+  TIEBREAK_SCHEME_VALUES,
   tags,
   WORKOUT_SCHEME_VALUES,
   workoutMovements,
   workouts,
   workoutTags,
 } from "@/db/schemas/workouts"
+import { normalizedWorkoutSaveSchema } from "@/lib/workout-import"
+import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
+import {
+  insertWorkoutWithMovements,
+  validateWorkoutReferences,
+} from "@/server/workout-import/persistence"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // Workout type filter values
@@ -370,6 +377,10 @@ const createWorkoutInputSchema = z.object({
   timeCap: z.number().int().min(1).optional(),
   roundsToScore: z.number().int().min(1).optional(),
   teamId: z.string().min(1, "Team ID is required"),
+  movementIds: z.array(z.string().min(1)).max(100).default([]),
+  repsPerRound: z.number().int().positive().optional(),
+  tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).optional(),
+  scalingGroupId: z.string().min(1).optional(),
   sourceWorkoutId: z.string().optional(), // For remix tracking
 })
 
@@ -389,19 +400,42 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
       throw new Error("Not authenticated")
     }
 
-    // Create the workout
-    const workoutId = `workout_${createId()}`
-    await db.insert(workouts).values({
-      id: workoutId,
+    const normalized = normalizedWorkoutSaveSchema.parse({
       name: data.name,
       description: data.description,
       scheme: data.scheme,
       scoreType: data.scoreType ?? null,
       scope: data.scope,
-      timeCap: data.timeCap ?? null,
-      roundsToScore: data.roundsToScore ?? null,
-      teamId: data.teamId,
-      sourceWorkoutId: data.sourceWorkoutId ?? null, // For remix tracking
+      timeCapSeconds: data.timeCap ?? null,
+      roundsToScore: data.roundsToScore ?? 1,
+      repsPerRound: data.repsPerRound ?? null,
+      tiebreakScheme: data.tiebreakScheme ?? null,
+      scalingGroupId: data.scalingGroupId ?? null,
+      movementIds: data.movementIds,
+    })
+    const workoutId = await db.transaction(async (tx) => {
+      await requireWorkoutTeamWrite(
+        session.userId,
+        data.teamId,
+        TEAM_PERMISSIONS.CREATE_COMPONENTS,
+        tx,
+      )
+      await validateWorkoutReferences(tx, normalized, data.teamId)
+      if (data.sourceWorkoutId) {
+        const source = await tx.query.workouts.findFirst({
+          where: and(
+            eq(workouts.id, data.sourceWorkoutId),
+            or(eq(workouts.teamId, data.teamId), eq(workouts.scope, "public")),
+          ),
+        })
+        if (!source) throw new Error("Source workout unavailable")
+      }
+      return insertWorkoutWithMovements(
+        tx,
+        normalized,
+        data.teamId,
+        data.sourceWorkoutId ?? null,
+      )
     })
 
     const newWorkout = await db.query.workouts.findFirst({
