@@ -631,3 +631,13 @@ Crew reuses the existing WODsmith Stripe credentials and Alchemy webhook provisi
 The launch purchase uses the existing `crew_basic` catalog entry at 20,000 USD cents per event, with no recurring interval.
 
 Production must contain that active, public plan before Checkout is enabled. On September 6, 2026, the missing production row was inserted from the existing billing seed with a `WHERE NOT EXISTS` guard; other plans and existing prices were preserved. Demo already contained the same offer.
+
+## Production Launch Verification
+
+Crew launched at https://crew.wodsmith.com on September 6, 2026, with the existing WODsmith live Stripe account and the $200 one-event offer enabled.
+
+Production deployment [34007246762](https://github.com/wodsmith/thewodapp/actions/runs/34007246762) succeeded at commit `ee7bdbecd94c95608c937a877a4224d081decde4`, including the Stripe wiring merged in PR #673. Alchemy created the production worker, custom domain, session namespace, Hyperdrive, and dedicated Stripe webhook. The production schema push was skipped.
+
+Both `CREW_STRIPE_CHECKOUT_ENABLED` and `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` are true. Live verification covered HTTP 200 on the homepage, organizer signup, private draft event creation, HTTP 401 for an invalid Stripe signature, a live Checkout Session showing $200.00, and cancellation returning to the production billing page. No card details were entered and no live charge was made.
+
+The clearly labeled production verification draft remains private and unpaid; its abandoned Checkout Session may stay pending until Stripe expires it. Earlier sandbox verification covered successful payment, export access, duplicate webhook delivery, cancellation/resumption, and session expiration recovery.
