@@ -29,3 +29,15 @@ Athletes can create instructions or completion sections without saving a persona
 ### Athletes assign catalogs with recovery
 
 A catalog failure preserves typed workout details, retry loads the athlete's gym options, and saving persists the chosen movement and scaling group.
+
+## Series Detail Propagation
+
+The single-event and sub-event detail forms restore authored rounds and tiebreaks and persist changes without clearing scoring metadata during unrelated edits. Existing first and last aggregation values remain visible.
+
+### Single-event edits retain authored scoring
+
+Changing a description retains the saved rounds, tiebreak and movement selections. Changing rounds then persists the new count under the original template event.
+
+### Sub-event edits retain authored scoring
+
+Sub-event forms restore their own rounds and tiebreak, then save changes and movement selections under the child identity rather than the parent.

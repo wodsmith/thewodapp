@@ -22,6 +22,8 @@ Existing library workouts with blank descriptions import with the explicit label
 
 Draft saves validate newly introduced movement and scaling references against the catalog and selected gym. References already stored on the same block remain valid snapshots after catalog deletion, including copies and publication.
 
+Both source draft saves and private composition saves use [[apps/wodsmith-start/src/server/workout-references.ts#validateChangedWorkoutReferences]] to validate only references absent from their previously stored item.
+
 Publication consumes an already-validated stored draft without rechecking catalog availability. Changing a scaling reference or introducing a new block identity requires current access; preserving a historical reference cannot authorize an arbitrary new reference.
 
 ## Athlete catalog access stays team scoped

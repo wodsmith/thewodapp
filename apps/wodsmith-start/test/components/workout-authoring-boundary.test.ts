@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest"
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 
 const sharedFieldConsumers = [
+  "src/routes/compete/organizer/series/$groupId/events/$eventId.tsx",
   "src/components/workout-form.tsx",
   "src/components/events/create-event-dialog.tsx",
   "src/components/events/event-details-form.tsx",

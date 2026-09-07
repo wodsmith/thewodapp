@@ -255,6 +255,10 @@ export function OrganizerEventManager({
         await router.invalidate()
       }
     } catch (error) {
+      if (created) {
+        toast.error("Event created, but the list could not refresh. Reload to see it.")
+        return
+      }
       const message =
         error instanceof Error ? error.message : "Failed to create event"
       trackEvent("competition_event_created_failed", {
@@ -262,7 +266,7 @@ export function OrganizerEventManager({
         error_message: message,
       })
       toast.error(message)
-      if (!created) throw error
+      throw error
     } finally {
       setIsCreating(false)
     }

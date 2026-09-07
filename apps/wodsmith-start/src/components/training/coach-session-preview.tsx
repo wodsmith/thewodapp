@@ -1,6 +1,5 @@
-import { WORKOUT_SCHEMES } from "@/constants"
-import { decodeTime } from "@/lib/scoring"
 import type { TrainingBlockKind, TrainingContent } from "@/lib/training/types"
+import { trainingWorkoutSummary } from "@/lib/training/workout-display"
 
 export const coachBlockLabels: Record<TrainingBlockKind, string> = {
   workout: "Workout",
@@ -100,7 +99,7 @@ export function CoachSessionPreview({
                 )}
                 <p className="mt-4 border-t border-border pt-3 text-sm text-muted-foreground">
                   {block.kind === "workout" && block.workout
-                    ? `${block.workout.roundsToScore} score${block.workout.roundsToScore === 1 ? "" : "s"} · ${WORKOUT_SCHEMES.find(({ value }) => value === block.workout?.scheme)?.label}${block.workout.timeCapSeconds ? ` · ${decodeTime(block.workout.timeCapSeconds * 1000)} cap` : ""}`
+                    ? trainingWorkoutSummary(block.workout)
                     : scoreLabels[block.kind]}
                 </p>
               </section>

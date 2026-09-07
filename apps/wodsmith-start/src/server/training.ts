@@ -40,7 +40,6 @@ import type {
   TrainingWeek,
 } from "@/lib/training/types"
 import { hasFeature } from "@/server/entitlements"
-import { validateWorkoutReferences } from "@/server/workout-import/persistence"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getActiveTeamId } from "@/utils/team-auth"
 import { getPublishedCrossFitDays } from "./crossfit-import"
@@ -52,6 +51,7 @@ import {
   trainingContentSchema,
   trainingTimezone,
 } from "./training-validation"
+import { validateChangedWorkoutReferences } from "./workout-references"
 
 type TrainingDb = ReturnType<typeof getDb>
 type TrainingTx = Parameters<Parameters<TrainingDb["transaction"]>[0]>[0]
@@ -392,17 +392,10 @@ export async function saveTrainingDraft(
         const previous = (existing?.draft ?? existing?.published)?.blocks.find(
           (stored) => stored.id === block.id,
         )?.workout
-        await validateWorkoutReferences(
+        await validateChangedWorkoutReferences(
           tx,
-          {
-            movementIds: block.workout.movementIds.filter(
-              (id) => !previous?.movementIds.includes(id),
-            ),
-            scalingGroupId:
-              block.workout.scalingGroupId === previous?.scalingGroupId
-                ? null
-                : block.workout.scalingGroupId,
-          },
+          block.workout,
+          previous,
           input.teamId,
         )
       }

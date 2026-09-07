@@ -33,7 +33,6 @@ import type {
   TrainingSourceReference,
 } from "@/lib/training/personal-types"
 import type { OwnTrainingResult, TrainingSession } from "@/lib/training/types"
-import { validateWorkoutReferences } from "@/server/workout-import/persistence"
 import { getPublishedCrossFitDays } from "./crossfit-import"
 import { getTrainingContext, requireTrainingAccess } from "./training"
 import { writeWorkoutResultRounds } from "./training-logs/rounds"
@@ -52,6 +51,7 @@ import {
   assertTrainingRevision,
   normalizeTrainingResult,
 } from "./training-validation"
+import { validateChangedWorkoutReferences } from "./workout-references"
 
 type Db = ReturnType<typeof getDb>
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0]
@@ -488,18 +488,10 @@ export async function savePersonalTrainingSession(
         )
         const previousWorkout =
           stored?.kind === "personal" ? stored.block.workout : undefined
-        await validateWorkoutReferences(
+        await validateChangedWorkoutReferences(
           tx,
-          {
-            movementIds: item.block.workout.movementIds.filter(
-              (id) => !previousWorkout?.movementIds.includes(id),
-            ),
-            scalingGroupId:
-              item.block.workout.scalingGroupId ===
-              previousWorkout?.scalingGroupId
-                ? null
-                : item.block.workout.scalingGroupId,
-          },
+          item.block.workout,
+          previousWorkout,
           data.teamId,
         )
       }

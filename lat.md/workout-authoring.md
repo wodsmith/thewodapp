@@ -68,4 +68,8 @@ The shared-field regression switches a capped multi-score workout to Pass/Fail a
 
 Changing a competition event’s scheme preserves an explicit aggregation, defaults an unset aggregation, and still accepts direct score-type changes.
 
+## Accessible authoring and previews
+
+Shared controls expose movement validation and edit behavior accessibly. Coach and athlete previews use the same readable workout summary, including legacy scheme fallbacks.
+
 Movement import errors focus a labeled movement group. Workout edit buttons announce dialogs; instruction editors retain inline expansion semantics. Coach previews display scheme labels and minutes:seconds caps.

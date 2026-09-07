@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   addSeriesEvent: vi.fn(),
   errorToast: vi.fn(),
   invalidate: vi.fn(),
+  trackEvent: vi.fn(),
 }))
 
 vi.mock("@tanstack/react-router", () => ({
@@ -27,7 +28,7 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("sonner", () => ({
   toast: { error: mocks.errorToast, success: vi.fn() },
 }))
-vi.mock("@/lib/posthog", () => ({ trackEvent: vi.fn() }))
+vi.mock("@/lib/posthog", () => ({ trackEvent: mocks.trackEvent }))
 vi.mock("@/components/events/add-event-dialog", () => ({
   AddEventDialog: () => null,
 }))
@@ -93,7 +94,9 @@ describe("event creation failure recovery", () => {
       })
       fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
       await waitFor(() =>
-        expect(mocks.errorToast).toHaveBeenCalledWith("Refresh unavailable"),
+        expect(mocks.errorToast).toHaveBeenCalledWith(
+          "Event created, but the list could not refresh. Reload to see it.",
+        ),
       )
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
       fireEvent.click(screen.getByRole("button", { name: "Create event" }))
@@ -101,6 +104,9 @@ describe("event creation failure recovery", () => {
         within(screen.getByRole("dialog")).getByLabelText("Event Name"),
       ).toHaveValue("")
       expect(mutation).toHaveBeenCalledTimes(1)
+      expect(mocks.trackEvent.mock.calls.map(([event]) => event)).not.toContain(
+        "competition_event_created_failed",
+      )
     },
   )
 

@@ -227,6 +227,8 @@ function toSeriesTemplateEvent(raw: {
 		scheme: string | null
 		scoreType: string | null
 		timeCap: number | null
+		roundsToScore: number | null
+		tiebreakScheme: string | null
 	}
 }): SeriesTemplateEvent {
 	return {
@@ -259,6 +261,8 @@ function createMockRawTrackWorkout(
 			scheme: string | null
 			scoreType: string | null
 			timeCap: number | null
+			roundsToScore: number | null
+			tiebreakScheme: string | null
 		}
 	}> = {},
 ) {
@@ -280,6 +284,8 @@ function createMockRawTrackWorkout(
 			scheme: "time",
 			scoreType: "min",
 			timeCap: 600,
+			roundsToScore: null,
+			tiebreakScheme: null,
 		},
 	}
 }
@@ -578,6 +584,8 @@ describe("Series Event Template Server Functions", () => {
 					scheme: "time",
 					scoreType: "min",
 					timeCap: null,
+					roundsToScore: null,
+					tiebreakScheme: null,
 				},
 			})
 
@@ -631,6 +639,8 @@ describe("Series Event Template Server Functions", () => {
 					scheme: null,
 					scoreType: null,
 					timeCap: null,
+					roundsToScore: null,
+					tiebreakScheme: null,
 				},
 			})
 			const result = toSeriesTemplateEvent(raw)
@@ -1309,6 +1319,10 @@ describe("Series Event Template Server Functions", () => {
 			mockDb.select
 				.mockImplementationOnce(() => {
 					mockDb.setMockReturnValue([{ id: "group-1", organizingTeamId: "team-1" }])
+					return chain
+				})
+				.mockImplementationOnce(() => {
+					mockDb.setMockReturnValue([{ id: "thruster" }, { id: "pull-up" }])
 					return chain
 				})
 				.mockImplementationOnce(() => {
