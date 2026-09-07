@@ -113,6 +113,8 @@ When creating a competition from a series page, the form shows checkboxes for te
 
 The series leaderboard (`getSeriesLeaderboard`) computes `unmappedCompetitions` — competitions in the group that lack division mappings. The `SeriesLeaderboardPageContent` component renders an orange warning banner listing these competitions.
 
+Repeated athletes contribute their best eligible result for each shared workout and series division, using the existing score ordering and tiebreak rules. Attempts must match an active registration in that competition and division. See [[series-attempt-integrity]].
+
 ## Key Server Functions
 
 All defined in `src/server-fns/series-event-template-fns.ts`:

@@ -503,20 +503,26 @@ async function applyAthleteQuestionFilters(
 /**
  * Filter athlete recipients by per-user waiver signature status.
  *
- * Pending invitees have no user account or signature, so they count as
- * unsigned. Multiple waiver filters are combined with AND logic.
+ * Accepted guest pre-signatures belong to the pending invitation, while account
+ * signatures belong to the user. Multiple waiver filters use AND logic.
  */
 export function filterRecipientsByWaiverStatus(
   recipients: Recipient[],
   waiverFilters: WaiverFilter[],
   signedWaiverIdsByUserId: ReadonlyMap<string, ReadonlySet<string>>,
+  signedWaiverIdsByInvitationId: ReadonlyMap<
+    string,
+    ReadonlySet<string>
+  > = new Map(),
 ): Recipient[] {
   if (waiverFilters.length === 0) return recipients
 
   return recipients.filter((recipient) => {
     const signedWaiverIds = recipient.userId
       ? signedWaiverIdsByUserId.get(recipient.userId)
-      : undefined
+      : recipient.invitationId
+        ? signedWaiverIdsByInvitationId.get(recipient.invitationId)
+        : undefined
 
     return waiverFilters.every((filter) => {
       const hasSigned = signedWaiverIds?.has(filter.waiverId) ?? false
@@ -584,11 +590,74 @@ async function applyAthleteWaiverFilters(
     }
   }
 
+  const invitationIds = recipients.flatMap((recipient) =>
+    recipient.userId === null && recipient.invitationId
+      ? [recipient.invitationId]
+      : [],
+  )
+  const signedWaiverIdsByInvitationId = new Map<string, ReadonlySet<string>>()
+  if (invitationIds.length > 0) {
+    const invitations = await db
+      .select({
+        id: teamInvitationTable.id,
+        status: teamInvitationTable.status,
+        acceptedAt: teamInvitationTable.acceptedAt,
+        metadata: teamInvitationTable.metadata,
+      })
+      .from(teamInvitationTable)
+      .where(
+        and(
+          inArray(teamInvitationTable.id, invitationIds),
+          isNull(teamInvitationTable.acceptedAt),
+          eq(teamInvitationTable.status, INVITATION_STATUS.ACCEPTED),
+        ),
+      )
+    for (const invitation of invitations) {
+      signedWaiverIdsByInvitationId.set(
+        invitation.id,
+        guestSignedWaiverIds(invitation),
+      )
+    }
+  }
+
   return filterRecipientsByWaiverStatus(
     recipients,
     waiverFilters,
     signedWaiverIdsByUserId,
+    signedWaiverIdsByInvitationId,
   )
+}
+
+const guestSignatureSchema = z.object({
+  waiverId: z.string().min(1),
+  signatureName: z.string().trim().min(1),
+  signedAt: z.string().datetime({ offset: true }),
+})
+
+/** Missing or malformed proof must never be treated as a signed waiver. */
+function guestSignedWaiverIds(invitation: {
+  metadata: string | null
+  status: string
+  acceptedAt: Date | null
+}): ReadonlySet<string> {
+  const signed = new Set<string>()
+  if (
+    invitation.status !== INVITATION_STATUS.ACCEPTED ||
+    invitation.acceptedAt ||
+    !invitation.metadata
+  )
+    return signed
+  try {
+    const metadata = JSON.parse(invitation.metadata)
+    if (!Array.isArray(metadata?.pendingSignatures)) return signed
+    for (const signature of metadata.pendingSignatures) {
+      const result = guestSignatureSchema.safeParse(signature)
+      if (result.success) signed.add(result.data.waiverId)
+    }
+  } catch {
+    // Malformed metadata is not evidence of a signature.
+  }
+  return signed
 }
 
 /**

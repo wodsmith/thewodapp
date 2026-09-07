@@ -22,17 +22,19 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { scoresTable } from "@/db/schemas/scores"
+import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { seriesDivisionMappingsTable } from "@/db/schemas/series"
 import { userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import {
   calculateEventPoints,
+  computeSortKey,
   DEFAULT_SCORING_CONFIG,
   decodeScore,
   type EventScoreInput,
   formatScore,
   getDefaultScoreType,
+  sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
 import {
@@ -295,7 +297,12 @@ export async function getSeriesLeaderboard(params: {
     .orderBy(competitionsTable.id)
 
   if (allRegistrations.length === 0) {
-    return { ...emptyResult, availableDivisions, seriesEvents, unmappedCompetitions }
+    return {
+      ...emptyResult,
+      availableDivisions,
+      seriesEvents,
+      unmappedCompetitions,
+    }
   }
 
   // 9. Filter registrations to only those with mapped divisions,
@@ -329,7 +336,12 @@ export async function getSeriesLeaderboard(params: {
   }
 
   if (mappedRegistrations.length === 0) {
-    return { ...emptyResult, availableDivisions, seriesEvents, unmappedCompetitions }
+    return {
+      ...emptyResult,
+      availableDivisions,
+      seriesEvents,
+      unmappedCompetitions,
+    }
   }
 
   // 10. Deduplicate: per (userId, seriesDivisionId) keep one entry
@@ -375,6 +387,46 @@ export async function getSeriesLeaderboard(params: {
         inArray(scoresTable.userId, allUserIds),
       ),
     )
+
+  // Eligibility stays scoped to the exact active registration, not just a
+  // user who happens to be active in another competition in this series.
+  const registrationKeys = new Set(
+    mappedRegistrations.map((reg) =>
+      JSON.stringify([
+        reg.user.id,
+        reg.competitionId,
+        reg.registration.divisionId,
+      ]),
+    ),
+  )
+  const competitionByTrack = new Map(
+    tracks.map((track) => [track.id, track.competitionId]),
+  )
+  const competitionByEvent = new Map(
+    allTrackWorkouts.map((event) => [
+      event.id,
+      competitionByTrack.get(event.trackId),
+    ]),
+  )
+  const roundCaps = new Map<string, number>()
+  if (allScores.length > 0) {
+    const rounds = await db
+      .select({
+        scoreId: scoreRoundsTable.scoreId,
+        status: scoreRoundsTable.status,
+      })
+      .from(scoreRoundsTable)
+      .where(
+        inArray(
+          scoreRoundsTable.scoreId,
+          allScores.map((score) => score.id),
+        ),
+      )
+    for (const round of rounds) {
+      if (round.status === "cap")
+        roundCaps.set(round.scoreId, (roundCaps.get(round.scoreId) ?? 0) + 1)
+    }
+  }
 
   // 12. Build leaderboard map: athleteKey → SeriesLeaderboardEntry
   const leaderboardMap = new Map<string, SeriesLeaderboardEntry>()
@@ -427,7 +479,59 @@ export async function getSeriesLeaderboard(params: {
         ? divisionMappingLookup.get(compDivId)
         : undefined
       if (!seriesDivId) continue
-      userScoreMap.set(`${score.userId}::${seriesDivId}`, score)
+      const competitionId = competitionByEvent.get(
+        score.competitionEventId ?? "",
+      )
+      if (
+        !competitionId ||
+        !registrationKeys.has(
+          JSON.stringify([score.userId, competitionId, compDivId]),
+        )
+      )
+        continue
+      if (
+        score.status !== "scored" &&
+        score.status !== "cap" &&
+        score.status !== "dq" &&
+        score.status !== "withdrawn"
+      )
+        continue
+      if (
+        (score.status === "scored" || score.status === "cap") &&
+        score.scoreValue === null
+      )
+        continue
+      // Recompute so selection and ranking share the established scoring rules,
+      // including round caps, secondary reps and tiebreaks, even for stale keys.
+      const sortKey = sortKeyToString(
+        computeSortKey({
+          scheme,
+          scoreType,
+          value: score.scoreValue,
+          status: score.status,
+          cappedRoundCount: roundCaps.get(score.id) ?? 0,
+          timeCap:
+            score.timeCapMs && score.secondaryValue !== null
+              ? { ms: score.timeCapMs, secondaryValue: score.secondaryValue }
+              : undefined,
+          tiebreak:
+            score.tiebreakValue !== null && score.tiebreakScheme
+              ? {
+                  scheme: score.tiebreakScheme as "time" | "reps",
+                  value: score.tiebreakValue,
+                }
+              : undefined,
+        }),
+      )
+      const key = athleteKey(score.userId, seriesDivId)
+      const previous = userScoreMap.get(key)
+      if (
+        !previous ||
+        sortKey < (previous.sortKey ?? "") ||
+        (sortKey === previous.sortKey && score.id < previous.id)
+      ) {
+        userScoreMap.set(key, { ...score, sortKey })
+      }
     }
 
     // Group by series divisionId
