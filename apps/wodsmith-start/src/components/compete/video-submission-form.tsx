@@ -34,12 +34,7 @@ import {
 } from "@/components/ui/video-url-input"
 import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
-import {
-  decodeScore,
-  encodeRounds,
-  getDefaultScoreType,
-  parseScore,
-} from "@/lib/scoring"
+import { decodeScore, parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import { getSupportedPlatformsText, parseVideoUrl } from "@/schemas/video-url"
 import {
@@ -205,31 +200,6 @@ function getHelpText(scheme: WorkoutScheme, timeCap?: number | null): string {
     default:
       return ""
   }
-}
-
-function parseTiebreakValue(
-  input: string,
-  scheme: string | null,
-): number | null {
-  if (!input.trim()) return null
-  if (scheme === "time") {
-    // Parse time input (M:SS or total seconds) to milliseconds
-    const timeParts = input.split(":")
-    if (timeParts.length === 2) {
-      const minutes = Number.parseInt(timeParts[0], 10)
-      const seconds = Number.parseInt(timeParts[1], 10)
-      if (!Number.isNaN(minutes) && !Number.isNaN(seconds)) {
-        return (minutes * 60 + seconds) * 1000
-      }
-    }
-    const totalSeconds = Number.parseInt(input, 10)
-    if (!Number.isNaN(totalSeconds)) {
-      return totalSeconds * 1000
-    }
-    return null
-  }
-  const value = Number.parseInt(input, 10)
-  return Number.isNaN(value) ? null : value
 }
 
 interface VideoSlotState {
@@ -876,14 +846,6 @@ function VideoSubmissionEditor({
     setIsSubmitting(true)
 
     try {
-      // Submit each video slot (score only sent with the first)
-      const results: Array<{
-        success: boolean
-        submissionId?: string
-        isUpdate?: boolean
-        videoIndex: number
-      }> = []
-
       // Build round scores array for multi-round workouts
       const roundScoresPayload = isMultiRound
         ? roundScoreInputs.map((score, index) => ({
@@ -899,51 +861,50 @@ function VideoSubmissionEditor({
       const submissionSlots = shouldSubmitScoreOnly
         ? [{ slot: videoSlots[0] ?? createEmptyVideoSlot(), index: 0 }]
         : slotsToSubmit
-      const firstSubmissionIndex = submissionSlots[0]?.index ?? 0
-
-      for (const { slot, index } of submissionSlots) {
-        const isFirstSlot = index === firstSubmissionIndex
-        const result = await submitVideo({
-          data: {
-            trackWorkoutId,
-            competitionId,
-            divisionId: selectedDivisionId,
-            videoUrl: slot.url.trim() || undefined,
-            notes: slot.notes.trim() || undefined,
-            videoIndex: index,
-            // Only send score with the first video slot
-            score:
-              isFirstSlot && !isMultiRound
-                ? scoreInput.trim() || undefined
-                : undefined,
-            scoreStatus:
-              isFirstSlot && !isMultiRound && scoreInput.trim()
-                ? scoreStatus
-                : undefined,
-            secondaryScore:
-              isFirstSlot && !isMultiRound && scoreStatus === "cap"
-                ? secondaryScore.trim() || undefined
-                : undefined,
-            tiebreakScore: isFirstSlot
-              ? tiebreakScore.trim() || undefined
+      const firstSlot = submissionSlots[0]
+      const result = await submitVideo({
+        data: {
+          trackWorkoutId,
+          competitionId,
+          divisionId: selectedDivisionId,
+          videoUrl:
+            teamSize === 1 ? firstSlot.slot.url.trim() || undefined : undefined,
+          notes:
+            teamSize === 1
+              ? firstSlot.slot.notes.trim() || undefined
               : undefined,
-            roundScores:
-              isFirstSlot && roundScoresPayload?.length
-                ? roundScoresPayload
-                : undefined,
-          },
-        })
-        results.push({ ...result, videoIndex: index })
-      }
+          videoIndex: firstSlot.index,
+          videos:
+            teamSize > 1
+              ? submissionSlots.map(({ slot, index }) => ({
+                  videoIndex: index,
+                  videoUrl: slot.url.trim(),
+                  notes: slot.notes.trim() || undefined,
+                }))
+              : undefined,
+          score: !isMultiRound ? scoreInput.trim() || undefined : undefined,
+          scoreStatus:
+            !isMultiRound && scoreInput.trim() ? scoreStatus : undefined,
+          secondaryScore:
+            !isMultiRound && scoreStatus === "cap"
+              ? secondaryScore.trim() || undefined
+              : undefined,
+          tiebreakScore: tiebreakScore.trim() || undefined,
+          roundScores: roundScoresPayload?.length
+            ? roundScoresPayload
+            : undefined,
+        },
+      })
+      const results = result.submissions
 
-      const allSuccess = results.every((r) => r.success)
+      const allSuccess = result.success
       if (allSuccess) {
         // A late save must not erase newer edits made after reopening this draft.
         if (draftStore.get(draftKey)?.revision === draft.revision) {
           draftStore.delete(draftKey)
         }
         if (!mounted.current) return
-        const anyUpdate = results.some((r) => r.isUpdate)
+        const anyUpdate = result.isUpdate
         setSuccess(
           anyUpdate
             ? "Submission updated successfully!"
@@ -982,70 +943,7 @@ function VideoSubmissionEditor({
         }
         setSubmissionsData(newSubmissions)
 
-        if (isMultiRound && roundScoresPayload?.length && workout) {
-          // Compute the aggregate client-side to mirror what the server
-          // will persist (e.g. sum of round times for partner workouts).
-          const scheme = workout.scheme as WorkoutScheme
-          const scoreType =
-            (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
-          const roundInputs = roundScoresPayload.map((rs) => ({
-            raw:
-              rs.status === "cap" && workout.timeCap != null
-                ? String(workout.timeCap)
-                : rs.score,
-          }))
-          const { rounds: encodedRounds, aggregated } = encodeRounds(
-            roundInputs,
-            scheme,
-            scoreType,
-          )
-          const anyRoundCapped = roundScoresPayload.some(
-            (round) => round.status === "cap",
-          )
-          const optimisticStatus: "scored" | "cap" = anyRoundCapped
-            ? "cap"
-            : "scored"
-          const optimisticDisplay =
-            aggregated !== null
-              ? decodeScore(aggregated, scheme, { compact: false })
-              : roundScoreInputs.filter((s) => s.trim()).join(" + ")
-
-          setScoreData({
-            scoreValue: aggregated,
-            displayScore: optimisticDisplay,
-            status: optimisticStatus,
-            secondaryValue: roundScoresPayload.some(
-              (round) => round.secondaryScore != null,
-            )
-              ? roundScoresPayload.reduce(
-                  (total, round) => total + Number(round.secondaryScore ?? 0),
-                  0,
-                )
-              : null,
-            tiebreakValue: tiebreakScore
-              ? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
-              : null,
-            roundScores: encodedRounds.map((value, i) => ({
-              roundNumber: i + 1,
-              value,
-              displayScore: decodeScore(value, scheme, { compact: false }),
-              status: roundScoresPayload[i]?.status ?? "scored",
-              secondaryValue: roundScoresPayload[i]?.secondaryScore
-                ? Number(roundScoresPayload[i].secondaryScore)
-                : null,
-            })),
-          })
-        } else if (scoreInput.trim() && workout && parseResult) {
-          setScoreData({
-            scoreValue: parseResult.encoded,
-            displayScore: parseResult.formatted ?? scoreInput,
-            status: scoreStatus,
-            secondaryValue: secondaryScore ? Number(secondaryScore) : null,
-            tiebreakValue: tiebreakScore
-              ? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
-              : null,
-          })
-        }
+        setScoreData(result.acceptedScore)
         onSubmitSuccess?.()
       }
     } catch (err) {
@@ -1181,7 +1079,9 @@ function VideoSubmissionEditor({
                                     (_, index) =>
                                       index === i
                                         ? value
-                                        : (draftRef.current.roundCaps[index] ?? {
+                                        : (draftRef.current.roundCaps[
+                                            index
+                                          ] ?? {
                                             status: "scored",
                                             secondaryScore: "",
                                           }),

@@ -243,6 +243,8 @@ beforeEach(() => {
     submissionId: "saved",
     isUpdate: false,
     retainedCurrentBest: false,
+    acceptedScore: { scoreValue: 120000, displayScore: "2:00", status: "scored", secondaryValue: null, tiebreakValue: null, roundScores: [] },
+    submissions: [{ submissionId: "saved", videoIndex: 0, isUpdate: false }],
   })
   vi.mocked(getAthleteDivisionSubmissionsFn).mockImplementation(
     async (options) => ({
@@ -334,6 +336,8 @@ describe("athlete submission drafts", () => {
         submissionId: "saved",
         isUpdate: false,
         retainedCurrentBest: false,
+    acceptedScore: { scoreValue: 120000, displayScore: "2:00", status: "scored", secondaryValue: null, tiebreakValue: null, roundScores: [] },
+    submissions: [{ submissionId: "saved", videoIndex: 0, isUpdate: false }],
       })
     })
     expect(screen.getByText("8:08")).toBeInTheDocument()
@@ -592,6 +596,8 @@ describe("athlete submission drafts", () => {
         submissionId: "saved",
         isUpdate: false,
         retainedCurrentBest: false,
+    acceptedScore: { scoreValue: 120000, displayScore: "2:00", status: "scored", secondaryValue: null, tiebreakValue: null, roundScores: [] },
+    submissions: [{ submissionId: "saved", videoIndex: 0, isUpdate: false }],
       })
     })
     expect(screen.getByLabelText(/Your Time/)).toHaveValue("2:02")
@@ -774,6 +780,8 @@ describe("athlete submission drafts", () => {
         submissionId: "saved",
         isUpdate: false,
         retainedCurrentBest: false,
+    acceptedScore: { scoreValue: 120000, displayScore: "2:00", status: "scored", secondaryValue: null, tiebreakValue: null, roundScores: [] },
+    submissions: [{ submissionId: "saved", videoIndex: 0, isUpdate: false }],
       }),
     )
     fireEvent.click(screen.getByRole("button", { name: /Workout/ }))
@@ -970,6 +978,8 @@ describe("athlete submission drafts", () => {
     mockSubmit.mockResolvedValue({
       success: true,
       submissionId: "old-submission",
+      acceptedScore: { scoreValue: 120000, displayScore: "2:00", status: "scored", secondaryValue: null, tiebreakValue: null, roundScores: [] },
+      submissions: [{ submissionId: "old-submission", videoIndex: 0, isUpdate: true }],
       isUpdate: true,
     })
     render(<VideoSubmissionForm {...defaultProps} initialData={reviewed} />)

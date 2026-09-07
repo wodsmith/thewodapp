@@ -537,8 +537,25 @@ describe("Video Submission Server Functions (TanStack)", () => {
 	describe("submitVideoFn", () => {
 		beforeEach(() => {
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValue([{ id: "score-default" }])
+			limitMock.mockResolvedValue([{ id: "score-default", scheme: "time", scoreValue: 330000, status: "scored", secondaryValue: null, tiebreakValue: null }])
 		})
+
+    // @lat: [[submission-receipts#Submission Receipts#Batch authorization boundaries]]
+    it.each(["anonymous", "unregistered", "closed"])("rejects %s batch submissions before any writes", async (boundary) => {
+      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      if (boundary === "anonymous") setMockSession(null)
+      if (boundary === "unregistered") limitMock.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+      if (boundary === "closed") limitMock
+        .mockResolvedValueOnce([createTestRegistration()])
+        .mockResolvedValueOnce([createTestCompetition()])
+        .mockResolvedValueOnce([createTestCompetitionEvent({ submissionOpensAt: new Date(0), submissionClosesAt: new Date(1) })])
+      await expect(submitVideoFn({ data: {
+        competitionId: "comp-1", trackWorkoutId: "tw-1", score: "4:00",
+        videos: [{ videoIndex: 0, videoUrl: "https://youtu.be/first" }, { videoIndex: 1, videoUrl: "https://youtu.be/second" }],
+      } })).rejects.toThrow(boundary === "anonymous" ? "Not authenticated" : boundary === "unregistered" ? "registered" : "closed")
+      expect(mockDb.insert).not.toHaveBeenCalled()
+      expect(mockDb.update).not.toHaveBeenCalled()
+    })
 
 		it("throws when not authenticated", async () => {
 			setMockSession(null)
@@ -1324,7 +1341,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 	describe("submitVideoFn — multi-division", () => {
 		beforeEach(() => {
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValue([{ id: "score-default" }])
+			limitMock.mockResolvedValue([{ id: "score-default", scheme: "time", scoreValue: 330000, status: "scored", secondaryValue: null, tiebreakValue: null }])
 		})
 
 		it("throws when non-captain tries to submit", async () => {
