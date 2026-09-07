@@ -9,6 +9,7 @@ import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth"
 import { getIP } from "./get-IP"
 
 const SESSION_PREFIX = "session:"
+const authenticationTypes = ["passkey", "password"] as const
 
 export function getSessionKey(userId: string, sessionId: string): string {
   return `${SESSION_PREFIX}${userId}:${sessionId}`
@@ -32,7 +33,7 @@ export interface KVSession {
   continent?: string
   ip?: string | null
   userAgent?: string | null
-  authenticationType?: "passkey" | "password"
+  authenticationType?: (typeof authenticationTypes)[number]
   passkeyCredentialId?: string
   /**
    * Teams data - contains list of teams the user is a member of
@@ -202,6 +203,13 @@ export async function getKVSession(
   if (!sessionStr) return null
 
   const session = JSON.parse(sessionStr) as KVSession
+  // Persisted records can outlive a supported authentication method.
+  if (
+    session.authenticationType !== undefined &&
+    !authenticationTypes.includes(session.authenticationType)
+  ) {
+    return null
+  }
 
   if (session?.user?.createdAt) {
     session.user.createdAt = new Date(session.user.createdAt)

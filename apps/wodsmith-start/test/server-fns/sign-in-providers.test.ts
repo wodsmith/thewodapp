@@ -62,9 +62,11 @@ describe("supported sign-in providers", () => {
       storedHash: "saved-hash",
       passwordAttempt: "Password123",
     })
-    expect(vi.mocked(createAndStoreSession).mock.calls.at(-1)?.slice(0, 2)).toEqual([
+    expect(vi.mocked(createAndStoreSession).mock.calls.at(-1)?.slice(0, 4)).toEqual([
       "usr_legacy",
       "password",
+      undefined,
+      expect.any(Number),
     ])
   })
 })

@@ -9,6 +9,7 @@ import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth"
 import { getIP } from "./get-IP"
 
 const SESSION_PREFIX = "session:"
+const authenticationTypes = ["passkey", "password"] as const
 
 function getSessionRevocationKey(userId: string): string {
   return `session-revoked-before:${userId}`
@@ -36,7 +37,7 @@ export interface KVSession {
   continent?: string
   ip?: string | null
   userAgent?: string | null
-  authenticationType?: "passkey" | "password"
+  authenticationType?: (typeof authenticationTypes)[number]
   passkeyCredentialId?: string
   /**
    * Teams data - contains list of teams the user is a member of
@@ -208,6 +209,13 @@ export async function getKVSession(
   if (!sessionStr) return null
 
   const session = JSON.parse(sessionStr) as KVSession
+  // Persisted records can outlive a supported authentication method.
+  if (
+    session.authenticationType !== undefined &&
+    !authenticationTypes.includes(session.authenticationType)
+  ) {
+    return null
+  }
 
   // A refresh can rewrite an old record after deletion. Keep its immutable
   // authentication timestamp behind a persistent cutoff so it stays revoked.

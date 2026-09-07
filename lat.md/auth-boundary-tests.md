@@ -49,3 +49,11 @@ Crew treats legacy Google-only records like other passwordless accounts, using e
 ## Crew password sign-in preservation
 
 Crew preserves password sign-in for verified accounts that still have a legacy provider id.
+
+## Persisted session method validation
+
+Wodsmith rejects unsupported method tags in older KV records while preserving password/passkey and unspecified legacy sessions without inventing authentication proof.
+
+## Crew persisted session method validation
+
+Crew rejects unsupported persisted method tags while preserving supported or unspecified methods without changing authentication age or inventing proof.

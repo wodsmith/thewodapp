@@ -8,13 +8,13 @@ Email + password authentication with email verification and password reset flows
 
 Password hashing uses bcrypt. New users sign up with email/password, then verify via an emailed token. Password reset sends a time-limited reset link.
 
-WODsmith Start and Crew retain password and passkey session types. Unused Google OAuth configuration and provider-specific password errors are removed; legacy passwordless accounts use the sign-in page's existing forgot-password action. The shared physical `google_account_id` column is a schema tombstone retained to avoid an unrelated cross-app migration; neither application has provider-specific authentication behavior or session tags. Shared test fixtures are narrowed to password sessions at application call sites.
+WODsmith Start and Crew retain password and passkey session types. Unused Google OAuth configuration and provider-specific password errors are removed; legacy passwordless accounts use the sign-in page's existing forgot-password action. The shared physical `google_account_id` column is a schema tombstone retained to avoid an unrelated cross-app migration; neither application has provider-specific authentication behavior or session tags. Persisted sessions with unsupported method tags are rejected; the read and write types derive from one supported-method list. Shared test fixtures are narrowed to password sessions at application call sites.
 
 ### Account names
 
 Signup, volunteer account creation, and profile saves share trimmed, nonblank names of 1–255 characters, matching the users table storage limit.
 
-[[apps/wodsmith-start/src/schemas/profile.schema.ts#accountNameFields]] defines name fields for signup and profile. The profile browser form and server use [[apps/wodsmith-start/src/schemas/profile.schema.ts#userProfileSchema]], preserving avatar validation. Only submitted names are normalized; stored records are not rewritten.
+[[apps/wodsmith-start/src/schemas/profile.schema.ts#accountNameFields]] defines name fields for signup and profile. The profile browser form and server use [[apps/wodsmith-start/src/schemas/profile.schema.ts#userProfileSchema]], preserving avatar validation. Only submitted names are normalized; stored records are not rewritten. The unused duplicate signup schema is removed so new consumers use these canonical fields.
 
 ### Verification navigation
 
