@@ -29,6 +29,7 @@ export function TrackFollowActions({
   async function follow() {
     setBusy(true)
     setError("")
+    setNotice("")
     try {
       await followTrackFn({ data: { trackId, following: !state.following } })
       setNotice(
@@ -48,6 +49,7 @@ export function TrackFollowActions({
   async function addGym() {
     setBusy(true)
     setError("")
+    setNotice("")
     try {
       await addTrackToGymFn({ data: { trackId, teamId: gymId } })
       setNotice(`Added to ${state.gyms.find((gym) => gym.id === gymId)?.name}`)

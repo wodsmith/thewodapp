@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { it, expect, vi } from "vitest"
 import {
   TrackDetailView,
   type TrackDetailData,
 } from "@/components/track-detail-view"
 import { TrackFollowActions } from "@/components/track-follow-actions"
+import { followTrackFn, addTrackToGymFn } from "@/server-fns/track-follow-fns"
 import { CrossFitTrackDays } from "@/components/crossfit-track-days"
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
@@ -166,3 +167,55 @@ it("keeps admin controls outside the ordinary reader and legacy library collapse
     screen.queryByRole("button", { name: "Preview import" }),
   ).not.toBeInTheDocument()
 })
+
+// @lat: [[training#Provider Verification#Follow feedback tracks the current request]]
+it.each([false, true])(
+  "clears earlier success when the next %s gym action fails",
+  async (gymOnly) => {
+    const state = {
+      personalTeamId: "mine",
+      following: false,
+      trainingAvailable: true,
+      gyms: [{ id: "gym", name: "Test gym", added: false }],
+    }
+    const mutation = gymOnly ? addTrackToGymFn : followTrackFn
+    vi.mocked(mutation).mockResolvedValueOnce({
+      teamId: gymOnly ? "gym" : "mine",
+    })
+    render(
+      <TrackFollowActions
+        trackId="track"
+        date="2026-09-04"
+        state={state}
+        onChanged={() => {}}
+        gymOnly={gymOnly}
+      />,
+    )
+    if (gymOnly) {
+      const disclosure = screen.getByText("For your gym").closest("details")!
+      disclosure.open = true
+      fireEvent.change(screen.getByLabelText("Gym library"), {
+        target: { value: "gym" },
+      })
+    }
+    const actionName = gymOnly ? "Add to gym library" : "Follow track"
+    fireEvent.click(screen.getByRole("button", { name: actionName }))
+    const success = gymOnly ? "Added to Test gym" : "Following in My training"
+    expect(await screen.findByText(success)).toBeInTheDocument()
+    let fail!: (reason: Error) => void
+    vi.mocked(mutation).mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          fail = reject
+        }),
+    )
+    fireEvent.click(screen.getByRole("button", { name: actionName }))
+    expect(screen.queryByText(success)).not.toBeInTheDocument()
+    fail(new Error("Could not save this change"))
+    await screen.findByText("Could not save this change")
+    expect(screen.queryByText(success)).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: actionName })).toBeEnabled(),
+    )
+  },
+)

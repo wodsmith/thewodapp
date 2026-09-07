@@ -158,6 +158,10 @@ The admin component requires a completed same-date preview, displays rich scorin
 
 The actual reader hides administrator operations for ordinary users, exposes only the labeled destination to admins, and collapses legacy workouts.
 
+### Preview fixtures retain date identity
+
+The isolated admin preview uses the selected fixture date for source text and workout or rest classification. Dates without fixtures report unavailable data rather than reusing another day's prescription.
+
 ## Reader and Administrator Destinations
 
 The track page leads with selected-date programming and keeps following, gym-library access, and administrator operations distinct. The selected date uses a calendar-safe URL field and explicit fixed-PST Today labeling.

@@ -148,6 +148,14 @@ export async function runCrossFitImportFn({
   return { id: "crossfit-preview-fixture" }
 }
 export async function getCrossFitRunStatusFn() {
+  const source = providerDays.find((day) => day.date === runDate)
+  if (runMode === "dry-run" && !source) {
+    return {
+      status: "errored",
+      error: "No preview fixture exists for this date.",
+      output: "null",
+    }
+  }
   return {
     status: "complete",
     error: null,
@@ -158,10 +166,10 @@ export async function getCrossFitRunStatusFn() {
             date: runDate,
             source: {
               hash: "a".repeat(64),
-              markdown: providerDays[1].markdown,
+              markdown: source?.markdown ?? "",
             },
             normalized:
-              runDate === "2026-09-06"
+              source?.kind === "rest"
                 ? { kind: "rest", components: [] }
                 : {
                     kind: "workout",

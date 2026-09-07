@@ -275,3 +275,7 @@ Changing the selected track clears the previous day response before loading. A f
 ### Unavailable defaults stay explicit
 
 An unavailable saved track may fall back for browsing, but the fallback is not labeled as a saved default. Make default track remains available and writes only after the athlete explicitly chooses it.
+
+### Follow feedback tracks the current request
+
+Personal follow and gym-library actions clear earlier success feedback when a new request begins. A failed request retains the current input and shows its error without a stale success message.

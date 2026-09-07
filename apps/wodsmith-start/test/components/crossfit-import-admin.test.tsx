@@ -1,5 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, it, expect, vi } from "vitest"
+import {
+  runCrossFitImportFn as runPreviewFixture,
+  getCrossFitRunStatusFn as previewFixtureStatus,
+  providerDays,
+} from "../preview/training/track-fixtures"
 import { CrossFitImportAdmin } from "@/components/crossfit-import-admin"
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
@@ -72,4 +77,26 @@ it("requires a same-date completed preview and binds publish to its hash", async
   expect(
     screen.queryByRole("button", { name: "Publish date" }),
   ).not.toBeInTheDocument()
+})
+
+// @lat: [[crossfit-import#CrossFit Daily Import#Tests#Preview fixtures retain date identity]]
+it("uses the selected date for fixture source text and rest classification", async () => {
+  for (const source of providerDays) {
+    await runPreviewFixture({
+      data: { sourceDate: source.date, mode: "dry-run" },
+    })
+    const result = await previewFixtureStatus()
+    expect(JSON.parse(result.output)).toMatchObject({
+      date: source.date,
+      source: { markdown: source.markdown },
+      normalized: { kind: source.kind },
+    })
+  }
+  await runPreviewFixture({
+    data: { sourceDate: "2026-09-05", mode: "dry-run" },
+  })
+  expect(await previewFixtureStatus()).toMatchObject({
+    status: "errored",
+    output: "null",
+  })
 })

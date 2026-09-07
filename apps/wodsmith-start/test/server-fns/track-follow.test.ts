@@ -8,7 +8,7 @@ import {
 } from "@repo/wodsmith-db/schema"
 import mysql from "mysql2"
 import { eq, inArray } from "drizzle-orm"
-import { beforeAll, afterAll, it, expect, vi, describe } from "vitest"
+import { beforeAll, afterAll, afterEach, it, expect, vi, describe } from "vitest"
 const state = vi.hoisted(() => ({
   db: null as unknown,
   userId: "follow_user",
@@ -48,6 +48,9 @@ const teams = [
   "follow_expired",
 ]
 describe.skipIf(!databaseUrl)("track follow authorization", () => {
+  afterEach(() => {
+    state.feature = true
+  })
   let pool: ReturnType<typeof mysql.createPool>
   let db: WodsmithDb
   beforeAll(async () => {
@@ -167,7 +170,6 @@ describe.skipIf(!databaseUrl)("track follow authorization", () => {
         .from(teamProgrammingTracksTable)
         .where(eq(teamProgrammingTracksTable.trackId, "missing")),
     ).toHaveLength(0)
-    state.feature = true
   })
   it("does not grant Training when owned membership expires", async () => {
     await db
