@@ -82,6 +82,8 @@ The main app deploys to Cloudflare Workers via `.github/workflows/deploy.yml` us
 
 A push to `main` auto-deploys the demo environment; production and other stages deploy via manual `workflow_dispatch` (prod requires GitHub environment approval and must run from `main`).
 
+Alchemy deployment builds use an 8 GiB Node heap for both manual and automatic demo jobs. The public repository’s [standard Ubuntu runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) has 16 GiB RAM, leaving space for Bun and build subprocesses; the earlier 5 GiB cap exhausted V8 during the combined app build.
+
 Non-prod stages (demo, staging, dev) run `drizzle-kit push` against their PlanetScale branch during deploy, matching the push-based local dev workflow. Production schema changes are **not** pushed on deploy — they are applied out-of-band via PlanetScale deploy requests — so the prod deploy skips the schema-push step. This avoids `drizzle-kit push` hitting an interactive data-loss prompt (e.g. on leftover Vitess `_vt_*` artifact tables) that would hang the non-interactive CI job.
 
 ### apps/crm
