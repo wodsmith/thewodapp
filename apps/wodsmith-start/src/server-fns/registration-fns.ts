@@ -2410,6 +2410,34 @@ export const transferRegistrationDivisionFn = createServerFn({
     let removedHeatAssignments = 0
 
     await db.transaction(async (tx) => {
+      const [currentRegistration] = await tx
+        .select({ id: competitionRegistrationsTable.id })
+        .from(competitionRegistrationsTable)
+        .where(
+          and(
+            eq(competitionRegistrationsTable.id, registration.id),
+            eq(competitionRegistrationsTable.eventId, input.competitionId),
+            eq(competitionRegistrationsTable.userId, registration.userId),
+            eq(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.ACTIVE,
+            ),
+            registration.divisionId === null
+              ? isNull(competitionRegistrationsTable.divisionId)
+              : eq(
+                  competitionRegistrationsTable.divisionId,
+                  registration.divisionId,
+                ),
+          ),
+        )
+        .for("update")
+      if (!currentRegistration) {
+        throw new Error(
+          "Registration changed. Reload before transferring divisions.",
+        )
+      }
+      // This is the first snapshot read in this transaction, after the shared
+      // registration mutex, so a winning score writer's commit is visible.
       // A scored registration needs an explicit results policy before it can
       // move. Include teammate results and the null-division scope; never clear
       // or reinterpret scores as a side effect of an ordinary division change.
@@ -2437,7 +2465,10 @@ export const transferRegistrationDivisionFn = createServerFn({
                     .select({ userId: teamMembershipTable.userId })
                     .from(teamMembershipTable)
                     .where(
-                      eq(teamMembershipTable.teamId, registration.athleteTeamId),
+                      eq(
+                        teamMembershipTable.teamId,
+                        registration.athleteTeamId,
+                      ),
                     ),
                 )
               : undefined,

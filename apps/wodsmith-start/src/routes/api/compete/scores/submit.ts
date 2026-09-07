@@ -1,3 +1,7 @@
+import {
+  lockRegistrationForResult,
+  RegistrationChangedError,
+} from "@/server/competition-results/registration-lock"
 /**
  * Athlete Score Submit API
  *
@@ -17,7 +21,7 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq, isNull, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -336,30 +340,23 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
           const statusOrder =
             data.status === "cap" ? STATUS_ORDER.cap : STATUS_ORDER.scored
 
-          await db
-            .insert(scoresTable)
-            .values({
-              userId,
-              teamId: track.ownerTeamId,
-              workoutId: trackWorkout.workoutId,
-              competitionEventId: data.trackWorkoutId,
-              scheme,
-              scoreType,
-              scoreValue: encodedValue,
-              status: data.status,
-              statusOrder,
-              sortKey: sortKey ? sortKeyToString(sortKey) : null,
-              tiebreakScheme:
-                (workout.tiebreakScheme as TiebreakScheme) ?? null,
-              tiebreakValue,
-              timeCapMs,
-              secondaryValue,
-              scalingLevelId: registration.divisionId,
-              asRx: true,
-              recordedAt: new Date(),
+          const ownerTeamId = track.ownerTeamId
+          return await db.transaction(async (tx) => {
+            await lockRegistrationForResult(tx, {
+              athleteUserId: userId,
+              trackWorkoutId: data.trackWorkoutId,
+              divisionId: registration.divisionId,
+              registrationId: registration.id,
             })
-            .onDuplicateKeyUpdate({
-              set: {
+            await tx
+              .insert(scoresTable)
+              .values({
+                userId,
+                teamId: ownerTeamId,
+                workoutId: trackWorkout.workoutId,
+                competitionEventId: data.trackWorkoutId,
+                scheme,
+                scoreType,
                 scoreValue: encodedValue,
                 status: data.status,
                 statusOrder,
@@ -370,42 +367,61 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
                 timeCapMs,
                 secondaryValue,
                 scalingLevelId: registration.divisionId,
-                updatedAt: new Date(),
-              },
-            })
+                asRx: true,
+                recordedAt: new Date(),
+              })
+              .onDuplicateKeyUpdate({
+                set: {
+                  scoreValue: encodedValue,
+                  status: data.status,
+                  statusOrder,
+                  sortKey: sortKey ? sortKeyToString(sortKey) : null,
+                  tiebreakScheme:
+                    (workout.tiebreakScheme as TiebreakScheme) ?? null,
+                  tiebreakValue,
+                  timeCapMs,
+                  secondaryValue,
+                  scalingLevelId: registration.divisionId,
+                  updatedAt: new Date(),
+                },
+              })
 
-          const finalScoreConditions = [
-            eq(scoresTable.competitionEventId, data.trackWorkoutId),
-            eq(scoresTable.userId, userId),
-          ]
-          if (registration.divisionId) {
+            const finalScoreConditions = [
+              eq(scoresTable.competitionEventId, data.trackWorkoutId),
+              eq(scoresTable.userId, userId),
+            ]
             finalScoreConditions.push(
-              eq(scoresTable.scalingLevelId, registration.divisionId),
+              registration.divisionId === null
+                ? isNull(scoresTable.scalingLevelId)
+                : eq(scoresTable.scalingLevelId, registration.divisionId),
             )
-          }
 
-          const [finalScore] = await db
-            .select({ id: scoresTable.id })
-            .from(scoresTable)
-            .where(and(...finalScoreConditions))
-            .limit(1)
+            const [finalScore] = await tx
+              .select({ id: scoresTable.id })
+              .from(scoresTable)
+              .where(and(...finalScoreConditions))
+              .limit(1)
 
-          if (!finalScore) {
+            if (!finalScore) {
+              return json(
+                { error: "Failed to save score" },
+                { status: 500, headers },
+              )
+            }
+
             return json(
-              { error: "Failed to save score" },
-              { status: 500, headers },
+              {
+                success: true,
+                scoreId: finalScore.id,
+                message: "Score submitted successfully",
+              },
+              { headers },
             )
-          }
-
-          return json(
-            {
-              success: true,
-              scoreId: finalScore.id,
-              message: "Score submitted successfully",
-            },
-            { headers },
-          )
+          })
         } catch (err) {
+          if (err instanceof RegistrationChangedError) {
+            return json({ error: err.message }, { status: 409, headers })
+          }
           console.error("[API] /api/compete/scores/submit error:", err)
           return json(
             { error: "Internal server error" },

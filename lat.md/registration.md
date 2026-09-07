@@ -161,6 +161,16 @@ Validates same team size between source and target divisions (individual-to-team
 
 A division move is blocked when the registration's captain or teammates have recorded results in the current division (including a null division). The server checks inside the write transaction, preserves every score, and asks the organizer to contact support to agree on a results policy. Results in other divisions do not block an otherwise valid move. See [[transfer-integrity-tests#Scored division moves]] and [[transfer-integrity-tests#Unscored division moves]].
 
+### Concurrent submissions
+
+Division moves and result writers serialize on the active registration row, then validate its current owner, division, and team participation before changing results or evidence.
+
+[[apps/wodsmith-start/src/server/competition-results/registration-lock.ts#lockRegistrationForResult]] discovers candidate registration IDs, locks each by primary key with `FOR UPDATE`, and validates current state after waiting. Teammate membership is also a current locking read. This rejects stale pretransaction input and old REPEATABLE READ snapshots. Locking the changing division index instead can deadlock with a move, so discovery does not lock that index range.
+
+Writers acquire registration before score, rounds, and video mutations. Canonical and organizer manual result persistence, benchmark retained-best writes, the score and video APIs, and legacy video-only submission all use this protocol. Unlinked programmed workouts retain non-competition persistence support. API writers return 409 on changed registration and require a reload.
+
+The division-transfer transaction takes the registration lock before its first score snapshot, so it sees a winning writer's committed result. A winning move changes the division before a waiting writer revalidates it; that writer rolls back without score, round, or video changes. Acceptance also validates the registration with a current locking read before membership and result mutations. See [[transfer-integrity-tests#Transfer integrity#Concurrent score wins]], [[transfer-integrity-tests#Transfer integrity#Concurrent division move wins]], and [[transfer-integrity-tests#Transfer integrity#Stale submission snapshots]].
+
 ## Day-of Check-In
 
 In-person competitions can mark teams as physically arrived via the volunteer-facing kiosk at `/compete/{slug}/check-in`.

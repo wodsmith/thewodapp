@@ -37,6 +37,8 @@ import {
 import { parseCompetitionSettings } from "@/utils/competition-settings"
 import { resolveHybridFlipTier } from "./benchmark-leaderboard"
 import { checkBenchmarkOpenJoinRateLimit } from "./benchmark-open-join-rate-limit"
+import { lockRegistrationForResult } from "./competition-results/registration-lock"
+import type { ResultTransaction } from "./competition-results/repository"
 
 export interface BenchmarkSubmissionContext {
   batteryId: string
@@ -96,7 +98,7 @@ interface ExistingBenchmarkScore {
   verificationStatus: string | null
 }
 
-type BenchmarkScoreDb = Pick<Database, "insert" | "select" | "update">
+type BenchmarkScoreDb = ResultTransaction
 
 export async function isBenchmarkCompetition(
   competitionId: string,
@@ -421,6 +423,12 @@ export async function saveBenchmarkScoreInTransaction({
     table,
     score.scheme,
   )
+
+  await lockRegistrationForResult(db, {
+    athleteUserId: score.userId,
+    trackWorkoutId: score.competitionEventId,
+    divisionId: context.openDivisionId,
+  })
 
   const [existingScore] = await db
     .select({

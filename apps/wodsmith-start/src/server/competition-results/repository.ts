@@ -3,6 +3,7 @@ import type { Database } from "@/db"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import type { CompetitionResultRevision } from "./decision"
 import { CompetitionResultError } from "./domain"
+import { lockRegistrationForResult } from "./registration-lock"
 import type {
   NormalizedReviewedSubmissionWorkoutResult,
   normalizeManualSubmissionWorkoutResult,
@@ -41,6 +42,8 @@ export async function persistCompetitionResultInTransaction(input: {
   recordedAt: Date
 }): Promise<{ scoreId: string; isNew: boolean }> {
   const { db: tx, target, revision, recordedAt } = input
+
+  await lockRegistrationForResult(tx, target)
 
   const exactKey = and(
     eq(scoresTable.competitionEventId, target.trackWorkoutId),
@@ -181,6 +184,11 @@ export async function insertManualSubmissionWorkoutResult(input: {
   context: ReviewedScoreContext
 }): Promise<string> {
   const { db, target, result, recordedAt, context } = input
+
+  await lockRegistrationForResult(db, {
+    ...target,
+    athleteUserId: target.userId,
+  })
 
   await db.insert(scoresTable).values({
     userId: target.userId,

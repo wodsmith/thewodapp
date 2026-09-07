@@ -1,3 +1,7 @@
+import {
+  lockRegistrationForResult,
+  RegistrationChangedError,
+} from "@/server/competition-results/registration-lock"
 import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 /**
  * Video Submission API
@@ -236,6 +240,31 @@ export const Route = createFileRoute("/api/compete/video/submit")({
 
           return await db.transaction(async (tx) => {
             const now = new Date()
+            await lockRegistrationForResult(tx, {
+              athleteUserId: userId,
+              trackWorkoutId: data.trackWorkoutId,
+              divisionId: registration.divisionId,
+              registrationId: registration.id,
+            })
+            // Save claimed score if provided
+            if (data.score) {
+              await recordCompetitionResultInTransaction({
+                db: tx,
+                command: {
+                  athleteUserId: userId,
+                  trackWorkoutId: data.trackWorkoutId,
+                  divisionScope: divisionScopeFromId(registration.divisionId),
+                  recordedAt: now,
+                  claim: {
+                    score: data.score,
+                    status: data.scoreStatus ?? "scored",
+                    secondaryScore: data.secondaryScore,
+                    tiebreakScore: data.tiebreakScore,
+                  },
+                },
+              })
+            }
+
             let submissionId: string
 
             if (existingSubmission) {
@@ -263,31 +292,15 @@ export const Route = createFileRoute("/api/compete/video/submit")({
               submissionId = id
             }
 
-            // Save claimed score if provided
-            if (data.score) {
-              await recordCompetitionResultInTransaction({
-                db: tx,
-                command: {
-                  athleteUserId: userId,
-                  trackWorkoutId: data.trackWorkoutId,
-                  divisionScope: divisionScopeFromId(registration.divisionId),
-                  recordedAt: now,
-                  claim: {
-                    score: data.score,
-                    status: data.scoreStatus ?? "scored",
-                    secondaryScore: data.secondaryScore,
-                    tiebreakScore: data.tiebreakScore,
-                  },
-                },
-              })
-            }
-
             return json(
               { success: true, submissionId, isUpdate: !!existingSubmission },
               { headers },
             )
           })
         } catch (err) {
+          if (err instanceof RegistrationChangedError) {
+            return json({ error: err.message }, { status: 409, headers })
+          }
           if (err instanceof CompetitionResultError) {
             return json(
               { error: err.message },

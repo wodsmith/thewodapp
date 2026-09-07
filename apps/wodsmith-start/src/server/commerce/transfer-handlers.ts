@@ -5,8 +5,9 @@ import {
   competitionHeatAssignmentsTable,
   competitionRegistrationAnswersTable,
   competitionRegistrationsTable,
-  scoresTable,
   SYSTEM_ROLES_ENUM,
+  scoreRoundsTable,
+  scoresTable,
   teamMembershipTable,
   waiverSignaturesTable,
   waiversTable,
@@ -45,6 +46,29 @@ export async function handleCompetitionRegistrationTransfer(
   ) {
     throw new Error("Registration no longer belongs to this transfer")
   }
+
+  // Acceptance has already read the transfer, so use a current locking read
+  // to validate the original registration before changing memberships/results.
+  const [currentRegistration] = await db
+    .select({ id: competitionRegistrationsTable.id })
+    .from(competitionRegistrationsTable)
+    .where(
+      and(
+        eq(competitionRegistrationsTable.id, registration.id),
+        eq(competitionRegistrationsTable.userId, ctx.sourceUserId),
+        eq(competitionRegistrationsTable.eventId, ctx.competitionId),
+        eq(competitionRegistrationsTable.status, "active"),
+        registration.divisionId === null
+          ? isNull(competitionRegistrationsTable.divisionId)
+          : eq(
+              competitionRegistrationsTable.divisionId,
+              registration.divisionId,
+            ),
+      ),
+    )
+    .for("update")
+  if (!currentRegistration)
+    throw new Error("Registration no longer belongs to this transfer")
 
   const waivers = await db.query.waiversTable.findMany({
     where: eq(waiversTable.competitionId, ctx.competitionId),
@@ -165,7 +189,6 @@ export async function handleCompetitionRegistrationTransfer(
         signatureName: sig.signatureName,
         registrationId: registration.id,
         signedAt: new Date(),
-        ipAddress: null,
       }
       await db
         .insert(waiverSignaturesTable)
@@ -217,8 +240,9 @@ export async function handleCompetitionRegistrationTransfer(
 
   if (competitionEvents.length > 0) {
     const eventIds = competitionEvents.map((e) => e.trackWorkoutId)
-    await db
-      .delete(scoresTable)
+    const transferredScores = await db
+      .select({ id: scoresTable.id })
+      .from(scoresTable)
       .where(
         and(
           inArray(scoresTable.competitionEventId, eventIds),
@@ -228,5 +252,14 @@ export async function handleCompetitionRegistrationTransfer(
             : isNull(scoresTable.scalingLevelId),
         ),
       )
+      .for("update")
+
+    if (transferredScores.length > 0) {
+      const scoreIds = transferredScores.map((score) => score.id)
+      await db
+        .delete(scoreRoundsTable)
+        .where(inArray(scoreRoundsTable.scoreId, scoreIds))
+      await db.delete(scoresTable).where(inArray(scoresTable.id, scoreIds))
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { lockRegistrationForResult } from "@/server/competition-results/registration-lock"
 import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 /**
  * Video Submission Server Functions for TanStack Start
@@ -1796,44 +1797,12 @@ export const submitVideoFn = createServerFn({ method: "POST" })
     }
 
     return db.transaction(async (tx) => {
-      // Save or update video submission
-      let submissionId: string
-
-      if (existingSubmission) {
-        // Update existing submission
-        await tx
-          .update(videoSubmissionsTable)
-          .set({
-            videoUrl: data.videoUrl,
-            notes: data.notes ?? null,
-            submittedAt: now,
-            updatedAt: now,
-            reviewStatus: "pending",
-            statusUpdatedAt: now,
-            reviewedAt: null,
-            reviewedBy: null,
-            reviewerNotes: null,
-          })
-          .where(eq(videoSubmissionsTable.id, existingSubmission.id))
-
-        submissionId = existingSubmission.id
-      } else {
-        // Create new submission
-        const id = createVideoSubmissionId()
-        await tx.insert(videoSubmissionsTable).values({
-          id,
-          registrationId: registration.id,
-          trackWorkoutId: data.trackWorkoutId,
-          videoIndex: data.videoIndex,
-          userId: session.userId,
-          videoUrl: submissionVideoUrl,
-          notes: data.notes ?? null,
-          submittedAt: now,
-        })
-
-        submissionId = id
-      }
-
+      await lockRegistrationForResult(tx, {
+        athleteUserId: session.userId,
+        trackWorkoutId: data.trackWorkoutId,
+        divisionId: registration.divisionId,
+        registrationId: registration.id,
+      })
       // Save claimed score (score is validated as required above)
       if (hasScore) {
         const receipt = await recordCompetitionResultInTransaction({
@@ -1874,6 +1843,44 @@ export const submitVideoFn = createServerFn({ method: "POST" })
               ),
             ),
           )
+      }
+
+      // Save or update video submission
+      let submissionId: string
+
+      if (existingSubmission) {
+        // Update existing submission
+        await tx
+          .update(videoSubmissionsTable)
+          .set({
+            videoUrl: data.videoUrl,
+            notes: data.notes ?? null,
+            submittedAt: now,
+            updatedAt: now,
+            reviewStatus: "pending",
+            statusUpdatedAt: now,
+            reviewedAt: null,
+            reviewedBy: null,
+            reviewerNotes: null,
+          })
+          .where(eq(videoSubmissionsTable.id, existingSubmission.id))
+
+        submissionId = existingSubmission.id
+      } else {
+        // Create new submission
+        const id = createVideoSubmissionId()
+        await tx.insert(videoSubmissionsTable).values({
+          id,
+          registrationId: registration.id,
+          trackWorkoutId: data.trackWorkoutId,
+          videoIndex: data.videoIndex,
+          userId: session.userId,
+          videoUrl: submissionVideoUrl,
+          notes: data.notes ?? null,
+          submittedAt: now,
+        })
+
+        submissionId = id
       }
 
       return {
