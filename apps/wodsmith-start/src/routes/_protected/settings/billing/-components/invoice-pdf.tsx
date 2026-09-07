@@ -1,5 +1,6 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer"
 import type { InvoiceDetails } from "@/server/commerce/purchases"
+import { getInvoiceStatusLabel } from "@/utils/invoice-groups"
 
 const styles = StyleSheet.create({
   page: {
@@ -179,6 +180,7 @@ export function InvoicePDF({ invoice }: InvoicePDFProps) {
   const getBadgeStyle = () => {
     switch (invoice.status) {
       case "PENDING":
+      case "MIXED":
         return [styles.badge, styles.badgePending]
       case "FAILED":
       case "CANCELLED":
@@ -188,7 +190,7 @@ export function InvoicePDF({ invoice }: InvoicePDFProps) {
     }
   }
 
-  const statusText = invoice.status === "COMPLETED" ? "PAID" : invoice.status
+  const statusText = getInvoiceStatusLabel(invoice.status).toUpperCase()
 
   return (
     <Document>
@@ -256,6 +258,9 @@ export function InvoicePDF({ invoice }: InvoicePDFProps) {
 
           {invoice.lineItems.map((item) => (
             <View key={item.purchaseId} style={{ marginBottom: 8 }}>
+              {invoice.status === "MIXED" && (
+                <Text>{getInvoiceStatusLabel(item.status)}</Text>
+              )}
               {hasMultipleItems && item.divisionLabel && (
                 <Text
                   style={{ fontWeight: "bold", fontSize: 10, marginBottom: 4 }}

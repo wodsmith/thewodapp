@@ -12,6 +12,7 @@ import {
   scalingLevelsTable,
 } from "@/db/schema"
 import { getStripe } from "@/lib/stripe"
+import { getInvoiceStatus } from "@/utils/invoice-groups"
 
 export type PurchaseWithDetails = {
   id: string
@@ -130,6 +131,7 @@ export async function getUserPurchases(
 
 export type InvoiceLineItem = {
   purchaseId: string
+  status: string
   divisionLabel: string | null
   totalCents: number
   platformFeeCents: number
@@ -217,6 +219,7 @@ export async function getInvoiceDetails(
   let allPurchases: Array<{
     id: string
     divisionId: string | null
+    status: string
     totalCents: number
     platformFeeCents: number
     stripeFeeCents: number
@@ -224,6 +227,7 @@ export async function getInvoiceDetails(
     {
       id: purchase.id,
       divisionId: purchase.divisionId,
+      status: purchase.status,
       totalCents: purchase.totalCents,
       platformFeeCents: purchase.platformFeeCents,
       stripeFeeCents: purchase.stripeFeeCents,
@@ -235,6 +239,7 @@ export async function getInvoiceDetails(
       .select({
         id: commercePurchaseTable.id,
         divisionId: commercePurchaseTable.divisionId,
+        status: commercePurchaseTable.status,
         totalCents: commercePurchaseTable.totalCents,
         platformFeeCents: commercePurchaseTable.platformFeeCents,
         stripeFeeCents: commercePurchaseTable.stripeFeeCents,
@@ -254,6 +259,8 @@ export async function getInvoiceDetails(
       allPurchases = siblings
     }
   }
+
+  allPurchases.sort((a, b) => a.id.localeCompare(b.id))
 
   // Fetch division labels
   const divisionIds = allPurchases
@@ -276,6 +283,7 @@ export async function getInvoiceDetails(
   // Build line items
   const lineItems: InvoiceLineItem[] = allPurchases.map((p) => ({
     purchaseId: p.id,
+    status: p.status,
     divisionLabel: p.divisionId
       ? (divisionMap.get(p.divisionId) ?? null)
       : null,
@@ -370,7 +378,7 @@ export async function getInvoiceDetails(
 
   return {
     id: purchase.id,
-    status: purchase.status,
+    status: getInvoiceStatus(allPurchases),
     totalCents,
     stripePaymentIntentId: purchase.stripePaymentIntentId,
     completedAt: purchase.completedAt,
