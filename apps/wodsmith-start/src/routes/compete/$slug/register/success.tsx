@@ -78,6 +78,15 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
       })
     }
 
+    // All hosted-checkout returns use the same purchase and participation gate.
+    if (session_id) {
+      throw redirect({
+        to: "/compete/$slug/registered",
+        params: { slug },
+        search: { session_id },
+      })
+    }
+
     // Get competition from parent
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
@@ -164,17 +173,16 @@ function RegistrationSuccessPage() {
           <CardHeader className="text-center">
             <Loader2 className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-spin" />
             <CardTitle className="text-2xl">
-              Processing Your Registration...
+              Registration not confirmed yet
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-center">
             <p className="text-muted-foreground">
-              Your payment was successful! We&apos;re finalizing your
-              registration.
+              We have not confirmed a registration for this account.
             </p>
             <p className="text-sm text-muted-foreground">
-              This usually takes just a few seconds. You&apos;ll receive a
-              confirmation email shortly.
+              If you just checked out, refresh to check again before retrying.
+              If you were charged, contact the organizer for help.
             </p>
             <div className="pt-4 flex flex-col gap-2">
               <Button variant="outline" asChild>

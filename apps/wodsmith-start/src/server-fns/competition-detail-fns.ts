@@ -338,45 +338,76 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
   })
 
 /**
- * Check whether all purchases for a Stripe checkout session are settled.
- * Returns true when no purchases are still PENDING.
- * Called from the client to determine when to stop polling.
+ * Confirm an owned checkout only after all lines complete and every registration
+ * line has active participation. Settled failures must never imply success.
  */
 export const checkCheckoutCompletionFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
-    z.object({ sessionId: z.string() }).parse(data),
+    z
+      .object({
+        sessionId: z.string().min(1),
+        competitionId: z.string().min(1),
+      })
+      .parse(data),
   )
   .handler(async ({ data }) => {
     const session = await getSessionFromCookie()
-    if (!session?.userId) {
-      throw new Error("Unauthorized")
-    }
+    if (!session?.userId) throw new Error("Unauthorized")
 
     const db = getDb()
-
     const purchases = await db
       .select({
         id: commercePurchaseTable.id,
         status: commercePurchaseTable.status,
-        userId: commercePurchaseTable.userId,
+        divisionId: commercePurchaseTable.divisionId,
+        registrationId: competitionRegistrationsTable.id,
       })
       .from(commercePurchaseTable)
+      .leftJoin(
+        competitionRegistrationsTable,
+        and(
+          eq(
+            competitionRegistrationsTable.commercePurchaseId,
+            commercePurchaseTable.id,
+          ),
+          eq(competitionRegistrationsTable.userId, session.userId),
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          eq(competitionRegistrationsTable.status, REGISTRATION_STATUS.ACTIVE),
+        ),
+      )
       .where(
         and(
           eq(commercePurchaseTable.stripeCheckoutSessionId, data.sessionId),
           eq(commercePurchaseTable.userId, session.userId),
+          eq(commercePurchaseTable.competitionId, data.competitionId),
         ),
       )
-
-    if (purchases.length === 0) {
-      return { ready: false, total: 0, pending: 0 }
-    }
 
     const pending = purchases.filter(
       (p) => p.status === COMMERCE_PURCHASE_STATUS.PENDING,
     ).length
-
-    return { ready: pending === 0, total: purchases.length, pending }
+    const failed = purchases.some(
+      (p) =>
+        p.status !== COMMERCE_PURCHASE_STATUS.PENDING &&
+        p.status !== COMMERCE_PURCHASE_STATUS.COMPLETED,
+    )
+    const registrationPurchases = purchases.filter((p) => p.divisionId)
+    const registrationIds = registrationPurchases.flatMap((p) =>
+      p.status === COMMERCE_PURCHASE_STATUS.COMPLETED && p.registrationId
+        ? [p.registrationId]
+        : [],
+    )
+    const ready =
+      !failed &&
+      pending === 0 &&
+      registrationPurchases.length > 0 &&
+      registrationIds.length === registrationPurchases.length
+    const status: "confirmed" | "failed" | "pending" = ready
+      ? "confirmed"
+      : failed
+        ? "failed"
+        : "pending"
+    return { ready, status, total: purchases.length, pending, registrationIds }
   })
 
 /**

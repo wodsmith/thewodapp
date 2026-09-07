@@ -36,6 +36,7 @@ import { getRegistrationWindowStatus } from "@/utils/registration-window"
 // Search params validation
 const registerSearchSchema = z.object({
   canceled: z.enum(["true", "false"]).optional().catch(undefined),
+  purchaseId: z.string().min(1).optional().catch(undefined),
   // Set when arriving from a competition-invite claim. The token is
   // forwarded into `initiateRegistrationPaymentFn` so the paid registration
   // flips the invite to `accepted_paid`. The invited division id is also
@@ -284,6 +285,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
   staleTime: 10_000, // Cache for 10 seconds
   loaderDeps: ({ search }) => ({
     canceled: search.canceled,
+    purchaseId: search.purchaseId,
     divisionId: search.divisionId,
     invite: search.invite,
   }),
@@ -291,6 +293,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
     const { slug } = params
     const {
       canceled,
+      purchaseId,
       divisionId: invitedDivisionId,
       invite: inviteToken,
     } = deps
@@ -308,6 +311,8 @@ export const Route = createFileRoute("/compete/$slug/register")({
       // Preserve invite + divisionId so post-auth return lands back on the
       // invite-locked URL (keeps prefill + closed-window bypass intact).
       const params = new URLSearchParams()
+      if (canceled) params.set("canceled", canceled)
+      if (purchaseId) params.set("purchaseId", purchaseId)
       if (inviteToken) params.set("invite", inviteToken)
       if (invitedDivisionId) params.set("divisionId", invitedDivisionId)
       const qs = params.toString()
@@ -320,11 +325,12 @@ export const Route = createFileRoute("/compete/$slug/register")({
     }
 
     // 2.5. If user canceled from Stripe, release their reservation immediately
-    if (canceled === "true") {
+    if (canceled === "true" && purchaseId) {
       await cancelPendingPurchaseFn({
         data: {
           userId: session.userId,
           competitionId: competition.id,
+          purchaseId,
         },
       })
     }

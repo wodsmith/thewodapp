@@ -112,6 +112,20 @@ The durable settlement step loads every purchase id from the Checkout Session, p
 
 If a division or competition fills during payment, the workflow marks that registration purchase failed and refunds its exact line amount. If every registration in the session fails, it also refunds every add-on line. Refund calls use stable idempotency keys and retry on Stripe errors. In local dev, `processCheckoutInline` runs the same session-level logic synchronously.
 
+## Checkout Cancellation and Confirmation
+
+Checkout cancellation releases one owned order, and confirmation requires completed purchases plus active participation. Return URLs and elapsed polling time are never proof of registration.
+
+[[apps/wodsmith-start/src/server-fns/registration-fns.ts#cancelPendingPurchaseFn]] requires a purchase anchor, authenticated owner, and competition. It resolves the anchor to a checkout session, expires that hosted session, and cancels only its pending lines. Other sessions, accounts, competitions, and completed lines remain unchanged. An already expired session is safe to release on retry. A completed session or Stripe verification failure leaves reservations for settlement. Legacy cancel URLs without an anchor do not release reservations; normal expiry still applies.
+
+Checkout creation adds the purchase anchor to its local cancellation URL. An authorized invitation retains its token and validated division through encoded search values, including the sign-in redirect. Returning to registration still runs invite and submission authorization; return state cannot grant access by itself.
+
+[[apps/wodsmith-start/src/server-fns/competition-detail-fns.ts#checkCheckoutCompletionFn]] scopes purchases to the session, authenticated user, and competition. Every line must be completed, at least one must be a registration line, and every registration purchase must reference an active registration. It returns confirmed registration IDs so unrelated participation cannot substitute for this order.
+
+The registered page polls for at most 60 attempts. Missing evidence or exhausted retries shows an unconfirmed state with a check-again action; failed or cancelled lines (including mixed outcomes) show recovery. A success banner also requires the confirmed IDs to be present in loaded participation. The alternate success route forwards session returns to this same check and makes no payment-success claim when registration is absent.
+
+Regression coverage is specified in [[checkout-safety-tests#Checkout Safety Tests]]. Timezone boundary cases retain the existing shared display rule and compare it with the actual submission date guards, including a daylight-saving transition.
+
 ## Manual Registration Workflow
 
 A Cloudflare Workflow that sends confirmation emails for organizer-created registrations.
