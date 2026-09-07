@@ -16,7 +16,7 @@ export async function isSiteAdmin(): Promise<boolean> {
 /**
  * Check if user has permission for a team (or is a site admin)
  */
-async function hasTeamPermission(
+export async function hasTeamPermission(
   teamId: string,
   permission: string,
 ): Promise<boolean> {

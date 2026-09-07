@@ -55,6 +55,7 @@ export const Route = createFileRoute("/_protected/settings/teams/$teamSlug/")({
         team: null,
         members: [] as TeamMemberInfo[],
         invitations: [] as TeamInvitationInfo[],
+        invitationsError: false,
       }
     }
 
@@ -63,22 +64,25 @@ export const Route = createFileRoute("/_protected/settings/teams/$teamSlug/")({
     // Fetch members and invitations in parallel
     const [membersResult, invitationsResult] = await Promise.all([
       getTeamMembersFn({ data: { teamId: team.id } }),
-      getTeamInvitationsFn({ data: { teamId: team.id } }).catch(() => ({
-        success: false,
-        data: [] as TeamInvitationInfo[],
-      })),
+      !team.isPersonalTeam && team.permissions.inviteMembers
+        ? getTeamInvitationsFn({ data: { teamId: team.id } }).catch(() => ({
+            success: false,
+            data: [] as TeamInvitationInfo[],
+          }))
+        : Promise.resolve({ success: true, data: [] as TeamInvitationInfo[] }),
     ])
 
     return {
       team,
       members: membersResult.success ? membersResult.data : [],
       invitations: invitationsResult.success ? invitationsResult.data : [],
+      invitationsError: !invitationsResult.success,
     }
   },
 })
 
 function TeamDetailPage() {
-  const { team, members, invitations } = Route.useLoaderData()
+  const { team, members, invitations, invitationsError } = Route.useLoaderData()
   const router = useRouter()
 
   if (!team) {
@@ -86,7 +90,7 @@ function TeamDetailPage() {
       <div className="space-y-6">
         <div className="flex items-center gap-3 mb-6">
           <Button variant="outline" size="icon" asChild>
-            <Link to="/settings/teams">
+            <Link to="/settings/teams" aria-label="Back to teams">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -113,7 +117,7 @@ function TeamDetailPage() {
       {/* Header with back button */}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="icon" asChild>
-          <Link to="/settings/teams">
+          <Link to="/settings/teams" aria-label="Back to teams">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
@@ -147,23 +151,41 @@ function TeamDetailPage() {
       </Card>
 
       {/* Invite Member Section */}
-      {!team.isPersonalTeam && (
+      {!team.isPersonalTeam && team.permissions.inviteMembers && (
         <InviteMemberSection teamId={team.id} onSuccess={handleRefresh} />
       )}
 
-      {/* Pending Invitations Section */}
-      {!team.isPersonalTeam && invitations.length > 0 && (
-        <InvitationsSection
-          invitations={invitations}
-          onCancelled={handleRefresh}
-        />
+      {invitationsError && (
+        <Card role="alert">
+          <CardContent className="pt-6 space-y-3">
+            <p>Unable to load pending invitations. Please try again.</p>
+            <Button variant="outline" onClick={handleRefresh}>
+              Retry invitations
+            </Button>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Pending Invitations Section */}
+      {!team.isPersonalTeam &&
+        team.permissions.inviteMembers &&
+        invitations.length > 0 && (
+          <InvitationsSection
+            invitations={invitations}
+            onCancelled={handleRefresh}
+          />
+        )}
 
       {/* Team Members Section */}
       <TeamMembersSection
         members={members}
         teamId={team.id}
-        isPersonalTeam={Boolean(team.isPersonalTeam)}
+        canChangeRoles={
+          !team.isPersonalTeam && team.permissions.changeMemberRoles
+        }
+        canRemoveMembers={
+          !team.isPersonalTeam && team.permissions.removeMembers
+        }
         onMemberUpdated={handleRefresh}
       />
     </div>
@@ -341,6 +363,7 @@ function InvitationsSection({
                 size="icon"
                 onClick={() => handleCancelInvitation(invitation.id)}
                 disabled={cancellingId === invitation.id}
+                aria-label={`Cancel invitation for ${invitation.email}`}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -359,14 +382,16 @@ function InvitationsSection({
 interface TeamMembersSectionProps {
   members: TeamMemberInfo[]
   teamId: string
-  isPersonalTeam: boolean
+  canChangeRoles: boolean
+  canRemoveMembers: boolean
   onMemberUpdated: () => void
 }
 
 function TeamMembersSection({
   members,
   teamId,
-  isPersonalTeam,
+  canChangeRoles,
+  canRemoveMembers,
   onMemberUpdated,
 }: TeamMembersSectionProps) {
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null)
@@ -445,7 +470,7 @@ function TeamMembersSection({
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
-                {!isPersonalTeam && (
+                {canRemoveMembers && (
                   <TableHead className="text-right">Actions</TableHead>
                 )}
               </TableRow>
@@ -454,7 +479,7 @@ function TeamMembersSection({
               {members.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={isPersonalTeam ? 4 : 5}
+                    colSpan={canRemoveMembers ? 5 : 4}
                     className="text-center py-6 text-muted-foreground"
                   >
                     No members found
@@ -482,7 +507,7 @@ function TeamMembersSection({
                     </TableCell>
                     <TableCell>{member.user.email}</TableCell>
                     <TableCell>
-                      {!isPersonalTeam && !isOwner(member) ? (
+                      {canChangeRoles && !isOwner(member) ? (
                         <Select
                           value={member.roleId}
                           onValueChange={(value) =>
@@ -518,7 +543,7 @@ function TeamMembersSection({
                         {member.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    {!isPersonalTeam && (
+                    {canRemoveMembers && (
                       <TableCell className="text-right">
                         {!isOwner(member) && (
                           <Button
@@ -533,7 +558,7 @@ function TeamMembersSection({
                               )
                             }
                             disabled={removingMemberId === member.userId}
-                            title="Remove member"
+                            aria-label="Remove member"
                           >
                             <UserMinus className="h-4 w-4" />
                           </Button>
@@ -559,7 +584,8 @@ function TeamMembersSection({
                 key={member.id}
                 member={member}
                 teamId={teamId}
-                isPersonalTeam={isPersonalTeam}
+                canChangeRoles={canChangeRoles}
+                canRemoveMembers={canRemoveMembers}
                 isUpdating={updatingMemberId === member.userId}
                 isRemoving={removingMemberId === member.userId}
                 onRoleChange={(roleId) =>
@@ -589,7 +615,8 @@ function TeamMembersSection({
 interface MemberCardProps {
   member: TeamMemberInfo
   teamId: string
-  isPersonalTeam: boolean
+  canChangeRoles: boolean
+  canRemoveMembers: boolean
   isUpdating: boolean
   isRemoving: boolean
   onRoleChange: (roleId: string) => void
@@ -598,7 +625,8 @@ interface MemberCardProps {
 
 function MemberCard({
   member,
-  isPersonalTeam,
+  canChangeRoles,
+  canRemoveMembers,
   isUpdating,
   isRemoving,
   onRoleChange,
@@ -634,7 +662,7 @@ function MemberCard({
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        {!isPersonalTeam && !isOwner ? (
+        {canChangeRoles && !isOwner ? (
           <Select
             value={member.roleId}
             onValueChange={onRoleChange}
@@ -655,7 +683,7 @@ function MemberCard({
           </Badge>
         )}
 
-        {!isPersonalTeam && !isOwner && (
+        {canRemoveMembers && !isOwner && (
           <Button
             variant="destructive"
             size="sm"

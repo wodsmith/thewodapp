@@ -31,6 +31,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { getTheme, saveTheme } from "@/lib/theme"
 
 interface SeriesSidebarProps {
   groupId: string
@@ -154,11 +155,7 @@ function ThemeToggleButton() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
-    ).matches
-    const initialTheme = savedTheme || (prefersDark ? "dark" : "light")
+    const initialTheme = getTheme()
     setTheme(initialTheme)
     setMounted(true)
   }, [])
@@ -166,19 +163,7 @@ function ThemeToggleButton() {
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark"
     setTheme(newTheme)
-    localStorage.setItem("theme", newTheme)
-    const expires = new Date(
-      Date.now() + 365 * 24 * 60 * 60 * 1000,
-    ).toUTCString()
-    const secure = window.location.protocol === "https:" ? "; Secure" : ""
-    // biome-ignore lint/suspicious/noDocumentCookie: document.cookie required for SSR-accessible theme preference
-    document.cookie = `theme=${newTheme}; path=/; expires=${expires}; SameSite=Lax${secure}`
-    const root = document.documentElement
-    if (newTheme === "dark") {
-      root.classList.add("dark")
-    } else {
-      root.classList.remove("dark")
-    }
+    saveTheme(newTheme)
   }
 
   if (!mounted) {

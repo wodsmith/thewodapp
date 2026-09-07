@@ -6,6 +6,7 @@ export const Route = createFileRoute("/_protected/settings")({
 })
 
 function SettingsLayout() {
+  const { hasWorkoutTracking } = Route.useRouteContext()
   return (
     <div className="flex flex-col max-w-screen-xl mx-auto">
       <header className="hidden md:flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
@@ -16,7 +17,7 @@ function SettingsLayout() {
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0">
           <aside className="lg:w-1/5">
-            <SettingsSidebar />
+            <SettingsSidebar hasWorkoutTracking={hasWorkoutTracking} />
           </aside>
           <div className="flex-1">
             <Outlet />
