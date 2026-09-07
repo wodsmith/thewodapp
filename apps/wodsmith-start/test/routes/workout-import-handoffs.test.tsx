@@ -25,7 +25,7 @@ vi.mock("@/components/track-header", () => ({ TrackHeader: () => null }))
 vi.mock("@/components/track-workout-list", () => ({ TrackWorkoutList: () => null }))
 vi.mock("@/components/workout-import/workout-import-entry", () => ({
   WorkoutImportEntry: ({ onSaved }: { onSaved: (result: { workoutId: string }) => Promise<void> }) => <button type="button" onClick={() => onSaved({ workoutId: "imported" }).catch(mock.importFailed)}>Finish entitled import</button>,
-  WorkoutImportAccessButton: ({ onClick }: { onClick: () => void }) => <button type="button" onClick={onClick}>Create with AI</button>,
+  WorkoutImportAccessButton: ({ onClick }: { onClick: () => void }) => <button type="button" onClick={onClick}>Import workout</button>,
 }))
 vi.mock("@/components/workout-import/workout-import-panel", () => ({
   WorkoutImportPanel: (props: Record<string, unknown>) => { mock.panelProps = props; return <button type="button" onClick={() => (props.onSaved as () => void)()}>Finish track import</button> },
@@ -121,7 +121,7 @@ describe("workout import route handoffs", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add workout" }))
     fireEvent.change(screen.getByLabelText("Track Order"), { target: { value: "8" } })
     fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Keep track coaching notes" } })
-    fireEvent.click(screen.getByRole("button", { name: "Create with AI" }))
+    fireEvent.click(screen.getByRole("button", { name: "Import workout" }))
     expect(mock.panelProps).toMatchObject({ destination: { kind: "track", trackId: "track-owned" }, track: { trackOrder: 8, notes: "Keep track coaching notes" }, saveLabel: "Create and add to track" })
     expect(screen.getAllByRole("dialog")).toHaveLength(1)
     fireEvent.click(screen.getByRole("button", { name: "Finish track import" }))
@@ -135,5 +135,5 @@ it("hides manual and AI add actions for a track without owner-team management pe
   const Page = SettingsRoute.options.component as ComponentType
   render(<Page />)
   expect(screen.queryByRole("button", { name: "Add workout" })).not.toBeInTheDocument()
-  expect(screen.queryByRole("button", { name: "Create with AI" })).not.toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Import workout" })).not.toBeInTheDocument()
 })

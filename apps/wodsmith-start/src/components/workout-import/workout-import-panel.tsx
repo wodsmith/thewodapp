@@ -109,7 +109,7 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
   const storageKey = `workout-import:${actorId}:${workoutImportDestinationKey(props.destination)}`
   const onAccessLost = useCallback(() => {
     setRevoked(true)
-    setError("AI Workout Import access required for this destination.")
+    setError("Workout import access required for this destination.")
   }, [])
   const onReady = useCallback(() => {
     waiting.current?.()

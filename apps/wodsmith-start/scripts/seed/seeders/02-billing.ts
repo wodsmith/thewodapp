@@ -122,7 +122,7 @@ export async function seed(client: Connection): Promise<void> {
 		{
 			id: "feat_ai_workout_import",
 			key: "ai_workout_import",
-			name: "AI Workout Import",
+			name: "Workout import",
 			description: "Import a workout from text or an image for review",
 			category: "ai",
 			is_active: 1,

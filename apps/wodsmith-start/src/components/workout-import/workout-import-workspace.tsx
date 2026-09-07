@@ -294,8 +294,8 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
         <div role="alert" className="space-y-3 rounded-md border p-4">
           <p className="font-medium">
             {props.accessRequired
-              ? "AI Workout Import access required"
-              : "AI access check unavailable"}
+              ? "Workout import access required"
+              : "Import access check unavailable"}
           </p>
           <p className="text-sm">
             {props.accessRequired

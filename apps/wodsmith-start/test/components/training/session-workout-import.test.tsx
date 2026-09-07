@@ -45,7 +45,7 @@ function personal(trackId = "everyday", onInteractionBusy = vi.fn()) {
   return <AthletePersonalSession team={context.teams[0]} trackId={trackId} date="2026-09-07" sourceResults={[]} onSaved={vi.fn()} onInteractionBusy={onInteractionBusy} />
 }
 async function openImport() {
-  const entry = await screen.findByRole("button", { name: "Create with AI" })
+  const entry = await screen.findByRole("button", { name: "Import workout" })
   await waitFor(() => expect(entry).toBeEnabled())
   fireEvent.click(entry)
   await screen.findByText("Reviewed import workspace")
@@ -81,7 +81,7 @@ describe("session workout import", () => {
     expect(api.detail).toHaveBeenCalledWith({ data: { teamId: "gym", workoutId: "imported" } })
     expect(api.savePersonal).not.toHaveBeenCalled()
     expect(busy).toHaveBeenLastCalledWith(false)
-    expect(screen.getByRole("button", { name: "Create with AI" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Import workout" })).toBeDisabled()
     await act(async () => fireEvent.click(confirm))
     await waitFor(() => expect(api.savePersonal).toHaveBeenCalledWith({ data: {
       teamId: "gym", trainingDate: "2026-09-07", expectedRevision: 0,
@@ -95,7 +95,7 @@ describe("session workout import", () => {
   it.each(["personal", "coach"])("keeps the %s session manual flow available when personal AI access is denied", async (kind) => {
     api.access.mockResolvedValue({ hasAccess: false })
     render(kind === "personal" ? personal() : <CoachPlanner context={context} />)
-    const locked = await screen.findByRole("button", { name: "AI Workout Import access required" })
+    const locked = await screen.findByRole("button", { name: "Workout import access required" })
     expect(locked).toBeDisabled()
     fireEvent.click(locked)
     expect(api.panel).toBeNull()
@@ -142,7 +142,7 @@ describe("session workout import", () => {
   it("does not expose an import that could overwrite an open manual workout", async () => {
     render(personal())
     fireEvent.click(await screen.findByRole("button", { name: "Create workout" }))
-    expect(screen.queryByRole("button", { name: "Create with AI" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Import workout" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Save to my session" })).toBeInTheDocument()
     expect(api.savePersonal).not.toHaveBeenCalled()
   })
@@ -232,7 +232,7 @@ it("disables AI import when the coach session already has 20 sections", async ()
   const content = { title: "Full session", coachNote: "", isRestDay: false, blocks: Array.from({ length: 20 }, (_, index) => ({ id: `section-${index}`, kind: "check", title: `Section ${index}`, prescription: "Move well", scalingGuidance: "", coachGuidance: "" })) }
   api.week.mockResolvedValue({ sessions: [{ id: "session", teamId: "gym", trackId: "everyday", trainingDate: "2026-09-07", timezone: "UTC", revision: 1, publishedVersion: 0, draft: content, published: null }], myResults: [], teamResults: [] })
   render(<CoachPlanner context={context} />)
-  const entry = await screen.findByRole("button", { name: "Create with AI" })
+  const entry = await screen.findByRole("button", { name: "Import workout" })
   expect(entry).toBeDisabled()
   fireEvent.click(entry)
   expect(api.panel).toBeNull()

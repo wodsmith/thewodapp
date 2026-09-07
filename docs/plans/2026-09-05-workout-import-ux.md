@@ -18,9 +18,9 @@ Paths below are browser URLs; their source files are under `apps/wodsmith-start/
 
 | Surface | Current behavior | Proposed entry and completion |
 | --- | --- | --- |
-| `/workouts` | Library header links to `/workouts/new`. | Add a secondary **Create with AI** action beside **Create workout**, using the same creation destination. |
+| `/workouts` | Library header links to `/workouts/new`. | Add a secondary **Import workout** action beside **Create workout**, using the same creation destination. |
 | `/workouts/new` | `CreateWorkoutPage` renders `WorkoutForm`; accepts `remixFrom`. | A compact **Paste text or upload a screenshot** panel above the form. Imported values become an editable draft; **Create workout** saves and opens its detail page. |
-| `/settings/programming/$trackId` | `TrackDetailPage` uses `AddWorkoutToTrackDialog`, which selects an existing workout and asks for order and notes. | Add **Create with AI** alongside **Choose existing workout** inside the add flow. Preserve track, owning team, order, and notes. Final action: **Create and add to track**. |
+| `/settings/programming/$trackId` | `TrackDetailPage` uses `AddWorkoutToTrackDialog`, which selects an existing workout and asks for order and notes. | Add **Import workout** alongside **Choose existing workout** inside the add flow. Preserve track, owning team, order, and notes. Final action: **Create and add to track**. |
 | `/admin/teams/programming/$trackId` | `AdminTrackDetailPage` uses the same add dialog; its button checks the selected team's ownership. | The same shared flow and completion behavior; no separate importer implementation for this alias. |
 | `/settings/programming` and `/admin/teams/programming` | Owned/subscribed track management. | Keep imports scoped to a selected writable track; an optional top-level shortcut must first establish a track or explicit library destination. |
 | `/log/new` | Selects an existing workout, then collects date, scaling, score, and notes; accepts `workoutId`. | Add **Create workout from text or image** beside search and in its empty state. After save, select the new workout and return to the user's log draft. The user still enters and submits their result. |
@@ -38,7 +38,7 @@ AI import requires the new `ai_workout_import` entitlement in addition to workou
 
 Use server-resolved access for the displayed destination: the user's personal team for personal creation, or the owning team for a programming track. The existing system grants feature access per team, so membership in an unrelated entitled team does not unlock this destination. Changing destination requires another access check.
 
-Unentitled users see a locked **Create with AI** entry with **AI Workout Import access required**, without an active upload or agent connection. Manual creation stays available. Do not offer a purchase link until a real purchase flow exists. Catalog creation does not automatically grant access; initial grants use the existing admin entitlement controls.
+Unentitled users see a locked **Import workout** entry with **Workout import access required**, without an active upload or agent connection. Manual creation stays available. Do not offer a purchase link until a real purchase flow exists. Catalog creation does not automatically grant access; initial grants use the existing admin entitlement controls.
 
 If access expires or is revoked while the workspace is open, show the access-required state and disable reading, revisions, retries and AI-workout saving. Server requests must reject the operation even if the browser still shows an enabled control. All three completion paths—library, track and create-and-return to logging—use the same entitled save service. Preserve local unsaved edits for recovery without starting more model calls or delivering restricted stored source data. Cancellation and cleanup remain available.
 

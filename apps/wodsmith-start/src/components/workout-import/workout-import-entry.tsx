@@ -1,4 +1,4 @@
-import { LockKeyhole, Sparkles } from "lucide-react"
+import { FileInput, LockKeyhole } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,21 +42,21 @@ export function WorkoutImportAccessButton({
         allowed
           ? undefined
           : (access.error ??
-            "AI Workout Import access required for this destination")
+            "Workout import access required for this destination")
       }
     >
       {allowed ? (
-        <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
+        <FileInput className="mr-2 h-4 w-4" aria-hidden="true" />
       ) : (
         <LockKeyhole className="mr-2 h-4 w-4" aria-hidden="true" />
       )}
       {access.loading
-        ? "Checking AI access…"
+        ? "Checking import access…"
         : allowed
-          ? "Create with AI"
+          ? "Import workout"
           : access.error
-            ? "Retry AI access check"
-            : "AI Workout Import access required"}
+            ? "Retry import access check"
+            : "Workout import access required"}
     </Button>
   )
 }
@@ -106,17 +106,17 @@ export function WorkoutImportEntry({
           }}
         >
           {allowed ? (
-            <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
+            <FileInput className="mr-2 h-4 w-4" aria-hidden="true" />
           ) : (
             <LockKeyhole className="mr-2 h-4 w-4" aria-hidden="true" />
           )}
           {access.loading
-            ? "Checking AI access…"
+            ? "Checking import access…"
             : allowed
-              ? "Create with AI"
+              ? "Import workout"
               : access.error
-                ? "Retry AI access check"
-                : "AI Workout Import access required"}
+                ? "Retry import access check"
+                : "Workout import access required"}
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -124,7 +124,7 @@ export function WorkoutImportEntry({
         onInteractOutside={(event) => event.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Create with AI</DialogTitle>
+          <DialogTitle>Import workout</DialogTitle>
           <DialogDescription>
             Paste a workout or upload a screenshot. Review the prescription and
             scoring before creating it.

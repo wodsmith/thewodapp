@@ -38,7 +38,7 @@ describe("WorkoutImportWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply selected fields" }))
     fireEvent.change(screen.getByLabelText("Workout Name"), { target: { value: "Keep this edit" } })
     rerender(<WorkoutImportWorkspace {...initial} accessRequired />)
-    expect(screen.getByText("AI Workout Import access required")).toBeVisible()
+    expect(screen.getByText("Workout import access required")).toBeVisible()
     expect(screen.getByLabelText("Workout Name")).toHaveValue("Keep this edit")
     expect(screen.getByRole("button", { name: "Create workout" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "Read workout" })).toBeDisabled()
