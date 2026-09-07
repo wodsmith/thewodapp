@@ -93,3 +93,62 @@ it.each([
     `For time · ${label} cap`,
   )
 })
+// @lat: [[training-personal#Verification#Preview result normalization]]
+it("uses production normalization for completion displays and rejects invalid personal scores", async () => {
+  const session = await savePersonalTrainingSessionFn({
+    data: {
+      teamId: "normalization-team",
+      trainingDate: "2026-09-04",
+      expectedRevision: 0,
+      items: (["check", "time", "reps", "load"] as const).map((kind) => ({
+        id: kind,
+        kind: "personal",
+        block: {
+          id: kind,
+          kind,
+          title: kind,
+          prescription: "Fixture",
+          scalingGuidance: "",
+          coachGuidance: "",
+        },
+      })),
+    },
+  })
+  const input = {
+    personalSessionId: session.id,
+    expectedRevision: session.revision,
+    unit: "lb" as const,
+    completed: true,
+    notes: "",
+  }
+  expect(
+    await savePersonalTrainingResultFn({
+      data: { ...input, itemId: "check", score: "" },
+    }),
+  ).toMatchObject({
+    scoreValue: null,
+    displayScore: "Complete",
+    audience: "private",
+  })
+  for (const [itemId, score] of [
+    ["time", "nonsense"],
+    ["reps", "12cats"],
+    ["load", "-1"],
+  ]) {
+    await expect(
+      savePersonalTrainingResultFn({
+        data: { ...input, itemId: itemId!, score: score! },
+      }),
+    ).rejects.toThrow()
+  }
+  await expect(
+    savePersonalTrainingResultFn({
+      data: { ...input, itemId: "time", score: "7:30", completed: false },
+    }),
+  ).rejects.toThrow("completed result")
+  expect(
+    await getPersonalTrainingHistoryFn({
+      data: { teamId: "normalization-team" },
+    }),
+  ).toHaveLength(1)
+})

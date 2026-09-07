@@ -7,6 +7,7 @@ import type {
   SavePersonalTrainingSessionInput,
   SavePersonalTrainingResultInput,
 } from "@/lib/training/personal-types"
+import { normalizeTrainingResult } from "@/server/training-validation"
 import type { OwnTrainingResult } from "@/lib/training/types"
 const results = new Map<string, OwnTrainingResult>()
 const sessions = new Map<string, PersonalTrainingSession>()
@@ -100,17 +101,15 @@ export async function savePersonalTrainingResultFn({
     )
   if (session.revision !== data.expectedRevision)
     throw new Error("This session changed. Reload before saving.")
-  const value = data.score.trim()
-    ? item.block.kind === "time"
-      ? data.score
-          .split(":")
-          .reduce((total, part) => total * 60 + Number(part), 0) * 1000
-      : item.block.kind === "load"
-        ? Math.round(
-            Number(data.score) * (data.unit === "lb" ? 453.59237 : 1000),
-          )
-        : Number(data.score)
-    : null
+  const normalized = normalizeTrainingResult(item.block, {
+    ...data,
+    sessionId: session.id,
+    blockId: item.id,
+    publishedVersion: 1,
+    scaling: "custom",
+    modification: "",
+    audience: "private",
+  })
   const result: OwnTrainingResult = {
     id: `${session.id}-${item.id}`,
     sessionId: session.id,
@@ -121,11 +120,9 @@ export async function savePersonalTrainingResultFn({
     trainingDate: session.trainingDate,
     trackId: "",
     block: item.block,
-    scoreValue: value,
-    displayScore: data.score,
+    ...normalized,
     scaling: "custom",
     modification: "",
-    audience: "private",
     unit: data.unit,
     completed: data.completed,
     cheerCount: 0,

@@ -139,7 +139,6 @@ export async function getCrossFitImportsFn(input?: {
       status: "published",
       kind: day.kind,
       error: null,
-      sourceMarkdown: day.markdown,
       publishedAt: new Date(`${day.date}T13:00:00Z`),
     }))
 }

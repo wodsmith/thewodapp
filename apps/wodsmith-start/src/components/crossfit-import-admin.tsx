@@ -108,7 +108,6 @@ export function CrossFitImportAdmin({
   }
   async function refresh() {
     let completed = false
-    let needsReview = false
     const current = generation.current
     setBusy(true)
     setError("")
@@ -118,16 +117,12 @@ export function CrossFitImportAdmin({
         if (current !== generation.current) return
         setResult(next)
         completed = next.status === "complete"
-        if (["errored", "terminated"].includes(next.status))
+        if (["errored", "terminated"].includes(next.status)) {
+          if (activePublish) setPreview(null)
           setActivePublish(false)
+        }
         if (next.output) {
           const parsed: unknown = JSON.parse(next.output)
-          needsReview =
-            completed &&
-            typeof parsed === "object" &&
-            parsed !== null &&
-            "status" in parsed &&
-            parsed.status === "needs_review"
           const output = previewSchema.safeParse(parsed)
           if (output.success && output.data.date === date)
             setPreview(output.data)
@@ -141,14 +136,7 @@ export function CrossFitImportAdmin({
         setRows(nextRows)
         setSelectedRows(selectedDateRows)
         setSelectedReady(date)
-        if (
-          completed ||
-          selectedDateRows.some(
-            (row) => row.sourceDate === date && row.status === "published",
-          )
-        )
-          setActivePublish(false)
-        if (needsReview) setPreview(null)
+        if (completed) setActivePublish(false)
       }
     } catch (e) {
       if (current === generation.current) {

@@ -89,7 +89,9 @@ it("requires a same-date completed preview and binds publish to its hash", async
   fireEvent.click(screen.getByRole("button", { name: "Refresh status" }))
   await screen.findByText("Publish failed")
   await waitFor(() => expect(date).not.toBeDisabled())
-  expect(screen.getByRole("button", { name: "Publish date" })).toBeEnabled()
+  expect(
+    screen.queryByRole("button", { name: "Publish date" }),
+  ).not.toBeInTheDocument()
   await act(async () => {
     fireEvent.change(date, { target: { value: "2026-09-05" } })
   })
@@ -132,7 +134,6 @@ it("reuses loader history and recognizes a published date outside its latest six
             status: "published",
             kind: "workout",
             error: null,
-            sourceMarkdown: "Old source",
             publishedAt: new Date("2025-01-01T13:00:00Z"),
           },
         ]
@@ -262,7 +263,8 @@ it("keeps a completed publication locked through a failed history read and then 
   ).toHaveAttribute("href", `/programming/ptrk_crossfit_dotcom?date=${old}`)
 })
 
-it("releases a terminal needs-review run after a successful date read and requires another preview", async () => {
+it("clears preview consent for an errored Workflow with a needs-review ledger row", async () => {
+  const previewStatus = await mocks.status()
   render(<CrossFitImportAdmin initialRows={[]} />)
   fireEvent.change(screen.getByLabelText("CrossFit workout date"), {
     target: { value: "2026-09-04" },
@@ -276,10 +278,20 @@ it("releases a terminal needs-review run after a successful date read and requir
   fireEvent.click(screen.getByRole("button", { name: "Publish date" }))
   await waitFor(() => expect(mocks.run).toHaveBeenCalledTimes(2))
   mocks.status.mockResolvedValue({
-    status: "complete",
-    error: null,
-    output: JSON.stringify({ status: "needs_review" }),
+    status: "errored",
+    error: "Source requires review",
+    output: "null",
   })
+  mocks.load.mockResolvedValue([
+    {
+      id: "review",
+      sourceDate: "2026-09-04",
+      status: "needs_review",
+      kind: "workout",
+      error: "Source requires review",
+      publishedAt: null,
+    },
+  ])
   fireEvent.click(screen.getByRole("button", { name: "Refresh status" }))
   await screen.findByText("Complete a preview for this date before publishing.")
   expect(screen.getByRole("button", { name: "Preview import" })).toBeEnabled()
@@ -287,4 +299,70 @@ it("releases a terminal needs-review run after a successful date read and requir
   expect(
     screen.queryByRole("button", { name: "Publish date" }),
   ).not.toBeInTheDocument()
+  const fresh = JSON.parse(previewStatus.output)
+  fresh.source.hash = "b".repeat(64)
+  mocks.status.mockResolvedValue({
+    ...previewStatus,
+    output: JSON.stringify(fresh),
+  })
+  fireEvent.click(screen.getByRole("button", { name: "Preview import" }))
+  await screen.findByText("Import started")
+  fireEvent.click(screen.getByRole("button", { name: "Refresh status" }))
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Publish date" })).toBeEnabled(),
+  )
+  fireEvent.click(screen.getByRole("button", { name: "Publish date" }))
+  await waitFor(() =>
+    expect(mocks.run).toHaveBeenLastCalledWith({
+      data: {
+        sourceDate: "2026-09-04",
+        mode: "publish",
+        expectedSourceHash: "b".repeat(64),
+      },
+    }),
+  )
+})
+
+// @lat: [[crossfit-import#CrossFit Daily Import#Tests#Publication waits for terminal workflow]]
+it("keeps publication locked while the Workflow runs even after its ledger row is published", async () => {
+  render(<CrossFitImportAdmin initialRows={[]} />)
+  fireEvent.change(screen.getByLabelText("CrossFit workout date"), {
+    target: { value: "2026-09-04" },
+  })
+  fireEvent.click(screen.getByRole("button", { name: "Preview import" }))
+  await screen.findByText("Import started")
+  fireEvent.click(screen.getByRole("button", { name: "Refresh status" }))
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Publish date" })).toBeEnabled(),
+  )
+  fireEvent.click(screen.getByRole("button", { name: "Publish date" }))
+  await waitFor(() => expect(mocks.run).toHaveBeenCalledTimes(2))
+  mocks.status.mockResolvedValue({
+    status: "running",
+    error: null,
+    output: "null",
+  })
+  mocks.load.mockResolvedValue([
+    {
+      id: "published",
+      sourceDate: "2026-09-04",
+      status: "published",
+      kind: "workout",
+      error: null,
+      publishedAt: null,
+    },
+  ])
+  fireEvent.click(screen.getByRole("button", { name: "Refresh status" }))
+  await screen.findByText("Already published")
+  expect(screen.getByLabelText("CrossFit workout date")).toBeDisabled()
+  expect(screen.getByRole("button", { name: "Preview import" })).toBeDisabled()
+  mocks.status.mockResolvedValue({
+    status: "complete",
+    error: null,
+    output: JSON.stringify({ status: "published" }),
+  })
+  fireEvent.click(screen.getByRole("button", { name: "Refresh status" }))
+  await waitFor(() =>
+    expect(screen.getByLabelText("CrossFit workout date")).toBeEnabled(),
+  )
 })

@@ -90,4 +90,5 @@ it("filters authorized selected-date reads independently of bounded history", as
     ["ptrk_crossfit_dotcom", "2025-01-01"],
   )
   expect(query.limit).toHaveBeenCalledWith(60)
+  expect(query.select.mock.calls[0]![0]).not.toHaveProperty("sourceMarkdown")
 })

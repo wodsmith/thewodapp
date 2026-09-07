@@ -33,7 +33,6 @@ export const getCrossFitImportsFn = createServerFn({ method: "GET" })
         publishedAt: externalWorkoutImportsTable.publishedAt,
         kind: externalWorkoutImportsTable.kind,
         error: externalWorkoutImportsTable.error,
-        sourceMarkdown: externalWorkoutImportsTable.sourceMarkdown,
       })
       .from(externalWorkoutImportsTable)
       .where(

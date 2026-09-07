@@ -131,6 +131,10 @@ The real MySQL test persists capped time and multi-round load scores, checks rev
 
 The isolated track preview stores composed personal workouts and their private results together, validates revisions, and keeps history after removal. Rich library logging uses the production log route and real MySQL coverage, not this fixture.
 
+### Preview result normalization
+
+The preview reuses production result normalization for supported personal blocks, preserving completion display and rejecting invalid scores without recording them.
+
 ## Provider Source Snapshots
 
 Confirmed provider additions use the existing rich library snapshot path and one composition revision for all selected components. Browsing and cancelling create no personal session.
