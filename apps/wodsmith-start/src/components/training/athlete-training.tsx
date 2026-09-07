@@ -217,7 +217,7 @@ function AthleteTrainingGym({
             setPreferenceError(
               "Your saved default is unavailable. Showing an available track without changing your preference.",
             )
-          setDefaultTrackId(day.defaultTrackId)
+          setDefaultTrackId(day.defaultUnavailable ? null : day.defaultTrackId)
           setTrackId(day.selectedTrackId ?? team.tracks[0]?.id ?? "")
           setPreferenceReady(true)
         }

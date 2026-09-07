@@ -271,3 +271,7 @@ The real MySQL follow tests resolve owned personal workspaces, reject forged per
 ### Failed source reads discard stale programming
 
 Changing the selected track clears the previous day response before loading. A failed read shows no stale prescription or add action, and retry retains the newly selected workspace, track, and date without writing a composition.
+
+### Unavailable defaults stay explicit
+
+An unavailable saved track may fall back for browsing, but the fallback is not labeled as a saved default. Make default track remains available and writes only after the athlete explicitly chooses it.

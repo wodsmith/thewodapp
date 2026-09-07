@@ -474,3 +474,31 @@ it("removes the prior provider source after a new track read fails and retries t
   )
   expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
 })
+
+// @lat: [[training#Provider Verification#Unavailable defaults stay explicit]]
+it("offers an explicit default save when the saved track is unavailable", async () => {
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({
+    defaultTrackId: "everyday",
+    defaultUnavailable: true,
+    selectedTrackId: "everyday",
+    sourceSession: null,
+    personalSession: null,
+    items: [],
+    results: [],
+    libraryResults: [],
+  })
+  render(<AthleteTraining context={context} initialDate="2026-09-07" />)
+  const saveDefault = await screen.findByRole("button", { name: "Make default track" })
+  expect(screen.getByLabelText("Training track")).toHaveValue("everyday")
+  expect(screen.queryByText("Default track")).not.toBeInTheDocument()
+  expect(saveDefault).toBeEnabled()
+  expect(saveTrainingPreferenceFn).not.toHaveBeenCalled()
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  fireEvent.click(saveDefault)
+  await waitFor(() => expect(saveTrainingPreferenceFn).toHaveBeenCalledExactlyOnceWith({
+    data: { teamId: "gym", defaultTrackId: "everyday" },
+  }))
+  expect(await screen.findByText("Default track")).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Make default track" })).not.toBeInTheDocument()
+  expect(screen.queryByText(/Your saved default is unavailable/)).not.toBeInTheDocument()
+})
