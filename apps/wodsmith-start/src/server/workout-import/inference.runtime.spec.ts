@@ -297,7 +297,12 @@ describe("TanStack Cloudflare import adapter (mock binding, no live model)", () 
       roundsToScore: null,
       movementIds: [],
     })
-    expect(result.unresolved.some((q) => q.field === "prescription")).toBe(true)
+    expect(result.unresolved).toEqual([
+      expect.objectContaining({
+        id: "image-readability",
+        field: "prescription",
+      }),
+    ])
   })
 
   // @lat: [[workout-import-runtime#Combined source recovery]]

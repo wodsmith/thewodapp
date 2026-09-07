@@ -298,28 +298,23 @@ export async function inferWorkoutImport(
       !options.currentWorkout &&
       !options.instruction?.trim()
     ) {
-      return resolveImportProposal(
-        {
-          workout: {
-            name: null,
-            description: transcription.text || null,
-            scheme: null,
-            scoreType: null,
-            timeCapSeconds: null,
-            roundsToScore: null,
-            repsPerRound: null,
-            tiebreakScheme: null,
-            scalingGroupId: null,
-            movementIds: [],
-          },
-          extractedText: transcription.text,
-          unresolved: [],
-          warnings: [],
-          movementNames: [],
+      return workoutImportProposalSchema.parse({
+        workout: {
+          name: null,
+          description: transcription.text || null,
+          scheme: null,
+          scoreType: null,
+          timeCapSeconds: null,
+          roundsToScore: null,
+          repsPerRound: null,
+          tiebreakScheme: null,
+          scalingGroupId: null,
+          movementIds: [],
         },
-        options.movements,
-        sourceQuestions,
-      )
+        extractedText: transcription.text,
+        unresolved: sourceQuestions,
+        warnings: [],
+      })
     }
   }
   const content: ModelMessage["content"] = [

@@ -162,7 +162,7 @@ Raw transcription is validated locally against the source-text length bound. Unr
 
 ## Unreadable image isolation
 
-An empty or unreadable transcription returns clarification with unknown scoring fields. The runtime never asks the proposal model to invent a missing prescription.
+An empty or unreadable image with no other workout context returns only a source-readability question and unknown scoring fields. Scoring questions wait until a prescription is available.
 
 ## Image pipeline authorization
 
