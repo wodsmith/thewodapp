@@ -8,7 +8,7 @@ decision-makers: [Zac Jones]
 
 ## Status and decision boundary
 
-This is a B-02 proposal for discussion, not authorization for a schema rollout. Verified scores must remain editable. Every accepted score submission, including organizer and API changes without video, needs history. The leaderboard replacement policy remains undecided.
+This is a B-02 proposal for discussion, not authorization for a schema rollout. Verified scores must remain editable. The desired product scope is score submissions in general: competition, gym training, and personal training, including organizer/import/API changes without video. The leaderboard replacement policy remains undecided.
 
 Source baseline: `0d36543dd0a5c7ad2958f8fcf2b1328998e31c15`. B-20/B-25 changes are independent: returning accepted saved values and committing a team's videos and shared score together do not adopt either history alternative.
 
@@ -39,7 +39,25 @@ History must cover every competition-result writer at the same service boundary;
 | `server/benchmark-submissions.ts` | Separate individual best-score retention policy | Record attempted accepted submissions independently of retained-best selection; preserve benchmark policy and variant snapshot |
 | `server-fns/demo-competition-fns.ts` | Demo score inserts | Seed baseline revisions or explicitly mark generated demo data; never leave unversioned normal writes |
 
-Paths in the table are relative to `apps/wodsmith-start/src/`. Training/personal log writers also use score-related tables but are a separate domain: do not automatically convert them into competition submissions. If “general history” must include gym and personal training edits, that is a separate scope decision using their existing historical workout snapshots.
+Paths in the table are relative to `apps/wodsmith-start/src/`. This inventory starts with competition because B-02 was discovered there; training and personal scores are desired scope, not excluded work.
+
+### General score history across domain adapters
+
+Use shared vocabulary for immutable submission versions, actors, reasons, previous-version links, and optional version-bound review decisions, while preserving each domain's result identity and permissions.
+
+- Competition identity remains athlete + competition event + exact division, with registration/team evidence and official-ranking policy.
+- Gym training identity is session + block + athlete + published workout version (`trainingResultsTable` in `packages/wodsmith-db/src/schemas/training.ts`). Its `publishedVersion` identifies the workout prescription, not a sequence of athlete score edits. Preserve that snapshot and add a separate result-submission version through `server/training.ts` and applicable training-log adapters.
+- Personal training identity is personal session + item (`personalTrainingResultsTable` in `packages/wodsmith-db/src/schemas/training-personal.ts`), owned by its athlete. `server/training-personal.ts` upserts result/details and can maintain a `legacyScoreId` projection; `server/training-logs/personal.ts` also writes legacy score rows. Both must participate without duplicating one user action into two history entries. Session revision protects composition concurrency; it must not be mistaken for complete score history.
+
+Training versions preserve result details, ordered rounds, scaling/units, notes, and the existing `block`/`libraryItem` prescription snapshot. A training edit does not gain competition registration fields or mandatory organizer verification. Reviews, where supported later, use the same exact-version reference; do not introduce a new training review requirement as part of history storage. Owners and authorized gym personnel use existing access boundaries.
+
+Proposed phases: (1) agree the shared version/receipt vocabulary and domain identity contracts; (2) implement competition history and version-bound reviews to address the discovered evidence/review defect; (3) add gym and personal history adapters/readers using the same guarantees, including legacy-score projection writers; (4) enforce writer-boundary coverage across all score domains. Earlier phases must not be presented as completion of general score history. The user/coordinator should review sequencing, not reauthorize whether training belongs in scope.
+
+### Current API reset drift remains unresolved
+
+Present-day API replacement can retain stale current verification metadata, independently of the inability to reconstruct past evidence.
+
+`routes/api/compete/video/submit.ts` updates video URL/notes and invokes the result service without the server function's reset steps; `routes/api/compete/scores/submit.ts` directly upserts score values without clearing current review metadata. B-20/B-25 do not fix these B-02 paths. Track their correction explicitly with the version-bound writer cutover, or review a separate narrowly scoped reset-parity fix if a full history rollout is delayed. Such a fix would still not recover overwritten historical evidence or satisfy general submission history.
 
 Deletion, division transfer, and competition removal must be inventoried during implementation. Ordinary correction/deletion should append a withdrawal or retain a tombstone rather than erase historical facts. Account-erasure/retention policy is a separate explicit product decision; immutable application writes do not imply indefinite retention of personal information.
 
@@ -84,7 +102,7 @@ In either case, `fetchScores`, round counts, `buildReviewSummary`, per-division 
 
 History should make corrections understandable without exposing account details or private reviewer notes publicly.
 
-Athletes and authorized organizers see version number, who submitted it (display name and actor role, no email), acceptance time, source, changed values/evidence, and correction reason. Require a reason for organizer/manual/import corrections and review adjustments/invalidations; an athlete's initial submission need not require one. Keep operational import identifiers private. Public leaderboards show the selected version, review/penalty state, and whether a newer submission awaits review; full history, actor ids, and internal notes are not public by default. Final author-name and reason visibility remains a reviewable product choice.
+Athletes and authorized organizers see version number, who submitted it (display name and actor role, no email), acceptance time, source, changed values/evidence, and correction reason. Require a reason for organizer/manual/import corrections and review adjustments/invalidations; an athlete's initial submission need not require one. Keep operational import identifiers private. Recommended public default: show the official/selected score and a pending-new-submission marker, retaining the existing review/penalty summary where already exposed. Full history, actor identities, correction reasons, and reviewer notes are for owners and authorized reviewers by default, not public. Final author-name and reason visibility remains a reviewable product choice.
 
 ## Migration and backfill limits
 
@@ -102,6 +120,7 @@ Acceptance requires both version preservation and unchanged successful score nor
 
 - Extend `server/competition-results/{domain,service,repository,decision,review}.ts` with actor/source/reason, expected revision and idempotency contract, keeping existing normalization pure. Add schemas/migrations under `packages/wodsmith-db` only after DDL reconciliation.
 - Cut over every writer above; reject direct unversioned mutations through a scoped boundary test. For imports, test each accepted row's history and reported partial failures.
+- Add training/personal adapter tests: two score edits append two distinct result versions while retaining the same prescription snapshot; session revisions remain independent; legacy-score projections do not duplicate history; owner/gym boundaries and visibility hold; no competition-only review requirement leaks into training.
 - Add real MySQL tests: verified v1 → edited v2 retains all v1 values/rounds/evidence/notes/decision; no decision is inherited; evidence-only team edit snapshots the complete evidence set; failure on a later slot rolls back the entire new version.
 - Test reviewer opened v1 while athlete saves v2; result belongs only to v1 and never verifies/replaces v2. Test two edits concurrently, duplicate retries, mismatched idempotency payload, and first-write uniqueness for null division.
 - Test manual creation/adjustment/invalidation/reversal with exact original and effective round values and penalty reasons. Retain existing logs without implying evidence provenance.
@@ -113,4 +132,4 @@ Acceptance requires both version preservation and unchanged successful score nor
 
 The proposal is deliberately incomplete where user input changes visible behavior.
 
-Await leaderboard replacement policy and its no-verified/invalid/withdrawal fallbacks; confirm actor/reason visibility; choose A or B and migration rollout window. These decisions must be resolved in the ADR before implementing broad schema changes. B-20 and B-25 can ship independently without deleting reviews or selecting leaderboard replacement semantics.
+Await leaderboard replacement policy and its no-verified/invalid/withdrawal fallbacks; confirm actor/reason visibility; choose A or B, the phased competition/training rollout order, and the migration window. These decisions must be resolved in the ADR before implementing broad schema changes. B-20 and B-25 can ship independently without deleting reviews or selecting leaderboard replacement semantics.

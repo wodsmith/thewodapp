@@ -8,7 +8,7 @@ Online submission forms save complete team evidence with one shared score and di
 
 [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]] supports complete `videos` batches while retaining legacy single-slot requests. Batch indices must cover exactly the division's team size; ownership, captain, and window checks precede writes. The canonical score service validates every score, cap, round, and tiebreak before evidence writes in the shared transaction.
 
-The returned score is read with its ordered rounds inside the committing transaction and scoped to the exact athlete, event, and division. Benchmark receipts read the retained best result when an attempt does not replace it. Existing review-reset and audit-log retention behavior remains unchanged; immutable general submission history is a separate proposed design in `docs/adr/0015-score-submission-history-proposal.md`.
+The returned score is read with its ordered rounds inside the committing transaction and scoped to the exact athlete, event, and division. Benchmark receipts read the retained best result when an attempt does not replace it. Existing review-reset and audit-log retention behavior remains unchanged; immutable general submission history across competition, gym training, and personal results is a separate proposed design in `docs/adr/0015-score-submission-history-proposal.md`.
 
 ## Success uses accepted values
 
