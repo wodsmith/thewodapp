@@ -1,9 +1,11 @@
 import { ArrowDown, ArrowUp, Plus } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { CrossFitTrackDays } from "@/components/crossfit-track-days"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
 import type {
   PersonalTrainingDay,
   PersonalTrainingItem,
@@ -44,6 +46,7 @@ export function AthletePersonalSession({
   date,
   sourceResults,
   onSaved,
+  libraryWorkoutIds,
   libraryWorkoutId,
   onLibraryWorkoutHandled,
   onInteractionBusy,
@@ -53,6 +56,7 @@ export function AthletePersonalSession({
   date: string
   sourceResults: OwnTrainingResult[]
   onSaved: (result: OwnTrainingResult) => void
+  libraryWorkoutIds?: string[]
   libraryWorkoutId?: string
   onLibraryWorkoutHandled?: () => void
   onInteractionBusy?: (busy: boolean) => void
@@ -77,21 +81,32 @@ export function AthletePersonalSession({
     onInteractionBusy?.(saving || editingWorkout)
     return () => onInteractionBusy?.(false)
   }, [saving, editingWorkout, onInteractionBusy])
-  const [libraryPending, setLibraryPending] = useState(libraryWorkoutId)
-  const [libraryPreview, setLibraryPreview] = useState<{
-    name: string
-    description: string
-    scheme: string
-  } | null>(null)
+  const [libraryPending, setLibraryPending] = useState<string[]>(
+    libraryWorkoutIds ?? (libraryWorkoutId ? [libraryWorkoutId] : []),
+  )
+  useEffect(() => {
+    setLibraryPending(
+      libraryWorkoutIds ?? (libraryWorkoutId ? [libraryWorkoutId] : []),
+    )
+  }, [libraryWorkoutIds, libraryWorkoutId])
+  const libraryConfirmation = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (libraryPending.length && !loading) libraryConfirmation.current?.focus()
+  }, [libraryPending, loading])
+  const [libraryPreview, setLibraryPreview] = useState<
+    Awaited<ReturnType<typeof getTrainingLibraryWorkoutFn>>[] | null
+  >(null)
   const [libraryError, setLibraryError] = useState("")
   useEffect(() => {
     let cancelled = false
     setLibraryPreview(null)
     setLibraryError("")
-    if (!libraryPending) return
-    getTrainingLibraryWorkoutFn({
-      data: { teamId: team.id, workoutId: libraryPending },
-    })
+    if (!libraryPending.length) return
+    Promise.all(
+      libraryPending.map((workoutId) =>
+        getTrainingLibraryWorkoutFn({ data: { teamId: team.id, workoutId } }),
+      ),
+    )
       .then((workout) => {
         if (!cancelled) setLibraryPreview(workout)
       })
@@ -111,6 +126,7 @@ export function AthletePersonalSession({
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setDay(null)
     setError("")
     setEditor(null)
     setAdding(false)
@@ -141,11 +157,12 @@ export function AthletePersonalSession({
   }, [team.id, date, trackId, retry])
 
   function clearLibraryRequest() {
-    setLibraryPending(undefined)
+    setLibraryPending([])
     if (onLibraryWorkoutHandled) onLibraryWorkoutHandled()
     else {
       const url = new URL(window.location.href)
       url.searchParams.delete("workoutId")
+      url.searchParams.delete("workoutIds")
       window.history.replaceState(window.history.state, "", url)
     }
   }
@@ -274,7 +291,7 @@ export function AthletePersonalSession({
             {source.published.coachNote}
           </p>
         ) : null}
-        {!personal && !items.length ? (
+        {!personal && !items.length && day.source?.kind !== "provider-day" ? (
           <p className="mt-5 text-muted-foreground">
             {source?.published?.isRestDay
               ? "Rest day. Add your own work if you choose to train."
@@ -301,16 +318,20 @@ export function AthletePersonalSession({
           </Button>
         </div>
       ) : null}
-      {libraryPending ? (
+      {libraryPending.length > 0 ? (
         <div className="space-y-3 border-y border-border py-6">
-          <h3 className="text-lg font-semibold">
+          <h3
+            ref={libraryConfirmation}
+            tabIndex={-1}
+            className="text-lg font-semibold focus-visible:outline-2 focus-visible:outline-ring"
+          >
             {libraryPreview
-              ? `Add ${libraryPreview.name}?`
+              ? `Add ${libraryPreview.length === 1 ? libraryPreview[0]?.name : `${libraryPreview.length} workouts`}?`
               : "Selected library workout"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            It will be added to your session on {date}. Its original scoring
-            format stays available.
+            Add to {team.name} on {providerDateLabel(date)}. The original
+            scoring format stays available.
           </p>
           {libraryError ? (
             <p role="alert" className="text-sm text-destructive">
@@ -318,7 +339,14 @@ export function AthletePersonalSession({
             </p>
           ) : libraryPreview ? (
             <p className="max-w-prose whitespace-pre-wrap break-words text-sm">
-              {libraryPreview.description}
+              {libraryPreview
+                .map(
+                  (
+                    workout,
+                  ) => `${workout.name} · ${workoutScoring(workout)}${workout.provenance ? ` · ${workout.provenance.trackName} · Programmed ${providerDateLabel(workout.provenance.sourceDate)}` : ""}
+${workout.provenance ? "" : workout.description}`,
+                )
+                .join("\n\n")}
             </p>
           ) : (
             <output>Loading workout…</output>
@@ -331,11 +359,11 @@ export function AthletePersonalSession({
                 if (
                   await save([
                     ...inputs,
-                    {
+                    ...libraryPending.map((workoutId) => ({
                       id: crypto.randomUUID(),
-                      kind: "library",
-                      workoutId: libraryPending,
-                    },
+                      kind: "library" as const,
+                      workoutId,
+                    })),
                   ])
                 ) {
                   clearLibraryRequest()
@@ -383,7 +411,9 @@ export function AthletePersonalSession({
           item.kind === "source"
             ? item.trackName
             : item.kind === "library"
-              ? "Workout library"
+              ? item.provenance
+                ? `${item.provenance.trackName} · Programmed ${providerDateLabel(item.provenance.sourceDate)}`
+                : "Workout library"
               : item.remixedFrom
                 ? "Your remix"
                 : "Your workout"
@@ -572,6 +602,18 @@ export function AthletePersonalSession({
           </div>
         )
       })}
+      {day.source?.kind === "provider-day" && (
+        <div className={personal ? "mt-8 border-t pt-6" : ""}>
+          <h3 className="mb-4 text-lg font-semibold">
+            {selectedTrackName} · Source programming
+          </h3>
+          <CrossFitTrackDays
+            days={[day.source.day]}
+            selectedDate={date}
+            onAdd={setLibraryPending}
+          />
+        </div>
+      )}
       {editor ? (
         <form
           className="space-y-4 border-t border-border py-6"

@@ -117,3 +117,28 @@ Linking a score captures the complete library item, and an earlier association w
 ### Numeric scores require complete input
 
 Count scores require whole numbers and rounds-reps scores require complete supported syntax. Numeric prefixes with trailing text are rejected in individual and round results, while valid time and load parsing remains unchanged.
+
+### Multiple component consent
+
+The component test cancels multiple additions without writes and verifies that a failed atomic save keeps the preview, performed date, and ordered component request available for retry.
+
+### Provider snapshot and atomic additions
+
+The real MySQL test persists capped time and multi-round load scores, checks revision and capacity rejection, and retains source identity after unfollowing and workout edits or removal.
+
+
+### Preview personal result persistence
+
+The isolated track preview stores composed personal workouts and their private results together, validates revisions, and keeps history after removal. Rich library logging uses the production log route and real MySQL coverage, not this fixture.
+
+### Preview result normalization
+
+The preview reuses production result normalization for supported personal blocks, preserving completion display and rejecting invalid scores without recording them.
+
+## Provider Source Snapshots
+
+Confirmed provider additions use the existing rich library snapshot path and one composition revision for all selected components. Browsing and cancelling create no personal session.
+
+Optional provenance contains the published import ID, source track ID/name, source date, and URL. [[apps/wodsmith-start/src/server/training-personal.ts#getTrainingLibraryWorkout]] resolves it from published import membership, never client claims. The performed date belongs to the personal session; the programmed date stays with the snapshot. Existing snapshots survive source changes, removal, and unfollowing within live workspace access rules.
+
+Multiple components remain ordered, with independent full score metadata, caps, round counts, and aggregation. Capacity and optimistic revision checks reject the entire composition rather than adding a subset. Historical result snapshots retain the same provenance after removal from a session.

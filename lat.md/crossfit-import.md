@@ -38,7 +38,7 @@ Rest imports contain zero scoreable items. Pending and failed imports have no pu
 
 The CrossFit.com track shows up to sixty published import days, newest first, with source attribution, expandable programming, rest labels, and links to each independently scoreable workout.
 
-Programming Markdown mounts only when its disclosure is expanded. The published feed is intentionally public; administrator diagnostics are separate and return only fields used by the review panel. The existing workout library remains available below the dated feed. The source track's subscriptions do not automatically create [[training#Training#Session Model]] entries or gym-specific scheduled instances.
+The main prescription is visible immediately; full source and scaling Markdown mount only when their disclosure is expanded. The published feed is intentionally public; administrator diagnostics are separate and return only fields used by the review panel. The existing workout library remains available below the dated feed. The source track's subscriptions do not automatically create [[training#Training#Session Model]] entries or gym-specific scheduled instances.
 
 ## Tests
 
@@ -145,3 +145,39 @@ Administrators can perform the protected CrossFit edits after authorization, pre
 ### Qualified composite score requests
 
 Qualified score requests preserve total-rep AMRAP components, ignore unscored distances, and accept explicit counts with possessive or ranking words.
+
+### Preview hash binding
+
+The Workflow rejects a changed source hash before snapshot or publication, preserving the administrator's reviewed prescription.
+
+### Admin preview date consent
+
+The admin component requires a completed same-date preview, displays rich scoring metadata, and sends its hash only with an explicit publish action.
+
+### Reader admin boundary
+
+The actual reader hides administrator operations for ordinary users, exposes only the labeled destination to admins, and collapses legacy workouts.
+
+### Preview fixtures retain date identity
+
+The isolated admin preview uses the selected fixture date for source text and workout or rest classification. Dates without fixtures report unavailable data rather than reusing another day's prescription.
+
+### Selected admin date outside history
+
+Administrator publication checks the selected date independently of the sixty-entry history, waits for successful lookup, and reuses loader history without an extra initial list read.
+
+### Selected archive workout deduplication
+
+An older selected provider day's workouts stay out of the legacy library even when the day is outside the recent archive.
+
+### Publication waits for terminal workflow
+
+A published ledger row cannot unlock a still-running Workflow. Terminal failure clears old publication consent. A fresh completed dry run remains usable even when the ledger still records an earlier needs-review failure.
+
+## Reader and Administrator Destinations
+
+The track page leads with selected-date programming and keeps following, gym-library access, and administrator operations distinct. The selected date uses a calendar-safe URL field and explicit fixed-PST Today labeling.
+
+[[apps/wodsmith-start/src/components/track-detail-view.tsx#TrackDetailView]] renders the shared production reader. Its bounded archive contains the latest sixty published days, while exact-date queries work independently. Legacy workouts stay navigable under a collapsed library without raw order badges or literal Markdown title markers. Prescription text appears once per day; source/scaling Markdown mounts only after expansion.
+
+Site administrators receive a labeled Admin section linking to `/admin/programming/ptrk_crossfit_dotcom`. Its loader calls an admin-authorized metadata read that omits full source Markdown. Preview and publish remain separate; preview state resets with the chosen source date. The Workflow accepts an optional expected source hash and holds changed content for review before snapshot or publication. Automatic scheduled runs keep their existing parameters and cron semantics. Active publication stays locked through read errors until terminal status and a successful date read, or a terminal Workflow failure. Every terminal publication failure clears stale preview consent and requires a fresh preview, including source-review failures. A published ledger row does not unlock a still-running Workflow. Exact-date reads remain admin-authorized; publication waits for a successful selected-date lookup.

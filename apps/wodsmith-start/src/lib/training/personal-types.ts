@@ -20,7 +20,15 @@ export interface PersonalOwnedItem {
   block: TrainingBlock
   remixedFrom?: TrainingSourceReference
 }
+export interface ProviderProvenance {
+  importId: string
+  trackId: string
+  trackName: string
+  sourceDate: string
+  sourceUrl: string
+}
 export interface PersonalLibraryItem {
+  provenance?: ProviderProvenance
   id: string
   kind: "library"
   workoutId: string
@@ -53,6 +61,8 @@ export interface PersonalTrainingSession {
   items: PersonalTrainingItem[]
 }
 export interface PersonalTrainingDay {
+  source?: import("./types").TrainingSource
+  defaultUnavailable?: boolean
   defaultTrackId: string | null
   selectedTrackId: string | null
   sourceSession: TrainingSession | null

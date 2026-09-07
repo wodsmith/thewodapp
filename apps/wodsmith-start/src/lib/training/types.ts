@@ -28,6 +28,7 @@ export interface TrainingTeam {
   id: string
   name: string
   timezone: string
+  isPersonal?: boolean
   canProgram: boolean
   tracks: TrainingTrack[]
 }
@@ -75,7 +76,31 @@ export interface OwnTrainingResult extends TrainingResult {
   notes: string
 }
 
+export interface TrainingProviderDay {
+  id: string
+  date: string
+  url: string
+  kind: string | null
+  markdown: string | null
+  workouts: Array<{
+    workoutId: string
+    name: string
+    scheme: string
+    description?: string
+    importId?: string
+    scoreType?: string | null
+    roundsToScore?: number | null
+    timeCap?: number | null
+  }>
+}
+
+export type TrainingSource =
+  | { kind: "coach-session"; session: TrainingSession }
+  | { kind: "provider-day"; day: TrainingProviderDay }
+  | { kind: "unavailable" }
+
 export interface TrainingWeek {
+  providerDays?: TrainingProviderDay[]
   sessions: TrainingSession[]
   myResults: OwnTrainingResult[]
   teamResults: TrainingResult[]

@@ -1,21 +1,24 @@
 import {
   createScoreId,
+  externalWorkoutImportItemsTable,
+  externalWorkoutImportsTable,
+  programmingTracksTable,
   scalingGroupsTable,
   scalingLevelsTable,
-  scoresTable,
   scoreRoundsTable,
+  scoresTable,
   teamMembershipTable,
   workouts,
 } from "@repo/wodsmith-db/schema"
+import {
+  trainingResultsTable,
+  trainingSessionsTable,
+} from "@repo/wodsmith-db/schemas/training"
 import {
   personalTrainingResultsTable,
   personalTrainingSessionsTable,
   trainingPreferencesTable,
 } from "@repo/wodsmith-db/schemas/training-personal"
-import {
-  trainingResultsTable,
-  trainingSessionsTable,
-} from "@repo/wodsmith-db/schemas/training"
 import { and, asc, desc, eq, gt, inArray, isNull, like, or } from "drizzle-orm"
 import { ulid } from "ulid"
 import { getDb } from "@/db"
@@ -29,13 +32,10 @@ import type {
   TrainingSourceReference,
 } from "@/lib/training/personal-types"
 import type { OwnTrainingResult, TrainingSession } from "@/lib/training/types"
-import { normalizePersonalLibraryScore } from "./training-personal-scoring"
-import { writeWorkoutResultRounds } from "./training-logs/rounds"
+import { getPublishedCrossFitDays } from "./crossfit-import"
 import { getTrainingContext, requireTrainingAccess } from "./training"
-import {
-  assertTrainingRevision,
-  normalizeTrainingResult,
-} from "./training-validation"
+import { writeWorkoutResultRounds } from "./training-logs/rounds"
+import { normalizePersonalLibraryScore } from "./training-personal-scoring"
 import {
   personalLibraryResultSchema,
   personalTrainingDaySchema,
@@ -46,6 +46,10 @@ import {
   trainingLibraryWorkoutSchema,
   trainingPreferenceSchema,
 } from "./training-personal-validation"
+import {
+  assertTrainingRevision,
+  normalizeTrainingResult,
+} from "./training-validation"
 
 type Db = ReturnType<typeof getDb>
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0]
@@ -252,6 +256,14 @@ export async function getPersonalTrainingDay(input: {
     },
   )
   return {
+    source: sourceSession
+      ? { kind: "coach-session", session: sourceSession }
+      : selectedTrackId
+        ? await providerSource(selectedTrackId, data.trainingDate)
+        : { kind: "unavailable" },
+    defaultUnavailable:
+      !!preference?.defaultTrackId &&
+      !team.tracks.some((track) => track.id === preference.defaultTrackId),
     defaultTrackId,
     selectedTrackId,
     sourceSession,
@@ -332,7 +344,11 @@ export async function listTrainingLibraryWorkouts(input: {
 export async function getTrainingLibraryWorkout(input: {
   teamId: string
   workoutId: string
-}) {
+}): Promise<
+  Pick<typeof workouts.$inferSelect, keyof typeof libraryFields> & {
+    provenance?: import("@/lib/training/personal-types").ProviderProvenance
+  }
+> {
   const data = trainingLibraryWorkoutSchema.parse(input)
   const { userId } = await requireTrainingAccess(data.teamId)
   const teams = await accessibleLibraryTeams(userId)
@@ -346,15 +362,49 @@ export async function getTrainingLibraryWorkout(input: {
       ),
     )
   if (!workout) throw new Error("FORBIDDEN: Workout is not available to you")
+  const [provenance] = await getDb()
+    .select({
+      importId: externalWorkoutImportsTable.id,
+      trackId: externalWorkoutImportsTable.trackId,
+      trackName: programmingTracksTable.name,
+      sourceDate: externalWorkoutImportsTable.sourceDate,
+      sourceUrl: externalWorkoutImportsTable.sourceUrl,
+    })
+    .from(externalWorkoutImportItemsTable)
+    .innerJoin(
+      externalWorkoutImportsTable,
+      eq(
+        externalWorkoutImportsTable.id,
+        externalWorkoutImportItemsTable.importId,
+      ),
+    )
+    .innerJoin(
+      programmingTracksTable,
+      eq(programmingTracksTable.id, externalWorkoutImportsTable.trackId),
+    )
+    .where(
+      and(
+        eq(externalWorkoutImportItemsTable.workoutId, workout.id),
+        eq(externalWorkoutImportsTable.status, "published"),
+      ),
+    )
+    .limit(1)
+  const sourceProvenance:
+    | import("@/lib/training/personal-types").ProviderProvenance
+    | undefined = provenance ?? undefined
   if (!workout.scalingGroupId) {
     const [group] = await getDb()
       .select({ id: scalingGroupsTable.id })
       .from(scalingGroupsTable)
       .where(eq(scalingGroupsTable.isSystem, true))
       .limit(1)
-    return { ...workout, scalingGroupId: group?.id ?? null }
+    return {
+      ...workout,
+      provenance: sourceProvenance,
+      scalingGroupId: group?.id ?? null,
+    }
   }
-  return workout
+  return { ...workout, provenance: sourceProvenance }
 }
 
 export async function savePersonalTrainingSession(
@@ -365,12 +415,32 @@ export async function savePersonalTrainingSession(
   const context = await getTrainingContext()
   const team = context.teams.find((t) => t.id === data.teamId)
   if (!team) throw new Error("FORBIDDEN: Training access changed")
+  const [previousSession] = await getDb()
+    .select()
+    .from(personalTrainingSessionsTable)
+    .where(
+      and(
+        eq(personalTrainingSessionsTable.userId, userId),
+        eq(personalTrainingSessionsTable.teamId, data.teamId),
+        eq(personalTrainingSessionsTable.trainingDate, data.trainingDate),
+      ),
+    )
+  const previousItems = (previousSession?.items ?? []) as PersonalTrainingItem[]
   const library = new Map<
     string,
     Awaited<ReturnType<typeof getTrainingLibraryWorkout>>
   >()
   for (const item of data.items)
-    if (item.kind === "library")
+    if (
+      item.kind === "library" &&
+      !previousItems.some(
+        (old) =>
+          old.kind === "library" &&
+          !!old.provenance &&
+          old.id === item.id &&
+          old.workoutId === item.workoutId,
+      )
+    )
       library.set(
         item.workoutId,
         await getTrainingLibraryWorkout({
@@ -462,7 +532,7 @@ export async function savePersonalTrainingSession(
             const workout = library.get(item.workoutId)
             if (!workout)
               throw new Error("NOT_FOUND: Library workout not found")
-            return { ...item, workout }
+            return { ...item, workout, provenance: workout.provenance }
           }
           if (item.remixedFrom) {
             const remixedFrom = item.remixedFrom
@@ -930,4 +1000,15 @@ export async function getPersonalLibraryScalingLevels(input: {
     .where(eq(scalingLevelsTable.scalingGroupId, groupId))
     .orderBy(asc(scalingLevelsTable.position))
   return { levels }
+}
+
+async function providerSource(
+  trackId: string,
+  date: string,
+): Promise<import("@/lib/training/types").TrainingSource> {
+  const [day] = await getPublishedCrossFitDays(getDb(), trackId, {
+    startDate: date,
+    endDate: date,
+  })
+  return day ? { kind: "provider-day", day } : { kind: "unavailable" }
 }

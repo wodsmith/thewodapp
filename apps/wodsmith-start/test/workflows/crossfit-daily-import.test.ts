@@ -81,3 +81,26 @@ describe("CrossFit durable orchestration", () => {
   })
 
 })
+
+// @lat: [[crossfit-import#CrossFit Daily Import#Tests#Preview hash binding]]
+it("holds changed source content before snapshot or publication", async () => {
+  const workflow = new CrossFitDailyImportWorkflowBase({} as never, {} as never)
+  const e = event()
+  await expect(
+    workflow.run(
+      {
+        ...e,
+        payload: { ...e.payload, expectedSourceHash: "b".repeat(64) },
+      } as never,
+      step() as never,
+    ),
+  ).rejects.toThrow("Source content changed since preview")
+  expect(mocks.snapshot).not.toHaveBeenCalled()
+  expect(mocks.publish).not.toHaveBeenCalled()
+  expect(mocks.fail).toHaveBeenCalledWith(
+    {},
+    "2026-09-06",
+    "needs_review",
+    expect.any(String),
+  )
+})

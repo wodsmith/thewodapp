@@ -194,6 +194,7 @@ import { Route as ProtectedSettingsProgrammingTrackIdIndexRouteImport } from './
 import { Route as ProtectedLogIdEditIndexRouteImport } from './routes/_protected/log/$id/edit/index'
 import { Route as ProtectedAdminTeamsScalingIndexRouteImport } from './routes/_protected/admin/teams/scaling/index'
 import { Route as ProtectedAdminTeamsProgrammingIndexRouteImport } from './routes/_protected/admin/teams/programming/index'
+import { Route as ProtectedAdminProgrammingTrackIdIndexRouteImport } from './routes/_protected/admin/programming/$trackId/index'
 import { Route as CompeteOrganizerSeriesGroupIdRegistrationQuestionsRouteImport } from './routes/compete/organizer/series/$groupId/registration-questions'
 import { Route as CompeteOrganizerSeriesGroupIdPublishWorkoutsRouteImport } from './routes/compete/organizer/series/$groupId/publish-workouts'
 import { Route as CompeteOrganizerSeriesGroupIdLeaderboardRouteImport } from './routes/compete/organizer/series/$groupId/leaderboard'
@@ -1260,6 +1261,12 @@ const ProtectedAdminTeamsProgrammingIndexRoute =
     path: '/admin/teams/programming/',
     getParentRoute: () => ProtectedRoute,
   } as any)
+const ProtectedAdminProgrammingTrackIdIndexRoute =
+  ProtectedAdminProgrammingTrackIdIndexRouteImport.update({
+    id: '/admin/programming/$trackId/',
+    path: '/admin/programming/$trackId/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 const CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute =
   CompeteOrganizerSeriesGroupIdRegistrationQuestionsRouteImport.update({
     id: '/registration-questions',
@@ -1670,6 +1677,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
   '/compete/organizer/series/$groupId/publish-workouts': typeof CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute
   '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
+  '/admin/programming/$trackId': typeof ProtectedAdminProgrammingTrackIdIndexRoute
   '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
   '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
@@ -1876,6 +1884,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
   '/compete/organizer/series/$groupId/publish-workouts': typeof CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute
   '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
+  '/admin/programming/$trackId': typeof ProtectedAdminProgrammingTrackIdIndexRoute
   '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
   '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
@@ -2098,6 +2107,7 @@ export interface FileRoutesById {
   '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
   '/compete/organizer/series/$groupId/publish-workouts': typeof CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute
   '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
+  '/_protected/admin/programming/$trackId/': typeof ProtectedAdminProgrammingTrackIdIndexRoute
   '/_protected/admin/teams/programming/': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/_protected/admin/teams/scaling/': typeof ProtectedAdminTeamsScalingIndexRoute
   '/_protected/log/$id/edit/': typeof ProtectedLogIdEditIndexRoute
@@ -2320,6 +2330,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/leaderboard'
     | '/compete/organizer/series/$groupId/publish-workouts'
     | '/compete/organizer/series/$groupId/registration-questions'
+    | '/admin/programming/$trackId'
     | '/admin/teams/programming'
     | '/admin/teams/scaling'
     | '/log/$id/edit'
@@ -2526,6 +2537,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/leaderboard'
     | '/compete/organizer/series/$groupId/publish-workouts'
     | '/compete/organizer/series/$groupId/registration-questions'
+    | '/admin/programming/$trackId'
     | '/admin/teams/programming'
     | '/admin/teams/scaling'
     | '/log/$id/edit'
@@ -2747,6 +2759,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/leaderboard'
     | '/compete/organizer/series/$groupId/publish-workouts'
     | '/compete/organizer/series/$groupId/registration-questions'
+    | '/_protected/admin/programming/$trackId/'
     | '/_protected/admin/teams/programming/'
     | '/_protected/admin/teams/scaling/'
     | '/_protected/log/$id/edit/'
@@ -4120,6 +4133,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedAdminTeamsProgrammingIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/admin/programming/$trackId/': {
+      id: '/_protected/admin/programming/$trackId/'
+      path: '/admin/programming/$trackId'
+      fullPath: '/admin/programming/$trackId'
+      preLoaderRoute: typeof ProtectedAdminProgrammingTrackIdIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/compete/organizer/series/$groupId/registration-questions': {
       id: '/compete/organizer/series/$groupId/registration-questions'
       path: '/registration-questions'
@@ -4458,6 +4478,7 @@ interface ProtectedRouteChildren {
   ProtectedProgrammingSubscriptionsIndexRoute: typeof ProtectedProgrammingSubscriptionsIndexRoute
   ProtectedWorkoutsWorkoutIdIndexRoute: typeof ProtectedWorkoutsWorkoutIdIndexRoute
   ProtectedWorkoutsNewIndexRoute: typeof ProtectedWorkoutsNewIndexRoute
+  ProtectedAdminProgrammingTrackIdIndexRoute: typeof ProtectedAdminProgrammingTrackIdIndexRoute
   ProtectedAdminTeamsProgrammingIndexRoute: typeof ProtectedAdminTeamsProgrammingIndexRoute
   ProtectedAdminTeamsScalingIndexRoute: typeof ProtectedAdminTeamsScalingIndexRoute
   ProtectedLogIdEditIndexRoute: typeof ProtectedLogIdEditIndexRoute
@@ -4487,6 +4508,8 @@ const ProtectedRouteChildren: ProtectedRouteChildren = {
     ProtectedProgrammingSubscriptionsIndexRoute,
   ProtectedWorkoutsWorkoutIdIndexRoute: ProtectedWorkoutsWorkoutIdIndexRoute,
   ProtectedWorkoutsNewIndexRoute: ProtectedWorkoutsNewIndexRoute,
+  ProtectedAdminProgrammingTrackIdIndexRoute:
+    ProtectedAdminProgrammingTrackIdIndexRoute,
   ProtectedAdminTeamsProgrammingIndexRoute:
     ProtectedAdminTeamsProgrammingIndexRoute,
   ProtectedAdminTeamsScalingIndexRoute: ProtectedAdminTeamsScalingIndexRoute,

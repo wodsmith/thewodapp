@@ -32,6 +32,14 @@ The design adds a unique provider/track/date import ledger with ordered scoreabl
 
 Existing [[domain#Domain Model#Programming]] track rows have sequence order rather than source dates. Rest days and multiple scoreable components need a dated track read model. Track publication does not automatically create gym sessions under [[training#Training#Session Model]], whose publication and ownership rules remain distinct.
 
+## Track Reader and Daily Training Proposal
+
+The approved track experience separates athlete following, gym-library access, and site administration, then projects published provider days into Training without creating gym sessions on read.
+
+The handoff is `plans/001-track-experience.md`. It specifies a workout-first reader, an explicitly labeled Admin destination, eligible gym selection, calendar-safe dates, and provider provenance in personal library snapshots. The user approved personal following and separate gym-library actions on September 6, 2026.
+
+Implementation is on `codex/track-experience`, pending release. The [[crossfit-import]] ledger supplies published source dates; [[training#Training#Session Model]] and [[training-personal]] preserve coach ownership, explicit personal composition, and rich scoring.
+
 ## Benchmark Competition Workout Directory
 
 Benchmark competitions use a dense domain directory while every other competition type retains the existing workout-card presentation.

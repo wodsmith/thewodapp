@@ -1,5 +1,5 @@
 import type { WodsmithDb } from "@repo/wodsmith-db/mysql"
-import { and, asc, desc, eq, inArray, max, ne } from "drizzle-orm"
+import { and, asc, desc, eq, gte, inArray, lte, max, ne } from "drizzle-orm"
 import {
   externalWorkoutImportsTable as imports,
   externalWorkoutImportItemsTable as items,
@@ -193,6 +193,7 @@ export async function publishCrossFitImport(
 export async function getPublishedCrossFitDays(
   db: WodsmithDb,
   trackId: string,
+  range?: { startDate: string; endDate: string },
 ) {
   if (trackId !== CROSSFIT_TRACK_ID) return []
   const days = await db
@@ -204,7 +205,14 @@ export async function getPublishedCrossFitDays(
       markdown: imports.sourceMarkdown,
     })
     .from(imports)
-    .where(and(eq(imports.trackId, trackId), eq(imports.status, "published")))
+    .where(
+      and(
+        eq(imports.trackId, trackId),
+        eq(imports.status, "published"),
+        range ? gte(imports.sourceDate, range.startDate) : undefined,
+        range ? lte(imports.sourceDate, range.endDate) : undefined,
+      ),
+    )
     .orderBy(desc(imports.sourceDate))
     .limit(60)
   if (!days.length) return []
@@ -214,6 +222,10 @@ export async function getPublishedCrossFitDays(
       workoutId: workouts.id,
       name: workouts.name,
       scheme: workouts.scheme,
+      description: workouts.description,
+      scoreType: workouts.scoreType,
+      roundsToScore: workouts.roundsToScore,
+      timeCap: workouts.timeCap,
     })
     .from(items)
     .innerJoin(imports, eq(imports.id, items.importId))
