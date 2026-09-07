@@ -220,6 +220,7 @@ export function OrganizerEventManager({
     movementIds?: string[]
   }) => {
     setIsCreating(true)
+    let created = false
     try {
       const result = await createWorkoutFn({
         data: {
@@ -235,6 +236,7 @@ export function OrganizerEventManager({
           parentEventId: subEventParentId ?? undefined,
         },
       })
+      created = true
 
       if (result?.trackWorkoutId) {
         trackEvent("competition_event_created", {
@@ -250,7 +252,7 @@ export function OrganizerEventManager({
         )
         setShowCreateDialog(false)
         setSubEventParentId(null)
-        router.invalidate()
+        await router.invalidate()
       }
     } catch (error) {
       const message =
@@ -260,7 +262,7 @@ export function OrganizerEventManager({
         error_message: message,
       })
       toast.error(message)
-      throw error
+      if (!created) throw error
     } finally {
       setIsCreating(false)
     }

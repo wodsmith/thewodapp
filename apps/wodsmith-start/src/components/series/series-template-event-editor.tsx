@@ -47,7 +47,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import type { Movement } from "@/db/schemas/workouts"
-import type { ScoreType, WorkoutScheme } from "@/lib/scoring/types"
+import type { ScoreType, TiebreakScheme, WorkoutScheme } from "@/lib/scoring/types"
 import { updateWorkoutDivisionDescriptionsFn } from "@/server-fns/competition-workouts-fns"
 import {
   addEventToSeriesTemplateFn,
@@ -164,6 +164,9 @@ export function SeriesTemplateEventEditor({
     scheme: WorkoutScheme
     scoreType?: ScoreType
     description?: string
+    roundsToScore?: number
+    tiebreakScheme?: TiebreakScheme
+    movementIds?: string[]
   }) => {
     setIsCreating(true)
     let created = false
@@ -177,7 +180,10 @@ export function SeriesTemplateEventEditor({
             scheme: data.scheme,
             scoreType: data.scoreType ?? null,
             description: data.description,
+            roundsToScore: data.roundsToScore,
+            tiebreakScheme: data.tiebreakScheme,
           },
+          movementIds: data.movementIds,
           parentEventId: subEventParentId ?? undefined,
         },
       })

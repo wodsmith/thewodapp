@@ -46,7 +46,7 @@ export interface TrainingScoreDetailsSnapshot {
     secondaryValue: number | null
   }[]
   sortKey: string
-  unit: "lb" | "kg" | "m" | "km" | "ft" | "mi"
+  unit: "lb" | "kg" | "m" | "km" | "ft" | "mi" | null
   input: TrainingRichScoreInput
 }
 

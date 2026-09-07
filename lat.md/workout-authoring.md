@@ -2,6 +2,12 @@
 
 Compete and training share workout definition controls so a workout keeps the same field language and scoring meaning across authoring contexts.
 
+## Library creation browser flow
+
+The browser test selects the library workout scheme by its accessible label, verifies the selected scheme and default scoring, and creates a workout that opens on its detail page.
+
+Accessible field names and exact option names protect the user-facing contract without tying the test to placeholder wording or generated input IDs.
+
 ## Canonical organizer flow
 
 Compete's event creation dialog supplies the initial definition; the event details editor supplies the fuller editing reference, including descriptions and scoring conditions.
@@ -51,3 +57,15 @@ Opening the full workout editor preserves existing instructions and scoring. Uns
 Shared-field interaction tests cover cap minute-to-second conversion, scheme defaults, import corrections, accessible movement selection, validation associations, and caller-specific null aggregation support. The coach dialog retains edits after catalog failures and confirms discard.
 
 The local component preview at `/training/programming` includes the programmer editor; `/compete-reference` renders the real Compete creation dialog with illustrative data. Desktop and 390px phone checks verify responsive fields without horizontal overflow. These fixture routes are not production routes.
+
+## Scheme changes use canonical defaults
+
+Changing a workout scheme uses the scoring domain's default aggregation. Selecting Pass/Fail chooses the first recorded score and clears a previous tiebreak and cap before their controls disappear.
+
+The shared-field regression switches a capped multi-score workout to Pass/Fail and verifies the resulting values and visible controls together. Round count remains an explicit authoring choice.
+
+## Existing event scoring choices
+
+Changing a competition event’s scheme preserves an explicit aggregation, defaults an unset aggregation, and still accepts direct score-type changes.
+
+Movement import errors focus a labeled movement group. Workout edit buttons announce dialogs; instruction editors retain inline expansion semantics. Coach previews display scheme labels and minutes:seconds caps.

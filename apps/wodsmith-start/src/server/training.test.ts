@@ -1,6 +1,7 @@
 import { createWodsmithDb, type WodsmithDb } from "@repo/wodsmith-db/mysql"
 import {
   programmingTracksTable,
+  scalingGroupsTable,
   teamMembershipTable,
   teamProgrammingTracksTable,
   teamTable,
@@ -59,6 +60,7 @@ vi.mock("@/server/entitlements", () => ({
 
 import {
   copyTrainingSession,
+  getPersonalTrainingWorkoutOptions,
   getTrainingContext,
   getTrainingHistory,
   getTrainingWeek,
@@ -872,6 +874,126 @@ describe.skipIf(!databaseUrl)(
       await expect(
         getTrainingWorkoutOptions({ teamId: draft.teamId }),
       ).rejects.toThrow("FORBIDDEN")
+    })
+
+    // @lat: [[review-backend#Stored references survive catalog changes]]
+    it("preserves deleted scaling references while rejecting new or tampered ones", async () => {
+      await db.insert(scalingGroupsTable).values({
+        id: "historical_training_scaling",
+        title: "Earlier scaling",
+        teamId: draft.teamId,
+      })
+      const rich: TrainingBlock = {
+        ...block,
+        kind: "workout",
+        workout: {
+          name: block.title,
+          description: block.prescription,
+          scheme: "reps",
+          scoreType: "max",
+          roundsToScore: 1,
+          timeCapSeconds: null,
+          repsPerRound: null,
+          tiebreakScheme: null,
+          scalingGroupId: "historical_training_scaling",
+          movementIds: [],
+          scope: "private",
+        },
+      }
+      const richContent = { ...content, blocks: [rich] }
+      const saved = await saveTrainingDraft({ ...draft, content: richContent })
+      await db
+        .delete(scalingGroupsTable)
+        .where(eq(scalingGroupsTable.id, "historical_training_scaling"))
+      const edited = await saveTrainingDraft({
+        ...draft,
+        expectedRevision: saved.revision,
+        content: { ...richContent, coachNote: "Updated guidance" },
+      })
+      const published = await publishTrainingSession({
+        sessionId: edited.id,
+        expectedRevision: edited.revision,
+      })
+      expect(published.published?.blocks[0].workout?.scalingGroupId).toBe(
+        "historical_training_scaling",
+      )
+      const copied = await copyTrainingSession({
+        sessionId: published.id,
+        expectedRevision: published.revision,
+        targetDate: "2026-09-07",
+        targetTrackId: draft.trackId,
+      })
+      expect(
+        (
+          await publishTrainingSession({
+            sessionId: copied.id,
+            expectedRevision: copied.revision,
+          })
+        ).published?.blocks[0].workout?.scalingGroupId,
+      ).toBe("historical_training_scaling")
+      if (!rich.workout) throw new Error("Missing workout fixture")
+      const changed = {
+        ...rich,
+        workout: { ...rich.workout, scalingGroupId: "new_invalid_scaling" },
+      }
+      await expect(
+        saveTrainingDraft({
+          ...draft,
+          expectedRevision: published.revision,
+          content: { ...richContent, blocks: [changed] },
+        }),
+      ).rejects.toThrow("Scaling group is unavailable")
+      await expect(
+        saveTrainingDraft({
+          ...draft,
+          expectedRevision: published.revision,
+          content: {
+            ...richContent,
+            blocks: [{ ...rich, id: "new_identity" }],
+          },
+        }),
+      ).rejects.toThrow("Scaling group is unavailable")
+    })
+
+    // @lat: [[review-backend#Athlete catalog access stays team scoped]]
+    it("allows athlete authoring options without granting programming or foreign scaling access", async () => {
+      await db.insert(scalingGroupsTable).values([
+        { id: "options_own", title: "Own", teamId: draft.teamId },
+        { id: "options_foreign", title: "Foreign", teamId: teamIds[1] },
+        { id: "options_system", title: "System", isSystem: true },
+      ])
+      try {
+        state.userId = userIds[1]
+        const options = await getPersonalTrainingWorkoutOptions({
+          teamId: draft.teamId,
+        })
+        expect(options.scalingGroups.map((group) => group.id)).toEqual([
+          "options_own",
+          "options_system",
+        ])
+        await expect(
+          getTrainingWorkoutOptions({ teamId: draft.teamId }),
+        ).rejects.toThrow("FORBIDDEN")
+        state.feature = false
+        await expect(
+          getPersonalTrainingWorkoutOptions({ teamId: draft.teamId }),
+        ).rejects.toThrow("FORBIDDEN")
+        state.feature = true
+        state.userId = userIds[2]
+        await expect(
+          getPersonalTrainingWorkoutOptions({ teamId: draft.teamId }),
+        ).rejects.toThrow("FORBIDDEN")
+      } finally {
+        await db
+          .delete(scalingGroupsTable)
+          .where(
+            inArray(scalingGroupsTable.id, [
+              "options_own",
+              "options_foreign",
+              "options_system",
+            ]),
+          )
+      }
     })
 
     it("makes cheer retries idempotent and removes cheers when a result becomes private", async () => {

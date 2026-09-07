@@ -375,9 +375,6 @@ export async function saveTrainingDraft(
   const db = getDb()
   try {
     return await db.transaction(async (tx) => {
-      for (const block of content.blocks)
-        if (block.workout)
-          await validateWorkoutReferences(tx, block.workout, input.teamId)
       const [existing] = await tx
         .select()
         .from(trainingSessionsTable)
@@ -390,6 +387,25 @@ export async function saveTrainingDraft(
         )
         .for("update")
       assertTrainingRevision(existing?.revision ?? 0, input.expectedRevision)
+      for (const block of content.blocks) {
+        if (!block.workout) continue
+        const previous = (existing?.draft ?? existing?.published)?.blocks.find(
+          (stored) => stored.id === block.id,
+        )?.workout
+        await validateWorkoutReferences(
+          tx,
+          {
+            movementIds: block.workout.movementIds.filter(
+              (id) => !previous?.movementIds.includes(id),
+            ),
+            scalingGroupId:
+              block.workout.scalingGroupId === previous?.scalingGroupId
+                ? null
+                : block.workout.scalingGroupId,
+          },
+          input.teamId,
+        )
+      }
       if (!existing) {
         const id = `trs_${ulid()}`
         await tx.insert(trainingSessionsTable).values({
@@ -439,9 +455,6 @@ export async function publishTrainingSession(input: {
     assertTrainingRevision(current.revision, input.expectedRevision)
     if (!current.draft) throw new Error("There is no draft to publish")
     const content = trainingContentSchema.parse(current.draft)
-    for (const block of content.blocks)
-      if (block.workout)
-        await validateWorkoutReferences(tx, block.workout, current.teamId)
     if (!content.title || content.blocks.some((block) => !block.title))
       throw new Error(
         "Give the session and each block a title before publishing",
@@ -677,6 +690,17 @@ export async function getTrainingHistory(input: {
 
 export async function getTrainingWorkoutOptions(input: { teamId: string }) {
   await requireTrainingAccess(input.teamId, undefined, true)
+  return readTrainingWorkoutOptions(input.teamId)
+}
+
+export async function getPersonalTrainingWorkoutOptions(input: {
+  teamId: string
+}) {
+  await requireTrainingAccess(input.teamId)
+  return readTrainingWorkoutOptions(input.teamId)
+}
+
+async function readTrainingWorkoutOptions(teamId: string) {
   const db = getDb()
   const [movementOptions, scalingGroups] = await Promise.all([
     db
@@ -688,7 +712,7 @@ export async function getTrainingWorkoutOptions(input: { teamId: string }) {
       .from(scalingGroupsTable)
       .where(
         or(
-          eq(scalingGroupsTable.teamId, input.teamId),
+          eq(scalingGroupsTable.teamId, teamId),
           and(
             isNull(scalingGroupsTable.teamId),
             eq(scalingGroupsTable.isSystem, true),

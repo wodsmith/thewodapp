@@ -106,6 +106,26 @@ export function TrainingResultDialog({
     event.preventDefault()
     if (saving || disabled) return
     setError(null)
+    if (block.workout?.scheme === "time-with-cap") {
+      const rounds =
+        block.workout.roundsToScore > 1
+          ? (workoutScore.roundScores ?? [])
+          : [workoutScore]
+      const missing = rounds.findIndex(
+        (round) => round.status === "cap" && !round.secondaryScore?.trim(),
+      )
+      if (missing >= 0) {
+        setError(
+          `Enter reps completed for round ${missing + 1}, including zero.`,
+        )
+        event.currentTarget
+          .querySelector<HTMLInputElement>(
+            `[aria-label="Round ${missing + 1} reps completed"]`,
+          )
+          ?.focus()
+        return
+      }
+    }
     setSaving(true)
     onSavingChange?.(true)
     try {

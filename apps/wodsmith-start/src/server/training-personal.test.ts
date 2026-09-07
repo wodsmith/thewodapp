@@ -628,6 +628,99 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     state.userId = "personal_other"
     expect(await getPersonalTrainingHistory({ teamId: day.teamId })).toEqual([])
   })
+  // @lat: [[review-backend#Private references survive composition edits]]
+  it("preserves historical private references on reorder but validates new references", async () => {
+    await db
+      .insert(scalingGroupsTable)
+      .values({
+        id: "personal_deleted_group",
+        title: "Earlier group",
+        teamId: day.teamId,
+      })
+    const rich: TrainingBlock = {
+      ...block,
+      kind: "workout",
+      workout: {
+        name: block.title,
+        description: block.prescription,
+        scheme: "reps",
+        scoreType: "max",
+        roundsToScore: 1,
+        timeCapSeconds: null,
+        repsPerRound: null,
+        tiebreakScheme: null,
+        scalingGroupId: "personal_deleted_group",
+        movementIds: [],
+        scope: "private",
+      },
+    }
+    const item: PersonalTrainingItemInput = {
+      id: "historical",
+      kind: "personal",
+      block: rich,
+    }
+    const session = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [item, personalItem],
+    })
+    await db
+      .delete(scalingGroupsTable)
+      .where(eq(scalingGroupsTable.id, "personal_deleted_group"))
+    const reordered = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: session.revision,
+      items: [personalItem, item],
+    })
+    expect(reordered.items.map((entry) => entry.id)).toEqual([
+      "bike",
+      "historical",
+    ])
+    const reduced = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: reordered.revision,
+      items: [item],
+    })
+    expect(reduced.items[0]).toMatchObject({
+      block: { workout: { scalingGroupId: "personal_deleted_group" } },
+    })
+    if (!rich.workout) throw new Error("Missing workout fixture")
+    const tampered = {
+      ...item,
+      block: {
+        ...rich,
+        workout: { ...rich.workout, scalingGroupId: "unavailable_other_group" },
+      },
+    }
+    await expect(
+      savePersonalTrainingSession({
+        ...day,
+        expectedRevision: reduced.revision,
+        items: [tampered],
+      }),
+    ).rejects.toThrow("Scaling group is unavailable")
+    await expect(
+      savePersonalTrainingSession({
+        ...day,
+        expectedRevision: reduced.revision,
+        items: [{ ...item, id: "new_identity" }],
+      }),
+    ).rejects.toThrow("Scaling group is unavailable")
+    const newMovement = {
+      ...item,
+      block: {
+        ...rich,
+        workout: { ...rich.workout, movementIds: ["unknown_movement"] },
+      },
+    }
+    await expect(
+      savePersonalTrainingSession({
+        ...day,
+        expectedRevision: reduced.revision,
+        items: [newMovement],
+      }),
+    ).rejects.toThrow("existing catalog movements")
+  })
   // @lat: [[training-personal#Verification#Mixed track result identity]]
   it("returns unchanged source results from every composed track", async () => {
     await savePersonalTrainingSession({

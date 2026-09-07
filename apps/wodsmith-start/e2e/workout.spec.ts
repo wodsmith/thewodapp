@@ -42,6 +42,7 @@ test.describe('Workouts', () => {
     ).toBeVisible({timeout: 10000})
   })
 
+  // @lat: [[workout-authoring#Workout Authoring#Library creation browser flow]]
   test('should create a new workout', async ({page}) => {
     const uniqueName = `E2E Test Workout ${Date.now()}`
 
@@ -59,15 +60,16 @@ test.describe('Workouts', () => {
     // Fill description
     await page.getByLabel('Description').fill('E2E test workout description')
 
-    // Select scheme — Radix Select with placeholder "Select a scheme"
-    // Use keyboard interaction: Radix Select opens on Enter/Space and supports type-ahead
-    const schemeTrigger = page.locator('button[role="combobox"]').filter({hasText: /select a scheme/i})
+    // Use the accessible label so placeholder copy and generated IDs can change.
+    const schemeTrigger = page.getByRole('combobox', {name: 'Scheme', exact: true})
     await schemeTrigger.scrollIntoViewIfNeeded()
     await schemeTrigger.focus()
     await schemeTrigger.press('Enter')
     // Wait for listbox portal to mount, then click option
     await page.locator('[role="listbox"]').waitFor({state: 'visible', timeout: 5000})
-    await page.locator('[role="option"]').filter({hasText: 'For Time'}).first().click()
+    await page.getByRole('option', {name: 'For Time', exact: true}).click()
+    await expect(schemeTrigger).toHaveText('For Time')
+    await expect(page.getByRole('combobox', {name: 'Score Type', exact: true})).toContainText('Min')
 
     // Submit
     await page.getByRole('button', {name: 'Create workout'}).click()

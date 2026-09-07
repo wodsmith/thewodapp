@@ -5,6 +5,51 @@ import { WorkoutDefinitionFields } from "@/components/workouts/workout-definitio
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
 describe("shared workout definition fields", () => {
+  // @lat: [[workout-authoring#Scheme changes use canonical defaults]]
+  it("selects the canonical pass/fail aggregation and clears an obsolete tiebreak", () => {
+    function Harness() {
+      const [value, setValue] = useState<Partial<NormalizedWorkoutSave>>({
+        scheme: "time-with-cap",
+        scoreType: "sum",
+        timeCapSeconds: 720,
+        tiebreakScheme: "time",
+        roundsToScore: 3,
+      })
+      return (
+        <>
+          <WorkoutDefinitionFields
+            value={value}
+            onChange={(patch) =>
+              setValue((current) => ({ ...current, ...patch }))
+            }
+          />
+          <output>{JSON.stringify(value)}</output>
+        </>
+      )
+    }
+    render(<Harness />)
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Scheme" }), {
+      key: "ArrowDown",
+    })
+    fireEvent.click(screen.getByRole("option", { name: "Pass/Fail" }))
+    expect(
+      screen.getByRole("combobox", { name: "Score Type" }),
+    ).toHaveTextContent("First recorded score")
+    expect(
+      screen.queryByLabelText("Tiebreak Scheme (optional)"),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByLabelText("Time Cap (minutes)"),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("status")).toHaveTextContent(
+      '"tiebreakScheme":null',
+    )
+    expect(screen.getByRole("status")).toHaveTextContent(
+      '"timeCapSeconds":null',
+    )
+    expect(screen.getByLabelText("Rounds to Score")).toHaveValue(3)
+  })
+
   it("changes scheme using canonical score defaults and removes an irrelevant cap", () => {
     const change = vi.fn()
     render(
@@ -55,6 +100,10 @@ describe("shared workout definition fields", () => {
       target: { value: "45" },
     })
     expect(screen.getByRole("status")).toHaveTextContent('"repsPerRound":45')
+    const group = screen.getByRole("group", { name: "Movements (optional)" })
+    group.focus()
+    expect(group).toHaveFocus()
+    expect(group).toHaveAttribute("data-import-field", "movementIds")
     const movement = screen.getByRole("button", { name: /Thruster/ })
     expect(movement).toHaveAttribute("aria-pressed", "true")
     fireEvent.click(movement)

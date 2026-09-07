@@ -10,6 +10,7 @@ import type {
   OwnTrainingResult,
   TrainingWorkoutScoreInput,
 } from "@/lib/training/types"
+import { trainingAggregationLabel } from "@/lib/training/workout-display"
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
 export function initialWorkoutScore(
@@ -91,7 +92,7 @@ export function TrainingWorkoutScoreFields({
       <p className="text-sm text-muted-foreground">
         {getScoreHelpText(workout.scheme, workout.timeCapSeconds)}
         {multiple
-          ? ` · ${workout.roundsToScore} separately recorded scores · ${workout.scoreType ?? "sum"}`
+          ? ` · ${workout.roundsToScore} separately recorded scores · ${trainingAggregationLabel(workout.scoreType)}`
           : ""}
       </p>
       {unitKind ? (

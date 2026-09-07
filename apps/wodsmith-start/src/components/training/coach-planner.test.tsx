@@ -382,7 +382,11 @@ it("reserves the remaining section slot while a library import is pending", asyn
 it("guards an unapplied workout, preserves legacy content in the shared editor, and removes the edited workout", async () => {
   await renderPlanner()
   const section = screen.getByRole("region", { name: "Section 1: Back squat" })
-  fireEvent.click(within(section).getByRole("button", { name: "Edit" }))
+  const edit = within(section).getByRole("button", { name: "Edit" })
+  expect(edit).toHaveAttribute("aria-haspopup", "dialog")
+  expect(edit).not.toHaveAttribute("aria-expanded")
+  expect(edit).not.toHaveAttribute("aria-controls")
+  fireEvent.click(edit)
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Apply changes" })).toBeEnabled(),
   )

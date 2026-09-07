@@ -14,3 +14,10 @@ it("accepts canonical workout text limits and rejects oversized imports",()=>{
   expect(()=>libraryWorkoutToBlock({...source,name:"n".repeat(256)},"long-title")).toThrow()
   expect(()=>libraryWorkoutToBlock({...source,description:"d".repeat(20001)},"long-prescription")).toThrow()
 })
+
+// @lat: [[review-backend#Blank library prescriptions remain addable]]
+it("adds earlier blank descriptions with an explicit missing-prescription label", () => {
+  for (const description of ["", " \n\t "]) {
+    expect(libraryWorkoutToBlock({...source,description}, "blank")).toMatchObject({prescription:"No prescription provided.", workout:{description:"No prescription provided.",scheme:"time",scoreType:"min"}})
+  }
+})

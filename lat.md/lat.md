@@ -19,6 +19,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[gameday]] — Native iOS athlete schedules, spectator browsing, secure sessions, and heat reminders.
 - [[training]] — Implemented gym training, versioned results, draft publication, permissions, and interface tests
 - [[workout-authoring]] — Shared production workout fields, context boundaries, and consumer reuse tests
+- [[authoring-series-review]] — Series creation field fidelity and post-create refresh recovery
 - [[workout-import-integration]] — Workout import acceptance, current-access checks, and reviewed save boundaries
 - [[workout-import-contract]] — Browser-safe import schemas and scoring boundary tests
 
@@ -30,3 +31,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[crossfit-import]] — Daily CrossFit.com source ingestion, scoring conversion, atomic publication, and dated track display
 
 - [[training-personal]] — Athlete-owned composition, durable defaults, source snapshots, and private results.
+
+- [[review-backend]] — Training review regressions for score validation, historical references, and athlete catalog access.
+
+- [[athlete-workout-review]] — Athlete workout editing, catalog choices, and score-dialog review regressions.

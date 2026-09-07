@@ -481,9 +481,28 @@ export async function savePersonalTrainingSession(
               eq(personalTrainingResultsTable.personalSessionId, existing.id),
             )
         : []
-      for (const item of data.items)
-        if (item.kind === "personal" && item.block.workout)
-          await validateWorkoutReferences(tx, item.block.workout, data.teamId)
+      for (const item of data.items) {
+        if (item.kind !== "personal" || !item.block.workout) continue
+        const stored = previous.find(
+          (old) => old.kind === "personal" && old.id === item.id,
+        )
+        const previousWorkout =
+          stored?.kind === "personal" ? stored.block.workout : undefined
+        await validateWorkoutReferences(
+          tx,
+          {
+            movementIds: item.block.workout.movementIds.filter(
+              (id) => !previousWorkout?.movementIds.includes(id),
+            ),
+            scalingGroupId:
+              item.block.workout.scalingGroupId ===
+              previousWorkout?.scalingGroupId
+                ? null
+                : item.block.workout.scalingGroupId,
+          },
+          data.teamId,
+        )
+      }
       const sourceRefs = data.items.flatMap((item) =>
         item.kind === "source"
           ? [item]

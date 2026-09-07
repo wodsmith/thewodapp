@@ -319,7 +319,10 @@ export function EventDetailsForm({
                       setValue("description", patch.description, options)
                     if (patch.scheme !== undefined)
                       setValue("scheme", patch.scheme, options)
-                    if (patch.scoreType !== undefined)
+                    if (
+                      patch.scoreType !== undefined &&
+                      (patch.scheme === undefined || scoreType == null)
+                    )
                       setValue("scoreType", patch.scoreType, options)
                     if ("roundsToScore" in patch)
                       setValue(

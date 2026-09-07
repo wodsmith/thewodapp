@@ -1,14 +1,13 @@
 import { Check } from "lucide-react"
 import { useState } from "react"
-import { getScoreHelpText } from "@/components/compete/score-entry-helpers"
 import { Button } from "@/components/ui/button"
-import { SCORE_TYPES, WORKOUT_SCHEMES } from "@/constants"
 import type {
   OwnTrainingResult,
   SaveTrainingResultInput,
   TrainingBlock,
   TrainingSession,
 } from "@/lib/training/types"
+import { trainingWorkoutSummary } from "@/lib/training/workout-display"
 import { saveTrainingResultFn } from "@/server-fns/training-fns"
 import { TrainingResultDialog } from "./training-result-dialog"
 import { TrainingWorkoutResultDetails } from "./training-workout-result-details"
@@ -93,15 +92,7 @@ export function AthleteSessionBlock({
         </p>
         {block.kind === "workout" && block.workout ? (
           <p className="text-sm text-muted-foreground">
-            {WORKOUT_SCHEMES.find(
-              (scheme) => scheme.value === block.workout?.scheme,
-            )?.label ?? block.workout.scheme}
-            {block.workout.roundsToScore > 1
-              ? ` · ${block.workout.roundsToScore} scores · ${SCORE_TYPES.find((type) => type.value === block.workout?.scoreType)?.label ?? block.workout.scoreType}`
-              : ""}
-            {block.workout.timeCapSeconds
-              ? ` · ${getScoreHelpText(block.workout.scheme, block.workout.timeCapSeconds)}`
-              : ""}
+            {trainingWorkoutSummary(block.workout)}
           </p>
         ) : null}
         {block.coachGuidance ? (

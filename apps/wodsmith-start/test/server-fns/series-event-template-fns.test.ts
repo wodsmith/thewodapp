@@ -87,6 +87,8 @@ import {
 	WORKOUT_SCHEME_VALUES,
 	SCORE_TYPE_VALUES,
 	TIEBREAK_SCHEME_VALUES,
+	workouts,
+	workoutMovements,
 } from "@/db/schemas/workouts"
 
 // ============================================================================
@@ -1301,6 +1303,80 @@ describe("Series Event Template Server Functions", () => {
 	})
 
 	describe("addEventToSeriesTemplateFn", () => {
+		// @lat: [[authoring-series-review#Series Authoring Review#Series creation stores selected fields atomically]]
+		it("keeps scoring metadata and movement links in the creation transaction", async () => {
+			const chain = mockDb.getChainMock()
+			mockDb.select
+				.mockImplementationOnce(() => {
+					mockDb.setMockReturnValue([{ id: "group-1", organizingTeamId: "team-1" }])
+					return chain
+				})
+				.mockImplementationOnce(() => {
+					mockDb.setMockReturnValue([])
+					return chain
+				})
+				.mockImplementationOnce(() => {
+					mockDb.setMockReturnValue([createMockRawTrackWorkout()])
+					return chain
+				})
+			const transactionInsert = vi.fn(() => chain)
+			mockDb.transaction.mockImplementationOnce(async (callback) =>
+				callback({ ...chain, insert: transactionInsert }),
+			)
+			await addEventToSeriesTemplateFn({
+				data: {
+					groupId: "group-1",
+					trackId: "track-1",
+					workout: {
+						name: "Three efforts",
+						scheme: "time",
+						scoreType: "sum",
+						roundsToScore: 3,
+						tiebreakScheme: "reps",
+					},
+					movementIds: ["thruster", "pull-up", "thruster"],
+				},
+			})
+			expect(mockDb.transaction).toHaveBeenCalledTimes(1)
+			expect(mockDb.insert).not.toHaveBeenCalled()
+			expect(transactionInsert).toHaveBeenCalledWith(workouts)
+			expect(transactionInsert).toHaveBeenCalledWith(workoutMovements)
+			const workoutValues = chain.values.mock.calls[0][0] as { id: string }
+			expect(workoutValues).toMatchObject({
+				roundsToScore: 3,
+				tiebreakScheme: "reps",
+				scoreType: "sum",
+				teamId: "team-1",
+				scope: "private",
+			})
+			expect(chain.values.mock.calls[2][0]).toEqual([
+				expect.objectContaining({
+					workoutId: workoutValues.id,
+					movementId: "thruster",
+				}),
+				expect.objectContaining({
+					workoutId: workoutValues.id,
+					movementId: "pull-up",
+				}),
+			])
+		})
+
+		it.each([0, 1.5, 1001])(
+			"rejects invalid separately recorded score count %s before storage",
+			async (roundsToScore) => {
+				await expect(
+					addEventToSeriesTemplateFn({
+						data: {
+							groupId: "group-1",
+							trackId: "track-1",
+							workout: { name: "Invalid rounds", roundsToScore },
+						},
+					}),
+				).rejects.toThrow()
+				expect(mockDb.transaction).not.toHaveBeenCalled()
+			},
+		)
+
 		it("validates input and rejects empty workout name", async () => {
 			await expect(
 				addEventToSeriesTemplateFn({

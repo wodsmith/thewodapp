@@ -10,6 +10,7 @@ import {
   type NormalizedWorkoutSave,
   normalizedWorkoutSaveSchema,
 } from "@/lib/workout-import/schemas"
+import { personalTrainingSaveSchema } from "./training-personal-validation"
 import { trainingBlockSchema } from "./training-validation"
 
 const definition: NormalizedWorkoutSave = {
@@ -305,4 +306,132 @@ it("compares full capped totals beyond the encoded sort key segment", () => {
   const slower = result("2:22:30")
   expect(faster.scoreValue).toBeGreaterThan(4294967295)
   expect(compareTrainingResults(faster, slower)).toBeLessThan(0)
+})
+
+// @lat: [[review-backend#Prescription mirrors normalize whitespace]]
+it("normalizes surrounding prescription whitespace before source and personal invariants", () => {
+  const block = libraryWorkoutToBlock(
+    {
+      name: "Work",
+      description: "Do work",
+      scheme: "reps",
+      scoreType: "max",
+      roundsToScore: 1,
+      timeCap: null,
+      repsPerRound: null,
+      tiebreakScheme: null,
+    },
+    "work",
+  )
+  const padded = {
+    ...block,
+    prescription: "  Do work\n",
+    workout: { ...definition, name: "Work", description: " Do work\n" },
+  }
+  expect(trainingBlockSchema.parse(padded).prescription).toBe("Do work")
+  expect(
+    personalTrainingSaveSchema.parse({
+      teamId: "gym",
+      trainingDate: "2026-09-06",
+      expectedRevision: 0,
+      items: [{ id: "work", kind: "personal", block: padded }],
+    }).items[0],
+  ).toMatchObject({
+    block: { prescription: "Do work", workout: { description: "Do work" } },
+  })
+  expect(() =>
+    trainingBlockSchema.parse({ ...padded, prescription: "Different work" }),
+  ).toThrow("must match")
+})
+
+// @lat: [[review-backend#Time inputs reject partial parsing]]
+it("rejects trailing time characters in single scores, rounds, and tiebreaks", () => {
+  for (const scheme of ["time", "time-with-cap", "emom"] as const) {
+    const definition = workout({
+      scheme,
+      timeCapSeconds: scheme === "time-with-cap" ? 86400 : null,
+    })
+    for (const score of [
+      "12:34abc",
+      "30seconds",
+      "12:34.5x",
+      "1:2:3:4",
+      "1:2.3.4",
+      "1e2",
+      "1 2",
+      "1..2",
+    ])
+      expect(() =>
+        normalizeTrainingWorkoutResult(definition, { ...input, score }),
+      ).toThrow()
+    for (const score of [
+      "45",
+      "45.5",
+      ".5",
+      "45.",
+      "12:34.567",
+      "1:02:34.567",
+      "12.34.567",
+      "1.02.34.567",
+    ])
+      expect(
+        normalizeTrainingWorkoutResult(definition, { ...input, score })
+          .scoreValue,
+      ).toBeGreaterThan(0)
+  }
+  expect(() =>
+    normalizeTrainingWorkoutResult(
+      workout({ scheme: "time", roundsToScore: 2, scoreType: "sum" }),
+      {
+        ...input,
+        score: "",
+        roundScores: [{ score: "1:00" }, { score: "2:00abc" }],
+      },
+    ),
+  ).toThrow()
+  expect(() =>
+    normalizeTrainingWorkoutResult(workout({ tiebreakScheme: "time" }), {
+      ...input,
+      tiebreakScore: "1:00abc",
+    }),
+  ).toThrow()
+})
+
+// @lat: [[review-backend#Result units follow their scheme]]
+it("stores unit metadata only for measured load and distance", () => {
+  for (const scheme of [
+    "time",
+    "time-with-cap",
+    "emom",
+    "rounds-reps",
+    "reps",
+    "calories",
+    "points",
+    "pass-fail",
+  ] as const) {
+    const definition = workout({
+      scheme,
+      timeCapSeconds: scheme === "time-with-cap" ? 180 : null,
+    })
+    expect(
+      normalizeTrainingWorkoutResult(definition, {
+        ...input,
+        score: scheme === "pass-fail" ? "pass" : "1",
+      }).details.unit,
+    ).toBeNull()
+  }
+  expect(
+    normalizeTrainingWorkoutResult(workout({ scheme: "load" }), input).details
+      .unit,
+  ).toBe("lb")
+  expect(
+    normalizeTrainingWorkoutResult(workout({ scheme: "meters" }), {
+      ...input,
+      distanceUnit: "km",
+    }).details.unit,
+  ).toBe("km")
+  expect(
+    normalizeTrainingWorkoutResult(workout({ scheme: "feet" }), input).details
+      .unit,
+  ).toBe("ft")
 })

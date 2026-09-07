@@ -12,16 +12,13 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { SCORE_TYPES, TIEBREAK_SCHEMES, WORKOUT_SCHEMES } from "@/constants"
 import type { Movement, WorkoutScheme } from "@/db/schemas/workouts"
+import { DEFAULT_SCORE_TYPES } from "@/lib/scoring/constants"
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
 export type WorkoutDefinitionField = Exclude<
   keyof NormalizedWorkoutSave,
   "scope"
 >
-
-export function defaultWorkoutScoreType(scheme: WorkoutScheme) {
-  return scheme === "time" || scheme === "time-with-cap" ? "min" : "max"
-}
 
 /** Shared authoring controls; callers own context, validation, and persistence. */
 export function WorkoutDefinitionFields({
@@ -69,7 +66,12 @@ export function WorkoutDefinitionFields({
   ) =>
     visible(key) && (
       <div className="min-w-0 space-y-2">
-        <Label htmlFor={id(key)}>{label}</Label>
+        <Label
+          id={`${id(key)}-label`}
+          htmlFor={key === "movementIds" ? undefined : id(key)}
+        >
+          {label}
+        </Label>
         {control}
         <p
           id={`${id(key)}-help`}
@@ -120,7 +122,8 @@ export function WorkoutDefinitionFields({
             onValueChange={(scheme) =>
               onChange({
                 scheme: scheme as WorkoutScheme,
-                scoreType: defaultWorkoutScoreType(scheme as WorkoutScheme),
+                scoreType: DEFAULT_SCORE_TYPES[scheme as WorkoutScheme],
+                ...(scheme === "pass-fail" ? { tiebreakScheme: null } : {}),
                 ...(scheme !== "time-with-cap" ? { timeCapSeconds: null } : {}),
               })
             }
@@ -274,7 +277,11 @@ export function WorkoutDefinitionFields({
       {field(
         "movementIds",
         "Movements (optional)",
-        <div {...attributes("movementIds")}>
+        <fieldset
+          {...attributes("movementIds")}
+          aria-labelledby={`${id("movementIds")}-label`}
+          tabIndex={-1}
+        >
           <MovementsList
             movements={movements}
             selectedMovements={value.movementIds ?? []}
@@ -290,7 +297,7 @@ export function WorkoutDefinitionFields({
             containerHeight="h-[200px]"
             showLabel={false}
           />
-        </div>,
+        </fieldset>,
       )}
       {field(
         "scalingGroupId",

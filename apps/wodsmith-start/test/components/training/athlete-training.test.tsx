@@ -5,7 +5,7 @@ import { AthleteSessionBlock } from "@/components/training/athlete-session-block
 import { AthleteTeamResults } from "@/components/training/athlete-team-results"
 import { TrainingResultDialog } from "@/components/training/training-result-dialog"
 import { AthletePersonalSession } from "@/components/training/athlete-personal-session"
-import { getPersonalTrainingDayFn, getPersonalTrainingHistoryFn, savePersonalTrainingResultFn, saveTrainingPreferenceFn, savePersonalTrainingSessionFn, getTrainingLibraryWorkoutFn } from "@/server-fns/training-personal-fns"
+import { getPersonalTrainingWorkoutOptionsFn, getPersonalTrainingDayFn, getPersonalTrainingHistoryFn, savePersonalTrainingResultFn, saveTrainingPreferenceFn, savePersonalTrainingSessionFn, getTrainingLibraryWorkoutFn } from "@/server-fns/training-personal-fns"
 import { parseTime } from "@/lib/scoring/parse/time"
 import type { OwnTrainingResult, TrainingBlock, TrainingContext, TrainingSession, TrainingWeek } from "@/lib/training/types"
 import { getTrainingHistoryFn, getTrainingWeekFn, saveTrainingResultFn, setTrainingCheerFn } from "@/server-fns/training-fns"
@@ -19,7 +19,7 @@ vi.mock("@/server-fns/training-fns", () => ({
   setTrainingCheerFn: vi.fn(),
 }))
 
-vi.mock("@/server-fns/training-personal-fns", () => ({ getPersonalTrainingDayFn: vi.fn(), getPersonalTrainingHistoryFn: vi.fn(), saveTrainingPreferenceFn: vi.fn(), savePersonalTrainingSessionFn: vi.fn(), savePersonalTrainingResultFn: vi.fn(), getTrainingLibraryWorkoutFn: vi.fn() }))
+vi.mock("@/server-fns/training-personal-fns", () => ({ getPersonalTrainingWorkoutOptionsFn: vi.fn().mockResolvedValue({ movements: [], scalingGroups: [] }), getPersonalTrainingDayFn: vi.fn(), getPersonalTrainingHistoryFn: vi.fn(), saveTrainingPreferenceFn: vi.fn(), savePersonalTrainingSessionFn: vi.fn(), savePersonalTrainingResultFn: vi.fn(), getTrainingLibraryWorkoutFn: vi.fn() }))
 vi.mock("@/components/training/earlier-training-history", () => ({ EarlierTrainingHistory: () => <p>Library and earlier results</p> }))
 const block: TrainingBlock = { id: "squat", kind: "load", title: "Back squat", prescription: "Build to a heavy set of five.", scalingGuidance: "Choose a load you control.", coachGuidance: "" }
 const session: TrainingSession = { id: "session-mon", teamId: "gym", trackId: "everyday", trainingDate: "2026-09-07", timezone: "America/Boise", revision: 2, publishedVersion: 2, draft: null, published: { title: "Strength for the week", coachNote: "Keep each rep smooth.", isRestDay: false, blocks: [block] } }
@@ -29,6 +29,7 @@ const emptyWeek: TrainingWeek = { sessions: [], myResults: [], teamResults: [] }
 
 beforeEach(() => {
   localStorage.clear()
+  vi.mocked(getPersonalTrainingWorkoutOptionsFn).mockResolvedValue({ movements: [], scalingGroups: [] })
   vi.mocked(getPersonalTrainingHistoryFn).mockResolvedValue([])
   vi.mocked(getPersonalTrainingDayFn).mockImplementation(async (options) => {
     const data = options?.data as { trackId?: string; trainingDate: string }

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
 import type {
   PersonalTrainingDay,
@@ -27,6 +26,7 @@ import {
   savePersonalTrainingSessionFn,
 } from "@/server-fns/training-personal-fns"
 import { AthleteSessionBlock } from "./athlete-session-block"
+import { PersonalWorkoutDefinition } from "./personal-workout-definition"
 
 function itemInput(item: PersonalTrainingItem): PersonalTrainingItemInput {
   if (item.kind === "source")
@@ -701,28 +701,20 @@ ${workout.provenance ? "" : workout.description}`,
           }}
         >
           <h3 className="text-xl font-semibold">
-            {editor.itemId ? "Edit your workout" : "Create a workout"}
+            {editor.itemId
+              ? "Edit your workout"
+              : editor.block.kind === "workout"
+                ? "Create a workout"
+                : "Add a session section"}
           </h3>
           <p className="text-sm text-muted-foreground">
             Your prescription and results stay private.
           </p>
           {editor.block.kind === "workout" && editor.block.workout ? (
-            <WorkoutDefinitionFields
+            <PersonalWorkoutDefinition
+              teamId={team.id}
               value={editor.block.workout}
-              nameLabel="Workout name"
-              required
-              autoFocus
               disabled={saving}
-              fields={[
-                "name",
-                "description",
-                "scheme",
-                "scoreType",
-                "timeCapSeconds",
-                "roundsToScore",
-                "repsPerRound",
-                "tiebreakScheme",
-              ]}
               onChange={(patch) =>
                 setEditor((current) =>
                   current?.block.workout
@@ -744,7 +736,11 @@ ${workout.provenance ? "" : workout.description}`,
             <fieldset disabled={saving} className="space-y-4">
               <legend className="sr-only">Workout details</legend>
               <div className="space-y-2">
-                <Label htmlFor="personal-title">Workout name</Label>
+                <Label htmlFor="personal-title">
+                  {["check", "note"].includes(editor.block.kind)
+                    ? "Section name"
+                    : "Workout name"}
+                </Label>
                 <Input
                   ref={editorInput}
                   id="personal-title"
@@ -794,9 +790,18 @@ ${workout.provenance ? "" : workout.description}`,
                   }
                 >
                   <option value="check">Completion</option>
-                  <option value="load">Load</option>
-                  <option value="time">Time</option>
-                  <option value="reps">Reps</option>
+                  {items.some(
+                    (item) =>
+                      item.kind !== "library" &&
+                      item.id === editor.itemId &&
+                      ["load", "time", "reps"].includes(item.block.kind),
+                  ) ? (
+                    <>
+                      <option value="load">Load</option>
+                      <option value="time">Time</option>
+                      <option value="reps">Reps</option>
+                    </>
+                  ) : null}
                   <option value="note">Instructions only</option>
                 </select>
               </div>
@@ -852,6 +857,26 @@ ${workout.provenance ? "" : workout.description}`,
             onClick={() => startEditor()}
           >
             Create workout
+          </Button>
+          <Button
+            className="min-h-11"
+            variant="outline"
+            disabled={saving}
+            onClick={() => {
+              setEditor({
+                block: {
+                  id: crypto.randomUUID(),
+                  kind: "check",
+                  title: "",
+                  prescription: "",
+                  scalingGuidance: "",
+                  coachGuidance: "",
+                },
+              })
+              setAdding(false)
+            }}
+          >
+            Add instructions or completion
           </Button>
           <a
             className="inline-flex min-h-11 items-center px-3 text-sm font-medium underline underline-offset-4"

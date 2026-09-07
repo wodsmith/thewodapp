@@ -1,15 +1,17 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AthletePersonalSession } from "@/components/training/athlete-personal-session"
+import { AthleteSessionBlock } from "@/components/training/athlete-session-block"
 import { AthleteTeamResults } from "@/components/training/athlete-team-results"
 import { TrainingResultDialog } from "@/components/training/training-result-dialog"
 import type { OwnTrainingResult, TrainingBlock, TrainingSession, TrainingTeam, TrainingWorkoutScoreInput } from "@/lib/training/types"
 import { normalizeTrainingWorkoutResult } from "@/lib/training/workout-scoring"
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 import { saveTrainingResultFn } from "@/server-fns/training-fns"
-import { getPersonalTrainingDayFn, savePersonalTrainingResultFn, savePersonalTrainingSessionFn } from "@/server-fns/training-personal-fns"
+import { getPersonalTrainingWorkoutOptionsFn, getPersonalTrainingDayFn, savePersonalTrainingResultFn, savePersonalTrainingSessionFn } from "@/server-fns/training-personal-fns"
 vi.mock("@/server-fns/training-fns", () => ({ saveTrainingResultFn: vi.fn(), getTrainingWeekFn: vi.fn(), setTrainingCheerFn: vi.fn() }))
-vi.mock("@/server-fns/training-personal-fns", () => ({ getPersonalTrainingDayFn: vi.fn(), savePersonalTrainingResultFn: vi.fn(), savePersonalTrainingSessionFn: vi.fn(), getTrainingLibraryWorkoutFn: vi.fn() }))
+vi.mock("@/server-fns/training-personal-fns", () => ({ getPersonalTrainingWorkoutOptionsFn: vi.fn().mockResolvedValue({ movements: [], scalingGroups: [] }), getPersonalTrainingDayFn: vi.fn(), savePersonalTrainingResultFn: vi.fn(), savePersonalTrainingSessionFn: vi.fn(), getTrainingLibraryWorkoutFn: vi.fn() }))
+beforeEach(() => { vi.mocked(getPersonalTrainingWorkoutOptionsFn).mockResolvedValue({ movements: [], scalingGroups: [] }) })
 afterEach(cleanup)
 const workout: NormalizedWorkoutSave = { name: "Repeatable efforts", description: "Three rounds, rest between efforts", scheme: "time-with-cap", scoreType: "sum", roundsToScore: 3, timeCapSeconds: 300, repsPerRound: null, tiebreakScheme: "reps", scalingGroupId: null, movementIds: [], scope: "private" }
 const block: TrainingBlock = { id: "rich", kind: "workout", workout, title: workout.name, prescription: workout.description, coachGuidance: "", scalingGuidance: "" }
@@ -118,4 +120,69 @@ describe("rich training workout scores", () => {
   fireEvent.click(within(rows[1]!).getByText("Score breakdown"))
   expect(within(rows[1]!).getByText("CAP · 75 reps completed")).toBeVisible()
  })
+})
+
+// @lat: [[athlete-workout-review#Verification#Readable score summaries]]
+it("describes first and last aggregation and caps without score-entry instructions", () => {
+ for (const [scoreType, label] of [["first", "First recorded score"], ["last", "Last recorded score"]] as const) {
+  const { unmount } = render(<AthleteSessionBlock session={session} block={{ ...block, workout: { ...workout, scoreType } }} index={0} trackName="Daily" gymName="Test gym" onSaved={vi.fn()} />)
+  expect(screen.getByText(new RegExp(`3 scores · ${label} · Time cap: 5:00`))).toBeVisible()
+  expect(screen.queryByText(/Enter as/)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole("button", { name: "Log result" }))
+  expect(screen.getByText(new RegExp(`3 separately recorded scores · ${label}`))).toBeVisible()
+  unmount()
+ }
+})
+
+// @lat: [[athlete-workout-review#Verification#Capped reps validate before saving]]
+it("focuses missing capped reps before saving and accepts zero", async () => {
+ const definition = { ...workout, roundsToScore: 1, tiebreakScheme: null }
+ vi.mocked(saveTrainingResultFn).mockResolvedValue(saved({ score: "", unit: "lb", status: "cap", secondaryScore: "0" }, definition))
+ render(<TrainingResultDialog session={session} block={{ ...block, workout: definition }} trackName="Daily" gymName="Test gym" onSaved={vi.fn()} />)
+ fireEvent.click(screen.getByRole("button", { name: "Log result" }))
+ fireEvent.click(screen.getByLabelText("Round 1 capped"))
+ fireEvent.click(screen.getByRole("button", { name: "Save result" }))
+ expect(saveTrainingResultFn).not.toHaveBeenCalled()
+ expect(screen.getByRole("alert")).toHaveTextContent("Enter reps completed for round 1, including zero.")
+ expect(screen.getByLabelText("Round 1 reps completed")).toHaveFocus()
+ fireEvent.change(screen.getByLabelText("Round 1 reps completed"), { target: { value: "0" } })
+ fireEvent.click(screen.getByRole("button", { name: "Save result" }))
+ await waitFor(() => expect(saveTrainingResultFn).toHaveBeenCalledWith({ data: expect.objectContaining({ status: "cap", secondaryScore: "0" }) }))
+})
+
+// @lat: [[athlete-workout-review#Verification#Unscored sections remain available]]
+it("adds private completion and instruction sections only on explicit save", async () => {
+ for (const kind of ["check", "note"] as const) {
+  vi.mocked(savePersonalTrainingSessionFn).mockClear()
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({ defaultTrackId: "track", selectedTrackId: "track", sourceSession: null, personalSession: null, items: [], results: [], libraryResults: [] })
+  vi.mocked(savePersonalTrainingSessionFn).mockResolvedValue({ id: "personal", teamId: "gym", trainingDate: session.trainingDate, revision: 1, items: [] })
+  const { unmount } = render(<AthletePersonalSession team={team} trackId="track" date={session.trainingDate} sourceResults={[]} onSaved={vi.fn()} />)
+  fireEvent.click(await screen.findByRole("button", { name: "Add instructions or completion" }))
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  fireEvent.change(screen.getByLabelText("Section name"), { target: { value: "Mobility" } })
+  fireEvent.change(screen.getByLabelText("Workout"), { target: { value: "Ten minutes of easy stretching" } })
+  fireEvent.change(screen.getByLabelText("Record"), { target: { value: kind } })
+  fireEvent.click(screen.getByRole("button", { name: "Save to my session" }))
+  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: expect.objectContaining({ items: [expect.objectContaining({ kind: "personal", block: expect.objectContaining({ kind, title: "Mobility" }) })] }) }))
+  unmount()
+ }
+})
+
+// @lat: [[athlete-workout-review#Verification#Athletes assign catalogs with recovery]]
+it("retries athlete catalogs without losing edits and saves movements and scaling assignments", async () => {
+ vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({ defaultTrackId: "track", selectedTrackId: "track", sourceSession: null, personalSession: null, items: [], results: [], libraryResults: [] })
+ vi.mocked(getPersonalTrainingWorkoutOptionsFn).mockRejectedValueOnce(new Error("Unavailable")).mockResolvedValueOnce({ movements: [{ id: "row", name: "Row", type: "monostructural" }], scalingGroups: [{ id: "gym-levels", title: "Gym levels" }] })
+ vi.mocked(savePersonalTrainingSessionFn).mockResolvedValue({ id: "personal", teamId: "gym", trainingDate: session.trainingDate, revision: 1, items: [] })
+ render(<AthletePersonalSession team={team} trackId="track" date={session.trainingDate} sourceResults={[]} onSaved={vi.fn()} />)
+ fireEvent.click(await screen.findByRole("button", { name: "Create workout" }))
+ fireEvent.change(screen.getByLabelText("Workout name"), { target: { value: "My row" } })
+ fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Row 500m" } })
+ fireEvent.click(await screen.findByRole("button", { name: "Retry movement and scaling options" }))
+ fireEvent.click(await screen.findByRole("button", { name: /Row/i }))
+ fireEvent.click(screen.getByRole("combobox", { name: "Scaling group (optional)" }))
+ fireEvent.click(await screen.findByRole("option", { name: "Gym levels" }))
+ expect(screen.getByLabelText("Workout name")).toHaveValue("My row")
+ expect(getPersonalTrainingWorkoutOptionsFn).toHaveBeenLastCalledWith({ data: { teamId: "gym" } })
+ fireEvent.click(screen.getByRole("button", { name: "Save to my session" }))
+ await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: expect.objectContaining({ items: [expect.objectContaining({ block: expect.objectContaining({ workout: expect.objectContaining({ name: "My row", movementIds: ["row"], scalingGroupId: "gym-levels" }) }) })] }) }))
 })

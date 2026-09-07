@@ -804,7 +804,10 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
           scheme: z.enum(WORKOUT_SCHEME_VALUES).optional(),
           scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
           scoreSortOrder: z.string().optional(),
+          roundsToScore: z.number().int().min(1).max(1000).optional(),
+          tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).optional(),
         }),
+        movementIds: z.array(z.string().min(1)).max(100).optional(),
         parentEventId: z.string().min(1).optional(),
       })
       .parse(data),
@@ -905,6 +908,8 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
         description: data.workout.description ?? "",
         scheme: (data.workout.scheme ?? "time") as (typeof workouts.$inferInsert)["scheme"],
         scoreType: (data.workout.scoreType ?? null) as (typeof workouts.$inferInsert)["scoreType"],
+        roundsToScore: data.workout.roundsToScore ?? null,
+        tiebreakScheme: data.workout.tiebreakScheme ?? null,
         teamId: group.organizingTeamId,
         scope: "private",
       })
@@ -917,6 +922,16 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
         pointsMultiplier: 100,
         parentEventId: data.parentEventId ?? null,
       })
+
+      if (data.movementIds?.length) {
+        await tx.insert(workoutMovements).values(
+          [...new Set(data.movementIds)].map((movementId) => ({
+            id: `workout_movement_${createId()}`,
+            workoutId,
+            movementId,
+          })),
+        )
+      }
     })
 
     // Return the created event with workout details

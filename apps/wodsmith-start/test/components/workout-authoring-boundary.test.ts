@@ -1,21 +1,21 @@
 import { readFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import ts from "typescript"
 import { describe, expect, it } from "vitest"
 
-const appRoot = process.cwd().endsWith("apps/wodsmith-start")
-  ? process.cwd()
-  : join(process.cwd(), "apps/wodsmith-start")
+const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 
 const sharedFieldConsumers = [
   "src/components/workout-form.tsx",
   "src/components/events/create-event-dialog.tsx",
   "src/components/events/event-details-form.tsx",
   "src/components/training/training-workout-dialog.tsx",
-  "src/components/training/athlete-personal-session.tsx",
+  "src/components/training/personal-workout-definition.tsx",
 ]
 
 const consumers = [
+  { path: "src/components/training/athlete-personal-session.tsx", module: "/personal-workout-definition", component: "PersonalWorkoutDefinition" },
   ...sharedFieldConsumers.map((path) => ({
     path,
     module: "/workouts/workout-definition-fields",

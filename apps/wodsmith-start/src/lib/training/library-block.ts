@@ -21,7 +21,7 @@ export function libraryWorkoutToBlock(
 ): TrainingBlock {
   const definition = normalizedWorkoutSaveSchema.parse({
     name: workout.name,
-    description: workout.description,
+    description: workout.description.trim() || "No prescription provided.",
     scheme: workout.scheme,
     scoreType: workout.scoreType,
     roundsToScore: workout.roundsToScore ?? 1,

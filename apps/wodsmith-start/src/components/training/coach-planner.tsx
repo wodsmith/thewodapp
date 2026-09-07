@@ -872,8 +872,21 @@ function CoachDayEditor({
                           type="button"
                           variant="outline"
                           className={actionClass}
-                          aria-expanded={editingBlock === block.id}
-                          aria-controls={`coach-edit-${block.id}`}
+                          aria-haspopup={
+                            block.kind !== "check" && block.kind !== "note"
+                              ? "dialog"
+                              : undefined
+                          }
+                          aria-expanded={
+                            block.kind === "check" || block.kind === "note"
+                              ? editingBlock === block.id
+                              : undefined
+                          }
+                          aria-controls={
+                            block.kind === "check" || block.kind === "note"
+                              ? `coach-edit-${block.id}`
+                              : undefined
+                          }
                           onClick={() => {
                             if (block.kind !== "check" && block.kind !== "note")
                               setWorkoutEditor({ block })

@@ -2,6 +2,7 @@ import {
   aggregateValues,
   formatScoreForList,
   isCountBasedScheme,
+  isTimeBasedScheme,
   parseScore,
   sortKeyToString,
   type WorkoutScheme,
@@ -30,6 +31,13 @@ function parseTrainingWorkoutValue(
     !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)
   )
     throw new Error("Enter a number and choose its unit")
+  if (
+    isTimeBasedScheme(scheme) &&
+    !/^(?:\d+(?:\.\d*)?|\.\d+|\d+(?::\d+){1,2}(?:\.\d+)?|\d+(?:\.\d+){2,3})$/.test(
+      text,
+    )
+  )
+    throw new Error("Enter a complete time, such as 12:34.567")
   const parsed = parseScore(text, scheme, {
     unit:
       scheme === "load"
@@ -160,7 +168,9 @@ export function normalizeTrainingWorkoutResult(
   const unit =
     workout.scheme === "meters" || workout.scheme === "feet"
       ? (input.distanceUnit ?? (workout.scheme === "feet" ? "ft" : "m"))
-      : input.unit
+      : workout.scheme === "load"
+        ? input.unit
+        : null
   const details: TrainingScoreDetails = {
     scheme: workout.scheme,
     scoreType,

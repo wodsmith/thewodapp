@@ -14,10 +14,11 @@ const mocks = vi.hoisted(() => ({
   cohostCreate: vi.fn(),
   addSeriesEvent: vi.fn(),
   errorToast: vi.fn(),
+  invalidate: vi.fn(),
 }))
 
 vi.mock("@tanstack/react-router", () => ({
-  useRouter: () => ({ invalidate: vi.fn() }),
+  useRouter: () => ({ invalidate: mocks.invalidate }),
   Link: () => null,
 }))
 vi.mock("@tanstack/react-start", () => ({
@@ -52,6 +53,7 @@ vi.mock("@/server-fns/series-event-template-fns", () => ({
 describe("event creation failure recovery", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.invalidate.mockResolvedValue(undefined)
     for (const mutation of [
       mocks.create,
       mocks.cohostCreate,
@@ -59,6 +61,101 @@ describe("event creation failure recovery", () => {
     ]) {
       mutation.mockRejectedValue(new Error("Creation unavailable"))
     }
+  })
+
+  // @lat: [[authoring-series-review#Series Authoring Review#Organizer refresh failure follows successful creation]]
+  it.each(["organizer", "cohost"])(
+    "%s resets a created draft after refresh fails",
+    async (context) => {
+      const mutation = context === "cohost" ? mocks.cohostCreate : mocks.create
+      mutation.mockResolvedValueOnce({ trackWorkoutId: "event-1" })
+      mocks.invalidate.mockRejectedValueOnce(new Error("Refresh unavailable"))
+      render(
+        <OrganizerEventManager
+          competitionId="competition-1"
+          organizingTeamId="team-1"
+          events={[]}
+          movements={[]}
+          divisions={[]}
+          divisionDescriptionsByWorkout={{}}
+          sponsors={[]}
+          overrides={
+            context === "cohost"
+              ? { createWorkoutFn: mocks.cohostCreate }
+              : undefined
+          }
+        />,
+      )
+      fireEvent.click(screen.getByRole("button", { name: "Create event" }))
+      const dialog = within(screen.getByRole("dialog"))
+      fireEvent.change(dialog.getByLabelText("Event Name"), {
+        target: { value: "Created once" },
+      })
+      fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
+      await waitFor(() =>
+        expect(mocks.errorToast).toHaveBeenCalledWith("Refresh unavailable"),
+      )
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: "Create event" }))
+      expect(
+        within(screen.getByRole("dialog")).getByLabelText("Event Name"),
+      ).toHaveValue("")
+      expect(mutation).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  // @lat: [[authoring-series-review#Series Authoring Review#Series dialog preserves selected fields]]
+  it("sends selected rounds, tiebreak, and movements through the series callback", async () => {
+    render(
+      <SeriesTemplateEventEditor
+        groupId="group-1"
+        trackId="track-1"
+        events={[]}
+        movements={[
+          {
+            id: "thruster",
+            name: "Thruster",
+            type: "weightlifting",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            updateCounter: 0,
+          },
+        ]}
+        onEventsChanged={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }))
+    const dialog = within(screen.getByRole("dialog"))
+    fireEvent.change(dialog.getByLabelText("Event Name"), {
+      target: { value: "Three efforts" },
+    })
+    fireEvent.change(dialog.getByLabelText("Rounds to Score"), {
+      target: { value: "3" },
+    })
+    fireEvent.keyDown(
+      dialog.getByRole("combobox", { name: "Tiebreak Scheme (optional)" }),
+      { key: "ArrowDown" },
+    )
+    fireEvent.click(screen.getByRole("option", { name: "Reps" }))
+    fireEvent.click(dialog.getByRole("button", { name: /Thruster/ }))
+    fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
+    await waitFor(() =>
+      expect(mocks.addSeriesEvent).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          workout: expect.objectContaining({
+            roundsToScore: 3,
+            tiebreakScheme: "reps",
+          }),
+          movementIds: ["thruster"],
+        }),
+      }),
+    )
+    await waitFor(() => expect(dialog.getByRole("alert")).toBeInTheDocument())
+    expect(dialog.getByLabelText("Rounds to Score")).toHaveValue(3)
+    expect(dialog.getByRole("button", { name: /Thruster/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
   })
 
   // @lat: [[workout-authoring#Workout Authoring#Failed event creation retains entries#Refresh failure after creation]]
@@ -98,23 +195,17 @@ describe("event creation failure recovery", () => {
           .mockRejectedValue(new Error("Refresh unavailable"))}
       />,
     )
-    fireEvent.click(
-      screen.getByRole("button", { name: "Create event" }),
-    )
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }))
     const dialog = within(screen.getByRole("dialog"))
     fireEvent.change(dialog.getByLabelText("Event Name"), {
       target: { value: "Friday workout" },
     })
-    fireEvent.click(
-      dialog.getByRole("button", { name: "Create event" }),
-    )
+    fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
     await waitFor(() =>
       expect(mocks.errorToast).toHaveBeenCalledWith("Refresh unavailable"),
     )
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-    fireEvent.click(
-      screen.getByRole("button", { name: "Create event" }),
-    )
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }))
     expect(
       within(screen.getByRole("dialog")).getByLabelText("Event Name"),
     ).toHaveValue("")
@@ -154,9 +245,7 @@ describe("event creation failure recovery", () => {
         )
       }
 
-      fireEvent.click(
-        screen.getByRole("button", { name: "Create event" }),
-      )
+      fireEvent.click(screen.getByRole("button", { name: "Create event" }))
       const dialog = within(screen.getByRole("dialog"))
       fireEvent.change(dialog.getByLabelText("Event Name"), {
         target: { value: "Friday workout" },
@@ -164,9 +253,7 @@ describe("event creation failure recovery", () => {
       fireEvent.change(dialog.getByLabelText("Description"), {
         target: { value: "21-15-9 thrusters and pull-ups" },
       })
-      fireEvent.click(
-        dialog.getByRole("button", { name: "Create event" }),
-      )
+      fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
 
       await waitFor(() =>
         expect(dialog.getByRole("alert")).toHaveTextContent(
@@ -185,9 +272,7 @@ describe("event creation failure recovery", () => {
           : context === "cohost"
             ? mocks.cohostCreate
             : mocks.create
-      fireEvent.click(
-        dialog.getByRole("button", { name: "Create event" }),
-      )
+      fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
       await waitFor(() => expect(mutation).toHaveBeenCalledTimes(2))
       expect(mutation.mock.calls[1][0]).toEqual(mutation.mock.calls[0][0])
       expect(dialog.getByLabelText("Event Name")).toHaveValue("Friday workout")

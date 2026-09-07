@@ -55,7 +55,7 @@ export const trainingBlockSchema = z
     id: blockId,
     kind: z.enum(["check", "load", "time", "reps", "note", "workout"]),
     title: z.string().trim().max(255),
-    prescription: z.string().max(20_000),
+    prescription: z.string().trim().max(20_000),
     scalingGuidance: z.string().max(3000),
     coachGuidance: z.string().max(3000),
     workout: normalizedWorkoutSaveSchema.optional(),
