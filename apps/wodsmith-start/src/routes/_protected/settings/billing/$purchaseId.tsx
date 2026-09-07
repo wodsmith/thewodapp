@@ -13,13 +13,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { getInvoiceDetailsFn } from "@/server-fns/athlete-profile-fns"
+import { getInvoiceStatusLabel } from "@/utils/invoice-groups"
 import { DownloadInvoiceButton } from "./-components/download-invoice-button"
 
 const searchSchema = z.object({
   returnTo: z.string().startsWith("/").optional(),
 })
 
-export const Route = createFileRoute("/_protected/settings/billing/$purchaseId")({
+export const Route = createFileRoute(
+  "/_protected/settings/billing/$purchaseId",
+)({
   component: InvoiceDetailPage,
   validateSearch: (search) => searchSchema.parse(search),
   loader: async ({ params }) => {
@@ -96,7 +99,7 @@ function getStatusBadge(status: string) {
     case "CANCELLED":
       return <Badge variant="outline">Cancelled</Badge>
     default:
-      return <Badge variant="outline">{status}</Badge>
+      return <Badge variant="outline">{getInvoiceStatusLabel(status)}</Badge>
   }
 }
 
@@ -194,6 +197,7 @@ function InvoiceDetailPage() {
 
             {invoice.lineItems.map((item) => (
               <div key={item.purchaseId} className="space-y-1">
+                {invoice.status === "MIXED" && getStatusBadge(item.status)}
                 {/* Division heading for multi-division */}
                 {hasMultipleItems && item.divisionLabel && (
                   <p className="font-medium text-sm">{item.divisionLabel}</p>

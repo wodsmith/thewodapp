@@ -3,6 +3,7 @@ import { ChevronRight, FileText, Receipt } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { getAthleteInvoicesDataFn } from "@/server-fns/athlete-profile-fns"
+import { getInvoiceStatusLabel, groupByInvoice } from "@/utils/invoice-groups"
 
 export const Route = createFileRoute("/_protected/settings/billing/")({
   component: SettingsBillingPage,
@@ -38,41 +39,8 @@ function getStatusBadge(status: string) {
     case "CANCELLED":
       return <Badge variant="outline">Cancelled</Badge>
     default:
-      return <Badge variant="outline">{status}</Badge>
+      return <Badge variant="outline">{getInvoiceStatusLabel(status)}</Badge>
   }
-}
-
-/**
- * Group purchases by checkout session so multi-division registrations
- * show as a single invoice row.
- */
-function groupByInvoice(
-  purchases: ReturnType<typeof Route.useLoaderData>["purchases"],
-) {
-  const groups = new Map<
-    string,
-    { primary: (typeof purchases)[number]; totalCents: number }
-  >()
-  const standalone: Array<{
-    primary: (typeof purchases)[number]
-    totalCents: number
-  }> = []
-
-  for (const p of purchases) {
-    const key = p.stripeCheckoutSessionId
-    if (!key) {
-      standalone.push({ primary: p, totalCents: p.totalCents })
-      continue
-    }
-    const existing = groups.get(key)
-    if (existing) {
-      existing.totalCents += p.totalCents
-    } else {
-      groups.set(key, { primary: p, totalCents: p.totalCents })
-    }
-  }
-
-  return [...groups.values(), ...standalone]
 }
 
 function SettingsBillingPage() {
@@ -107,44 +75,56 @@ function SettingsBillingPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {invoices.map(({ primary: purchase, totalCents }) => (
-            <Link
-              key={purchase.id}
-              to="/settings/billing/$purchaseId"
-              params={{ purchaseId: purchase.id }}
-            >
-              <Card className="transition-colors hover:bg-muted/50">
-                <CardContent className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Receipt className="h-5 w-5 text-primary" />
+          {invoices.map(
+            ({ id, primary: purchase, totalCents, status, statusSummary }) => (
+              <Link
+                key={id}
+                to="/settings/billing/$purchaseId"
+                params={{ purchaseId: purchase.id }}
+              >
+                <Card className="transition-colors hover:bg-muted/50">
+                  <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        <Receipt className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">
+                          {purchase.competition?.name ?? purchase.product.name}
+                        </p>
+                        <p className="text-muted-foreground text-sm">
+                          {formatDate(
+                            purchase.completedAt ?? purchase.createdAt,
+                          )}
+                          {purchase.competition?.organizingTeam && (
+                            <span>
+                              {" "}
+                              &middot;{" "}
+                              {purchase.competition.organizingTeam.name}
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">
-                        {purchase.competition?.name ?? purchase.product.name}
-                      </p>
-                      <p className="text-muted-foreground text-sm">
-                        {formatDate(purchase.completedAt ?? purchase.createdAt)}
-                        {purchase.competition?.organizingTeam && (
-                          <span>
-                            {" "}
-                            &middot; {purchase.competition.organizingTeam.name}
-                          </span>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        {getStatusBadge(status)}
+                        {status === "MIXED" && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {statusSummary}
+                          </p>
                         )}
-                      </p>
+                      </div>
+                      <span className="font-medium">
+                        {formatCurrency(totalCents)}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {getStatusBadge(purchase.status)}
-                    <span className="font-medium">
-                      {formatCurrency(totalCents)}
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                  </CardContent>
+                </Card>
+              </Link>
+            ),
+          )}
         </div>
       )}
     </div>
