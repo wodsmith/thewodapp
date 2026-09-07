@@ -87,6 +87,7 @@ export function ProgrammingTrackEditDialog({
   }, [track, form])
 
   const onSubmit = async (data: FormValues) => {
+    form.clearErrors("root")
     try {
       // Build update object with only changed fields
       const updates: {
@@ -100,7 +101,7 @@ export function ProgrammingTrackEditDialog({
 
       if (data.name !== track.name) updates.name = data.name
       if (data.description !== (track.description || "")) {
-        updates.description = data.description || undefined
+        updates.description = data.description ?? ""
       }
       if (data.type !== track.type) updates.type = data.type
 
@@ -110,6 +111,12 @@ export function ProgrammingTrackEditDialog({
       dialogCloseRef.current?.click()
       onSuccess?.()
     } catch (error) {
+      form.setError("root", {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to update programming track. Please try again.",
+      })
       console.error(
         "Failed to update programming track:",
         error instanceof Error ? error.message : error,
@@ -190,6 +197,12 @@ export function ProgrammingTrackEditDialog({
                 </FormItem>
               )}
             />
+
+            {form.formState.errors.root && (
+              <p role="alert" className="text-sm text-destructive">
+                {form.formState.errors.root.message}
+              </p>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <DialogClose ref={dialogCloseRef} asChild>

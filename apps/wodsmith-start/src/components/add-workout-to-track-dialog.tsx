@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -37,6 +37,14 @@ export function AddWorkoutToTrackDialog({
   teamId,
   onSuccess,
 }: AddWorkoutToTrackDialogProps) {
+  const submitLock = useRef(false)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current)
+    },
+    [],
+  )
   const autoOrder = trackId === CROSSFIT_TRACK_ID
   const [open, setOpen] = useState(false)
   const [createWithAI, setCreateWithAI] = useState(false)
@@ -52,28 +60,49 @@ export function AddWorkoutToTrackDialog({
   )
   const [isLoadingWorkouts, setIsLoadingWorkouts] = useState(false)
 
-  // Fetch workouts when dialog opens
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [loadError, setLoadError] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Retrying the same page must rerun the request.
   useEffect(() => {
-    if (open && workouts.length === 0) {
-      const fetchWorkouts = async () => {
-        setIsLoadingWorkouts(true)
-        try {
-          const result = await getWorkoutsFn({
-            data: { teamId, page: 1, pageSize: 100 },
-          })
-          setWorkouts(result.workouts)
-        } catch (err) {
-          console.error("Failed to fetch workouts:", err)
-          setError("Failed to load workouts")
-        } finally {
-          setIsLoadingWorkouts(false)
-        }
+    if (!open) return
+    let cancelled = false
+    const fetchWorkouts = async () => {
+      setIsLoadingWorkouts(true)
+      setLoadError(false)
+      try {
+        const result = await getWorkoutsFn({
+          data: { teamId, page, pageSize: 50 },
+        })
+        if (cancelled) return
+        setWorkouts((previous) =>
+          page === 1
+            ? result.workouts
+            : [
+                ...previous,
+                ...result.workouts.filter(
+                  (item) =>
+                    !previous.some((existing) => existing.id === item.id),
+                ),
+              ],
+        )
+        setTotalCount(result.totalCount)
+      } catch {
+        if (!cancelled) setLoadError(true)
+      } finally {
+        if (!cancelled) setIsLoadingWorkouts(false)
       }
-      fetchWorkouts()
     }
-  }, [open, teamId, workouts.length])
+    void fetchWorkouts()
+    return () => {
+      cancelled = true
+    }
+  }, [open, teamId, page, loadAttempt])
 
   const handleSubmit = async () => {
+    if (submitLock.current) return
     if (!selectedWorkoutId) {
       setError("Please select a workout")
       return
@@ -85,6 +114,7 @@ export function AddWorkoutToTrackDialog({
       return
     }
 
+    submitLock.current = true
     setIsSubmitting(true)
     setError(null)
     try {
@@ -105,8 +135,11 @@ export function AddWorkoutToTrackDialog({
 
       setSuccessMessage("Workout added to track")
       // Wait a moment to show success message
-      setTimeout(() => {
+      closeTimer.current = setTimeout(() => {
         setOpen(false)
+        submitLock.current = false
+        setIsSubmitting(false)
+        closeTimer.current = null
         // Reset form
         setSelectedWorkoutId("")
         setTrackOrder("1")
@@ -120,13 +153,19 @@ export function AddWorkoutToTrackDialog({
       setError(
         err instanceof Error ? err.message : "Failed to add workout to track",
       )
-    } finally {
+      submitLock.current = false
       setIsSubmitting(false)
     }
   }
 
   const handleOpenChange = (newOpen: boolean) => {
+    if (submitLock.current) return
     setOpen(newOpen)
+    if (newOpen) {
+      setPage(1)
+      setWorkouts([])
+      setTotalCount(0)
+    }
     if (!newOpen) {
       setCreateWithAI(false)
       // Reset form when closing
@@ -219,6 +258,31 @@ export function AddWorkoutToTrackDialog({
                   )}
                 </SelectContent>
               </Select>
+              {loadError ? (
+                <div role="alert">
+                  <p>Failed to load workouts.</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setLoadAttempt((value) => value + 1)}
+                  >
+                    Retry loading workouts
+                  </Button>
+                </div>
+              ) : (
+                workouts.length < totalCount && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isLoadingWorkouts || isSubmitting}
+                    onClick={() => setPage((value) => value + 1)}
+                  >
+                    {isLoadingWorkouts
+                      ? "Loading workouts..."
+                      : "Load more workouts"}
+                  </Button>
+                )
+              )}
             </div>
           )}
           {!autoOrder && (
@@ -270,7 +334,7 @@ export function AddWorkoutToTrackDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
