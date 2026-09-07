@@ -8,6 +8,20 @@ Email + password authentication with email verification and password reset flows
 
 Password hashing uses bcrypt. New users sign up with email/password, then verify via an emailed token. Password reset sends a time-limited reset link.
 
+WODsmith Start supports password and passkey authentication. Unused Google OAuth configuration and provider-specific password errors are removed; legacy passwordless accounts use the sign-in page's existing forgot-password action. Stored provider ids are retained.
+
+### Account names
+
+Signup, volunteer account creation, and profile saves share trimmed, nonblank names of 1–255 characters, matching the users table storage limit.
+
+[[apps/wodsmith-start/src/schemas/profile.schema.ts#accountNameFields]] defines name fields for signup and profile. The profile browser form and server use [[apps/wodsmith-start/src/schemas/profile.schema.ts#userProfileSchema]], preserving avatar validation. Only submitted names are normalized; stored records are not rewritten.
+
+### Verification navigation
+
+Successful email verification redirects to sign-in after two seconds only while the verification page remains mounted.
+
+The redirect effect in [[apps/wodsmith-start/src/routes/_auth/verify-email.tsx#VerifyEmailPage]] clears its timer on unmount. A verification response that arrives after unmount cannot trigger navigation. See [[auth-boundary-tests#Account boundary regressions]].
+
 ## Sessions
 
 Session tokens stored as HTTP-only cookies. The `/api/get-session` endpoint validates the current session.
