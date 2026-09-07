@@ -8,7 +8,7 @@ Email + password authentication with email verification and password reset flows
 
 Password hashing uses bcrypt. New users sign up with email/password, then verify via an emailed token. Password reset sends a time-limited reset link.
 
-WODsmith Start supports password and passkey authentication. Unused Google OAuth configuration and provider-specific password errors are removed; legacy passwordless accounts use the sign-in page's existing forgot-password action. Stored provider ids are retained.
+WODsmith Start supports password and passkey authentication. Unused Google OAuth configuration and provider-specific password errors are removed; legacy passwordless accounts use the sign-in page's existing forgot-password action. The shared physical `google_account_id` column is a schema tombstone retained to avoid an unrelated cross-app migration; Start has no provider-specific authentication behavior or session tag. Shared test fixtures are narrowed to password sessions at Start call sites.
 
 ### Account names
 
