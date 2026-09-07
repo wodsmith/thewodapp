@@ -39,26 +39,31 @@ export function WorkoutRemixInfo({
   const [isRemixListOpen, setIsRemixListOpen] = useState(false)
   const [remixes, setRemixes] = useState<RemixedWorkout[]>([])
   const [isLoadingRemixes, setIsLoadingRemixes] = useState(false)
+  const [remixError, setRemixError] = useState(false)
+  const [hasLoadedRemixes, setHasLoadedRemixes] = useState(false)
 
   // Use server functions with useServerFn hook for client-side calls
   const getRemixes = useServerFn(getRemixedWorkoutsFn)
 
-  const handleToggleRemixList = async () => {
-    if (!isRemixListOpen && remixes.length === 0 && remixCount > 0) {
-      // Load remixes when opening for the first time
-      setIsLoadingRemixes(true)
-      try {
-        const result = await getRemixes({
-          data: { sourceWorkoutId: workoutId },
-        })
-        setRemixes(result.remixes)
-      } catch (error) {
-        console.error("Failed to load remixes:", error)
-      } finally {
-        setIsLoadingRemixes(false)
-      }
+  const loadRemixes = async () => {
+    setIsLoadingRemixes(true)
+    setRemixError(false)
+    try {
+      const result = await getRemixes({ data: { sourceWorkoutId: workoutId } })
+      setRemixes(result.remixes)
+      setHasLoadedRemixes(true)
+    } catch {
+      setRemixError(true)
+    } finally {
+      setIsLoadingRemixes(false)
     }
-    setIsRemixListOpen(!isRemixListOpen)
+  }
+
+  const handleToggleRemixList = (open: boolean) => {
+    setIsRemixListOpen(open)
+    if (open && !hasLoadedRemixes && !isLoadingRemixes && remixCount > 0) {
+      void loadRemixes()
+    }
   }
 
   return (
@@ -99,7 +104,6 @@ export function WorkoutRemixInfo({
               <Button
                 variant="ghost"
                 className="flex items-center gap-2 p-0 h-auto hover:bg-transparent"
-                onClick={handleToggleRemixList}
               >
                 <GitFork className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
@@ -117,6 +121,20 @@ export function WorkoutRemixInfo({
                 <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading remixes...
+                </div>
+              ) : remixError ? (
+                <div
+                  role="alert"
+                  className="space-y-2 text-sm text-destructive"
+                >
+                  <p>Failed to load remixes. Please try again.</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void loadRemixes()}
+                  >
+                    Retry
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-2 pl-6">
