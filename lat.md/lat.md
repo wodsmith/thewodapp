@@ -9,6 +9,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[organizer-dashboard]] — Competition organizer dashboard pages and features
 - [[competition-type-capabilities]] — Competition-type capability registry and PR-1 truth-table tests
 - [[route-docs]] — In-app documentation drawer and CMS for organizer pages
+- [[series-attempt-integrity]] — Best eligible series attempts and accepted guest waiver reminder proof
 - [[series-event-templates]] — Series event templates: define once, sync to all competitions
 - [[competition-invites]] — Qualification sources, roster, and email-locked invite rounds (ADR-0011)
 - [[crew]] — Crew concierge event setup, imports, and assignment confirmations
