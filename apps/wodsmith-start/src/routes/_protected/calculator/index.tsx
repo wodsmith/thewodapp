@@ -4,52 +4,33 @@ import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  type BarbellLoad,
+  type BarOption,
+  calculatePlates,
+  calculateWarmupLoad,
+  formatWeight,
+  getBarWeight,
+  MAX_TARGET_WEIGHT_LB,
+  weightFromPounds,
+  weightToPounds,
+} from "@/lib/barbell-calculator"
 
 // --- Constants ---
-const LB_PLATES_FULL = [45, 35, 25, 15, 10, 5, 2.5]
-const KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25] // Standard KG plates
 const WARMUP_PERCENTAGES = [0.4, 0.55, 0.7, 0.8, 0.9]
-const LB_TO_KG = 0.453592
 const WARMUP_PERCENTAGES_KEY = "wodsmith_warmup_percentages"
 
 // --- Search Schema ---
 const calculatorSearchSchema = z.object({
-  weight: z.number().int().min(0).optional(),
+  // Weight stays in pounds in URLs so existing bookmarks retain their load.
+  weight: z.number().min(0).max(MAX_TARGET_WEIGHT_LB).optional(),
   units: z.enum(["lb", "kg"]).optional(),
-  bar: z.number().int().optional(),
+  bar: z.union([z.literal(45), z.literal(35)]).optional(),
 })
 
 type CalculatorSearch = z.infer<typeof calculatorSearchSchema>
 
 // --- Helper Functions ---
-const roundToNearestIncrement = (weight: number, increment: number): number => {
-  return Math.round(weight / increment) * increment
-}
-
-const calculatePlates = (
-  targetWeight: number,
-  barWeight: number,
-  availablePlates: number[],
-): number[] => {
-  if (targetWeight <= barWeight) {
-    return []
-  }
-  const weightPerSide = (targetWeight - barWeight) / 2
-  const platesOnSide = []
-  let remaining = weightPerSide
-
-  // Small tolerance for floating point issues
-  const tolerance = 0.0001
-
-  for (const plate of availablePlates) {
-    while (remaining >= plate - tolerance) {
-      platesOnSide.push(plate)
-      remaining -= plate
-    }
-  }
-  return platesOnSide
-}
-
 const getPlateColor = (weight: number, isKg: boolean): string => {
   // Standard Olympic Plate Colors
   if (isKg) {
@@ -215,28 +196,45 @@ const BarbellGraphic = ({
   )
 }
 
+const LoadDifference = ({
+  load,
+  unit,
+}: {
+  load: BarbellLoad
+  unit: string
+}) => {
+  if (load.difference === 0) return null
+  return (
+    <p className="my-2 text-sm text-black dark:text-black">
+      {load.belowBar
+        ? `Target is below the ${formatWeight(load.barWeight)} ${unit} bar. `
+        : "Available plates cannot match this target exactly. "}
+      {formatWeight(Math.abs(load.difference))} {unit}{" "}
+      {load.difference > 0 ? "above" : "below"} requested{" "}
+      {formatWeight(load.requestedWeight)} {unit}.
+    </p>
+  )
+}
+
 const WarmupSet = ({
   setNumber,
-  weight,
-  plates,
+  load,
   unit,
   isKg,
   percentage,
   onPercentageChange,
 }: {
   setNumber: number
-  weight: number
-  plates: number[]
+  load: BarbellLoad
   unit: string
   isKg: boolean
   percentage: number
   onPercentageChange: (newPercentage: number) => void
 }) => (
   <div className="mb-2.5 border-2 border-black p-3.5 ">
-    <div className="mb-2.5 flex items-center justify-between">
+    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
       <h4 className="mt-0 border-black border-b pb-1.25 text-black text-lg dark:text-black">
-        Set {setNumber}: {weight.toFixed(1)}
-        {unit}
+        Set {setNumber}: {load.loadedWeight.toFixed(1)} {unit}
       </h4>
       <div className="flex items-center gap-2">
         <span className="text-neutral-600 text-sm">
@@ -259,9 +257,11 @@ const WarmupSet = ({
         />
       </div>
     </div>
+    <LoadDifference load={load} unit={unit} />
+    <p className="mb-1 text-sm">Plates per side:</p>
     <div className="flex flex-wrap items-center gap-1.25">
-      {plates.length > 0 ? (
-        plates.map((p: number, i: number) => (
+      {load.plates.length > 0 ? (
+        load.plates.map((p: number, i: number) => (
           <span
             key={`warmup-plate-${setNumber}-${i}-${p}`}
             className="rounded-sm border border-black px-2 py-0.5 font-bold text-sm"
@@ -304,7 +304,7 @@ function BarbellCalculatorPage() {
 
   // Local state for the input field
   const [inputWeight, setInputWeight] = useState<string>(
-    targetWeightQuery.toString(),
+    formatWeight(weightFromPounds(targetWeightQuery, units)),
   )
 
   // State for warmup percentages - initialized from localStorage or defaults
@@ -317,85 +317,63 @@ function BarbellCalculatorPage() {
   }, [])
 
   const isKg = units === "kg"
-  const actualBarWeight = isKg
-    ? roundToNearestIncrement(barWeightOption * LB_TO_KG, 1.25)
-    : barWeightOption
-  const availablePlates = isKg ? KG_PLATES : LB_PLATES_FULL
-  const displayUnit = isKg ? "kg" : "lb"
+  const actualBarWeight = getBarWeight(barWeightOption, units)
+  const targetWeight = weightFromPounds(targetWeightQuery, units)
 
-  const effectiveTargetWeightForCalc = isKg
-    ? roundToNearestIncrement(targetWeightQuery * LB_TO_KG, 2.5)
-    : targetWeightQuery
+  const load = useMemo(
+    () => calculatePlates(targetWeight, actualBarWeight, units),
+    [targetWeight, actualBarWeight, units],
+  )
 
-  const platesPerSide = useMemo(() => {
-    return calculatePlates(
-      effectiveTargetWeightForCalc,
-      actualBarWeight,
-      availablePlates,
-    )
-  }, [effectiveTargetWeightForCalc, actualBarWeight, availablePlates])
-
-  const warmupSets = useMemo(() => {
-    const baseTargetLb = targetWeightQuery
-    const barWeightLb = barWeightOption
-
-    return warmupPercentages.map((perc, index) => {
-      let warmupWeightLb = roundToNearestIncrement(baseTargetLb * perc, 5)
-      if (warmupWeightLb < barWeightLb) warmupWeightLb = barWeightLb
-
-      let displayWarmupWeight: number
-      let platesForWarmup: number[]
-      let barForWarmupCalc: number
-
-      if (isKg) {
-        displayWarmupWeight = roundToNearestIncrement(
-          warmupWeightLb * LB_TO_KG,
-          1.25,
-        )
-        barForWarmupCalc = roundToNearestIncrement(barWeightLb * LB_TO_KG, 1.25)
-        platesForWarmup = calculatePlates(
-          displayWarmupWeight,
-          barForWarmupCalc,
-          KG_PLATES,
-        )
-      } else {
-        displayWarmupWeight = warmupWeightLb
-        barForWarmupCalc = barWeightLb
-        platesForWarmup = calculatePlates(
-          displayWarmupWeight,
-          barForWarmupCalc,
-          LB_PLATES_FULL,
-        )
-      }
-
-      return {
+  const warmupSets = useMemo(
+    () =>
+      warmupPercentages.map((percentage, index) => ({
         setNumber: index + 1,
-        weight: displayWarmupWeight,
-        plates: platesForWarmup,
-        percentage: perc,
-      }
-    })
-  }, [targetWeightQuery, barWeightOption, isKg, warmupPercentages])
+        load: calculateWarmupLoad(
+          targetWeight,
+          percentage,
+          actualBarWeight,
+          units,
+        ),
+        percentage,
+      })),
+    [targetWeight, actualBarWeight, units, warmupPercentages],
+  )
 
   const handleWeightSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const newWeight = Number.parseInt(inputWeight, 10)
-    if (!Number.isNaN(newWeight) && newWeight > 0) {
+    const newWeight = weightToPounds(Number(inputWeight), units)
+    if (
+      inputWeight.trim() !== "" &&
+      Number.isFinite(newWeight) &&
+      newWeight >= 0 &&
+      newWeight <= MAX_TARGET_WEIGHT_LB
+    ) {
       navigate({
         search: (prev) => ({ ...prev, weight: newWeight }),
       })
     } else {
-      setInputWeight(targetWeightQuery.toString())
+      setInputWeight(formatWeight(targetWeight))
     }
   }
 
   const handleUnitsChange = (newUnits: "lb" | "kg") => {
+    // Preserve a valid draft when changing units, including before Calculate.
+    const draftWeight = weightToPounds(Number(inputWeight), units)
+    const weight =
+      inputWeight === formatWeight(targetWeight) ||
+      inputWeight.trim() === "" ||
+      !Number.isFinite(draftWeight) ||
+      draftWeight < 0 ||
+      draftWeight > MAX_TARGET_WEIGHT_LB
+        ? targetWeightQuery
+        : draftWeight
     navigate({
-      search: (prev) => ({ ...prev, units: newUnits }),
+      search: (prev) => ({ ...prev, weight, units: newUnits }),
     })
   }
 
-  const handleBarChange = (newBar: number) => {
+  const handleBarChange = (newBar: BarOption) => {
     navigate({
       search: (prev) => ({ ...prev, bar: newBar }),
     })
@@ -410,8 +388,8 @@ function BarbellCalculatorPage() {
 
   // Update input field if query param changes (e.g. back button)
   useEffect(() => {
-    setInputWeight(targetWeightQuery.toString())
-  }, [targetWeightQuery])
+    setInputWeight(formatWeight(targetWeight))
+  }, [targetWeight])
 
   return (
     <div className="mx-auto max-w-2xl border-4 border-black bg-white font-mono shadow-[8px_8px_0px_#000]">
@@ -421,10 +399,12 @@ function BarbellCalculatorPage() {
 
       <form
         onSubmit={handleWeightSubmit}
-        className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3.5 border-3 border-black p-3.5 "
+        className="mb-6 grid grid-cols-1 sm:grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3.5 border-3 border-black p-3.5 "
       >
         <div className="flex flex-col">
-          <Label htmlFor="weightInput">TARGET WEIGHT:</Label>
+          <Label htmlFor="weightInput">
+            Target weight ({units.toUpperCase()})
+          </Label>
           <Input
             id="weightInput"
             type="number"
@@ -432,101 +412,73 @@ function BarbellCalculatorPage() {
             onChange={(e) => setInputWeight(e.target.value)}
             required
             min="0"
+            max={weightFromPounds(MAX_TARGET_WEIGHT_LB, units)}
+            step="any"
           />
         </div>
-        <div className="flex flex-row gap-4">
-          <div className="flex h-full flex-col">
-            <Label htmlFor="units-lb">UNITS:</Label>
-            <div className="flex h-full items-center justify-center gap-2.5 rounded-none border-2 border-black bg-white p-2">
-              <Label
-                className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-                  units === "lb" ? "bg-black text-white dark:text-white" : ""
-                }`}
-                htmlFor="units-lb"
-              >
-                <Input
-                  id="units-lb"
-                  type="radio"
-                  name="units"
-                  value="lb"
-                  checked={units === "lb"}
-                  onChange={() => handleUnitsChange("lb")}
-                  className="hidden"
-                />
-                LB
-              </Label>
-              <Label
-                className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-                  units === "kg" ? "bg-black text-white dark:text-white" : ""
-                }`}
-                htmlFor="units-kg"
-              >
-                <Input
-                  id="units-kg"
-                  type="radio"
-                  name="units"
-                  value="kg"
-                  checked={units === "kg"}
-                  onChange={() => handleUnitsChange("kg")}
-                  className="hidden"
-                />
-                KG
-              </Label>
+        <div className="flex flex-wrap gap-4">
+          <fieldset className="min-w-0">
+            <legend className="text-sm font-medium">Units</legend>
+            <div className="flex gap-2.5 border-2 border-black bg-white p-2">
+              {(["lb", "kg"] as const).map((unit) => (
+                <label
+                  key={unit}
+                  className="flex cursor-pointer items-center gap-2 border-2 border-black px-2.5 py-1 text-black has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2"
+                >
+                  <input
+                    type="radio"
+                    name="units"
+                    value={unit}
+                    checked={units === unit}
+                    onChange={() => handleUnitsChange(unit)}
+                    className="size-4 accent-black"
+                  />
+                  {unit.toUpperCase()}
+                </label>
+              ))}
             </div>
-          </div>
-
-          <div className="flex w-full flex-col">
-            <Label htmlFor="bar-45">BAR (LB):</Label>
-            <div className="flex gap-2.5 rounded-none border-2 border-black bg-white p-2">
-              <Label
-                className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-                  barWeightOption === 45 ? "bg-black text-black" : ""
-                }`}
-                htmlFor="bar-45"
-              >
-                <Input
-                  id="bar-45"
-                  type="radio"
-                  name="bar"
-                  value={45}
-                  checked={barWeightOption === 45}
-                  onChange={() => handleBarChange(45)}
-                  className="hidden"
-                />
-                45 lb
-              </Label>
-              <Label
-                className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-                  barWeightOption === 35 ? "bg-black text-black" : ""
-                }`}
-                htmlFor="bar-35"
-              >
-                <Input
-                  id="bar-35"
-                  type="radio"
-                  name="bar"
-                  value={35}
-                  checked={barWeightOption === 35}
-                  onChange={() => handleBarChange(35)}
-                  className="hidden"
-                />
-                35 lb
-              </Label>
+          </fieldset>
+          <fieldset className="min-w-0">
+            <legend className="text-sm font-medium">Bar</legend>
+            <div className="flex gap-2.5 border-2 border-black bg-white p-2">
+              {([45, 35] as const).map((bar) => (
+                <label
+                  key={bar}
+                  className="flex cursor-pointer items-center gap-2 border-2 border-black px-2.5 py-1 text-black has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2"
+                >
+                  <input
+                    type="radio"
+                    name="bar"
+                    value={bar}
+                    checked={barWeightOption === bar}
+                    onChange={() => handleBarChange(bar)}
+                    className="size-4 accent-black"
+                  />
+                  {getBarWeight(bar, units)} {units}
+                </label>
+              ))}
             </div>
-          </div>
+          </fieldset>
         </div>
 
         <Button type="submit">Calculate</Button>
       </form>
 
       <div className="mb-5 border-3 border-black p-3.5 text-center font-bold text-4xl text-black dark:text-black">
-        {effectiveTargetWeightForCalc.toFixed(1)}
-        <small className="ml-1.25 align-middle text-[0.4em]">
-          {displayUnit.toUpperCase()}
-        </small>
+        <p className="mb-1 text-sm">Loaded weight</p>
+        <output aria-label="Loaded weight">
+          {load.loadedWeight.toFixed(1)}{" "}
+          <small className="ml-1.25 align-middle text-[0.4em]">
+            {units.toUpperCase()}
+          </small>
+        </output>
+        <LoadDifference load={load} unit={units} />
+        <p className="mt-2 text-sm font-normal">
+          {actualBarWeight} {units} bar + plates on both sides
+        </p>
       </div>
 
-      <BarbellGraphic plates={platesPerSide} isKg={isKg} />
+      <BarbellGraphic plates={load.plates} isKg={isKg} />
 
       <div className="mt-6 border-3 border-black p-3.5">
         <h3 className="mb-3.5 border-black border-b-2 pb-2 text-center text-black text-xl dark:text-black">
@@ -536,9 +488,8 @@ function BarbellCalculatorPage() {
           <WarmupSet
             key={set.setNumber}
             setNumber={set.setNumber}
-            weight={set.weight}
-            plates={set.plates}
-            unit={displayUnit}
+            load={set.load}
+            unit={units}
             isKg={isKg}
             percentage={set.percentage}
             onPercentageChange={(newPerc) =>
