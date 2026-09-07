@@ -1254,6 +1254,16 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 
     // 9. Create Stripe Checkout Session with multiple line items
     const appUrl = getAppUrl()
+    const cancelSearch = new URLSearchParams({
+      canceled: "true",
+      purchaseId: purchaseIds[0],
+    })
+    // These values come from the invite authorization above, never an arbitrary
+    // return URL. URLSearchParams keeps token characters inside their value.
+    if (inviteAuthorized && inviteDivisionIdForPurchase) {
+      cancelSearch.set("divisionId", inviteDivisionIdForPurchase)
+      if (input.inviteToken) cancelSearch.set("invite", input.inviteToken)
+    }
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
@@ -1266,7 +1276,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         multiDivision: purchaseIds.length > 1 ? "true" : "false",
       },
       success_url: `${appUrl}/compete/${competition.slug}/registered?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/compete/${competition.slug}/register?canceled=true`,
+      cancel_url: `${appUrl}/compete/${competition.slug}/register?${cancelSearch}`,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       customer_email: session.user.email ?? undefined,
     }
@@ -2033,7 +2043,7 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
   })
 
 /**
- * Cancel any pending purchases for a user/competition
+ * Cancel pending lines in one authenticated athlete checkout
  * Used when user explicitly cancels from Stripe checkout
  * This releases the reservation immediately instead of waiting for timeout
  */
@@ -2043,6 +2053,7 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
       .object({
         userId: z.string().min(1, "User ID is required"),
         competitionId: z.string().min(1, "Competition ID is required"),
+        purchaseId: z.string().min(1, "Purchase ID is required"),
       })
       .parse(data),
   )
@@ -2073,13 +2084,43 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Cancel any PENDING purchases for this user/competition
+    // Resolve an owned purchase to its exact order. Legacy cancel URLs without
+    // an anchor cannot safely release all of this athlete's reservations.
+    const [purchase] = await db
+      .select({ sessionId: commercePurchaseTable.stripeCheckoutSessionId })
+      .from(commercePurchaseTable)
+      .where(
+        and(
+          eq(commercePurchaseTable.id, data.purchaseId),
+          eq(commercePurchaseTable.userId, session.user.id),
+          eq(commercePurchaseTable.competitionId, data.competitionId),
+          eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+        ),
+      )
+      .limit(1)
+    if (!purchase?.sessionId) return { success: true }
+
+    // Prevent a still-open hosted checkout from charging after we release its
+    // reservations. A completed session cannot be expired: leave it to settlement.
+    try {
+      await getStripe().checkout.sessions.expire(purchase.sessionId)
+    } catch (error) {
+      // A prior attempt or natural expiry may already have closed the session.
+      // Only that terminal state is safe to cancel; completed stays for settlement.
+      const checkout = await getStripe().checkout.sessions.retrieve(
+        purchase.sessionId,
+      )
+      if (checkout.status !== "expired") throw error
+    }
+
+    // Cancel only pending lines (including add-ons) in this owned checkout.
     await db
       .update(commercePurchaseTable)
       .set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
       .where(
         and(
-          eq(commercePurchaseTable.userId, data.userId),
+          eq(commercePurchaseTable.userId, session.user.id),
+          eq(commercePurchaseTable.stripeCheckoutSessionId, purchase.sessionId),
           eq(commercePurchaseTable.competitionId, data.competitionId),
           eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
         ),

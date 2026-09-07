@@ -45,12 +45,22 @@ vi.mock('@/lib/env', () => ({
 
 // Mock Stripe
 const mockStripeCheckoutCreate = vi.fn()
+const mockStripeCheckoutExpire = vi.fn()
+const mockResolveInviteForClaim = vi.fn()
+vi.mock('@/server/competition-invites/claim', () => ({
+  resolveInviteForClaim: (...args: unknown[]) => mockResolveInviteForClaim(...args),
+  findActiveInviteForEmail: vi.fn(),
+  assertInviteClaimable: vi.fn(),
+  getOccupiedCountForBucket: vi.fn(),
+  resolveAllocationForInvite: vi.fn(),
+}))
 const mockStripeRefundsCreate = vi.fn()
 vi.mock('@/lib/stripe', () => ({
   getStripe: vi.fn(() => ({
     checkout: {
       sessions: {
         create: (...args: unknown[]) => mockStripeCheckoutCreate(...args),
+        expire: (...args: unknown[]) => mockStripeCheckoutExpire(...args),
       },
     },
     refunds: {
@@ -180,6 +190,7 @@ const initiatePayment = initiateRegistrationPaymentFn as unknown as (args: {
       }>
     }>
     affiliateName?: string
+    inviteToken?: string
     answers?: Array<{questionId: string; answer: string}>
     addOns?: Array<{
       productId: string
@@ -196,7 +207,7 @@ const initiatePayment = initiateRegistrationPaymentFn as unknown as (args: {
 }>
 
 const cancelPendingPurchase = cancelPendingPurchaseFn as unknown as (args: {
-  data: {userId: string; competitionId: string}
+  data: {userId: string; competitionId: string; purchaseId: string}
 }) => Promise<{success: boolean}>
 
 const removeRegistration = removeRegistrationFn as unknown as (args: {
@@ -933,9 +944,40 @@ describe('registration-fns', () => {
         expect(stripeArgs.allow_promotion_codes).toBeUndefined()
         expect(stripeArgs.metadata.multiDivision).toBe('true')
         expect(stripeArgs.metadata.purchaseIds).toContain(',')
+        expect(Object.fromEntries(new URL(stripeArgs.cancel_url).searchParams)).toEqual({canceled: 'true', purchaseId: result.purchaseId})
 
         // No immediate registration (completed by webhook)
         expect(mockRegisterForCompetition).not.toHaveBeenCalled()
+      })
+
+      // @lat: [[checkout-safety-tests#Checkout Safety Tests#Preserve validated invitation return state]]
+      it('preserves the authorized invitation and division on cancel after the public window closes', async () => {
+        setupPaidMocks()
+        vi.mocked(isDeadlinePassedInTimezone).mockReturnValueOnce(true)
+        const token = 'token&divisionId=evil#fragment'
+        mockResolveInviteForClaim.mockResolvedValueOnce({invite: {
+          id: 'invite_1', email: mockRegisteredUserSession.user.email,
+          championshipCompetitionId: testCompetitionId, championshipDivisionId: 'div-rx', sourceId: null,
+        }})
+        const result = await initiatePayment({data: {competitionId: testCompetitionId, items: [{divisionId: 'div-rx'}], inviteToken: token}})
+        const args = mockStripeCheckoutCreate.mock.calls[0][0]
+        const url = new URL(args.cancel_url)
+        expect(url.origin).toBe('https://test.wodsmith.com')
+        expect(url.pathname).toBe(`/compete/${mockCompetition.slug}/register`)
+        expect(Object.fromEntries(url.searchParams)).toEqual({canceled: 'true', purchaseId: result.purchaseId, invite: token, divisionId: 'div-rx'})
+        expect(url.hash).toBe('')
+      })
+
+      // @lat: [[checkout-safety-tests#Checkout Safety Tests#Reject unauthorized invitation checkout]]
+      it.each(['account', 'competition', 'division'])('does not create checkout for an invite belonging to another %s', async (mismatch) => {
+        setupPaidMocks()
+        mockResolveInviteForClaim.mockResolvedValueOnce({invite: {
+          id: 'invite_1', email: mismatch === 'account' ? 'other@example.com' : mockRegisteredUserSession.user.email,
+          championshipCompetitionId: mismatch === 'competition' ? 'other-comp' : testCompetitionId,
+          championshipDivisionId: mismatch === 'division' ? 'other-div' : 'div-rx', sourceId: null,
+        }})
+        await expect(initiatePayment({data: {competitionId: testCompetitionId, items: [{divisionId: 'div-rx'}], inviteToken: 'token'}})).rejects.toThrow(/Invitation/)
+        expect(mockStripeCheckoutCreate).not.toHaveBeenCalled()
       })
 
       it('creates separate purchase records per division', async () => {
@@ -1411,11 +1453,13 @@ describe('registration-fns', () => {
   // ============================================================================
 
   describe('cancelPendingPurchaseFn', () => {
-    it('cancels pending purchases for user/competition', async () => {
+    it('cancels pending purchases for the owned checkout', async () => {
+      mockDb.setMockReturnValue([{sessionId: 'cs_owned'}])
       const result = await cancelPendingPurchase({
         data: {
           userId: registeredUserId,
           competitionId: testCompetitionId,
+          purchaseId: 'purchase_owned',
         },
       })
 
@@ -1429,6 +1473,7 @@ describe('registration-fns', () => {
           data: {
             userId: 'different-user',
             competitionId: testCompetitionId,
+          purchaseId: 'purchase_owned',
           },
         }),
       ).rejects.toThrow('You can only cancel your own pending purchases')
@@ -1442,6 +1487,7 @@ describe('registration-fns', () => {
           data: {
             userId: registeredUserId,
             competitionId: testCompetitionId,
+          purchaseId: 'purchase_owned',
           },
         }),
       ).rejects.toThrow('Unauthorized')

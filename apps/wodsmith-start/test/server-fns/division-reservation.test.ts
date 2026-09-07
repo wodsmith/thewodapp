@@ -64,6 +64,10 @@ vi.mock("@/utils/auth", () => ({
 	getSessionFromCookie: vi.fn(() => Promise.resolve(mockSession)),
 }))
 
+vi.mock("@/lib/stripe", () => ({
+  getStripe: () => ({checkout: {sessions: {expire: vi.fn().mockResolvedValue({status: "expired"})}}}),
+}))
+
 // Import after mocks are set up
 import {
 	getDivisionSpotsAvailableFn,
@@ -353,8 +357,10 @@ describe("Division Reservation System", () => {
 	describe("cancelPendingPurchaseFn", () => {
 		describe("canceling reservations", () => {
 			it("should cancel pending purchases for user/competition", async () => {
+				mockDb.setMockReturnValue([{ sessionId: "cs_owned" }])
 				const result = await cancelPendingPurchaseFn({
 					data: {
+						purchaseId: testPurchaseId1,
 						userId: testUserId,
 						competitionId: testCompetitionId,
 					},
@@ -364,25 +370,10 @@ describe("Division Reservation System", () => {
 				expect(mockDb.update).toHaveBeenCalled()
 			})
 
-			it("should only cancel PENDING status purchases", async () => {
-				await cancelPendingPurchaseFn({
-					data: {
-						userId: testUserId,
-						competitionId: testCompetitionId,
-					},
-				})
-
-				// Verify the where clause includes status check
-				expect(mockDb.update).toHaveBeenCalled()
-				// The actual SQL verification would require inspecting the where clause
-				// which FakeDrizzleDb tracks via the where spy
-			})
 		})
 
-		// Note: True isolation testing would require a real database or more
-		// sophisticated mocking that can verify where clause arguments.
-		// The where clause in cancelPendingPurchaseFn filters by userId,
-		// competitionId, and PENDING status - verified through code review.
+		// checkout-safety.test.ts exercises owner, competition, session, and
+		// PENDING predicates against real rows, including completed purchases.
 	})
 
 	describe("getPublicCompetitionDivisionsFn", () => {
@@ -532,8 +523,10 @@ describe("Reservation System Integration Scenarios", () => {
 
 		it("should allow registration after pending purchase is cancelled", async () => {
 			// First, cancel the pending purchase
+			mockDb.setMockReturnValue([{ sessionId: "cs_owned" }])
 			await cancelPendingPurchaseFn({
 				data: {
+					purchaseId: testPurchaseId1,
 					userId: testUserId,
 					competitionId: testCompetitionId,
 				},
