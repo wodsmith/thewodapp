@@ -159,6 +159,8 @@ Organizers can move a registration between divisions via `transferRegistrationDi
 
 Validates same team size between source and target divisions (individual-to-team blocked). Updates the registration's `divisionId`, removes heat assignments (division-specific), and updates the commerce purchase record. Does not enforce capacity (organizer decision).
 
+A division move is blocked when the registration's captain or teammates have recorded results in the current division (including a null division). The server checks inside the write transaction, preserves every score, and asks the organizer to contact support to agree on a results policy. Results in other divisions do not block an otherwise valid move. See [[transfer-integrity-tests#Scored division moves]] and [[transfer-integrity-tests#Unscored division moves]].
+
 ## Day-of Check-In
 
 In-person competitions can mark teams as physically arrived via the volunteer-facing kiosk at `/compete/{slug}/check-in`.

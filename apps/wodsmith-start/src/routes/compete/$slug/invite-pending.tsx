@@ -35,14 +35,14 @@ function InvitePendingPage() {
           </div>
           <CardTitle className="text-center">Claim your invite</CardTitle>
           <CardDescription className="text-center">
-            You're signed in with the right account now.
+            Use the account that received the invitation.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Re-open the invitation email and click the claim link — it will
-            pick up your current session and take you straight to the
-            pre-attached registration page.
+            Re-open the invitation email and click the claim link. If prompted,
+            sign in with the email address that received the invitation to
+            continue to your registration.
           </p>
           <p className="text-xs text-muted-foreground">
             Can't find the email? Contact the organizer and they can

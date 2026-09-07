@@ -181,13 +181,20 @@ export const getWaiverSignaturesForRegistrationFn = createServerFn({
     const db = getDb()
 
     const signatures = await db.query.waiverSignaturesTable.findMany({
+      // These status endpoints do not authorize access to typed signature text.
+      columns: { signatureName: false },
       where: eq(waiverSignaturesTable.registrationId, data.registrationId),
       with: {
         waiver: true,
       },
     })
 
-    return { signatures }
+    return {
+      signatures: signatures.map((signature) => ({
+        ...signature,
+        signatureName: null,
+      })),
+    }
   })
 
 /**
@@ -219,6 +226,8 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
 
     // Get signatures for this user for any of those waivers
     const signatures = await db.query.waiverSignaturesTable.findMany({
+      // These status endpoints do not authorize access to typed signature text.
+      columns: { signatureName: false },
       where: and(
         eq(waiverSignaturesTable.userId, data.userId),
         inArray(waiverSignaturesTable.waiverId, waiverIds),
@@ -228,7 +237,12 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
       },
     })
 
-    return { signatures }
+    return {
+      signatures: signatures.map((signature) => ({
+        ...signature,
+        signatureName: null,
+      })),
+    }
   })
 
 /**

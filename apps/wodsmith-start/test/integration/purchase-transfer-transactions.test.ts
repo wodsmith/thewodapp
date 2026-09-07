@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto"
+import { readFile } from "node:fs/promises"
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { createWodsmithDb } from "@repo/wodsmith-db/mysql"
 import { getTableColumns, getTableName } from "drizzle-orm"
 import { CasingCache } from "drizzle-orm/casing"
@@ -24,8 +27,10 @@ import {
   competitionsTable,
   purchaseTransfersTable,
   scoresTable,
+  scalingLevelsTable,
   teamMembershipTable,
   waiverSignaturesTable,
+  waiversTable,
 } from "@/db/schema"
 
 const fixture = vi.hoisted(() => ({ db: undefined as Database | undefined }))
@@ -48,7 +53,12 @@ vi.mock("@/utils/auth", () => ({
 }))
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
-    inputValidator: () => ({ handler: (fn: unknown) => fn }),
+    inputValidator: (validate: (data: unknown) => unknown) => ({
+      handler:
+        (fn: (input: { data: unknown }) => unknown) =>
+        async (input: { data: unknown }) =>
+          fn({ data: validate(input.data) }),
+    }),
     handler: (fn: unknown) => fn,
   }),
   createServerOnlyFn: (fn: unknown) => fn,
@@ -56,13 +66,17 @@ vi.mock("@tanstack/react-start", () => ({
 
 import { acceptPurchaseTransferFn } from "@/server-fns/purchase-transfer-accept-fns"
 import { cancelPurchaseTransferFn } from "@/server-fns/purchase-transfer-fns"
+import { transferRegistrationDivisionFn } from "@/server-fns/registration-fns"
+import { getSessionFromCookie } from "@/utils/auth"
+import * as startWaivers from "@/server-fns/waiver-fns"
+import * as crewWaivers from "../../../crew/src/server-fns/waiver-fns"
 import * as handlers from "@/server/commerce/transfer-handlers"
 
 const accept = acceptPurchaseTransferFn as unknown as (input: {
   data: {
     transferId: string
     answers?: Array<{ questionId: string; answer: string }>
-    waiverSignatures?: Array<{ waiverId: string }>
+    waiverSignatures?: Array<{ waiverId: string; signatureName: string }>
   }
 }) => Promise<{ success: boolean; competitionSlug: string | null }>
 const cancel = cancelPurchaseTransferFn as unknown as (input: {
@@ -83,8 +97,10 @@ const tables = [
   competitionHeatAssignmentsTable,
   competitionRegistrationAnswersTable,
   waiverSignaturesTable,
+  waiversTable,
   competitionEventsTable,
   scoresTable,
+  scalingLevelsTable,
 ]
 let admin: Pool
 let pool: Pool
@@ -188,6 +204,11 @@ describe.skipIf(!mysqlTestConfig)(
         .query(
           `ALTER TABLE \`${getTableName(competitionRegistrationsTable)}\` ADD UNIQUE INDEX competition_registrations_event_user_division_idx (event_id, user_id, division_id)`,
         )
+      await pool
+        .promise()
+        .query(
+          "ALTER TABLE waiver_signatures ADD UNIQUE INDEX waiver_user (waiver_id, user_id)",
+        )
     }, 20_000)
 
     afterAll(async () => {
@@ -263,13 +284,20 @@ describe.skipIf(!mysqlTestConfig)(
         userId: "source",
         waiverId: "waiver",
       })
+      await insert(waiversTable, {
+        id: "waiver",
+        competitionId: "competition",
+        required: false,
+      })
       await insert(competitionEventsTable, {
         id: "event",
+        trackWorkoutId: "track-workout",
         competitionId: "competition",
       })
       await insert(scoresTable, {
         id: "source-score",
-        competitionEventId: "event",
+        competitionEventId: "track-workout",
+        scalingLevelId: "division",
         userId: "source",
       })
     })
@@ -288,7 +316,9 @@ describe.skipIf(!mysqlTestConfig)(
             data: {
               transferId: "transfer",
               answers: [{ questionId: "question", answer: "New answer" }],
-              waiverSignatures: [{ waiverId: "waiver" }],
+              waiverSignatures: [
+                { waiverId: "waiver", signatureName: "Target Athlete" },
+              ],
             },
           }),
         ).rejects.toThrow("fixture waiver failure")
@@ -331,7 +361,9 @@ describe.skipIf(!mysqlTestConfig)(
           accept({
             data: {
               transferId: "transfer",
-              waiverSignatures: [{ waiverId: "waiver" }],
+              waiverSignatures: [
+                { waiverId: "waiver", signatureName: "Target Athlete" },
+              ],
             },
           }),
         ).rejects.toThrow("fixture waiver failure")
@@ -383,7 +415,9 @@ describe.skipIf(!mysqlTestConfig)(
             data: {
               transferId: "transfer",
               answers: [{ questionId: "question", answer: "New answer" }],
-              waiverSignatures: [{ waiverId: "waiver" }],
+              waiverSignatures: [
+                { waiverId: "waiver", signatureName: "Target Athlete" },
+              ],
             },
           }),
         ).resolves.toEqual({
@@ -441,6 +475,332 @@ describe.skipIf(!mysqlTestConfig)(
         }
       },
     )
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Exact score scope]]
+    it.each([
+      { divisionId: "division", trackWorkoutId: "track-workout" },
+      { divisionId: null, trackWorkoutId: "track-workout" },
+      { divisionId: "division", trackWorkoutId: "event" },
+    ])(
+      "preserves retained-division, other-athlete, and other-event scores ($divisionId, $trackWorkoutId)",
+      async ({ divisionId, trackWorkoutId }) => {
+        // Real storage uses track-workout IDs, which differ from competition-event IDs.
+        await pool
+          .promise()
+          .query("UPDATE competition_events SET track_workout_id = ?", [
+            trackWorkoutId,
+          ])
+        await pool
+          .promise()
+          .query("UPDATE competition_registrations SET division_id = ?", [
+            divisionId,
+          ])
+        await pool.promise().query("DELETE FROM scores")
+        const fixtures = [
+          {
+            id: "transferred-score",
+            userId: "source",
+            competitionEventId: trackWorkoutId,
+            scalingLevelId: divisionId,
+          },
+          {
+            id: "retained-score",
+            userId: "source",
+            competitionEventId: trackWorkoutId,
+            scalingLevelId: "retained-division",
+          },
+          {
+            id: "other-athlete",
+            userId: "partner",
+            competitionEventId: trackWorkoutId,
+            scalingLevelId: divisionId,
+          },
+          {
+            id: "other-event",
+            userId: "source",
+            competitionEventId: "other-track-workout",
+            scalingLevelId: divisionId,
+          },
+          {
+            id: "personal",
+            userId: "source",
+            competitionEventId: null,
+            scalingLevelId: divisionId,
+          },
+        ]
+        await insert(competitionRegistrationsTable, {
+          id: "retained-registration",
+          userId: "source",
+          eventId: "competition",
+          divisionId: "retained-division",
+          status: "active",
+        })
+        for (const score of fixtures) await insert(scoresTable, score)
+        const before = await rows(scoresTable)
+        await expect(
+          accept({ data: { transferId: "transfer" } }),
+        ).resolves.toMatchObject({ success: true })
+        expect(await rows(scoresTable)).toEqual(
+          before.filter((score) => score.id !== "transferred-score"),
+        )
+        expect(
+          (await rows(competitionRegistrationsTable)).find(
+            (reg) => reg.id === "retained-registration",
+          ),
+        ).toMatchObject({
+          user_id: "source",
+          division_id: "retained-division",
+          status: "active",
+        })
+      },
+    )
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Scored division moves]]
+    it.each([
+      { scoredUser: "source", divisionId: "division", teamSize: 2 },
+      { scoredUser: "partner", divisionId: "division", teamSize: 2 },
+      { scoredUser: "source", divisionId: null, teamSize: 1 },
+    ])(
+      "blocks a division move with $scoredUser results in $divisionId and preserves every table",
+      async ({ scoredUser, divisionId, teamSize }) => {
+        await insert(scalingLevelsTable, { id: "division", teamSize })
+        await insert(scalingLevelsTable, { id: "target-division", teamSize })
+        await pool
+          .promise()
+          .query("UPDATE competition_registrations SET division_id = ?", [
+            divisionId,
+          ])
+        await pool
+          .promise()
+          .query(
+            "UPDATE competition_registrations SET athlete_team_id = 'athlete-team'",
+          )
+        await pool
+          .promise()
+          .query(
+            "UPDATE competition_events SET track_workout_id = 'track-workout'",
+          )
+        await pool
+          .promise()
+          .query(
+            "UPDATE scores SET competition_event_id = 'track-workout', scaling_level_id = ?, user_id = ?",
+            [divisionId, scoredUser],
+          )
+        await insert(teamMembershipTable, {
+          id: "partner",
+          teamId: "athlete-team",
+          userId: "partner",
+          isActive: true,
+        })
+        const before = await snapshot()
+        await expect(
+          transferRegistrationDivisionFn({
+            data: {
+              registrationId: "registration",
+              competitionId: "competition",
+              targetDivisionId: "target-division",
+            },
+          }),
+        ).rejects.toThrow("recorded results")
+        expect(await snapshot()).toEqual(before)
+      },
+    )
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Unscored division moves]]
+    it("allows an unscored move without modifying scores in a retained division", async () => {
+      await insert(scalingLevelsTable, { id: "division", teamSize: 1 })
+      await insert(scalingLevelsTable, { id: "target-division", teamSize: 1 })
+      await pool
+        .promise()
+        .query(
+          "UPDATE competition_events SET track_workout_id = 'track-workout'",
+        )
+      await pool
+        .promise()
+        .query(
+          "UPDATE scores SET competition_event_id = 'track-workout', scaling_level_id = 'retained-division'",
+        )
+      await insert(scoresTable, {
+        id: "other-athlete-score",
+        userId: "unrelated",
+        competitionEventId: "track-workout",
+        scalingLevelId: "division",
+      })
+      await insert(scoresTable, {
+        id: "other-event-score",
+        userId: "source",
+        competitionEventId: "other-track-workout",
+        scalingLevelId: "division",
+      })
+      const scoresBefore = await rows(scoresTable)
+      await expect(
+        transferRegistrationDivisionFn({
+          data: {
+            registrationId: "registration",
+            competitionId: "competition",
+            targetDivisionId: "target-division",
+          },
+        }),
+      ).resolves.toMatchObject({ success: true, removedHeatAssignments: 1 })
+      expect(await rows(scoresTable)).toEqual(scoresBefore)
+      expect(await rows(competitionRegistrationsTable)).toMatchObject([
+        { division_id: "target-division" },
+      ])
+      expect(await rows(commercePurchaseTable)).toMatchObject([
+        { division_id: "target-division" },
+      ])
+      expect(await rows(competitionHeatAssignmentsTable)).toEqual([])
+    })
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Typed waiver signature]]
+    it("persists the typed signature with the accepting user and registration without changing source audit", async () => {
+      const sourceBefore = await rows(waiverSignaturesTable)
+      await accept({
+        data: {
+          transferId: "transfer",
+          waiverSignatures: [
+            { waiverId: "waiver", signatureName: "  Taylor J. Athlete  " },
+          ],
+        },
+      })
+      const signatures = await rows(waiverSignaturesTable)
+      expect(
+        signatures.find((signature) => signature.user_id === "source"),
+      ).toEqual(sourceBefore[0])
+      expect(
+        signatures.find((signature) => signature.user_id === "target"),
+      ).toMatchObject({
+        signature_name: "  Taylor J. Athlete  ",
+        registration_id: "registration",
+        signed_at: expect.any(Date),
+      })
+    })
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Waiver validation boundaries]]
+    it.each([
+      { waiverId: "waiver", signatureName: "   " },
+      { waiverId: "waiver", signatureName: "x".repeat(256) },
+      { waiverId: "foreign-waiver", signatureName: "Target Athlete" },
+    ])(
+      "rejects invalid or foreign waiver signatures before registration changes ($waiverId)",
+      async (signature) => {
+        await insert(waiversTable, {
+          id: "foreign-waiver",
+          competitionId: "other-competition",
+          required: true,
+        })
+        const before = await snapshot()
+        await expect(
+          accept({
+            data: { transferId: "transfer", waiverSignatures: [signature] },
+          }),
+        ).rejects.toThrow()
+        expect(await snapshot()).toEqual(before)
+      },
+    )
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Required transfer waivers]]
+    it("requires every required waiver even when the request bypasses the form", async () => {
+      await pool.promise().query("UPDATE waivers SET required = true")
+      const before = await snapshot()
+      await expect(
+        accept({ data: { transferId: "transfer" } }),
+      ).rejects.toThrow("required waivers")
+      expect(await snapshot()).toEqual(before)
+    })
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Existing recipient acknowledgement]]
+    it("updates an existing recipient acknowledgement without duplicating or altering source signatures", async () => {
+      await insert(waiverSignaturesTable, {
+        id: "prior-target-signature",
+        waiverId: "waiver",
+        userId: "target",
+        signatureName: "Previous Name",
+        registrationId: "other-registration",
+        signedAt: new Date("2025-01-01"),
+      })
+      await accept({
+        data: {
+          transferId: "transfer",
+          waiverSignatures: [
+            { waiverId: "waiver", signatureName: "Current Typed Name" },
+          ],
+        },
+      })
+      const signatures = await rows(waiverSignaturesTable)
+      expect(signatures).toHaveLength(2)
+      expect(
+        signatures.find((signature) => signature.user_id === "target"),
+      ).toMatchObject({
+        id: "prior-target-signature",
+        signature_name: "Current Typed Name",
+        registration_id: "registration",
+      })
+      const after = await snapshot()
+      await expect(
+        accept({ data: { transferId: "transfer" } }),
+      ).rejects.toThrow("already been accepted")
+      expect(await snapshot()).toEqual(after)
+    })
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Signature status privacy]]
+    it.each([startWaivers, crewWaivers])(
+      "does not expose typed names through public or registration status endpoints",
+      async (endpoints) => {
+        await accept({
+          data: {
+            transferId: "transfer",
+            waiverSignatures: [
+              { waiverId: "waiver", signatureName: "Private Typed Name" },
+            ],
+          },
+        })
+        const userStatus = await endpoints.getWaiverSignaturesForUserFn({
+          data: { userId: "target", competitionId: "competition" },
+        })
+        expect(userStatus.signatures).toHaveLength(1)
+        expect(userStatus.signatures[0]).toHaveProperty("signatureName", null)
+        vi.mocked(getSessionFromCookie).mockResolvedValue({
+          userId: "unrelated-user",
+        } as Awaited<ReturnType<typeof getSessionFromCookie>>)
+        const registrationStatus =
+          await endpoints.getWaiverSignaturesForRegistrationFn({
+            data: { registrationId: "registration" },
+          })
+        expect(registrationStatus.signatures).toHaveLength(2)
+        for (const signature of registrationStatus.signatures)
+          expect(signature).toHaveProperty("signatureName", null)
+      },
+    )
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Transfer registration ownership]]
+    it("rejects a transfer whose registration no longer belongs to the source user", async () => {
+      await pool
+        .promise()
+        .query("UPDATE competition_registrations SET user_id = 'other-user'")
+      const before = await snapshot()
+      await expect(
+        accept({ data: { transferId: "transfer" } }),
+      ).rejects.toThrow("no longer belongs")
+      expect(await snapshot()).toEqual(before)
+    })
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Signature migration compatibility]]
+    it("applies the signature migration without changing legacy acknowledgements", async () => {
+      const before = await rows(waiverSignaturesTable)
+      await pool
+        .promise()
+        .query("ALTER TABLE waiver_signatures DROP COLUMN signature_name")
+      const migration = await readFile(
+        resolve(
+          dirname(fileURLToPath(import.meta.url)),
+          "../../../../packages/wodsmith-db/mysql-migrations/0007_transfer_signature_name.sql",
+        ),
+        "utf8",
+      )
+      await pool.promise().query(migration)
+      expect(await rows(waiverSignaturesTable)).toEqual(before)
+    })
 
     // @lat: [[commerce#Purchase Transfers#Concurrent acceptance and cancellation]]
     it("allows only acceptance to commit when cancellation races an in-flight handler", async () => {

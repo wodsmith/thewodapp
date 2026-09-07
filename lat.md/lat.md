@@ -35,3 +35,5 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[review-backend]] — Training review regressions for score validation, historical references, and athlete catalog access.
 
 - [[athlete-workout-review]] — Athlete workout editing, catalog choices, and score-dialog review regressions.
+
+- [[transfer-integrity-tests]] — Transfer score scope, division guards, waiver signatures, and invite recovery regression tests.

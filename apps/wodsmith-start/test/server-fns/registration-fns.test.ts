@@ -1790,6 +1790,7 @@ describe('registration-fns', () => {
       targetDivision?: Record<string, unknown> | null
       existingTargetRegistration?: Record<string, unknown> | null
     }) {
+      mockDb.registerTable('scoresTable')
       mockDb.registerTable('competitionsTable')
       mockDb.registerTable('competitionRegistrationsTable')
       mockDb.registerTable('scalingLevelsTable')

@@ -2410,6 +2410,46 @@ export const transferRegistrationDivisionFn = createServerFn({
     let removedHeatAssignments = 0
 
     await db.transaction(async (tx) => {
+      // A scored registration needs an explicit results policy before it can
+      // move. Include teammate results and the null-division scope; never clear
+      // or reinterpret scores as a side effect of an ordinary division change.
+      const recordedResult = await tx.query.scoresTable.findFirst({
+        columns: { id: true },
+        where: and(
+          inArray(
+            scoresTable.competitionEventId,
+            tx
+              .select({ id: competitionEventsTable.trackWorkoutId })
+              .from(competitionEventsTable)
+              .where(
+                eq(competitionEventsTable.competitionId, input.competitionId),
+              ),
+          ),
+          registration.divisionId
+            ? eq(scoresTable.scalingLevelId, registration.divisionId)
+            : isNull(scoresTable.scalingLevelId),
+          or(
+            eq(scoresTable.userId, registration.userId),
+            registration.athleteTeamId
+              ? inArray(
+                  scoresTable.userId,
+                  tx
+                    .select({ userId: teamMembershipTable.userId })
+                    .from(teamMembershipTable)
+                    .where(
+                      eq(teamMembershipTable.teamId, registration.athleteTeamId),
+                    ),
+                )
+              : undefined,
+          ),
+        ),
+      })
+      if (recordedResult) {
+        throw new Error(
+          "This registration has recorded results in its current division. Division transfer is blocked. Contact competition support to agree on how those results should be handled; all scores have been preserved.",
+        )
+      }
+
       // Update registration divisionId
       await tx
         .update(competitionRegistrationsTable)

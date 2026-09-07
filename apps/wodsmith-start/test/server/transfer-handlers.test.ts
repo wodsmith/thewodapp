@@ -78,6 +78,8 @@ beforeEach(() => {
   mockDb.registerTable('competitionHeatAssignmentsTable')
   mockDb.registerTable('competitionRegistrationAnswersTable')
   mockDb.registerTable('waiverSignaturesTable')
+  mockDb.registerTable('waiversTable')
+  mockDb.query.waiversTable.findMany = vi.fn().mockResolvedValue([{id: 'waiver-1', required: false}])
   mockDb.registerTable('competitionEventsTable')
   mockDb.registerTable('scoresTable')
 
@@ -106,7 +108,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
     }
 
     // Mock select for competition events (for score deletion)
-    mockDb.setMockReturnValue([{id: 'event-1'}, {id: 'event-2'}])
+    mockDb.setMockReturnValue([{trackWorkoutId: 'event-1'}, {trackWorkoutId: 'event-2'}])
 
     return reg
   }
@@ -180,7 +182,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
       findMany: vi.fn().mockResolvedValue([]),
     }
 
-    mockDb.setMockReturnValue([{id: 'event-1'}])
+    mockDb.setMockReturnValue([{trackWorkoutId: 'event-1'}])
 
     await handleCompetitionRegistrationTransfer(transferDb, {
       purchaseId: testPurchaseId,
@@ -235,7 +237,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
       sourceUserId,
       targetUserId,
       competitionId: testCompetitionId,
-      waiverSignatures: [{waiverId: 'waiver-1'}],
+      waiverSignatures: [{waiverId: 'waiver-1', signatureName: 'Target Athlete'}],
     })
 
     expect(mockDb.insert).toHaveBeenCalled()

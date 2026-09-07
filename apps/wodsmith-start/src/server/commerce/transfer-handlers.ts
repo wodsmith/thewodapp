@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, isNull } from "drizzle-orm"
 import type { Database } from "@/db"
 import {
   competitionEventsTable,
@@ -9,6 +9,7 @@ import {
   SYSTEM_ROLES_ENUM,
   teamMembershipTable,
   waiverSignaturesTable,
+  waiversTable,
 } from "@/db/schema"
 
 interface TransferContext {
@@ -17,7 +18,7 @@ interface TransferContext {
   targetUserId: string
   competitionId: string
   answers?: Array<{ questionId: string; answer: string }>
-  waiverSignatures?: Array<{ waiverId: string }>
+  waiverSignatures?: Array<{ waiverId: string; signatureName: string }>
 }
 
 type TransferTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
@@ -36,6 +37,35 @@ export async function handleCompetitionRegistrationTransfer(
 
   if (!registration) {
     throw new Error("No active registration found for this purchase")
+  }
+
+  if (
+    registration.userId !== ctx.sourceUserId ||
+    registration.eventId !== ctx.competitionId
+  ) {
+    throw new Error("Registration no longer belongs to this transfer")
+  }
+
+  const waivers = await db.query.waiversTable.findMany({
+    where: eq(waiversTable.competitionId, ctx.competitionId),
+  })
+  const signatures = ctx.waiverSignatures ?? []
+  const signedIds = new Set(signatures.map((signature) => signature.waiverId))
+  if (signedIds.size !== signatures.length) {
+    throw new Error("Each waiver can only be signed once per acceptance")
+  }
+  if (
+    signatures.some(
+      (signature) =>
+        !waivers.some((waiver) => waiver.id === signature.waiverId),
+    )
+  ) {
+    throw new Error("Waiver does not belong to this competition")
+  }
+  if (waivers.some((waiver) => waiver.required && !signedIds.has(waiver.id))) {
+    throw new Error(
+      "Please sign all required waivers before accepting the transfer",
+    )
   }
 
   // 2. Check target user doesn't already have registration in same division
@@ -131,12 +161,20 @@ export async function handleCompetitionRegistrationTransfer(
   // 9. Save waiver signatures if provided
   if (ctx.waiverSignatures && ctx.waiverSignatures.length > 0) {
     for (const sig of ctx.waiverSignatures) {
-      await db.insert(waiverSignaturesTable).values({
-        waiverId: sig.waiverId,
-        userId: ctx.targetUserId,
+      const acknowledgement = {
+        signatureName: sig.signatureName,
         registrationId: registration.id,
         signedAt: new Date(),
-      })
+        ipAddress: null,
+      }
+      await db
+        .insert(waiverSignaturesTable)
+        .values({
+          waiverId: sig.waiverId,
+          userId: ctx.targetUserId,
+          ...acknowledgement,
+        })
+        .onDuplicateKeyUpdate({ set: acknowledgement })
     }
   }
 
@@ -170,20 +208,24 @@ export async function handleCompetitionRegistrationTransfer(
     })
   }
 
-  // 11. Delete scores for the source user in this competition's events
+  // 11. Scores reference track-workout IDs, and belong to one division.
+  // Preserve the source athlete's results in every retained registration.
   const competitionEvents = await db
-    .select({ id: competitionEventsTable.id })
+    .select({ trackWorkoutId: competitionEventsTable.trackWorkoutId })
     .from(competitionEventsTable)
     .where(eq(competitionEventsTable.competitionId, ctx.competitionId))
 
   if (competitionEvents.length > 0) {
-    const eventIds = competitionEvents.map((e) => e.id)
+    const eventIds = competitionEvents.map((e) => e.trackWorkoutId)
     await db
       .delete(scoresTable)
       .where(
         and(
           inArray(scoresTable.competitionEventId, eventIds),
           eq(scoresTable.userId, ctx.sourceUserId),
+          registration.divisionId
+            ? eq(scoresTable.scalingLevelId, registration.divisionId)
+            : isNull(scoresTable.scalingLevelId),
         ),
       )
   }

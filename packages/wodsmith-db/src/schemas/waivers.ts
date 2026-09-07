@@ -72,6 +72,8 @@ export const waiverSignaturesTable = mysqlTable(
     waiverId: varchar({ length: 255 }).notNull(),
     // The user who signed the waiver
     userId: varchar({ length: 255 }).notNull(),
+    // Text entered for the latest acknowledgement; older signing flows leave null.
+    signatureName: varchar({ length: 255 }),
     // The registration this signature is associated with (nullable for captains signing during registration creation)
     registrationId: varchar({ length: 255 }),
     // When the waiver was signed
