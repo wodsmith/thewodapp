@@ -5,7 +5,6 @@ import { ArrowLeft } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { trackEvent } from "@/lib/posthog"
 import { createTeamFn } from "@/server-fns/team-settings-fns"
 
 const formSchema = z.object({
@@ -99,7 +99,7 @@ function CreateTeamPage() {
       {/* Header with back button */}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="icon" asChild>
-          <Link to="/settings/teams">
+          <Link to="/settings/teams" aria-label="Back to teams">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
@@ -132,7 +132,8 @@ function CreateTeamPage() {
                       <Input placeholder="Enter team name" {...field} />
                     </FormControl>
                     <FormDescription>
-                      A unique name for your team
+                      A display name for your team. Names can be shared; each
+                      team gets a unique URL.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

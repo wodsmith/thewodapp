@@ -4,40 +4,14 @@ import { Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
-type Theme = "light" | "dark"
-type ThemePreference = "light" | "dark" | "system"
-
-/**
- * Sets theme preference cookie for SSR access.
- * Cookie is readable by client (httpOnly=false) and server during SSR.
- */
-function setThemeCookie(theme: ThemePreference) {
-  const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
-  const secure = window.location.protocol === "https:" ? "; Secure" : ""
-  // biome-ignore lint/suspicious/noDocumentCookie: document.cookie required for SSR-accessible theme preference
-  document.cookie = `theme=${theme}; path=/; expires=${expires}; SameSite=Lax${secure}`
-}
-
-const applyTheme = (newTheme: Theme) => {
-  const root = document.documentElement
-  if (newTheme === "dark") {
-    root.classList.add("dark")
-  } else {
-    root.classList.remove("dark")
-  }
-}
+import { applyTheme, getTheme, saveTheme, type Theme } from "@/lib/theme"
 
 export function DarkModeToggle() {
   const [theme, setTheme] = useState<Theme>("light")
 
   // Load theme from localStorage on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as Theme | null
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
-    ).matches
-
-    const initialTheme = savedTheme || (prefersDark ? "dark" : "light")
+    const initialTheme = getTheme()
     setTheme(initialTheme)
     applyTheme(initialTheme)
   }, [])
@@ -45,10 +19,7 @@ export function DarkModeToggle() {
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark"
     setTheme(newTheme)
-    // Persist to both localStorage (fallback for inline script) and cookie (SSR)
-    localStorage.setItem("theme", newTheme)
-    setThemeCookie(newTheme)
-    applyTheme(newTheme)
+    saveTheme(newTheme)
   }
 
   return (

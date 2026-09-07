@@ -13,7 +13,6 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, isNull, not } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { createTeamId } from "@/db/schemas/common"
 import {
   SYSTEM_ROLES_ENUM,
   TEAM_PERMISSIONS,
@@ -27,12 +26,16 @@ import {
   teamTable,
   userTable,
 } from "@/db/schema"
+import { createTeamId } from "@/db/schemas/common"
 import { getSessionFromCookie, setActiveTeamCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { AppError } from "@/utils/errors"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
-import { requireTeamPermission } from "./requireTeamMembership"
+import {
+  hasTeamPermission,
+  requireTeamPermission,
+} from "./requireTeamMembership"
 
 // ============================================================================
 // Constants
@@ -480,7 +483,21 @@ export const getTeamBySlugFn = createServerFn({ method: "GET" })
     // Exclude creditBalance from response
     const { creditBalance: _, ...teamWithoutCredits } = team
 
-    return { success: true, data: teamWithoutCredits }
+    const [inviteMembers, changeMemberRoles, removeMembers] = await Promise.all(
+      [
+        hasTeamPermission(team.id, TEAM_PERMISSIONS.INVITE_MEMBERS),
+        hasTeamPermission(team.id, TEAM_PERMISSIONS.CHANGE_MEMBER_ROLES),
+        hasTeamPermission(team.id, TEAM_PERMISSIONS.REMOVE_MEMBERS),
+      ],
+    )
+
+    return {
+      success: true,
+      data: {
+        ...teamWithoutCredits,
+        permissions: { inviteMembers, changeMemberRoles, removeMembers },
+      },
+    }
   })
 
 // ============================================================================

@@ -5,22 +5,7 @@ import { CheckCircle2, Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-const THEME_KEY = "wodsmith-theme"
-
-type Theme = "light" | "dark"
-
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light"
-  const stored = window.localStorage.getItem(THEME_KEY)
-  if (stored === "dark" || stored === "light") return stored
-  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches
-  return prefersDark ? "dark" : "light"
-}
-
-function applyTheme(theme: Theme) {
-  if (typeof document === "undefined") return
-  document.documentElement.classList.toggle("dark", theme === "dark")
-}
+import { applyTheme, getTheme, saveTheme, type Theme } from "@/lib/theme"
 
 export const Route = createFileRoute("/_protected/settings/appearance/")({
   component: SettingsAppearancePage,
@@ -30,17 +15,14 @@ function SettingsAppearancePage() {
   const [theme, setTheme] = useState<Theme>("light")
 
   useEffect(() => {
-    const initial = getInitialTheme()
+    const initial = getTheme()
     setTheme(initial)
     applyTheme(initial)
   }, [])
 
   const handleSelect = (next: Theme) => {
     setTheme(next)
-    applyTheme(next)
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(THEME_KEY, next)
-    }
+    saveTheme(next)
   }
 
   const options = [
@@ -102,9 +84,7 @@ function SettingsAppearancePage() {
                     <Icon className="h-4 w-4" />
                     {opt.label}
                   </span>
-                  {active && (
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  )}
+                  {active && <CheckCircle2 className="h-4 w-4 text-primary" />}
                 </div>
               </button>
             )
