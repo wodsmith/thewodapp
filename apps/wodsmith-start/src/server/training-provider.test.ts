@@ -44,6 +44,7 @@ import { getPublishedCrossFitDays } from "./crossfit-import"
 import { getTrainingWeek } from "./training"
 import {
   getPersonalTrainingDay,
+  getTrainingLibraryWorkout,
   savePersonalLibraryResult,
   savePersonalTrainingSession,
 } from "./training-personal"
@@ -297,6 +298,22 @@ describe.skipIf(!url)("provider projection and persistence", () => {
   })
   // @lat: [[training-personal#Verification#Provider snapshot and atomic additions]]
   it("atomically stores ordered rich components and server provenance on the performed date", async () => {
+    const detail = await getTrainingLibraryWorkout({
+      teamId: day.teamId,
+      workoutId: "provider_cap",
+    })
+    expect(detail).toMatchObject({
+      scheme: "time-with-cap",
+      timeCap: 180,
+      roundsToScore: 1,
+      movementIds: [],
+      scalingGroupId: "provider_scaling",
+      provenance: {
+        importId: "provider_import_work",
+        sourceDate: "2026-09-04",
+        trackId: CROSSFIT_TRACK_ID,
+      },
+    })
     const performed = { ...day, trainingDate: "2026-09-07" }
     const items = [
       { id: "cap", kind: "library" as const, workoutId: "provider_cap" },

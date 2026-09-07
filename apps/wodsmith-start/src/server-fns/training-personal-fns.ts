@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start"
+import { getPersonalTrainingWorkoutOptions } from "@/server/training"
 import {
-  getPersonalTrainingHistory,
-  getPersonalTrainingDay,
   getPersonalLibraryScalingLevels,
+  getPersonalTrainingDay,
+  getPersonalTrainingHistory,
   getTrainingLibraryWorkout,
   linkPersonalTrainingScore,
   listTrainingLibraryWorkouts,
@@ -64,3 +65,11 @@ export const getPersonalLibraryScalingLevelsFn = createServerFn({
       .parse(data),
   )
   .handler(({ data }) => getPersonalLibraryScalingLevels(data))
+
+export const getPersonalTrainingWorkoutOptionsFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    trainingLibraryListSchema.pick({ teamId: true }).parse(data),
+  )
+  .handler(({ data }) => getPersonalTrainingWorkoutOptions(data))

@@ -6,7 +6,7 @@ import { AthleteSessionBlock } from "@/components/training/athlete-session-block
 import { AthleteTeamResults } from "@/components/training/athlete-team-results"
 import { TrainingResultDialog } from "@/components/training/training-result-dialog"
 import { AthletePersonalSession } from "@/components/training/athlete-personal-session"
-import { getPersonalTrainingDayFn, getPersonalTrainingHistoryFn, savePersonalTrainingResultFn, saveTrainingPreferenceFn, savePersonalTrainingSessionFn, getTrainingLibraryWorkoutFn } from "@/server-fns/training-personal-fns"
+import { getPersonalTrainingWorkoutOptionsFn, getPersonalTrainingDayFn, getPersonalTrainingHistoryFn, savePersonalTrainingResultFn, saveTrainingPreferenceFn, savePersonalTrainingSessionFn, getTrainingLibraryWorkoutFn } from "@/server-fns/training-personal-fns"
 import { parseTime } from "@/lib/scoring/parse/time"
 import type { OwnTrainingResult, TrainingBlock, TrainingContext, TrainingSession, TrainingWeek } from "@/lib/training/types"
 import { getTrainingHistoryFn, getTrainingWeekFn, saveTrainingResultFn, setTrainingCheerFn } from "@/server-fns/training-fns"
@@ -20,7 +20,7 @@ vi.mock("@/server-fns/training-fns", () => ({
   setTrainingCheerFn: vi.fn(),
 }))
 
-vi.mock("@/server-fns/training-personal-fns", () => ({ getPersonalTrainingDayFn: vi.fn(), getPersonalTrainingHistoryFn: vi.fn(), saveTrainingPreferenceFn: vi.fn(), savePersonalTrainingSessionFn: vi.fn(), savePersonalTrainingResultFn: vi.fn(), getTrainingLibraryWorkoutFn: vi.fn() }))
+vi.mock("@/server-fns/training-personal-fns", () => ({ getPersonalTrainingWorkoutOptionsFn: vi.fn().mockResolvedValue({ movements: [], scalingGroups: [] }), getPersonalTrainingDayFn: vi.fn(), getPersonalTrainingHistoryFn: vi.fn(), saveTrainingPreferenceFn: vi.fn(), savePersonalTrainingSessionFn: vi.fn(), savePersonalTrainingResultFn: vi.fn(), getTrainingLibraryWorkoutFn: vi.fn() }))
 vi.mock("@/components/training/earlier-training-history", () => ({ EarlierTrainingHistory: () => <p>Library and earlier results</p> }))
 const block: TrainingBlock = { id: "squat", kind: "load", title: "Back squat", prescription: "Build to a heavy set of five.", scalingGuidance: "Choose a load you control.", coachGuidance: "" }
 const session: TrainingSession = { id: "session-mon", teamId: "gym", trackId: "everyday", trainingDate: "2026-09-07", timezone: "America/Boise", revision: 2, publishedVersion: 2, draft: null, published: { title: "Strength for the week", coachNote: "Keep each rep smooth.", isRestDay: false, blocks: [block] } }
@@ -30,6 +30,7 @@ const emptyWeek: TrainingWeek = { sessions: [], myResults: [], teamResults: [] }
 
 beforeEach(() => {
   localStorage.clear()
+  vi.mocked(getPersonalTrainingWorkoutOptionsFn).mockResolvedValue({ movements: [], scalingGroups: [] })
   vi.mocked(getPersonalTrainingHistoryFn).mockResolvedValue([])
   vi.mocked(getPersonalTrainingDayFn).mockImplementation(async (options) => {
     const data = options?.data as { trackId?: string; trainingDate: string }
@@ -38,7 +39,7 @@ beforeEach(() => {
     return { defaultTrackId: "everyday", selectedTrackId: selected, sourceSession: source, personalSession: null, results: [], libraryResults: [], items: source ? [{ id: "source-squat", kind: "source", block, trackId: selected, trackName: selected, sourceTrainingDate: source.trainingDate, sourceSessionId: source.id, sourceBlockId: block.id, sourcePublishedVersion: source.publishedVersion }] : [] }
   })
   vi.mocked(saveTrainingPreferenceFn).mockResolvedValue(undefined)
-  vi.mocked(getTrainingLibraryWorkoutFn).mockResolvedValue({ id: "fran", name: "Fran", description: "21-15-9 thrusters and pull-ups", scheme: "time", scoreType: "min", roundsToScore: 1, timeCap: null, repsPerRound: null, tiebreakScheme: null, scalingGroupId: null })
+  vi.mocked(getTrainingLibraryWorkoutFn).mockResolvedValue({ id: "fran", name: "Fran", description: "21-15-9 thrusters and pull-ups", scheme: "time", scoreType: "min", roundsToScore: 1, timeCap: null, repsPerRound: null, tiebreakScheme: null, scalingGroupId: null, movementIds: [] })
   vi.mocked(getTrainingWeekFn).mockResolvedValue({ sessions: [session], myResults: [], teamResults: [] })
   vi.mocked(getTrainingHistoryFn).mockResolvedValue([])
   vi.mocked(saveTrainingResultFn).mockResolvedValue(result)
@@ -311,10 +312,11 @@ it("clears a cancelled library deep link and does not reopen it when the date ch
 })
 
 // @lat: [[training#Athlete Interface Tests#Personal titles match server limits]]
-it("limits personal workout names to the server-supported length", async () => {
+it("limits legacy personal workout names to the server-supported length", async () => {
   render(<AthletePersonalSession team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[]} onSaved={vi.fn()} />)
   await screen.findByRole("heading", { name: "Back squat" })
-  fireEvent.click(screen.getByRole("button", { name: "Create workout" }))
+  fireEvent.click(screen.getByRole("button", { name: "Customize session" }))
+  fireEvent.click(screen.getByRole("button", { name: "Remix to edit" }))
   expect(screen.getByLabelText("Workout name")).toHaveAttribute("maxlength", "160")
 })
 

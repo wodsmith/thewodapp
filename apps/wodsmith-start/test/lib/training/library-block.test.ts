@@ -1,18 +1,23 @@
-import { describe, expect, it } from "vitest"
+import { expect, it } from "vitest"
 import { libraryWorkoutToBlock, type LibraryBlockSource } from "@/lib/training/library-block"
-const source: LibraryBlockSource = { name: "Fran", description: "21-15-9 thrusters and pull-ups", scheme: "time", scoreType: "min", roundsToScore: 1, timeCap: null, repsPerRound: null, tiebreakScheme: null }
-describe("workout library composer compatibility", () => {
-  it("copies a supported prescription into an independent section", () => {
-    expect(libraryWorkoutToBlock(source, "independent")).toEqual({ id: "independent", kind: "time", title: source.name, prescription: source.description, scalingGuidance: "", coachGuidance: "" })
-  })
-  it.each([{scheme:"rounds-reps"}, {roundsToScore:3}, {timeCap:600}, {repsPerRound:30}, {tiebreakScheme:"reps"}, {scoreType:"max"}, {scoreType:"sum"}])("rejects scoring metadata that would lose its meaning: %s", (extra) => {
-    expect(()=>libraryWorkoutToBlock({...source,...extra},"new")).toThrow("cannot preserve")
-  })
+const source:LibraryBlockSource={name:"Fran",description:"21-15-9 thrusters and pull-ups",scheme:"time",scoreType:"min",roundsToScore:1,timeCap:null,repsPerRound:null,tiebreakScheme:null}
+it("copies a complete workout definition into an independent session section",()=>{
+  expect(libraryWorkoutToBlock({...source,scheme:"time-with-cap",timeCap:600,roundsToScore:3,scoreType:"sum",tiebreakScheme:"reps",movementIds:["thruster"]},"independent")).toMatchObject({id:"independent",kind:"workout",workout:{scheme:"time-with-cap",timeCapSeconds:600,roundsToScore:3,scoreType:"sum",tiebreakScheme:"reps",movementIds:["thruster"]}})
+})
+it("rejects malformed source metadata instead of dropping its scoring fields",()=>{
+  expect(()=>libraryWorkoutToBlock({...source,scheme:"time-with-cap"},"invalid")).toThrow()
+  expect(()=>libraryWorkoutToBlock({...source,roundsToScore:3,scoreType:null},"invalid")).toThrow()
+})
+// @lat: [[training#Workout Library#Library text limits]]
+it("accepts canonical workout text limits and rejects oversized imports",()=>{
+  expect(libraryWorkoutToBlock({...source,name:"n".repeat(255),description:"d".repeat(20000)},"fits")).toMatchObject({id:"fits"})
+  expect(()=>libraryWorkoutToBlock({...source,name:"n".repeat(256)},"long-title")).toThrow()
+  expect(()=>libraryWorkoutToBlock({...source,description:"d".repeat(20001)},"long-prescription")).toThrow()
 })
 
-// @lat: [[training#Workout Library#Library text limits]]
-it("accepts the text limits and rejects oversized imports before they enter a draft", () => {
-  expect(libraryWorkoutToBlock({...source, name:"n".repeat(160), description:"d".repeat(6000)}, "fits")).toMatchObject({id:"fits"})
-  expect(() => libraryWorkoutToBlock({...source,name:"n".repeat(161)}, "long-title")).toThrow("160 characters")
-  expect(() => libraryWorkoutToBlock({...source,description:"d".repeat(6001)}, "long-prescription")).toThrow("6,000 characters")
+// @lat: [[review-backend#Blank library prescriptions remain addable]]
+it("adds earlier blank descriptions with an explicit missing-prescription label", () => {
+  for (const description of ["", " \n\t "]) {
+    expect(libraryWorkoutToBlock({...source,description}, "blank")).toMatchObject({prescription:"No prescription provided.", workout:{description:"No prescription provided.",scheme:"time",scoreType:"min"}})
+  }
 })

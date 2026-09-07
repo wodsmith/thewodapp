@@ -43,6 +43,7 @@ import {
   SCORE_TYPE_VALUES,
   TIEBREAK_SCHEME_VALUES,
   WORKOUT_SCHEME_VALUES,
+  movements,
   workoutMovements,
   workouts,
 } from "@/db/schemas/workouts"
@@ -75,6 +76,8 @@ export interface SeriesTemplateEvent {
     scheme: string | null
     scoreType: string | null
     timeCap: number | null
+    roundsToScore: number | null
+    tiebreakScheme: string | null
   }
   /** Convenience: trackOrder (for display as event number) */
   order: number
@@ -127,6 +130,8 @@ function toSeriesTemplateEvent(raw: {
     scheme: string | null
     scoreType: string | null
     timeCap: number | null
+    roundsToScore: number | null
+    tiebreakScheme: string | null
   }
 }): SeriesTemplateEvent {
   return {
@@ -214,6 +219,8 @@ export const getSeriesTemplateEventsFn = createServerFn({ method: "GET" })
             scheme: workouts.scheme,
             scoreType: workouts.scoreType,
             timeCap: workouts.timeCap,
+            roundsToScore: workouts.roundsToScore,
+            tiebreakScheme: workouts.tiebreakScheme,
           },
         })
         .from(trackWorkoutsTable)
@@ -276,6 +283,8 @@ export const getSeriesTemplateEventByIdFn = createServerFn({ method: "GET" })
           scheme: workouts.scheme,
           scoreType: workouts.scoreType,
           timeCap: workouts.timeCap,
+          roundsToScore: workouts.roundsToScore,
+          tiebreakScheme: workouts.tiebreakScheme,
         },
       })
       .from(trackWorkoutsTable)
@@ -728,6 +737,8 @@ export const copyEventsFromCompetitionFn = createServerFn({ method: "POST" })
         workoutScheme: workouts.scheme,
         workoutScoreType: workouts.scoreType,
         workoutTimeCap: workouts.timeCap,
+        workoutRoundsToScore: workouts.roundsToScore,
+        workoutTiebreakScheme: workouts.tiebreakScheme,
         workoutRepsPerRound: workouts.repsPerRound,
       })
       .from(trackWorkoutsTable)
@@ -736,6 +747,19 @@ export const copyEventsFromCompetitionFn = createServerFn({ method: "POST" })
       .orderBy(asc(trackWorkoutsTable.trackOrder))
 
     if (sourceEvents.length === 0) return { copiedCount: 0 }
+
+    const sourceMovements = await db
+      .select({
+        workoutId: workoutMovements.workoutId,
+        movementId: workoutMovements.movementId,
+      })
+      .from(workoutMovements)
+      .where(
+        inArray(
+          workoutMovements.workoutId,
+          sourceEvents.map((event) => event.workoutId),
+        ),
+      )
 
     // Map old parent IDs to new parent IDs for sub-event linking
     const parentIdMap = new Map<string, string>()
@@ -757,10 +781,30 @@ export const copyEventsFromCompetitionFn = createServerFn({ method: "POST" })
           scheme: event.workoutScheme,
           scoreType: event.workoutScoreType,
           timeCap: event.workoutTimeCap,
+          roundsToScore: event.workoutRoundsToScore,
+          tiebreakScheme: event.workoutTiebreakScheme,
           repsPerRound: event.workoutRepsPerRound,
           teamId: group.organizingTeamId,
           scope: "private",
         })
+
+        const movementIds = [
+          ...new Set(
+            sourceMovements
+              .filter((movement) => movement.workoutId === event.workoutId)
+              .map((movement) => movement.movementId)
+              .filter((id): id is string => id !== null),
+          ),
+        ]
+        if (movementIds.length) {
+          await tx.insert(workoutMovements).values(
+            movementIds.map((movementId) => ({
+              id: `workout_movement_${createId()}`,
+              workoutId: newWorkoutId,
+              movementId,
+            })),
+          )
+        }
 
         const newParentId = event.parentEventId
           ? parentIdMap.get(event.parentEventId) ?? null
@@ -804,7 +848,10 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
           scheme: z.enum(WORKOUT_SCHEME_VALUES).optional(),
           scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
           scoreSortOrder: z.string().optional(),
+          roundsToScore: z.number().int().min(1).max(1000).optional(),
+          tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).optional(),
         }),
+        movementIds: z.array(z.string().min(1)).max(100).optional(),
         parentEventId: z.string().min(1).optional(),
       })
       .parse(data),
@@ -825,6 +872,16 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
       group.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    const movementIds = [...new Set(data.movementIds ?? [])]
+    if (movementIds.length) {
+      const catalogMovements = await db
+        .select({ id: movements.id })
+        .from(movements)
+        .where(inArray(movements.id, movementIds))
+      if (catalogMovements.length !== movementIds.length)
+        throw new Error("Select existing catalog movements")
+    }
 
     // Validate parentEventId if provided
     if (data.parentEventId) {
@@ -905,6 +962,8 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
         description: data.workout.description ?? "",
         scheme: (data.workout.scheme ?? "time") as (typeof workouts.$inferInsert)["scheme"],
         scoreType: (data.workout.scoreType ?? null) as (typeof workouts.$inferInsert)["scoreType"],
+        roundsToScore: data.workout.roundsToScore ?? null,
+        tiebreakScheme: data.workout.tiebreakScheme ?? null,
         teamId: group.organizingTeamId,
         scope: "private",
       })
@@ -917,6 +976,16 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
         pointsMultiplier: 100,
         parentEventId: data.parentEventId ?? null,
       })
+
+      if (movementIds.length) {
+        await tx.insert(workoutMovements).values(
+          movementIds.map((movementId) => ({
+            id: `workout_movement_${createId()}`,
+            workoutId,
+            movementId,
+          })),
+        )
+      }
     })
 
     // Return the created event with workout details
@@ -938,6 +1007,8 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
           scheme: workouts.scheme,
           scoreType: workouts.scoreType,
           timeCap: workouts.timeCap,
+          roundsToScore: workouts.roundsToScore,
+          tiebreakScheme: workouts.tiebreakScheme,
         },
       })
       .from(trackWorkoutsTable)
@@ -964,6 +1035,7 @@ export const updateSeriesTemplateEventFn = createServerFn({ method: "POST" })
             scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
             scoreSortOrder: z.string().optional(),
             timeCap: z.number().int().min(1).nullable().optional(),
+            roundsToScore: z.number().int().min(1).max(1000).nullable().optional(),
             tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
             reps: z.number().int().min(1).nullable().optional(),
           })
@@ -1017,6 +1089,8 @@ export const updateSeriesTemplateEventFn = createServerFn({ method: "POST" })
         workoutUpdate.scoreType = data.workout.scoreType
       if (data.workout.timeCap !== undefined)
         workoutUpdate.timeCap = data.workout.timeCap
+      if (data.workout.roundsToScore !== undefined)
+        workoutUpdate.roundsToScore = data.workout.roundsToScore
       if (data.workout.tiebreakScheme !== undefined)
         workoutUpdate.tiebreakScheme = data.workout.tiebreakScheme
       if (data.workout.reps !== undefined)
@@ -1077,6 +1151,8 @@ export const updateSeriesTemplateEventFn = createServerFn({ method: "POST" })
           scheme: workouts.scheme,
           scoreType: workouts.scoreType,
           timeCap: workouts.timeCap,
+          roundsToScore: workouts.roundsToScore,
+          tiebreakScheme: workouts.tiebreakScheme,
         },
       })
       .from(trackWorkoutsTable)
@@ -1615,6 +1691,8 @@ export const getSeriesEventMappingsFn = createServerFn({ method: "GET" })
                 scheme: workouts.scheme,
                 scoreType: workouts.scoreType,
                 timeCap: workouts.timeCap,
+                roundsToScore: workouts.roundsToScore,
+                tiebreakScheme: workouts.tiebreakScheme,
               },
             })
             .from(trackWorkoutsTable)
@@ -2238,6 +2316,8 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
           scheme: workouts.scheme,
           scoreType: workouts.scoreType,
           timeCap: workouts.timeCap,
+          roundsToScore: workouts.roundsToScore,
+          tiebreakScheme: workouts.tiebreakScheme,
           repsPerRound: workouts.repsPerRound,
         },
       })
@@ -2513,6 +2593,8 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
             scheme: templateTw.workout.scheme,
             scoreType: templateTw.workout.scoreType,
             timeCap: templateTw.workout.timeCap,
+            roundsToScore: templateTw.workout.roundsToScore,
+            tiebreakScheme: templateTw.workout.tiebreakScheme,
             repsPerRound: templateTw.workout.repsPerRound,
             updatedAt: new Date(),
           })
@@ -2619,6 +2701,8 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
             scheme: templateTw.workout.scheme,
             scoreType: templateTw.workout.scoreType,
             timeCap: templateTw.workout.timeCap,
+            roundsToScore: templateTw.workout.roundsToScore,
+            tiebreakScheme: templateTw.workout.tiebreakScheme,
             repsPerRound: templateTw.workout.repsPerRound,
             teamId: comp.organizingTeamId,
             scope: "private",
@@ -3073,6 +3157,8 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
           scheme: workouts.scheme,
           scoreType: workouts.scoreType,
           timeCap: workouts.timeCap,
+          roundsToScore: workouts.roundsToScore,
+          tiebreakScheme: workouts.tiebreakScheme,
           repsPerRound: workouts.repsPerRound,
         },
       })
@@ -3155,6 +3241,8 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
                 scheme: workouts.scheme,
                 scoreType: workouts.scoreType,
                 timeCap: workouts.timeCap,
+                roundsToScore: workouts.roundsToScore,
+                tiebreakScheme: workouts.tiebreakScheme,
                 repsPerRound: workouts.repsPerRound,
               },
             })
@@ -3314,6 +3402,20 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
             changes.push(`timeCap: ${fromStr} \u2192 ${toStr}`)
           }
           if (
+            previewCompTw.workout.roundsToScore !== templateTw.workout.roundsToScore
+          ) {
+            changes.push(
+              `roundsToScore: ${previewCompTw.workout.roundsToScore ?? "none"} → ${templateTw.workout.roundsToScore ?? "none"}`,
+            )
+          }
+          if (
+            previewCompTw.workout.tiebreakScheme !== templateTw.workout.tiebreakScheme
+          ) {
+            changes.push(
+              `tiebreakScheme: ${previewCompTw.workout.tiebreakScheme ?? "none"} → ${templateTw.workout.tiebreakScheme ?? "none"}`,
+            )
+          }
+          if (
             previewCompTw.workout.repsPerRound !== templateTw.workout.repsPerRound
           ) {
             const fromStr =
@@ -3400,6 +3502,12 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
           }
           if (templateTw.workout.timeCap) {
             changes.push(`timeCap: ${templateTw.workout.timeCap}s`)
+          }
+          if (templateTw.workout.roundsToScore != null) {
+            changes.push(`roundsToScore: ${templateTw.workout.roundsToScore}`)
+          }
+          if (templateTw.workout.tiebreakScheme) {
+            changes.push(`tiebreakScheme: ${templateTw.workout.tiebreakScheme}`)
           }
           if (templateTw.pointsMultiplier !== null) {
             changes.push(
@@ -3555,6 +3663,8 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           scheme: workouts.scheme,
           scoreType: workouts.scoreType,
           timeCap: workouts.timeCap,
+          roundsToScore: workouts.roundsToScore,
+          tiebreakScheme: workouts.tiebreakScheme,
           repsPerRound: workouts.repsPerRound,
         },
       })
@@ -3608,6 +3718,8 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
                 scheme: workouts.scheme,
                 scoreType: workouts.scoreType,
                 timeCap: workouts.timeCap,
+                roundsToScore: workouts.roundsToScore,
+                tiebreakScheme: workouts.tiebreakScheme,
                 repsPerRound: workouts.repsPerRound,
               },
             })
@@ -3827,6 +3939,8 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           compTw.workout.scheme !== templateTw.workout.scheme ||
           compTw.workout.scoreType !== templateTw.workout.scoreType ||
           compTw.workout.timeCap !== templateTw.workout.timeCap ||
+          compTw.workout.roundsToScore !== templateTw.workout.roundsToScore ||
+          compTw.workout.tiebreakScheme !== templateTw.workout.tiebreakScheme ||
           compTw.workout.repsPerRound !== templateTw.workout.repsPerRound
         ) {
           eventHasDifferences = true

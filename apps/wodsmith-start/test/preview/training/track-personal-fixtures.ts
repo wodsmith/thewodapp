@@ -146,3 +146,5 @@ export async function getPersonalTrainingHistoryFn({
     [...results.values()].filter((result) => ids.has(result.sessionId)),
   )
 }
+
+export { getTrainingWorkoutOptionsFn as getPersonalTrainingWorkoutOptionsFn } from "./fixtures"

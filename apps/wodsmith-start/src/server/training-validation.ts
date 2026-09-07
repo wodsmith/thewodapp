@@ -5,8 +5,11 @@ import type {
   SaveTrainingResultInput,
   TrainingBlock,
   TrainingResult,
+  TrainingScoreDetails,
   TrainingSession,
 } from "@/lib/training/types"
+import { normalizeTrainingWorkoutResult } from "@/lib/training/workout-scoring"
+import { normalizedWorkoutSaveSchema } from "@/lib/workout-import/schemas"
 
 const id = z.string().min(1).max(255)
 const blockId = z
@@ -47,23 +50,54 @@ export function trainingTimezone(settings: string | null): string {
   }
 }
 
+export const trainingBlockSchema = z
+  .object({
+    id: blockId,
+    kind: z.enum(["check", "load", "time", "reps", "note", "workout"]),
+    title: z.string().trim().max(255),
+    prescription: z.string().trim().max(20_000),
+    scalingGuidance: z.string().max(3000),
+    coachGuidance: z.string().max(3000),
+    workout: normalizedWorkoutSaveSchema.optional(),
+  })
+  .superRefine((block, ctx) => {
+    if (block.kind === "workout") {
+      if (!block.workout)
+        ctx.addIssue({
+          code: "custom",
+          path: ["workout"],
+          message: "Provide the complete workout definition",
+        })
+      else if (
+        block.title !== block.workout.name ||
+        block.prescription !== block.workout.description
+      )
+        ctx.addIssue({
+          code: "custom",
+          message: "Workout title and prescription must match its definition",
+        })
+    } else {
+      if (block.workout)
+        ctx.addIssue({
+          code: "custom",
+          path: ["workout"],
+          message: "Workout definitions belong to workout sections",
+        })
+      if (block.title.length > 160 || block.prescription.length > 6000)
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Legacy sections allow 160 title and 6,000 prescription characters",
+        })
+    }
+  })
+
 export const trainingContentSchema = z
   .object({
     title: z.string().trim().max(160),
     coachNote: z.string().max(4000),
     isRestDay: z.boolean(),
-    blocks: z
-      .array(
-        z.object({
-          id: blockId,
-          kind: z.enum(["check", "load", "time", "reps", "note"]),
-          title: z.string().trim().max(160),
-          prescription: z.string().max(6000),
-          scalingGuidance: z.string().max(3000),
-          coachGuidance: z.string().max(3000),
-        }),
-      )
-      .max(20),
+    blocks: z.array(trainingBlockSchema).max(20),
   })
   .superRefine((content, ctx) => {
     if (
@@ -106,7 +140,24 @@ export const trainingCopyInputSchema = trainingPublishInputSchema.extend({
   targetDate: trainingDateSchema,
   targetTrackId: id,
 })
+export const trainingRichScoreFields = {
+  status: z.enum(["scored", "cap"]).optional(),
+  secondaryScore: z.string().max(100).optional(),
+  roundScores: z
+    .array(
+      z.object({
+        score: z.string().max(100),
+        status: z.enum(["scored", "cap"]).optional(),
+        secondaryScore: z.string().max(100).optional(),
+      }),
+    )
+    .max(1000)
+    .optional(),
+  tiebreakScore: z.string().max(100).optional(),
+  distanceUnit: z.enum(["m", "km", "ft", "mi"]).optional(),
+}
 export const trainingResultInputSchema = z.object({
+  ...trainingRichScoreFields,
   sessionId: blockId,
   blockId,
   publishedVersion: z.number().int().positive(),
@@ -156,7 +207,17 @@ export function normalizeTrainingResult(
   scoreValue: number | null
   displayScore: string
   audience: "gym" | "private"
+  details?: TrainingScoreDetails | null
 } {
+  if (block.kind === "workout") {
+    if (!block.workout) throw new Error("Workout definition is missing")
+    if (!input.completed)
+      throw new Error("Enter a completed result before saving")
+    return {
+      ...normalizeTrainingWorkoutResult(block.workout, input),
+      audience: input.audience,
+    }
+  }
   if (block.kind === "check" || block.kind === "note")
     return {
       scoreValue: null,

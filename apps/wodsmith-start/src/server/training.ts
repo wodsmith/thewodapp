@@ -1,5 +1,7 @@
 import {
+  movements,
   programmingTracksTable,
+  scalingGroupsTable,
   TEAM_PERMISSIONS,
   teamMembershipTable,
   teamProgrammingTracksTable,
@@ -49,6 +51,7 @@ import {
   trainingContentSchema,
   trainingTimezone,
 } from "./training-validation"
+import { validateChangedWorkoutReferences } from "./workout-references"
 
 type TrainingDb = ReturnType<typeof getDb>
 type TrainingTx = Parameters<Parameters<TrainingDb["transaction"]>[0]>[0]
@@ -257,6 +260,7 @@ async function trainingResultViews(
     block: result.block,
     scoreValue: result.scoreValue,
     displayScore: result.displayScore,
+    details: result.details,
     scaling: result.scaling,
     modification: result.modification,
     notes: result.notes,
@@ -367,6 +371,7 @@ export async function saveTrainingDraft(
   input: SaveTrainingDraftInput,
 ): Promise<TrainingSession> {
   await requireTrainingAccess(input.teamId, input.trackId, true)
+  const content = trainingContentSchema.parse(input.content)
   const db = getDb()
   try {
     return await db.transaction(async (tx) => {
@@ -382,6 +387,18 @@ export async function saveTrainingDraft(
         )
         .for("update")
       assertTrainingRevision(existing?.revision ?? 0, input.expectedRevision)
+      for (const block of content.blocks) {
+        if (!block.workout) continue
+        const previous = (existing?.draft ?? existing?.published)?.blocks.find(
+          (stored) => stored.id === block.id,
+        )?.workout
+        await validateChangedWorkoutReferences(
+          tx,
+          block.workout,
+          previous,
+          input.teamId,
+        )
+      }
       if (!existing) {
         const id = `trs_${ulid()}`
         await tx.insert(trainingSessionsTable).values({
@@ -390,7 +407,7 @@ export async function saveTrainingDraft(
           trackId: input.trackId,
           trainingDate: input.trainingDate,
           timezone: input.timezone,
-          draft: input.content,
+          draft: content,
         })
         return trainingSession(await lockTrainingSession(tx, id), true)
       }
@@ -399,7 +416,7 @@ export async function saveTrainingDraft(
       await tx
         .update(trainingSessionsTable)
         .set({
-          draft: input.content,
+          draft: content,
           timezone: input.timezone,
           revision: existing.revision + 1,
         })
@@ -523,6 +540,7 @@ export async function saveTrainingResult(
     const values = {
       block,
       ...normalized,
+      details: normalized.details ?? null,
       scaling: input.scaling,
       modification: input.modification,
       notes: input.notes,
@@ -661,4 +679,40 @@ export async function getTrainingHistory(input: {
     )
     .limit(100)
   return trainingResultViews(rows, userId)
+}
+
+export async function getTrainingWorkoutOptions(input: { teamId: string }) {
+  await requireTrainingAccess(input.teamId, undefined, true)
+  return readTrainingWorkoutOptions(input.teamId)
+}
+
+export async function getPersonalTrainingWorkoutOptions(input: {
+  teamId: string
+}) {
+  await requireTrainingAccess(input.teamId)
+  return readTrainingWorkoutOptions(input.teamId)
+}
+
+async function readTrainingWorkoutOptions(teamId: string) {
+  const db = getDb()
+  const [movementOptions, scalingGroups] = await Promise.all([
+    db
+      .select({ id: movements.id, name: movements.name, type: movements.type })
+      .from(movements)
+      .orderBy(movements.name),
+    db
+      .select({ id: scalingGroupsTable.id, title: scalingGroupsTable.title })
+      .from(scalingGroupsTable)
+      .where(
+        or(
+          eq(scalingGroupsTable.teamId, teamId),
+          and(
+            isNull(scalingGroupsTable.teamId),
+            eq(scalingGroupsTable.isSystem, true),
+          ),
+        ),
+      )
+      .orderBy(scalingGroupsTable.title),
+  ])
+  return { movements: movementOptions, scalingGroups }
 }

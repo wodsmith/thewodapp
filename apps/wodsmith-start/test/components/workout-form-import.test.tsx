@@ -16,7 +16,7 @@ describe("WorkoutForm import adapter", () => {
     render(<Harness />)
     fireEvent.click(screen.getByText("Apply reviewed draft"))
     expect(screen.getByLabelText("Workout Name")).toHaveValue("Capped workout")
-    expect(screen.getByLabelText("Time Cap (seconds)")).toHaveValue(720)
+    expect(screen.getByLabelText("Time Cap (minutes)")).toHaveValue(12)
     fireEvent.click(screen.getByText("Create workout"))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ timeCap: 720, roundsToScore: 1, repsPerRound: 30, movementIds: ["squat"] })))
   })

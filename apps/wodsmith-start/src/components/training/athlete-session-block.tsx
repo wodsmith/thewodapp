@@ -7,8 +7,10 @@ import type {
   TrainingBlock,
   TrainingSession,
 } from "@/lib/training/types"
+import { trainingWorkoutSummary } from "@/lib/training/workout-display"
 import { saveTrainingResultFn } from "@/server-fns/training-fns"
 import { TrainingResultDialog } from "./training-result-dialog"
+import { TrainingWorkoutResultDetails } from "./training-workout-result-details"
 
 export function AthleteSessionBlock({
   session,
@@ -88,6 +90,11 @@ export function AthleteSessionBlock({
         <p className="max-w-prose whitespace-pre-wrap break-words leading-relaxed">
           {block.prescription}
         </p>
+        {block.kind === "workout" && block.workout ? (
+          <p className="text-sm text-muted-foreground">
+            {trainingWorkoutSummary(block.workout)}
+          </p>
+        ) : null}
         {block.coachGuidance ? (
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
             <span className="font-medium text-foreground">
@@ -134,6 +141,7 @@ export function AthleteSessionBlock({
                 ) : null}
               </div>
             ) : null}
+            <TrainingWorkoutResultDetails details={result?.details} />
             {readOnlyMessage ? (
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>{readOnlyMessage}</p>

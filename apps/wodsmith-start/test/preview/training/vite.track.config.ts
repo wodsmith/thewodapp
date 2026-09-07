@@ -27,6 +27,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: [
+      { find: "@/components/workout-import/workout-import-entry", replacement: local("./import-entry-fixture.tsx") },
       {
         find: "@tanstack/react-start",
         replacement: local("./start-fixture.ts"),

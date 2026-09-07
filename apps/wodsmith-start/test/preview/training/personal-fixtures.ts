@@ -37,3 +37,5 @@ export async function getPersonalTrainingHistoryFn(){return structuredClone(stat
 export async function getTrainingLibraryWorkoutFn(_input:{data:{teamId:string;workoutId:string}}){return {name:"Fran",description:"21-15-9\nThrusters\nPull-ups",scheme:"time"}}
 export async function listTrainingLibraryWorkoutsFn(){return [{id:"fran",name:"Fran",description:"21-15-9\nThrusters\nPull-ups",scheme:"time"}]}
 export async function getLogsByUserFn(){return {logs:[]}}
+
+export { getTrainingWorkoutOptionsFn as getPersonalTrainingWorkoutOptionsFn } from "./fixtures"

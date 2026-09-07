@@ -1,8 +1,10 @@
 import { z } from "zod"
 import {
-  trainingContentSchema,
+  trainingBlockSchema,
   trainingDateSchema,
+  trainingRichScoreFields,
 } from "./training-validation"
+
 const id = z.string().min(1).max(255)
 const itemId = z
   .string()
@@ -14,10 +16,11 @@ export const trainingSourceSchema = z.object({
   sourceBlockId: itemId,
   sourcePublishedVersion: z.number().int().positive(),
 })
-const personalBlock = trainingContentSchema.shape.blocks.element.extend({
-  title: z.string().trim().min(1).max(160),
-  prescription: z.string().trim().min(1).max(6000),
-})
+const personalBlock = trainingBlockSchema.refine(
+  (block) =>
+    block.title.trim().length > 0 && block.prescription.trim().length > 0,
+  "Give the workout a title and prescription",
+)
 export const personalTrainingItemSchema = z.discriminatedUnion("kind", [
   trainingSourceSchema.extend({ id: itemId, kind: z.literal("source") }),
   z.object({
@@ -50,6 +53,7 @@ export const personalTrainingSaveSchema = personalTrainingDaySchema
     "Each item needs a unique ID",
   )
 export const personalTrainingResultSchema = z.object({
+  ...trainingRichScoreFields,
   personalSessionId: itemId,
   itemId,
   expectedRevision: z.number().int().positive(),

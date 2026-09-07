@@ -8,6 +8,7 @@ import { z } from "zod"
 import { EventResourcesCard } from "@/components/events/event-resources-card"
 import { MovementsList } from "@/components/movements-list"
 import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
+import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -66,6 +67,7 @@ const templateEventSchema = z.object({
   scheme: z.enum(WORKOUT_SCHEME_VALUES),
   scoreType: z.enum(SCORE_TYPE_VALUES).nullable(),
   timeCap: z.number().min(1).nullable(),
+  roundsToScore: z.number().int().min(1).max(1000),
   tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable(),
   selectedMovements: z.array(z.string()),
   pointsMultiplier: z.number().min(1).max(1000),
@@ -234,7 +236,11 @@ function SeriesSingleEventEditPage() {
       scheme: (event.workout.scheme || "time") as WorkoutScheme,
       scoreType: (event.workout.scoreType as ScoreType) ?? null,
       timeCap: event.workout.timeCap ?? null,
-      tiebreakScheme: null,
+      roundsToScore: event.workout.roundsToScore ?? 1,
+      tiebreakScheme:
+        event.workout.scheme === "pass-fail"
+          ? null
+          : ((event.workout.tiebreakScheme as "time" | "reps" | null) ?? null),
       selectedMovements: movementIds,
       pointsMultiplier: event.pointsMultiplier || 100,
       notes: event.notes || "",
@@ -269,7 +275,8 @@ function SeriesSingleEventEditPage() {
             scheme: data.scheme,
             scoreType: data.scoreType,
             timeCap: data.timeCap,
-            tiebreakScheme: data.tiebreakScheme,
+            roundsToScore: data.roundsToScore,
+            tiebreakScheme: data.scheme === "pass-fail" ? null : data.tiebreakScheme,
           },
           movementIds: data.selectedMovements,
           pointsMultiplier: data.pointsMultiplier,
@@ -377,7 +384,14 @@ function SeriesSingleEventEditPage() {
                           <FormLabel>Scheme</FormLabel>
                           <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(next) => {
+                              field.onChange(next)
+                              if (next === "pass-fail")
+                                form.setValue("tiebreakScheme", null, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                })
+                            }}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -416,6 +430,8 @@ function SeriesSingleEventEditPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="none">None</SelectItem>
+                              <SelectItem value="first">First recorded score</SelectItem>
+                              <SelectItem value="last">Last recorded score</SelectItem>
                               {SCORE_TYPES.map((s) => (
                                 <SelectItem key={s.value} value={s.value}>
                                   {s.label}
@@ -428,6 +444,18 @@ function SeriesSingleEventEditPage() {
                       )}
                     />
 
+                    <WorkoutDefinitionFields
+                      fields={["roundsToScore"]}
+                      value={{ roundsToScore: form.watch("roundsToScore") }}
+                      onChange={(patch) =>
+                        form.setValue("roundsToScore", patch.roundsToScore ?? 0, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      errors={{ roundsToScore: form.formState.errors.roundsToScore?.message }}
+                      disabled={isSaving}
+                    />
                     {scheme === "time-with-cap" && (
                       <FormField
                         control={form.control}
@@ -968,7 +996,11 @@ function SubEventForm({
       scheme: (event.workout.scheme || "time") as WorkoutScheme,
       scoreType: (event.workout.scoreType as ScoreType) ?? null,
       timeCap: event.workout.timeCap ?? null,
-      tiebreakScheme: null,
+      roundsToScore: event.workout.roundsToScore ?? 1,
+      tiebreakScheme:
+        event.workout.scheme === "pass-fail"
+          ? null
+          : ((event.workout.tiebreakScheme as "time" | "reps" | null) ?? null),
       selectedMovements: movementIds,
       pointsMultiplier: event.pointsMultiplier || 100,
       notes: event.notes || "",
@@ -1002,7 +1034,8 @@ function SubEventForm({
             scheme: data.scheme,
             scoreType: data.scoreType,
             timeCap: data.timeCap,
-            tiebreakScheme: data.tiebreakScheme,
+            roundsToScore: data.roundsToScore,
+            tiebreakScheme: data.scheme === "pass-fail" ? null : data.tiebreakScheme,
           },
           movementIds: data.selectedMovements,
           pointsMultiplier: data.pointsMultiplier,
@@ -1064,7 +1097,14 @@ function SubEventForm({
                   <FormLabel>Scheme</FormLabel>
                   <Select
                     value={field.value}
-                    onValueChange={field.onChange}
+                    onValueChange={(next) => {
+                      field.onChange(next)
+                      if (next === "pass-fail")
+                        form.setValue("tiebreakScheme", null, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                    }}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -1102,6 +1142,8 @@ function SubEventForm({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="first">First recorded score</SelectItem>
+                      <SelectItem value="last">Last recorded score</SelectItem>
                       {SCORE_TYPES.map((s) => (
                         <SelectItem key={s.value} value={s.value}>
                           {s.label}
@@ -1112,6 +1154,18 @@ function SubEventForm({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+            <WorkoutDefinitionFields
+              fields={["roundsToScore"]}
+              value={{ roundsToScore: form.watch("roundsToScore") }}
+              onChange={(patch) =>
+                form.setValue("roundsToScore", patch.roundsToScore ?? 0, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              errors={{ roundsToScore: form.formState.errors.roundsToScore?.message }}
+              disabled={isSaving}
             />
             {scheme === "time-with-cap" && (
               <FormField

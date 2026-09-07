@@ -4,7 +4,7 @@ import type { WorkoutImportPanelProps } from "@/components/workout-import/workou
 import type { TrainingContext } from "@/lib/training/types"
 
 const api = vi.hoisted(() => ({
-  access: vi.fn(), day: vi.fn(), detail: vi.fn(), savePersonal: vi.fn(), result: vi.fn(),
+  catalog: vi.fn(), access: vi.fn(), day: vi.fn(), detail: vi.fn(), savePersonal: vi.fn(), result: vi.fn(),
   week: vi.fn(), saveDraft: vi.fn(), publish: vi.fn(), blocker: vi.fn(),
   panel: null as WorkoutImportPanelProps | null, panelError: vi.fn(),
 }))
@@ -14,6 +14,7 @@ vi.mock("@/server-fns/training-personal-fns", () => ({
   getPersonalTrainingDayFn: api.day, getTrainingLibraryWorkoutFn: api.detail,
   savePersonalTrainingSessionFn: api.savePersonal, savePersonalTrainingResultFn: api.result,
   listTrainingLibraryWorkoutsFn: vi.fn(),
+  getPersonalTrainingWorkoutOptionsFn: api.catalog,
 }))
 vi.mock("@/server-fns/training-fns", () => ({
   getTrainingWeekFn: api.week, saveTrainingDraftFn: api.saveDraft,
@@ -54,6 +55,7 @@ async function finishImport() {
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "Finish reviewed import" })))
 }
 beforeEach(() => {
+  api.catalog.mockResolvedValue({ movements: [], scalingGroups: [] })
   vi.useFakeTimers({ toFake: ["Date"] })
   vi.setSystemTime(new Date("2026-09-07T12:00:00Z"))
   api.access.mockResolvedValue({ hasAccess: true, scope: { userId: "me", teamId: "personal-team", destination: { kind: "personal" } }, teamName: "Personal", scalingGroups: [] })
@@ -102,7 +104,7 @@ describe("session workout import", () => {
     expect(api.detail).not.toHaveBeenCalled()
     expect(api.savePersonal).not.toHaveBeenCalled()
     expect(api.saveDraft).not.toHaveBeenCalled()
-    expect(screen.getByRole("button", { name: kind === "personal" ? "Create workout" : "Add a section" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: kind === "personal" ? "Create workout" : "Add instructions" })).toBeEnabled()
   })
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Personal session import recovery]]
@@ -152,7 +154,7 @@ describe("session workout import", () => {
     render(<CoachPlanner context={context} />)
     const title = await screen.findByLabelText("Session title")
     fireEvent.change(title, { target: { value: "My unsaved plan" } })
-    fireEvent.click(screen.getByRole("button", { name: "Add a section" }))
+    fireEvent.click(screen.getByRole("button", { name: "Add instructions" }))
     fireEvent.change(screen.getByLabelText("Section title"), { target: { value: "Manual warm-up" } })
     await openImport()
     expect(api.blocker.mock.lastCall?.[0].shouldBlockFn()).toBe(true)
@@ -160,31 +162,32 @@ describe("session workout import", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     expect(title).toHaveValue("My unsaved plan")
     expect(screen.getByRole("region", { name: "Section 1: Manual warm-up" })).toBeInTheDocument()
-    expect(screen.getByLabelText("Section title")).toHaveValue("Imported workout")
+    expect(screen.getByRole("region", {name:"Section 2: Imported workout"})).toBeInTheDocument()
     expect(api.saveDraft).not.toHaveBeenCalled()
     expect(api.publish).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }))
     await waitFor(() => expect(api.saveDraft).toHaveBeenCalledWith({ data: expect.objectContaining({
       teamId: "gym", trackId: "everyday", trainingDate: "2026-09-07", expectedRevision: 0,
-      content: expect.objectContaining({ title: "My unsaved plan", blocks: [expect.objectContaining({ title: "Manual warm-up" }), expect.objectContaining({ title: "Imported workout", kind: "time", prescription: workout.description })] }),
+      content: expect.objectContaining({ title: "My unsaved plan", blocks: [expect.objectContaining({ title: "Manual warm-up" }), expect.objectContaining({ title: "Imported workout", kind: "workout", prescription: workout.description, workout: expect.objectContaining({scheme:"time",scoreType:"min"}) })] }),
     }) }))
   })
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Coach import scoring compatibility]]
-  it.each([{ timeCap: 900 }, { roundsToScore: 3 }, { tiebreakScheme: "time" }])("shows incompatible scoring without flattening the saved library workout: %j", async (scoring) => {
-    api.detail.mockResolvedValue({ ...workout, ...scoring })
+  it.each([{ scheme: "time-with-cap", timeCap: 900 }, { roundsToScore: 3 }, { tiebreakScheme: "time" }])("preserves rich imported scoring in the canonical draft: %j", async (scoring) => {
+    const imported = { ...workout, ...scoring }
+    api.detail.mockResolvedValue(imported)
     render(<CoachPlanner context={context} />)
     const title = await screen.findByLabelText("Session title")
     fireEvent.change(title, { target: { value: "Keep my draft" } })
     await openImport()
     await finishImport()
-    expect(await screen.findByRole("alert")).toHaveTextContent("scoring the session composer cannot preserve")
-    expect(screen.getByRole("alert")).toHaveTextContent("saved in the library")
-    fireEvent.click(screen.getByRole("button", { name: "Close import" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     expect(title).toHaveValue("Keep my draft")
-    expect(screen.queryByLabelText("Section title")).not.toBeInTheDocument()
+    expect(screen.getByRole("region", {name:"Section 1: Imported workout"})).toBeInTheDocument()
     expect(api.saveDraft).not.toHaveBeenCalled()
     expect(api.publish).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", {name:"Save draft"}))
+    await waitFor(() => expect(api.saveDraft).toHaveBeenCalledWith({data: expect.objectContaining({content: expect.objectContaining({blocks:[expect.objectContaining({kind:"workout",workout:expect.objectContaining({scheme:imported.scheme,roundsToScore:imported.roundsToScore,timeCapSeconds:imported.timeCap,tiebreakScheme:imported.tiebreakScheme})})]})})}))
   })
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Coach session import context race]]
@@ -209,7 +212,7 @@ it("cancels a pending coach handoff while preserving the title and manual sectio
   render(<CoachPlanner context={context} />)
   const title = await screen.findByLabelText("Session title")
   fireEvent.change(title, { target: { value: "Keep my plan" } })
-  fireEvent.click(screen.getByRole("button", { name: "Add a section" }))
+  fireEvent.click(screen.getByRole("button", { name: "Add instructions" }))
   fireEvent.change(screen.getByLabelText("Section title"), { target: { value: "Manual warm-up" } })
   await openImport()
   const oldSave = api.panel!.onSaved

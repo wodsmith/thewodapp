@@ -2,7 +2,7 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate, useRouter } from "@tanstack/react-router"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -10,8 +10,6 @@ import {
   AddTestDialog,
   type TestDraft,
 } from "@/components/benchmark-tiers/test-editor-dialogs"
-import { MovementsList } from "@/components/movements-list"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -40,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import type { Movement, Sponsor } from "@/db/schema"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import {
@@ -54,52 +53,6 @@ import type { EventDivisionMappingData } from "@/server-fns/event-division-mappi
 
 // Form ID for external submit buttons
 export const EVENT_DETAILS_FORM_ID = "event-details-form"
-
-// Constants for workout schemes and score types
-const WORKOUT_SCHEMES = [
-  { value: "time", label: "For Time" },
-  { value: "time-with-cap", label: "For Time (with cap)" },
-  { value: "rounds-reps", label: "AMRAP (rounds + reps)" },
-  { value: "reps", label: "Max Reps" },
-  { value: "load", label: "Max Load" },
-  { value: "calories", label: "Max Calories" },
-  { value: "meters", label: "Max Distance (meters)" },
-  { value: "feet", label: "Max Distance (feet)" },
-  { value: "points", label: "Points" },
-  { value: "pass-fail", label: "Pass/Fail" },
-  { value: "emom", label: "EMOM" },
-] as const
-
-const SCORE_TYPES = [
-  { value: "min", label: "Min (lowest single set wins)" },
-  { value: "max", label: "Max (highest single set wins)" },
-  { value: "sum", label: "Sum (total across rounds)" },
-  { value: "average", label: "Average (mean across rounds)" },
-] as const
-
-const TIEBREAK_SCHEMES = [
-  { value: "time", label: "Time" },
-  { value: "reps", label: "Reps" },
-] as const
-
-// Get default score type based on scheme
-function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
-  switch (scheme) {
-    case "time":
-    case "time-with-cap":
-      return "min" // Lower time is better
-    case "rounds-reps":
-    case "reps":
-    case "calories":
-    case "meters":
-    case "feet":
-    case "load":
-    case "emom":
-    case "pass-fail":
-    case "points":
-      return "max" // Higher is better
-  }
-}
 
 // Form schema
 const competitionEventSchema = z.object({
@@ -264,27 +217,6 @@ export function EventDetailsForm({
   const { watch, setValue } = form
   const scheme = watch("scheme")
   const scoreType = watch("scoreType")
-  const selectedMovements = watch("selectedMovements")
-
-  // Auto-set scoreType when scheme changes (only if not already set)
-  useEffect(() => {
-    const defaultScoreType = getDefaultScoreType(scheme)
-    if (!scoreType && defaultScoreType) {
-      setValue("scoreType", defaultScoreType)
-    }
-  }, [scheme, scoreType, setValue])
-
-  const handleMovementToggle = (movementId: string) => {
-    if (selectedMovements.includes(movementId)) {
-      setValue(
-        "selectedMovements",
-        selectedMovements.filter((id) => id !== movementId),
-      )
-    } else {
-      setValue("selectedMovements", [...selectedMovements, movementId])
-    }
-  }
-
   const [isSaving, setIsSaving] = useState(false)
 
   // Inline "Add event tiers": creates the benchmark test already linked to
@@ -372,257 +304,72 @@ export function EventDetailsForm({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Event Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Event 1 - Fran" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {!isParentEvent && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="scheme"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Scheme</FormLabel>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select scheme" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {WORKOUT_SCHEMES.map((s) => (
-                                <SelectItem key={s.value} value={s.value}>
-                                  {s.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {scheme && (
-                      <FormField
-                        control={form.control}
-                        name="scoreType"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Score Type</FormLabel>
-                            <Select
-                              value={field.value ?? "none"}
-                              onValueChange={(v) =>
-                                field.onChange(v === "none" ? null : v)
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select score type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                {SCORE_TYPES.map((s) => (
-                                  <SelectItem key={s.value} value={s.value}>
-                                    {s.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-
-                    {scheme === "rounds-reps" && (
-                      <FormField
-                        control={form.control}
-                        name="roundsToScore"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Rounds to Score{" "}
-                              <span className="text-muted-foreground">
-                                (optional)
-                              </span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="e.g., 4"
-                                value={field.value ?? ""}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    e.target.value
-                                      ? Number.parseInt(e.target.value)
-                                      : null,
-                                  )
-                                }
-                                min="1"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-
-                    {scheme === "time-with-cap" && (
-                      <FormField
-                        control={form.control}
-                        name="timeCap"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Time Cap (minutes)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="e.g., 12"
-                                value={field.value ? field.value / 60 : ""}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    e.target.value
-                                      ? Math.round(
-                                          Number.parseFloat(e.target.value) *
-                                            60,
-                                        )
-                                      : null,
-                                  )
-                                }
-                                min="1"
-                                step="0.5"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Enter time cap in minutes (e.g., 12 for 12:00)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-
-                    {scheme !== "pass-fail" && (
-                      <FormField
-                        control={form.control}
-                        name="tiebreakScheme"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Tiebreak{" "}
-                              <span className="text-muted-foreground">
-                                (optional)
-                              </span>
-                            </FormLabel>
-                            <Select
-                              value={field.value ?? "none"}
-                              onValueChange={(v) =>
-                                field.onChange(v === "none" ? null : v)
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="None" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                {TIEBREAK_SCHEMES.map((s) => (
-                                  <SelectItem key={s.value} value={s.value}>
-                                    {s.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormDescription>
-                              Used to break ties when athletes have the same
-                              score
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                  </>
-                )}
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="21-15-9 Thrusters, Pull-ups..."
-                          rows={6}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        This is the default description shown to all athletes.
-                        You can add division-specific variations below.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                <WorkoutDefinitionFields
+                  value={{
+                    ...watch(),
+                    timeCapSeconds: watch("timeCap"),
+                    movementIds: watch("selectedMovements"),
+                    roundsToScore: watch("roundsToScore") ?? undefined,
+                  }}
+                  onChange={(patch) => {
+                    const options = { shouldDirty: true, shouldValidate: true }
+                    if (patch.name !== undefined)
+                      setValue("name", patch.name, options)
+                    if (patch.description !== undefined)
+                      setValue("description", patch.description, options)
+                    if (patch.scheme !== undefined)
+                      setValue("scheme", patch.scheme, options)
+                    if (
+                      patch.scoreType !== undefined &&
+                      (patch.scheme === undefined || scoreType == null)
+                    )
+                      setValue("scoreType", patch.scoreType, options)
+                    if ("roundsToScore" in patch)
+                      setValue(
+                        "roundsToScore",
+                        patch.roundsToScore ?? null,
+                        options,
+                      )
+                    if (patch.timeCapSeconds !== undefined)
+                      setValue("timeCap", patch.timeCapSeconds, options)
+                    if (patch.tiebreakScheme !== undefined)
+                      setValue("tiebreakScheme", patch.tiebreakScheme, options)
+                    if (patch.movementIds !== undefined)
+                      setValue("selectedMovements", patch.movementIds, options)
+                  }}
+                  nameLabel="Event Name"
+                  descriptionHint={
+                    isParentEvent
+                      ? "Overall description for the parent event. Individual scored events have their own workout details."
+                      : "Default description shown to athletes. Add division-specific variations below."
+                  }
+                  movements={movements}
+                  disabled={isSaving}
+                  fields={
+                    isParentEvent
+                      ? ["name", "description"]
+                      : [
+                          "name",
+                          "scheme",
+                          "scoreType",
+                          "roundsToScore",
+                          "timeCapSeconds",
+                          "tiebreakScheme",
+                          "description",
+                          "movementIds",
+                        ]
+                  }
+                  errors={{
+                    name: form.formState.errors.name?.message,
+                    scheme: form.formState.errors.scheme?.message,
+                    scoreType: form.formState.errors.scoreType?.message,
+                    roundsToScore: form.formState.errors.roundsToScore?.message,
+                    timeCapSeconds: form.formState.errors.timeCap?.message,
+                    description: form.formState.errors.description?.message,
+                  }}
                 />
               </CardContent>
             </Card>
-
-            {/* Movements */}
-            {!isParentEvent && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Movements</CardTitle>
-                  <CardDescription>
-                    Track which movements are used in this event
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    {selectedMovements.length > 0 && (
-                      <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
-                        {movements
-                          .filter((m) => selectedMovements.includes(m.id))
-                          .map((movement) => (
-                            <Badge
-                              key={movement.id}
-                              variant="default"
-                              className="cursor-pointer"
-                              onClick={() => handleMovementToggle(movement.id)}
-                            >
-                              {movement.name} ✓
-                            </Badge>
-                          ))}
-                      </div>
-                    )}
-                    <MovementsList
-                      movements={movements}
-                      selectedMovements={selectedMovements}
-                      onMovementToggle={handleMovementToggle}
-                      showLabel={false}
-                      containerHeight="max-h-[250px]"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Right Column */}

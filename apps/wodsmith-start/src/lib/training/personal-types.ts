@@ -1,4 +1,9 @@
-import type { OwnTrainingResult, TrainingBlock, TrainingSession } from "./types"
+import type {
+  OwnTrainingResult,
+  TrainingBlock,
+  TrainingSession,
+  TrainingWorkoutScoreInput,
+} from "./types"
 
 export interface TrainingSourceReference {
   sourceSessionId: string
@@ -77,7 +82,8 @@ export interface SavePersonalTrainingSessionInput {
   expectedRevision: number
   items: PersonalTrainingItemInput[]
 }
-export interface SavePersonalTrainingResultInput {
+export interface SavePersonalTrainingResultInput
+  extends TrainingWorkoutScoreInput {
   personalSessionId: string
   itemId: string
   expectedRevision: number

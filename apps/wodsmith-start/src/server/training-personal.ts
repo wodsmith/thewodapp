@@ -8,6 +8,7 @@ import {
   scoreRoundsTable,
   scoresTable,
   teamMembershipTable,
+  workoutMovements,
   workouts,
 } from "@repo/wodsmith-db/schema"
 import {
@@ -50,6 +51,7 @@ import {
   assertTrainingRevision,
   normalizeTrainingResult,
 } from "./training-validation"
+import { validateChangedWorkoutReferences } from "./workout-references"
 
 type Db = ReturnType<typeof getDb>
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0]
@@ -82,6 +84,7 @@ function ownPersonalResult(
     block: row.block,
     scoreValue: row.scoreValue,
     displayScore: row.displayScore,
+    details: row.details,
     scaling: "custom",
     modification: "",
     audience: "private",
@@ -347,6 +350,7 @@ export async function getTrainingLibraryWorkout(input: {
 }): Promise<
   Pick<typeof workouts.$inferSelect, keyof typeof libraryFields> & {
     provenance?: import("@/lib/training/personal-types").ProviderProvenance
+    movementIds: string[]
   }
 > {
   const data = trainingLibraryWorkoutSchema.parse(input)
@@ -392,6 +396,11 @@ export async function getTrainingLibraryWorkout(input: {
   const sourceProvenance:
     | import("@/lib/training/personal-types").ProviderProvenance
     | undefined = provenance ?? undefined
+  const movementRows = await getDb()
+    .select({ id: workoutMovements.movementId })
+    .from(workoutMovements)
+    .where(eq(workoutMovements.workoutId, workout.id))
+  const movementIds = movementRows.flatMap((row) => (row.id ? [row.id] : []))
   if (!workout.scalingGroupId) {
     const [group] = await getDb()
       .select({ id: scalingGroupsTable.id })
@@ -400,11 +409,12 @@ export async function getTrainingLibraryWorkout(input: {
       .limit(1)
     return {
       ...workout,
+      movementIds,
       provenance: sourceProvenance,
       scalingGroupId: group?.id ?? null,
     }
   }
-  return { ...workout, provenance: sourceProvenance }
+  return { ...workout, movementIds, provenance: sourceProvenance }
 }
 
 export async function savePersonalTrainingSession(
@@ -471,6 +481,20 @@ export async function savePersonalTrainingSession(
               eq(personalTrainingResultsTable.personalSessionId, existing.id),
             )
         : []
+      for (const item of data.items) {
+        if (item.kind !== "personal" || !item.block.workout) continue
+        const stored = previous.find(
+          (old) => old.kind === "personal" && old.id === item.id,
+        )
+        const previousWorkout =
+          stored?.kind === "personal" ? stored.block.workout : undefined
+        await validateChangedWorkoutReferences(
+          tx,
+          item.block.workout,
+          previousWorkout,
+          data.teamId,
+        )
+      }
       const sourceRefs = data.items.flatMap((item) =>
         item.kind === "source"
           ? [item]
@@ -700,6 +724,7 @@ export async function savePersonalTrainingResult(
       block: item.block,
       scoreValue: normalized.scoreValue,
       displayScore: normalized.displayScore,
+      details: normalized.details ?? null,
       notes: data.notes,
       unit: data.unit,
       completed: data.completed,

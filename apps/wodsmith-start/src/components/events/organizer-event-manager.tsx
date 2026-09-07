@@ -220,6 +220,7 @@ export function OrganizerEventManager({
     movementIds?: string[]
   }) => {
     setIsCreating(true)
+    let created = false
     try {
       const result = await createWorkoutFn({
         data: {
@@ -235,6 +236,7 @@ export function OrganizerEventManager({
           parentEventId: subEventParentId ?? undefined,
         },
       })
+      created = true
 
       if (result?.trackWorkoutId) {
         trackEvent("competition_event_created", {
@@ -250,9 +252,13 @@ export function OrganizerEventManager({
         )
         setShowCreateDialog(false)
         setSubEventParentId(null)
-        router.invalidate()
+        await router.invalidate()
       }
     } catch (error) {
+      if (created) {
+        toast.error("Event created, but the list could not refresh. Reload to see it.")
+        return
+      }
       const message =
         error instanceof Error ? error.message : "Failed to create event"
       trackEvent("competition_event_created_failed", {
@@ -260,6 +266,7 @@ export function OrganizerEventManager({
         error_message: message,
       })
       toast.error(message)
+      throw error
     } finally {
       setIsCreating(false)
     }

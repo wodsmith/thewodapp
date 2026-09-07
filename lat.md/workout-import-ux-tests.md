@@ -164,7 +164,7 @@ A supported import appends to the coach's unsaved draft, preserves manual sectio
 
 ## Coach import scoring compatibility
 
-Caps, multiple scored rounds, and tiebreaks that the coach composer cannot preserve produce a visible error and remain available in the workout library without draft mutation.
+Caps, multiple scored rounds, and tiebreaks survive reviewed import into a canonical workout block. The selected session receives the definition only when its coach explicitly saves the draft.
 
 ## Coach session import context race
 

@@ -2,12 +2,14 @@ import { Heart } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { compareTrainingResults } from "@/lib/training/score-order"
 import type {
   TrainingResult,
   TrainingScaling,
   TrainingSession,
 } from "@/lib/training/types"
 import { setTrainingCheerFn } from "@/server-fns/training-fns"
+import { TrainingWorkoutResultDetails } from "./training-workout-result-details"
 
 export function AthleteTeamResults({
   session,
@@ -31,7 +33,8 @@ export function AthleteTeamResults({
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const block = blocks.find((item) => item.id === blockId)
-  const canRank = scaling === "rx" && block?.kind !== "check"
+  const canRank = scaling === "rx" && !!block && block.kind !== "check"
+  const isLoad = block?.kind === "load" || block?.workout?.scheme === "load"
   const visible = results.filter(
     (result) =>
       result.audience === "gym" &&
@@ -40,17 +43,10 @@ export function AthleteTeamResults({
       result.blockId === blockId &&
       result.scaling === scaling &&
       result.completed &&
-      (block?.kind !== "load" || result.unit === unit),
+      (!isLoad || result.unit === unit),
   )
   const sorted =
-    ranked && canRank
-      ? [...visible].sort((a, b) =>
-          block?.kind === "time"
-            ? (a.scoreValue ?? Number.POSITIVE_INFINITY) -
-              (b.scoreValue ?? Number.POSITIVE_INFINITY)
-            : (b.scoreValue ?? -1) - (a.scoreValue ?? -1),
-        )
-      : visible
+    ranked && canRank ? [...visible].sort(compareTrainingResults) : visible
   const participantCount = new Set(
     results
       .filter(
@@ -130,7 +126,7 @@ export function AthleteTeamResults({
                 </select>
               </div>
             ) : null}
-            {block?.kind === "load" ? (
+            {isLoad ? (
               <div className="space-y-2">
                 <Label htmlFor="team-result-unit">Unit</Label>
                 <select
@@ -178,7 +174,7 @@ export function AthleteTeamResults({
               {sorted.map((result) => {
                 const rank =
                   sorted.findIndex(
-                    (item) => item.scoreValue === result.scoreValue,
+                    (item) => compareTrainingResults(item, result) === 0,
                   ) + 1
                 return (
                   <li
@@ -200,6 +196,7 @@ export function AthleteTeamResults({
                         {result.displayScore}
                         {block?.kind === "load" ? ` ${result.unit}` : ""}
                       </p>
+                      <TrainingWorkoutResultDetails details={result.details} />
                       {result.modification ? (
                         <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
                           {result.modification}

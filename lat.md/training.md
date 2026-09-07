@@ -4,7 +4,7 @@ Gym training connects published daily sessions to private athlete history and op
 
 ## Session Model
 
-Each training session belongs to one gym, eligible programming track, and calendar date. Ordered blocks support checkoffs, load, finish time, reps, and instructions.
+Each training session belongs to one gym, eligible programming track, and calendar date. Ordered blocks support canonical workout definitions alongside earlier checkoffs, load, finish time, reps, and instructions.
 
 The `training_sessions` table stores separate draft and published content, an optimistic revision, and a published version. Dates use `YYYY-MM-DD`; each session snapshots an IANA timezone. Published session timezones cannot change. Gym timezone reads `team.settings.timezone`, falling back to UTC.
 
@@ -114,7 +114,7 @@ Cancelling a library addition clears its URL request and parent pending state. C
 
 ### Personal titles match server limits
 
-Personal workout names enforce the same 160-character input limit as the server, avoiding otherwise valid-looking edits that cannot be saved.
+Legacy personal workout names enforce the server's 160-character limit. Canonical workout names allow 255 characters and descriptions allow 20,000 characters.
 
 ## Coach Interface Tests
 
@@ -144,13 +144,13 @@ The preview includes scoring units, prescriptions, scaling, and coach guidance, 
 
 The workout library keeps reusable workout identities, editing, remixes, and earlier history. Athletes choose a gym and date before previewing an addition to their personal session.
 
-Library search runs across the catalog before pagination. Old schedule bookmarks open a personal-session preview without writing a legacy schedule. Coaches can copy supported single-score time, load, or reps workouts into an independent draft section; rounds, caps, tiebreaks, and incompatible ranking semantics are rejected rather than flattened.
+Library search runs across the catalog before pagination. Old schedule bookmarks open a personal-session preview without writing a legacy schedule. Coaches copy canonical library definitions into independent workout sections, preserving all eleven scoring schemes, round aggregation, caps, tiebreaks, movement IDs, and scaling group references.
 
 Switching gyms clears track, tag, and movement filters from the previous gym. Search text stays local until Search or Enter submits it. Library date parameters use the same valid-calendar-date validation as Training; invalid dates fall back to the gym's current date.
 
 ### Library Reuse Tests
 
-Library conversion tests reject unsupported scoring metadata so coached sessions never change the meaning of a workout score. Picker tests verify selected-gym search, independent section identity, and recoverable rejection without adding a section.
+Library conversion tests preserve complete scoring definitions and reject malformed metadata. Picker tests verify selected-gym search, independent section identity, and faithful multi-round capped workouts.
 
 ### Library gym filters reset
 
@@ -178,7 +178,7 @@ Opening the library picker temporarily disables adding manual sections. A delaye
 
 ### Library text limits
 
-Workout imports reject names over 160 characters or prescriptions over 6,000 characters before adding a section, keeping the coach draft within its save limits.
+Canonical workout imports accept names up to 255 characters and descriptions up to 20,000 characters. Earlier section kinds retain their original 160-character names and 6,000-character prescriptions.
 
 ## Navigation and History
 
@@ -285,3 +285,84 @@ Personal follow and gym-library actions clear earlier success feedback when a ne
 ### Visible gym selection
 
 Changing the gym search clears the prior selection, so adding a track always targets a visible choice.
+
+
+## Athlete Workout Scores
+
+Published and private canonical workouts use the same scheme-specific score controls, including individual rounds, explicit time caps, completed reps, units, pass/fail, and optional tiebreaks.
+
+Editing restores original inputs from the locked result snapshot. Private workouts keep the same lazy composition rules; opening the canonical editor does not create a personal session. Team rankings compare complete normalized scores, and session cards and progress expose score breakdowns.
+
+## Rich Workout Interface Tests
+
+Athletes use canonical workout definitions and scheme-specific score controls in both published and private sessions, with historical details and comparable team rankings.
+
+### Capped rounds reopen exactly
+
+Editing restores fractional times, per-round caps, completed reps, and tiebreaks; a failed save preserves those inputs for retry.
+
+### All schemes use their scoring controls
+
+Rounds and reps, distance, counts, EMOM, and pass/fail submit the appropriate score shape without coercing distinct schemes into generic reps.
+
+### Personal scores retain rich inputs
+
+Private multi-set results retain every set and the selected load unit through the personal result API without writing a shared source result.
+
+### Personal definitions use canonical fields
+
+Creating a private workout uses the full canonical definition and text limits, and creates no personal session until the athlete saves the composition.
+
+### Team rankings retain caps and tiebreaks
+
+The team board orders finishers, capped performances, and tiebreaks using normalized score details while exposing individual rounds in a score breakdown.
+
+## Rich Workout Results
+
+Canonical workout sections preserve every scoring scheme and normalized definition. Source and personal results store complete scoring details, so rendering, edits, and ranking retain the performed workout's meaning.
+
+New `workout` blocks embed the canonical normalized save shape, including `timeCapSeconds`, movements, scaling group, round count, aggregation, reps per round, and tiebreak. Name and description mirror section display fields; canonical validation is shared with workout imports and existing forms. Reference validation checks movement existence and gym access to scaling groups when saving or publishing. Existing block kinds remain compatible.
+
+Migration `0006_training_workout_results` adds only nullable `details` JSON to source and personal result tables. Details retain normalized values, round statuses, capped rep counts, optional tiebreak, display units, and the entered score fields for editing. Private notes never enter these shareable details. Result storage still happens only on explicit logging; publication never creates athlete sessions.
+
+Rich team ordering compares complete canonical score facts rather than relying on limited bit-packed segments. Finishers precede capped results; fewer capped rounds rank first, then aggregate value, capped reps, and configured tiebreak. An omitted configured tiebreak loses an otherwise equal comparison to a supplied value. Old publication snapshots remain in private history.
+
+### Every scoring scheme retains its meaning
+
+All eleven canonical schemes encode their intended units and values without reducing rounds, distance, pass/fail, or EMOM to generic reps.
+
+### Aggregation and input units round trip
+
+All six aggregation modes retain individual rounds, while entered kilogram and distance units reopen without exposing normalized storage units.
+
+### Explicit caps and tiebreaks survive editing
+
+Per-round capped status requires explicit whole reps, and edits clear obsolete capped reps and tiebreaks. Finishing exactly at the cap remains valid; later finish times require capped status.
+
+### Team ranking uses the complete score
+
+Equal workout occurrences compare finishers, capped reps, and tiebreaks using the complete normalized score definition.
+
+### Workout definitions use canonical validation
+
+Workout sections retain canonical name and description limits and reject missing definitions or mismatched display mirrors before persistence.
+
+### Malformed scores never become partial numbers
+
+Malformed numeric suffixes, incomplete round sets, and unsupported cap or tiebreak fields fail validation rather than yielding partial or silently changed scores.
+
+### Published result snapshots persist
+
+Database writes retain complete round details and replace obsolete cap facts atomically. Gym results omit notes, while republishing preserves earlier performed definitions in private history.
+
+### Workout options require programming access
+
+Only authorized programmers can read movement and scaling options, and invalid movement references cannot produce a saved session draft.
+
+### Missing tiebreaks never win ties
+
+An omitted configured time or reps tiebreak ranks after a provided value when the primary performance is equal.
+
+### Large capped totals retain order
+
+Large valid round totals compare their full numeric values without wrapping the bit-packed sort key's capped-time segment.
