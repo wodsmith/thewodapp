@@ -33,3 +33,5 @@ After saving AI drafts, the page refreshes even if agent acknowledgement fails a
 ## Idempotent proposal persistence
 
 AI draft identities include competition, event, proposal ID and rotation definition. Replays add no duplicates; later runs may reuse short IDs for distinct rotations. Scope, entitlement, roster, lane and overlap checks still apply to new writes.
+
+Retry responses include only the requested proposals, while unrelated saved rotations stay unchanged.

@@ -19,7 +19,10 @@ beforeEach(() => {
       const persist = () => { for (const row of inserts) if (!rows.some((r) => r.id === row.id)) rows.push(row) }
       return { then: (resolve: () => void) => { persist(); resolve() }, onDuplicateKeyUpdate: async () => persist() }
     } }),
-    query: { competitionJudgeRotationsTable: { findMany: async () => [...rows] } },
+    query: { competitionJudgeRotationsTable: { findMany: async ({ where }: { where: (table: { id: string }, operators: { inArray: (column: string, ids: string[]) => string[] }) => string[] }) => {
+      const ids = where({ id: "id" }, { inArray: (_column, ids) => ids })
+      return rows.filter((row) => ids.includes(row.id))
+    } } },
   }
   mocks.db.mockReturnValue(db)
   mocks.scope.mockResolvedValue({})
