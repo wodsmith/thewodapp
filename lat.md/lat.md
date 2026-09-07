@@ -35,3 +35,6 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[review-backend]] — Training review regressions for score validation, historical references, and athlete catalog access.
 
 - [[athlete-workout-review]] — Athlete workout editing, catalog choices, and score-dialog review regressions.
+
+- [[training-access]] — Training resource visibility and owner-team mutation boundaries.
+- [[training-access-tests]] — Real MySQL regressions for training visibility, permissions and remix access.

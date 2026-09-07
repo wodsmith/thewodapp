@@ -10,6 +10,7 @@ import { removeWorkoutFromTrackFn } from "@/server-fns/programming-fns"
 import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface TrackWorkoutRowProps {
+  canManage?: boolean
   trackWorkout: TrackWorkoutWithDetails
   onRemoved?: () => void
 }
@@ -17,6 +18,7 @@ interface TrackWorkoutRowProps {
 export function TrackWorkoutRow({
   trackWorkout,
   onRemoved,
+  canManage = false,
 }: TrackWorkoutRowProps) {
   const handleRemove = async () => {
     if (
@@ -63,14 +65,17 @@ export function TrackWorkoutRow({
               </div>
             </div>
           </div>
-          <Button
-            onClick={handleRemove}
-            variant="outline"
-            size="icon"
-            className="border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {canManage && (
+            <Button
+              aria-label="Remove workout from track"
+              onClick={handleRemove}
+              variant="outline"
+              size="icon"
+              className="border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardHeader>
       {trackWorkout.notes && (

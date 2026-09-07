@@ -4,6 +4,7 @@ import type { TrackWorkoutWithDetails } from "@/server-fns/programming-fns"
 import { TrackWorkoutRow } from "./track-workout-row"
 
 interface TrackWorkoutListProps {
+  canManage?: boolean
   trackWorkouts: TrackWorkoutWithDetails[]
   onWorkoutRemoved?: () => void
 }
@@ -11,6 +12,7 @@ interface TrackWorkoutListProps {
 export function TrackWorkoutList({
   trackWorkouts,
   onWorkoutRemoved,
+  canManage = false,
 }: TrackWorkoutListProps) {
   // Sort workouts by track order
   const sortedWorkouts = [...trackWorkouts].sort(
@@ -37,6 +39,7 @@ export function TrackWorkoutList({
           key={trackWorkout.id}
           trackWorkout={trackWorkout}
           onRemoved={onWorkoutRemoved}
+          canManage={canManage}
         />
       ))}
     </div>

@@ -73,7 +73,11 @@ function TrackDetailPage() {
       </div>
 
       {/* Track Header Component */}
-      <TrackHeader track={track} onSuccess={handleRefresh} />
+      <TrackHeader
+        canManage={canManageWorkouts}
+        track={track}
+        onSuccess={handleRefresh}
+      />
 
       {/* Track Workouts Section */}
       <div className="mt-8">
@@ -93,6 +97,7 @@ function TrackDetailPage() {
           </div>
         </div>
         <TrackWorkoutList
+          canManage={canManageWorkouts}
           trackWorkouts={trackWorkouts}
           onWorkoutRemoved={handleWorkoutRemoved}
         />

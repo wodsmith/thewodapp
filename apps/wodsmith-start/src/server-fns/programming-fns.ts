@@ -24,6 +24,13 @@ import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import { appendCrossFitWorkout } from "@/server/append-crossfit-workout"
 import {
+  getActiveTrainingTeamIds,
+  requireTrackRead,
+  requireTrackWrite,
+  requireTrainingTeamMember,
+  workoutVisibilityCondition,
+} from "@/server/training-access"
+import {
   requireWorkoutTeamWrite,
   WorkoutImportAccessError,
 } from "@/server/workout-import/access"
@@ -200,14 +207,16 @@ const unsubscribeFromTrackInputSchema = z.object({
 const getPublicTracksWithSubscriptionsInputSchema = z.object({
   userTeamIds: z
     .array(z.string().min(1))
-    .min(1, "At least one team ID required"),
+    .min(1, "At least one team ID required")
+    .max(100),
 })
 
 const getTrackSubscribedTeamsInputSchema = z.object({
   trackId: z.string().min(1, "Track ID is required"),
   userTeamIds: z
     .array(z.string().min(1))
-    .min(1, "At least one team ID required"),
+    .min(1, "At least one team ID required")
+    .max(100),
 })
 
 // ============================================================================
@@ -223,6 +232,7 @@ export const getTeamProgrammingTracksFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    await requireTrainingTeamMember(data.teamId)
 
     const tracks = await db
       .select({
@@ -253,6 +263,10 @@ export const getTeamProgrammingTracksFn = createServerFn({ method: "GET" })
         and(
           eq(teamProgrammingTracksTable.teamId, data.teamId),
           eq(teamProgrammingTracksTable.isActive, 1),
+          or(
+            eq(programmingTracksTable.isPublic, 1),
+            eq(programmingTracksTable.ownerTeamId, data.teamId),
+          ),
         ),
       )
 
@@ -293,6 +307,10 @@ export const getProgrammingTrackByIdFn = createServerFn({ method: "GET" })
       .limit(1)
 
     const track = result[0] || null
+    if (track && track.isPublic !== 1) {
+      if (!track.ownerTeamId) throw new Error("Track access required")
+      await requireTrainingTeamMember(track.ownerTeamId)
+    }
     const session = await getSessionFromCookie()
     let canManageWorkouts = false
     if (track?.id === CROSSFIT_TRACK_ID) {
@@ -328,6 +346,13 @@ export const createProgrammingTrackFn = createServerFn({ method: "POST" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
+
+    await requireWorkoutTeamWrite(
+      session.userId,
+      data.ownerTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+      db,
+    )
 
     // Create the programming track
     const trackId = createProgrammingTrackId()
@@ -378,7 +403,7 @@ export const updateProgrammingTrackFn = createServerFn({ method: "POST" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
-    if (data.trackId === CROSSFIT_TRACK_ID) await requireAdmin()
+    await requireTrackWrite(data.trackId)
 
     // Build update object with only provided fields
     const updateData: {
@@ -436,7 +461,7 @@ export const deleteProgrammingTrackFn = createServerFn({ method: "POST" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
-    if (data.trackId === CROSSFIT_TRACK_ID) await requireAdmin()
+    await requireTrackWrite(data.trackId)
 
     // Check track exists before deleting
     const trackToDelete = await db
@@ -465,6 +490,7 @@ export const getTrackWorkoutsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getTrackWorkoutsInputSchema.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
+    await requireTrackRead(data.trackId)
 
     const trackWorkouts = await db
       .select({
@@ -476,7 +502,12 @@ export const getTrackWorkoutsFn = createServerFn({ method: "GET" })
         workoutsTable,
         eq(trackWorkoutsTable.workoutId, workoutsTable.id),
       )
-      .where(eq(trackWorkoutsTable.trackId, data.trackId))
+      .where(
+        and(
+          eq(trackWorkoutsTable.trackId, data.trackId),
+          await workoutVisibilityCondition(),
+        ),
+      )
       .orderBy(trackWorkoutsTable.trackOrder)
 
     // Transform to the expected format
@@ -591,7 +622,7 @@ export const removeWorkoutFromTrackFn = createServerFn({ method: "POST" })
       throw new Error("Track workout not found")
     }
 
-    if (trackWorkoutToDelete.trackId === CROSSFIT_TRACK_ID) await requireAdmin()
+    await requireTrackWrite(trackWorkoutToDelete.trackId)
 
     // Delete the track workout
     await db
@@ -616,7 +647,7 @@ export const updateTrackVisibilityFn = createServerFn({ method: "POST" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
-    if (data.trackId === CROSSFIT_TRACK_ID) await requireAdmin()
+    await requireTrackWrite(data.trackId)
 
     // Update the track visibility
     await db
@@ -786,6 +817,7 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
     })
 
     const db = getDb()
+    const userTeamIds = await getActiveTrainingTeamIds(data.userTeamIds)
 
     // Get all public tracks
     const publicTracks = await db
@@ -820,7 +852,7 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
       .innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
       .where(
         and(
-          inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
+          inArray(teamProgrammingTracksTable.teamId, userTeamIds),
           eq(teamProgrammingTracksTable.isActive, 1),
         ),
       )
@@ -877,7 +909,9 @@ export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
     }
 
     const db = getDb()
+    const userTeamIds = await getActiveTrainingTeamIds(data.userTeamIds)
 
+    await requireTrackRead(data.trackId)
     const subscriptions = await db
       .select({
         teamId: teamProgrammingTracksTable.teamId,
@@ -889,7 +923,7 @@ export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
       .where(
         and(
           eq(teamProgrammingTracksTable.trackId, data.trackId),
-          inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
+          inArray(teamProgrammingTracksTable.teamId, userTeamIds),
           eq(teamProgrammingTracksTable.isActive, 1),
         ),
       )
