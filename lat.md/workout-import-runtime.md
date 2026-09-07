@@ -2,6 +2,12 @@
 
 The import runtime uses TanStack AI in a plain Cloudflare Agent. Database sessions bind actors and destinations; the runtime proposes revisions without tools that can save workouts.
 
+## Extraction model
+
+GLM-5.3 creates proposals and Flash transcribes screenshots through one private transport, two-dispatch budget and deadline. The release follows a bounded model comparison.
+
+The proposal model is `@cf/zai-org/glm-5.3`; the transcription model is `@cf/zai-org/glm-5.3-flash`. [GLM-5.3](https://developers.cloudflare.com/workers-ai/models/glm-5.3/) provides structured proposals; [Flash](https://developers.cloudflare.com/workers-ai/models/glm-5.3-flash/) adds vision. Proposals and Flash transcription use low reasoning effort after medium exceeded practical latency in corpus verification. Each dispatch retains a 4096-output-token bound. Text allows one repair; images consume the budget with transcription plus proposal, with no third-call repair. Usage totals include both models. Original image preview remains available.
+
 ## Adapter transport
 
 The actual TanStack Cloudflare adapter is exercised with a mocked AI binding to verify vision input, structured output and private Gateway options. This is transport verification, not a live model quality test.
@@ -96,9 +102,9 @@ Run `node scripts/workout-import-local-config.mjs` inside the main app to create
 
 Synthetic text and rendered screenshot requests reached the real Workers AI model through the TanStack adapter and an existing Gateway. These bounded samples verify transport only; semantic quality and deployed privacy gates remain open.
 
-On 2026-09-06 UTC, text extraction completed in 49.4 seconds with one dispatch (345 input/3392 output tokens), but produced conflicting time/cap fields that deterministic validation blocked with a question. The first screenshot attempt timed out at 90 seconds after two dispatches.
+These historical observations used Kimi K2.6 before the GLM model change. On 2026-09-06 UTC, text extraction completed in 49.4 seconds with one dispatch (345 input/3392 output tokens), but produced conflicting time/cap fields that deterministic validation blocked with a question. The first screenshot attempt timed out at 90 seconds after two dispatches.
 
-With `reasoning_effort: low`, the same screenshot completed in 51.5 seconds with one dispatch (626 input/3355 output tokens), correctly reading 100 burpees and converting 15 minutes to 900 seconds. It still asked an unnecessary scoring question. The runtime now requests low reasoning effort within the unchanged 4096-token and 90-second bounds; this is not evidence of consistent latency improvement.
+With `reasoning_effort: low`, the same screenshot completed in 51.5 seconds with one dispatch (626 input/3355 output tokens), correctly reading 100 burpees and converting 15 minutes to 900 seconds. It still asked an unnecessary scoring question. The Kimi runtime then requested low reasoning effort within the unchanged 4096-token and 90-second bounds; this is not evidence of consistent latency improvement.
 
 The screenshot was a synthetic printed prescription, not handwriting or a blurred photograph. The remaining representative corpus, human label review, ambiguity accuracy and deployed Gateway log suppression must be evaluated before release. No production deployment or entitlement grant occurred.
 
@@ -145,3 +151,55 @@ The main package test command runs both the application suite and the separate N
 ## Cleanup failure preserves denial
 
 A failed best-effort R2 deletion cannot replace the original typed access or expiry error. The private source remains inaccessible to denied callers and the bucket's 24-hour retention is the cleanup fallback.
+
+## Text proposal repair
+
+Text uses only GLM-5.3 and may repair one invalid schema response within the shared two-dispatch budget. It never routes to another proposal model.
+
+## Image uncertainty review
+
+Raw transcription is validated locally against the source-text length bound. Unreadable markers force a source-review question even when GLM omits one. The final extracted text preserves the transcription for comparison with the original image.
+
+## Unreadable image isolation
+
+An empty or unreadable transcription returns clarification with unknown scoring fields. The runtime never asks the proposal model to invent a missing prescription.
+
+## Image pipeline authorization
+
+Access is checked before and after transcription and before proposal generation. Losing access after the first stage prevents the second provider dispatch.
+
+## Image pipeline budget
+
+Transcription and proposal share one guarded binding, deadline and quota counter. An invalid image proposal cannot trigger a third dispatch, including through hidden provider retries.
+
+## Combined source recovery
+
+An unreadable image does not discard accompanying pasted text or an edited workout. GLM can process that supplied context, while the image uncertainty remains an explicit review question.
+
+## Model comparison boundary
+
+A three-fixture baseline scored GLM and DeepSeek Flash 1/3, Pro 0/3. With visible field definitions and generated JSON schema, core results improved to 3/3, 3/3 and 2/3 respectively. These samples do not establish general accuracy.
+
+See `docs/plans/2026-09-07-workout-import-model-comparison.md` for fixed fixtures, token counts, latency, actual scoring checks and the distinction between provider traces and unobserved model internals.
+
+## Model-visible field contract
+
+Proposal prompts include field meanings and JSON schema generated from the validation schema. This distinguishes measurement from aggregation, recorded results from prescription rounds, and explicit tiebreaks from reps at a time cap.
+
+## Transcription size bound
+
+Transcriptions larger than the existing source-text limit fail before proposal generation. The runtime does not silently truncate prescriptions or spend the second dispatch on an invalid source.
+
+## Transcription completion
+
+Plain-text OCR must finish normally before its prescription is used. Explicit length truncation, filtering or incomplete terminal status fails without a proposal dispatch, even when the returned text fits the character bound.
+
+The installed adapter synthesizes stop if the provider omits its finish reason; middleware cannot distinguish that case from a normal stop. No custom stream parser is introduced.
+
+## Source ambiguity classification
+
+Internal extraction warnings distinguish suggested names from source ambiguities. The resolver turns every source ambiguity into a required field-specific question and strips internal metadata; suggested names remain optional public warnings.
+
+## Model quality limits
+
+The final low-effort corpus passed 28 of 30 text expectations and all three screenshots with no failed requests. The model can still omit an ambiguity or ask an unnecessary question; reviewed proposals remain essential.
