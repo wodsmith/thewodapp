@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "fc49c7c6-ac42-4ebf-ad54-a9e2f43caa7f",
+  "id": "94457c9c-7fd4-4759-9f41-8309dae59ab9",
   "prevId": "b2d9de15-e33b-4c98-9167-fb503bd45d8c",
   "tables": {
     "addresses": {
@@ -14265,6 +14265,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "auth_generation": {
+          "name": "auth_generation",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "role": {
           "name": "role",

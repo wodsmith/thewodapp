@@ -64,6 +64,7 @@ import {
   getSessionKey,
   revokeUserAuthentication,
   updateAllSessionsOfUser,
+  updateKVSession,
 } from "@/utils/kv-session"
 import { hashPassword, verifyPassword } from "@/utils/password-hasher"
 
@@ -93,6 +94,7 @@ let user: {
   lastName: string
   emailVerified: Date
   passwordHash: string
+  authGeneration: number
 }
 
 function bearerRequest(token = bearerToken, id = userId) {
@@ -126,6 +128,7 @@ describe("password recovery session revocation", () => {
       lastName: "Athlete",
       emailVerified: new Date(now - 1000),
       passwordHash: await hashPassword({ password: oldPassword }),
+      authGeneration: 0,
     }
     let previousTransaction = Promise.resolve()
     db.transaction.mockImplementation(async (run) => {
@@ -144,7 +147,7 @@ describe("password recovery session revocation", () => {
     db.query.teamMembershipTable.findMany.mockResolvedValue([])
     db.update.mockImplementation(() => ({
       set: (values: { passwordHash: string }) => ({
-        where: async () => { user.passwordHash = values.passwordHash },
+        where: async () => { user.passwordHash = values.passwordHash; return [{ affectedRows: 1 }] },
       }),
     }))
     kv.get.mockImplementation(async (key: string) => stored.get(key) ?? null)
@@ -382,4 +385,63 @@ describe("password recovery session revocation", () => {
     stored.set(`session-revoked-before:${userId}`, marker)
     expect(await getSessionFromBearer(bearerRequest(body.token.slice(userId.length + 1)))).toBeNull()
   })
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#Password proof issuance race]]
+  it.each(["browser", "bearer"])("rejects %s issuance when old credential proof resumes after an account generation change", async (channel) => {
+    const staleUser = { ...user }
+    let resume!: () => void
+    let started!: () => void
+    const blocked = new Promise<void>((resolve) => { resume = resolve })
+    const reading = new Promise<void>((resolve) => { started = resolve })
+    db.query.userTable.findFirst.mockImplementationOnce(async () => {
+      started()
+      await blocked
+      return staleUser
+    })
+    const attempt = channel === "browser"
+      ? signInFn({ data: { email: user.email, password: oldPassword } })
+      : tokenRoute.server.handlers.POST({ request: credentialsRequest() })
+    const rejected = expect(attempt).rejects.toThrow("Authentication changed")
+    await reading
+    user.authGeneration = 1
+    user.passwordHash = await hashPassword({ password: newPassword })
+    resume()
+    await rejected
+    expect(await getSessionFromBearer(bearerRequest())).toBeNull()
+    await signInFn({ data: { email: user.email, password: newPassword } })
+    const cookie = [...vi.mocked(setCookie).mock.calls].reverse().find(([name, value]) => name === SESSION_COOKIE_NAME && value)![1]
+    vi.mocked(getCookie).mockReturnValue(String(cookie))
+    expect(await withSessionCache(getSessionFromCookie)).toMatchObject({ authenticationGeneration: 1 })
+  })
+
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#Bearer generation rotation]]
+  it("cannot rotate stale bearer proof into the current generation", async () => {
+    const original = await getSessionFromBearer(bearerRequest())
+    // The validator began before confirmation; issuance reads the new durable generation.
+    db.query.userTable.findFirst.mockImplementationOnce(async () => {
+      user.authGeneration = 1
+      return { ...user, authGeneration: 0 }
+    })
+    await expect(refreshRoute.server.handlers.POST({ request: bearerRequest() })).rejects.toThrow("Authentication changed")
+    expect(original!.authenticationGeneration).toBe(0)
+    expect(await getSessionFromBearer(bearerRequest())).toBeNull()
+    const fresh = await createSession({ token: "fresh-proof", userId, authenticationGeneration: 1 })
+    const response = await refreshRoute.server.handlers.POST({ request: bearerRequest("fresh-proof") })
+    const body = await response.json() as { token: string }
+    expect(response.status).toBe(200)
+    expect(await getSessionFromBearer(bearerRequest(body.token.slice(userId.length + 1)))).toMatchObject({ authenticationGeneration: 1, createdAt: fresh.createdAt })
+  })
+
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#Profile refresh generation race]]
+  it("does not return a newly verified profile when generation changes during refresh", async () => {
+    const original = await getSessionFromBearer(bearerRequest())
+    db.query.userTable.findFirst.mockImplementationOnce(async () => ({ authGeneration: 0 }))
+    db.query.userTable.findFirst.mockImplementationOnce(async () => {
+      user.authGeneration = 1
+      return { ...user }
+    })
+    kv.put.mockClear()
+    expect(await updateKVSession(original!.id, userId, new Date(now + 60_000))).toBeNull()
+    expect(kv.put).not.toHaveBeenCalled()
+  })
+
 })

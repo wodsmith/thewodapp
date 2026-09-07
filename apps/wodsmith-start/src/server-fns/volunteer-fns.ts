@@ -792,11 +792,15 @@ export const confirmVolunteerSignupFn = createServerFn({ method: "POST" })
           )
         }
         const unverified = !existingUser?.emailVerified
+        const authenticationGeneration =
+          (existingUser?.authGeneration ?? 0) +
+          (existingUser && unverified ? 1 : 0)
         if (existingUser && unverified) {
           await tx
             .update(userTable)
             .set({
               passwordHash: null,
+              authGeneration: authenticationGeneration,
               emailVerified: new Date(),
               firstName: application.firstName,
               lastName: application.lastName,
@@ -850,11 +854,12 @@ export const confirmVolunteerSignupFn = createServerFn({ method: "POST" })
           membershipId,
           returnPath: intent.returnPath,
           revoke: !!existingUser && unverified,
+          authenticationGeneration,
         }
       },
       { isolationLevel: "read committed" },
     )
-    // Credentials commit before the cutoff so in-flight old-password logins stay revoked.
+    // The committed generation already rejects stale KV and in-flight credential proof.
     // A failure here issues no session; the saved application remains complete.
     if (result.revoke) await revokeAllUserSessions(result.userId)
     // Revocation rejects timestamps equal to its cutoff; a later timestamp is required.
@@ -865,6 +870,7 @@ export const confirmVolunteerSignupFn = createServerFn({ method: "POST" })
       "email-link",
       undefined,
       authenticatedAt,
+      result.authenticationGeneration,
     )
     return {
       success: true,

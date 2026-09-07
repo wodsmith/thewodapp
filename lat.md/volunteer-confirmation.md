@@ -10,11 +10,19 @@ Anonymous volunteers confirm their saved application through a mailbox-delivered
 
 [[apps/wodsmith-start/src/server-fns/volunteer-fns.ts#confirmVolunteerSignupFn]] consumes the code with a row lock and completes verification, credential clearing, waiver signing, and application creation in the same transaction. The intent binds purpose, account ID, email, application, and return path. Its consumed record survives application deletion. Account locks with READ COMMITTED serialize different confirmation links and direct submissions without stale duplicate-check snapshots.
 
-Existing verified credentials remain unchanged. Existing unverified passwords and passkeys are removed so attacker-preseeded credentials cannot become usable; new accounts are passwordless. After commit the existing revocation helper invalidates old authentication, then an email-link session is issued. KV revocation retains its documented propagation limits from [[auth#Authentication#Sessions#Password recovery revocation]]. If revocation or session issuance fails, the application stays saved and the token stays consumed; no session is issued by a failed revocation. The user can use password recovery to regain access. Later password setup is optional and uses the existing mailbox recovery flow.
+Existing verified credentials remain unchanged. Existing unverified passwords and passkeys are removed; new accounts are passwordless. The same transaction increments `users.authGeneration` for an existing unverified account. Its lifetime is independent of intents, applications, and KV. Both Wodsmith and Crew validate the session's original proof generation against this authoritative database value before trusting cached user data. Missing legacy generations mean zero, which is accepted only while the account remains at zero. Timestamps cannot cross this boundary.
+
+Browser/password and bearer issuance bind the generation read with credential proof. Session creation rejects stale generations; bearer rotation and profile refresh preserve the original generation, and refresh rechecks after loading user data. The mailbox session uses the transaction's committed generation. KV revocation remains defense in depth; failure leaves the application and proof committed but issues no new session. Password recovery remains available.
+
+Security validation adds one primary-key database read per session validation, plus a recheck during profile refresh and issuance. Both applications configure Hyperdrive with caching disabled; this setting is required for authoritative security reads. Database errors fail closed. Per-request memoization still avoids duplicate validation in one request. Confirmation clears its account's request cache even on KV failure. Other requests already authorized before the transaction can finish ordinary reads/profile responses using their old snapshot; this does not retroactively cancel in-flight work or promote that snapshot to a verified identity. Subsequent requests revalidate.
+
+Existing-account signup writes atomically require the original generation plus an unverified, passwordless account. Reset writes require the original generation. There is no active session-authenticated password/email-change or passkey-create endpoint; unused WebAuthn helpers have no runtime callers. Passkey management only lists/deletes. Verification/reset tokens are sent only to the mailbox and never returned to the requester.
+
+Crew's unused `createAccountAndApplyAsVolunteerFn` export is removed, preventing the copied anonymous credential-upgrade path from being exposed. The active `/e/$slug/volunteer`, confirmation, and schedule routes continue through `crew-volunteer-fns` and its token-scoped server implementation.
 
 The browser keeps all application details on the server and asks only for the emailed click. Required waivers are rechecked at completion; changed requirements can fail without consuming proof. Existing verified signed-in users apply directly, and both session and current database email must match the application.
 
-Migration `0008_volunteer_signup_intents` depends on `0007_transfer_signature_name` from PR #695. Its generated snapshot preserves that signature column and adds only the intent table. No production migration is performed by tests.
+Migration `0008_volunteer_signup_intents` depends on `0007_transfer_signature_name` from PR #695. Its generated snapshot preserves that signature column and adds the intent table and the durable account generation column. Deploy this additive migration before either application’s authentication code; older code can still use existing accounts with the default generation zero. The security fix requires deployment of both validators. No production migration is performed by tests.
 
 ## No premature identity changes
 
@@ -83,3 +91,51 @@ An already signed-in volunteer retains a single direct submit and sees immediate
 ## Confirmation email content
 
 The reused email template explains saved application submission and its 30-minute expiry, while ordinary verification emails retain their existing action and wording.
+
+## Durable cross-app session revocation
+
+Stale Wodsmith browser, bearer, and Crew sessions cannot mutate a claimed account even when KV revocation fails; deleting consumed intents cannot restore them.
+
+## Proof generation and legacy sessions
+
+Delayed old password/passkey proof and legacy sessions cannot cross a claim. The mailbox owner can authenticate in the same millisecond using the committed generation.
+
+## Password proof issuance race
+
+Browser and bearer credential adapters preserve the generation read with password proof, rejecting issuance if the account changes before session creation while permitting fresh owner login.
+
+## Bearer generation rotation
+
+Bearer rotation preserves proof generation and authentication age; a claim during validation cannot mint current-generation authentication from old proof.
+
+## Profile refresh generation race
+
+A profile refresh that overlaps an identity claim must reject before returning newly verified user data under the old session's proof.
+
+## Confirmation request cache boundary
+
+Confirmation clears the claiming account's memoized session even when KV revocation fails, and subsequent request scopes revalidate the durable generation.
+
+## Crew credential proof race
+
+Crew password login rejects delayed proof from a previous account generation and accepts a fresh credential proof at the current generation.
+
+## Crew profile refresh race
+
+Crew profile refresh preserves the original proof generation and rejects changes that occur while loading shared account data.
+
+## Additive migration deployment boundary
+
+The additive generation column preserves existing accounts with a zero default. New validation fails closed before that column exists, requiring migration before application deployment.
+
+## Crew public token boundary
+
+The unused copied account-upgrade endpoint is absent, while the active Crew schedule endpoint still serves a valid volunteer token without changing account credentials.
+
+## Credential mutation claim race
+
+Both apps' signup, claim-link upgrade, and reset endpoints reject credential writes if confirmation commits after their original account read. Conditional writes prevent an in-flight request from restoring attacker credentials.
+
+## New signup mailbox boundary
+
+Generic signup in both apps creates an unverified account, emails verification proof, and issues no session. Anonymous input cannot manufacture the verified-existing status that volunteer confirmation preserves.

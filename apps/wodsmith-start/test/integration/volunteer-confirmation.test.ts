@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { fileURLToPath, URL as NodeURL } from "node:url"
 import { createWodsmithDb } from "@repo/wodsmith-db/mysql"
@@ -34,15 +34,34 @@ const fixture = vi.hoisted(() => ({
   mail: vi.fn(),
   login: vi.fn(),
   revoke: vi.fn(),
+  hash: vi.fn(),
+  kv: new Map<string, string>(),
 }))
 vi.mock("@/db", () => ({ getDb: () => fixture.db }))
-vi.mock("@/utils/auth", () => ({
+vi.mock("@/utils/auth", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/utils/auth")>(),
   getSessionFromCookie: async () => fixture.session,
   canSignUp: async () => {},
   createAndStoreSession: (...args: unknown[]) => fixture.login(...args),
   revokeAllUserSessions: (...args: unknown[]) => fixture.revoke(...args),
 }))
+vi.mock("cloudflare:workers", () => ({ env: { KV_SESSION: {
+  get: async (key: string) => fixture.kv.get(key) ?? null,
+  put: async (key: string, value: string) => { fixture.kv.set(key, value) },
+  delete: async (key: string) => { fixture.kv.delete(key) },
+  list: async () => ({ keys: [], list_complete: true }),
+} } }))
+vi.mock("@tanstack/react-start/server", () => ({
+  getCookie: vi.fn(), setCookie: vi.fn(), getRequestHeaders: () => new Headers(),
+}))
+vi.mock("@/server/entitlements", () => ({ getUserEntitlements: async () => [], getTeamPlan: async () => undefined }))
+vi.mock("@/utils/validate-captcha", () => ({ validateTurnstileToken: async () => true }))
+vi.mock("@/utils/password-hasher", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/utils/password-hasher")>(),
+  hashPassword: (...args: unknown[]) => fixture.hash(...args),
+}))
 vi.mock("@/utils/email", () => ({
+  sendVerificationEmail: vi.fn(),
   sendVolunteerSignupConfirmationEmail: (...args: unknown[]) =>
     fixture.mail(...args),
 }))
@@ -135,6 +154,8 @@ describe.skipIf(!mysqlTestConfig)("volunteer confirmation on MySQL", () => {
           : ""
         return `\`${casing.getColumnCasing(column)}\` ${column.getSQLType()} ${column.primary ? "PRIMARY KEY" : "NULL"}${defaultSql}`
       })
+      // The production migration adds this column to existing users.
+      if (table === userTable) columns.splice(columns.findIndex((column) => column.startsWith("`auth_generation`")), 1)
       if (table === userTable)
         columns.push("UNIQUE KEY users_email_unique (email)")
       await query(
@@ -163,6 +184,8 @@ describe.skipIf(!mysqlTestConfig)("volunteer confirmation on MySQL", () => {
   })
   beforeEach(async () => {
     fixture.session = null
+    fixture.kv.clear()
+    fixture.hash.mockReset().mockImplementation(async (data) => (await vi.importActual<typeof import("@/utils/password-hasher")>("@/utils/password-hasher")).hashPassword(data))
     fixture.mail.mockReset().mockResolvedValue(undefined)
     fixture.login.mockReset().mockResolvedValue(undefined)
     fixture.revoke.mockReset().mockResolvedValue(undefined)
@@ -219,6 +242,7 @@ describe.skipIf(!mysqlTestConfig)("volunteer confirmation on MySQL", () => {
       "email-link",
       undefined,
       expect.any(Number),
+      1,
     )
     expect(fixture.revoke.mock.invocationCallOrder[0]).toBeLessThan(
       fixture.login.mock.invocationCallOrder[0],
@@ -372,6 +396,8 @@ describe.skipIf(!mysqlTestConfig)("volunteer confirmation on MySQL", () => {
         .consumed_at,
     ).toBeNull()
     fixture.session = null
+    fixture.kv.clear()
+    fixture.hash.mockReset().mockImplementation(async (data) => (await vi.importActual<typeof import("@/utils/password-hasher")>("@/utils/password-hasher")).hashPassword(data))
     await redeem(code)
   })
 
@@ -419,4 +445,151 @@ describe.skipIf(!mysqlTestConfig)("volunteer confirmation on MySQL", () => {
       "Verify",
     )
   })
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#Durable cross-app session revocation]]
+  it("blocks stale browser, bearer and Crew sessions plus profile mutation even when KV revocation fails", async () => {
+    await seedUser()
+    const auth = await vi.importActual<typeof import("@/utils/auth")>("@/utils/auth")
+    const crewAuth = await import("../../../crew/src/utils/auth")
+    const { getSessionFromBearer } = await import("@/utils/bearer-auth")
+    const { updateKVSession } = await import("@/utils/kv-session")
+    const { updateUserProfileFn } = await import("@/server-fns/profile-fns")
+    const { updateUserProfileFn: updateCrewProfile } = await import("../../../crew/src/server-fns/profile-fns")
+    const { SESSION_COOKIE_NAME } = await import("@/constants")
+    const sessionId = createHash("sha256").update("attacker-token").digest("hex")
+    const key = `session:usr_owner:${sessionId}`
+    const cachedUser = (await fixture.db!.query.userTable.findFirst())!
+    fixture.kv.set(key, JSON.stringify({
+      id: sessionId, userId: "usr_owner", createdAt: Date.now(), expiresAt: Date.now() + 60_000,
+      authenticationType: "passkey", authenticationGeneration: 0, version: 7, user: cachedUser,
+    }))
+    const browser = new Request("https://wodsmith.test", { headers: { Cookie: `${SESSION_COOKIE_NAME}=usr_owner:attacker-token` } })
+    const bearer = new Request("https://wodsmith.test", { headers: { Authorization: "Bearer usr_owner:attacker-token" } })
+    expect(await auth.getSessionFromRequestCookie(browser)).not.toBeNull()
+    expect(await crewAuth.getSessionFromRequestCookie(browser)).not.toBeNull()
+    const code = await request()
+    fixture.revoke.mockRejectedValue(new Error("Revocation unavailable"))
+    await expect(redeem(code)).rejects.toThrow("Revocation unavailable")
+    expect((await query("SELECT auth_generation FROM users"))[0].auth_generation).toBe(1)
+    // No KV writes or deletes: both session and missing cutoff are stale.
+    expect(fixture.kv.has(key)).toBe(true)
+    expect(await auth.getSessionFromRequestCookie(browser)).toBeNull()
+    expect(await crewAuth.getSessionFromRequestCookie(browser)).toBeNull()
+    expect(await getSessionFromBearer(bearer)).toBeNull()
+    expect(await updateKVSession(sessionId, "usr_owner", new Date(Date.now() + 60_000))).toBeNull()
+    fixture.session = await auth.getSessionFromRequestCookie(browser)
+    await expect(updateUserProfileFn({ data: { firstName: "Attacker", lastName: "Changed" } })).rejects.toThrow("Not authenticated")
+    fixture.session = await crewAuth.getSessionFromRequestCookie(browser)
+    await expect(updateCrewProfile({ data: { firstName: "Attacker", lastName: "Changed" } })).rejects.toThrow("Not authenticated")
+    expect((await query("SELECT first_name FROM users"))[0].first_name).toBe("Jane")
+    // Intent/application retention cannot resurrect authentication.
+    await query("DELETE FROM volunteer_signup_intents")
+    await query("DELETE FROM team_invitations")
+    expect(await auth.getSessionFromRequestCookie(browser)).toBeNull()
+  })
+
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#Proof generation and legacy sessions]]
+  it("rejects delayed old proof and legacy sessions but accepts the committed mailbox generation in the same millisecond", async () => {
+    await seedUser()
+    const auth = await vi.importActual<typeof import("@/utils/auth")>("@/utils/auth")
+    const { getKVSession, updateKVSession } = await import("@/utils/kv-session")
+    const { createSession: createCrewSession } = await import("../../../crew/src/utils/auth")
+    const now = Date.now()
+    vi.spyOn(Date, "now").mockReturnValue(now)
+    const old = await auth.createSession({ token: "legacy", userId: "usr_owner", authenticationType: "passkey" })
+    const key = `session:usr_owner:${old.id}`
+    const legacy = { ...old, authenticationGeneration: undefined, createdAt: undefined }
+    fixture.kv.set(key, JSON.stringify(legacy))
+    expect(await getKVSession(old.id, "usr_owner")).not.toBeNull()
+    const code = await request()
+    await redeem(code)
+    expect(await getKVSession(old.id, "usr_owner")).toBeNull()
+    for (const authenticationType of ["password", "passkey"] as const) {
+      await expect(auth.createSession({ token: `late-${authenticationType}`, userId: "usr_owner", authenticationType, authenticationGeneration: 0, authenticatedAt: now + 1_000 })).rejects.toThrow("Authentication changed")
+      await expect(createCrewSession({ token: `crew-late-${authenticationType}`, userId: "usr_owner", authenticationType, authenticationGeneration: 0 })).rejects.toThrow("Authentication changed")
+    }
+    // A fresh mailbox proof has generation 1; wall-clock boundaries do not decide ownership.
+    const owner = await auth.createSession({ token: "mailbox-owner", userId: "usr_owner", authenticationType: "email-link", authenticationGeneration: 1, authenticatedAt: now })
+    expect(await getKVSession(owner.id, "usr_owner")).toMatchObject({ authenticationGeneration: 1 })
+    expect(await updateKVSession(owner.id, "usr_owner", new Date(now + 60_000))).toMatchObject({ authenticationGeneration: 1, createdAt: now })
+    expect(await getKVSession(old.id, "usr_owner")).toBeNull()
+  })
+
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#Confirmation request cache boundary]]
+  it("clears the confirming account's request cache even if revocation fails", async () => {
+    await seedUser()
+    const auth = await vi.importActual<typeof import("@/utils/auth")>("@/utils/auth")
+    const { getCookie } = await import("@tanstack/react-start/server")
+    const { env } = await import("cloudflare:workers")
+    const old = await auth.createSession({ token: "cached-attacker", userId: "usr_owner" })
+    vi.mocked(getCookie).mockReturnValue("usr_owner:cached-attacker")
+    const code = await request()
+    fixture.revoke.mockImplementation(auth.revokeAllUserSessions)
+    vi.spyOn(env.KV_SESSION, "put").mockRejectedValue(new Error("KV unavailable"))
+    await auth.withSessionCache(async () => {
+      fixture.session = await auth.getSessionFromCookie()
+      expect(fixture.session).toMatchObject({ id: old.id })
+      await expect(redeem(code)).rejects.toThrow("KV unavailable")
+      expect(await auth.getSessionFromCookie()).toBeNull()
+    })
+    expect(await auth.withSessionCache(auth.getSessionFromCookie)).toBeNull()
+    expect(fixture.login).not.toHaveBeenCalled()
+  })
+
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#Additive migration deployment boundary]]
+  it("preserves existing accounts with generation zero and fails closed before migration", async () => {
+    const { getUserAuthGeneration } = await import("@/utils/kv-session")
+    await query("ALTER TABLE users DROP COLUMN auth_generation")
+    try {
+      await seedUser(true)
+      await expect(getUserAuthGeneration("usr_owner")).rejects.toThrow("Unknown column")
+    } finally {
+      const migration = readFileSync(fileURLToPath(new NodeURL("../../../../packages/wodsmith-db/mysql-migrations/0008_volunteer_signup_intents.sql", import.meta.url)), "utf8")
+      await query(migration.split("--> statement-breakpoint").find((statement) => statement.includes("ALTER TABLE `users`"))!)
+    }
+    expect(await getUserAuthGeneration("usr_owner")).toBe(0)
+    expect((await query("SELECT password_hash, email_verified FROM users"))[0]).toMatchObject({ password_hash: "preseeded-hash", email_verified: expect.any(Date) })
+  })
+
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#Credential mutation claim race]]
+  it.each(["wodsmith", "crew"].flatMap((app) => ["signup", "claim", "reset"].map((action) => ({ app, action }))))("prevents $app $action credential writes after confirmation commits", async ({ app, action }) => {
+    await seedUser()
+    if (action !== "reset") await query("UPDATE users SET password_hash = NULL")
+    const endpoint = app === "wodsmith" ? await import("@/server-fns/auth-fns") : await import("../../../crew/src/server-fns/auth-fns")
+    const { getClaimTokenKey, getResetTokenKey } = await import("@/utils/auth-utils")
+    const token = "earlier-mailbox-token"
+    fixture.kv.set(action === "reset" ? getResetTokenKey(token) : getClaimTokenKey(token), JSON.stringify({ userId: "usr_owner", expiresAt: new Date(Date.now() + 60_000).toISOString() }))
+    const code = await request()
+    let resume!: () => void, started!: () => void
+    const blocked = new Promise<void>((resolve) => { resume = resolve })
+    const reading = new Promise<void>((resolve) => { started = resolve })
+    fixture.hash.mockImplementationOnce(async () => { started(); await blocked; return "attacker-restored-hash" })
+    const attempt = action === "reset"
+      ? endpoint.resetPasswordFn({ data: { token, password: "AttackerPassword123", confirmPassword: "AttackerPassword123" } })
+      : endpoint.signUpFn({ data: { email: input.signupEmail, firstName: "Attacker", lastName: "Changed", password: "AttackerPassword123", ...(action === "claim" ? { claimToken: token } : {}) } })
+    const rejected = expect(attempt).rejects.toThrow("Account changed")
+    await reading
+    try { await redeem(code) } finally { resume() }
+    await rejected
+    expect((await query("SELECT password_hash,auth_generation,first_name FROM users"))[0]).toMatchObject({ password_hash: null, auth_generation: 1, first_name: "Jane" })
+    expect(await query("SELECT * FROM passkey_credentials")).toHaveLength(0)
+  })
+
+  // @lat: [[volunteer-confirmation#Volunteer email confirmation#New signup mailbox boundary]]
+  it.each(["wodsmith", "crew"])("does not let anonymous %s signup manufacture a verified identity", async (app) => {
+    const endpoint = app === "wodsmith" ? await import("@/server-fns/auth-fns") : await import("../../../crew/src/server-fns/auth-fns")
+    const { sendVerificationEmail } = await import("@/utils/email")
+    const { getVerificationTokenKey } = await import("@/utils/auth-utils")
+    const result = await endpoint.signUpFn({ data: { email: input.signupEmail, firstName: "Attacker", lastName: "Seeded", password: "AttackerPassword123" } })
+    expect(result.requiresVerification).toBe(true)
+    expect((await query("SELECT email_verified, auth_generation FROM users"))[0]).toMatchObject({ email_verified: null, auth_generation: 0 })
+    expect(fixture.login).not.toHaveBeenCalled()
+    await expect(endpoint.signInFn({ data: {email: input.signupEmail, password: "AttackerPassword123"} })).rejects.toThrow("Invalid email or password")
+    const proof = vi.mocked(sendVerificationEmail).mock.calls.at(-1)![0]
+    expect(proof.email).toBe(input.signupEmail)
+    expect(fixture.kv.has(getVerificationTokenKey(proof.verificationToken))).toBe(true)
+    expect(JSON.stringify(result)).not.toContain(proof.verificationToken)
+    await redeem(await request())
+    expect((await query("SELECT password_hash, auth_generation FROM users"))[0]).toMatchObject({ password_hash: null, auth_generation: 1 })
+  })
+
 })

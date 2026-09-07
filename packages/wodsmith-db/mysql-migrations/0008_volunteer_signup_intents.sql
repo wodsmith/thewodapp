@@ -13,4 +13,5 @@ CREATE TABLE `volunteer_signup_intents` (
 	CONSTRAINT `volunteer_signup_intents_codeHash_unique` UNIQUE(`code_hash`)
 );
 --> statement-breakpoint
+ALTER TABLE `users` ADD `auth_generation` int DEFAULT 0 NOT NULL;--> statement-breakpoint
 CREATE INDEX `volunteer_signup_intents_expiry_idx` ON `volunteer_signup_intents` (`expires_at`);

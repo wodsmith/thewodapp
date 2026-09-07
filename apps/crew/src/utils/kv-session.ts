@@ -3,7 +3,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server"
 import { eq } from "drizzle-orm"
 import { MAX_SESSIONS_PER_USER } from "@/constants"
 import { getDb } from "@/db"
-import { teamMembershipTable } from "@/db/schema"
+import { teamMembershipTable, userTable } from "@/db/schema"
 import { getUserEntitlements } from "@/server/entitlements"
 import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth"
 import { getIP } from "./get-IP"
@@ -24,6 +24,8 @@ export interface KVSession {
   userId: string
   expiresAt: number
   createdAt: number
+  /** Original proof generation; legacy sessions retain zero. */
+  authenticationGeneration?: number
   user: KVSessionUser & {
     initials?: string
   }
@@ -87,7 +89,7 @@ export interface KVSession {
  * IF YOU MAKE ANY CHANGES TO THE KVSESSION TYPE ABOVE, YOU NEED TO INCREMENT THIS VERSION.
  * THIS IS HOW WE TRACK WHEN WE NEED TO UPDATE THE SESSIONS IN THE KV STORE.
  */
-export const CURRENT_SESSION_VERSION = 6
+export const CURRENT_SESSION_VERSION = 7
 
 /**
  * Get KV namespace from Cloudflare environment
@@ -113,6 +115,7 @@ export async function createKVSession({
   authenticationType,
   passkeyCredentialId,
   teams,
+  authenticationGeneration = 0,
 }: CreateKVSessionParams): Promise<KVSession> {
   const kv = await getKV()
 
@@ -141,6 +144,7 @@ export async function createKVSession({
     userId,
     expiresAt: expiresAt.getTime(),
     createdAt: Date.now(),
+    authenticationGeneration,
     country: cfCountry,
     city: cfCity,
     continent: cfContinent,
@@ -188,6 +192,17 @@ export async function createKVSession({
   return session
 }
 
+/** Security reads must remain uncached (HYPERDRIVE caching.disabled = true). */
+export async function getUserAuthGeneration(
+  userId: string,
+): Promise<number | null> {
+  const user = await getDb().query.userTable.findFirst({
+    where: eq(userTable.id, userId),
+    columns: { authGeneration: true },
+  })
+  return user?.authGeneration ?? null
+}
+
 export async function getKVSession(
   sessionId: string,
   userId: string,
@@ -202,6 +217,14 @@ export async function getKVSession(
   if (!sessionStr) return null
 
   const session = JSON.parse(sessionStr) as KVSession
+
+  const generation = await getUserAuthGeneration(userId)
+  if (
+    generation === null ||
+    (session.authenticationGeneration ?? 0) !== generation
+  ) {
+    return null
+  }
 
   if (session?.user?.createdAt) {
     session.user.createdAt = new Date(session.user.createdAt)
@@ -243,6 +266,14 @@ export async function updateKVSession(
 
   // Load user's active entitlements
   const entitlements = await getUserEntitlements(userId)
+
+  // The account may have changed while profile/team data was loading.
+  if (
+    (await getUserAuthGeneration(userId)) !==
+    (session.authenticationGeneration ?? 0)
+  ) {
+    return null
+  }
 
   const updatedSession: KVSession = {
     ...session,
