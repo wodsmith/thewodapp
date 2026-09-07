@@ -37,3 +37,19 @@ Sync previews list rounds and tiebreak changes, and sync status reports the comp
 ## Unknown movement selections reject before writes
 
 Creation checks unique selected movement IDs against the catalog before opening the write transaction, rejecting unknown IDs without partial records.
+
+## Series Detail Propagation
+
+The single-event and sub-event detail forms restore authored rounds and tiebreaks and persist changes without clearing scoring metadata during unrelated edits. Existing first and last aggregation values remain visible.
+
+### Single-event edits retain authored scoring
+
+Changing a description retains the saved rounds, tiebreak and movement selections. Changing rounds then persists the new count under the original template event.
+
+### Sub-event edits retain authored scoring
+
+Sub-event forms restore their own rounds and tiebreak, then save changes and movement selections under the child identity rather than the parent.
+
+### Pass-fail has no hidden tiebreak
+
+Single-event and sub-event forms clear stale tiebreaks for existing pass-fail definitions and whenever the scheme changes to pass-fail. Saved pass-fail definitions always carry a null tiebreak.

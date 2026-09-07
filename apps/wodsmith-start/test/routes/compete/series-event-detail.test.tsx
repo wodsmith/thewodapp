@@ -27,7 +27,7 @@ function data(child = false) {
 beforeEach(() => { mocks.save.mockResolvedValue({}); mocks.invalidate.mockResolvedValue(undefined) })
 afterEach(cleanup)
 describe("series event detail metadata", () => {
- // @lat: [[athlete-workout-review#Series Detail Propagation#Single-event edits retain authored scoring]]
+ // @lat: [[authoring-series-review#Series Detail Propagation#Single-event edits retain authored scoring]]
  it("hydrates existing rounds and tiebreak, preserves them on a description edit, and saves changed rounds", async () => {
   mocks.data.mockReturnValue(data())
   render(<Page />)
@@ -43,7 +43,7 @@ describe("series event detail metadata", () => {
   fireEvent.click(screen.getAllByRole("button", { name: "Save changes" })[0]!)
   await waitFor(() => expect(mocks.save).toHaveBeenLastCalledWith({ data: expect.objectContaining({ workout: expect.objectContaining({ roundsToScore: 4, tiebreakScheme: "reps" }) }) }))
  })
- // @lat: [[athlete-workout-review#Series Detail Propagation#Sub-event edits retain authored scoring]]
+ // @lat: [[authoring-series-review#Series Detail Propagation#Sub-event edits retain authored scoring]]
  it("hydrates and persists sub-event rounds, tiebreak and movements under its own identity", async () => {
   mocks.data.mockReturnValue(data(true))
   render(<Page />)
@@ -56,4 +56,26 @@ describe("series event detail metadata", () => {
   fireEvent.click(screen.getByRole("button", { name: "Save sub-event" }))
   await waitFor(() => expect(mocks.save).toHaveBeenCalledWith({ data: expect.objectContaining({ trackWorkoutId: "child", workout: expect.objectContaining({ roundsToScore: 2, tiebreakScheme: "time" }), movementIds: ["row"] }) }))
  })
+})
+
+// @lat: [[authoring-series-review#Series Detail Propagation#Pass-fail has no hidden tiebreak]]
+it.each([{child:false,stale:true},{child:true,stale:true},{child:false,stale:false},{child:true,stale:false}])("clears pass-fail tiebreaks through the real series form: %j", async ({child,stale}) => {
+  const definition = {...event,workout:{...event.workout,scheme:stale ? "pass-fail" : "time-with-cap"}}
+  mocks.data.mockReturnValue({...data(child),event:child ? event : definition,childEvents:child ? [{...definition,id:"child",workoutId:"child-workout",parentEventId:"template"}] : []})
+  render(<Page />)
+  if (!stale) {
+    fireEvent.click(screen.getByRole("combobox",{name:"Scheme"}))
+    fireEvent.click(await screen.findByRole("option",{name:"Pass/Fail"}))
+  }
+  expect(screen.queryByRole("combobox",{name:/Tiebreak/})).not.toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText("Rounds to Score"),{target:{value:"4"}})
+  const save = screen.getAllByRole("button",{name:child ? "Save sub-event" : "Save changes"})[0]!
+  await waitFor(() => expect(save).toBeEnabled())
+  fireEvent.click(save)
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledWith({data:expect.objectContaining({workout:expect.objectContaining({scheme:"pass-fail",tiebreakScheme:null})})}))
+  if (!stale) {
+    fireEvent.click(screen.getByRole("combobox",{name:"Scheme"}))
+    fireEvent.click(await screen.findByRole("option",{name:/^For Time$/}))
+    expect(screen.getByRole("combobox",{name:/Tiebreak/})).toHaveTextContent("None")
+  }
 })

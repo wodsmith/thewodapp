@@ -238,7 +238,9 @@ function SeriesSingleEventEditPage() {
       timeCap: event.workout.timeCap ?? null,
       roundsToScore: event.workout.roundsToScore ?? 1,
       tiebreakScheme:
-        (event.workout.tiebreakScheme as "time" | "reps" | null) ?? null,
+        event.workout.scheme === "pass-fail"
+          ? null
+          : ((event.workout.tiebreakScheme as "time" | "reps" | null) ?? null),
       selectedMovements: movementIds,
       pointsMultiplier: event.pointsMultiplier || 100,
       notes: event.notes || "",
@@ -274,7 +276,7 @@ function SeriesSingleEventEditPage() {
             scoreType: data.scoreType,
             timeCap: data.timeCap,
             roundsToScore: data.roundsToScore,
-            tiebreakScheme: data.tiebreakScheme,
+            tiebreakScheme: data.scheme === "pass-fail" ? null : data.tiebreakScheme,
           },
           movementIds: data.selectedMovements,
           pointsMultiplier: data.pointsMultiplier,
@@ -382,7 +384,14 @@ function SeriesSingleEventEditPage() {
                           <FormLabel>Scheme</FormLabel>
                           <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(next) => {
+                              field.onChange(next)
+                              if (next === "pass-fail")
+                                form.setValue("tiebreakScheme", null, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                })
+                            }}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -989,7 +998,9 @@ function SubEventForm({
       timeCap: event.workout.timeCap ?? null,
       roundsToScore: event.workout.roundsToScore ?? 1,
       tiebreakScheme:
-        (event.workout.tiebreakScheme as "time" | "reps" | null) ?? null,
+        event.workout.scheme === "pass-fail"
+          ? null
+          : ((event.workout.tiebreakScheme as "time" | "reps" | null) ?? null),
       selectedMovements: movementIds,
       pointsMultiplier: event.pointsMultiplier || 100,
       notes: event.notes || "",
@@ -1024,7 +1035,7 @@ function SubEventForm({
             scoreType: data.scoreType,
             timeCap: data.timeCap,
             roundsToScore: data.roundsToScore,
-            tiebreakScheme: data.tiebreakScheme,
+            tiebreakScheme: data.scheme === "pass-fail" ? null : data.tiebreakScheme,
           },
           movementIds: data.selectedMovements,
           pointsMultiplier: data.pointsMultiplier,
@@ -1086,7 +1097,14 @@ function SubEventForm({
                   <FormLabel>Scheme</FormLabel>
                   <Select
                     value={field.value}
-                    onValueChange={field.onChange}
+                    onValueChange={(next) => {
+                      field.onChange(next)
+                      if (next === "pass-fail")
+                        form.setValue("tiebreakScheme", null, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                    }}
                   >
                     <FormControl>
                       <SelectTrigger>
