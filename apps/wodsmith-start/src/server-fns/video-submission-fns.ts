@@ -1,4 +1,3 @@
-import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 /**
  * Video Submission Server Functions for TanStack Start
  * Handles athlete video submissions for online competition events.
@@ -66,6 +65,8 @@ import {
   saveBenchmarkScoreInTransaction,
 } from "@/server/benchmark-submissions"
 import { divisionScopeFromId } from "@/server/competition-results"
+import type { ResultTransaction } from "@/server/competition-results/repository"
+import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { requireSubmissionReviewAccess } from "@/utils/team-auth"
@@ -95,6 +96,17 @@ const submitVideoInputSchema = z.object({
   notes: z.string().max(1000).optional(),
   // 0-indexed position for team video submissions (0 for individuals)
   videoIndex: z.number().int().min(0).optional().default(0),
+  // A complete team form is accepted as one atomic submission.
+  videos: z
+    .array(
+      z.object({
+        videoIndex: z.number().int().min(0),
+        videoUrl: z.string().url("Please enter a valid URL").max(2000),
+        notes: z.string().max(1000).optional(),
+      }),
+    )
+    .min(1)
+    .optional(),
   // Score fields
   score: z.string().optional(),
   scoreStatus: z.enum(["scored", "cap"]).optional(),
@@ -113,6 +125,60 @@ const submitVideoInputSchema = z.object({
 })
 
 type SubmitVideoInput = z.infer<typeof submitVideoInputSchema>
+
+async function getAcceptedSubmissionScore(
+  db: ResultTransaction,
+  userId: string,
+  trackWorkoutId: string,
+  divisionId: string | null,
+) {
+  const [score] = await db
+    .select({
+      id: scoresTable.id,
+      scheme: scoresTable.scheme,
+      scoreValue: scoresTable.scoreValue,
+      status: scoresTable.status,
+      secondaryValue: scoresTable.secondaryValue,
+      tiebreakValue: scoresTable.tiebreakValue,
+    })
+    .from(scoresTable)
+    .where(
+      and(
+        eq(scoresTable.userId, userId),
+        eq(scoresTable.competitionEventId, trackWorkoutId),
+        divisionId
+          ? eq(scoresTable.scalingLevelId, divisionId)
+          : isNull(scoresTable.scalingLevelId),
+      ),
+    )
+    .limit(1)
+  if (!score) return null
+  const rounds = await db
+    .select({
+      roundNumber: scoreRoundsTable.roundNumber,
+      value: scoreRoundsTable.value,
+      status: scoreRoundsTable.status,
+      secondaryValue: scoreRoundsTable.secondaryValue,
+    })
+    .from(scoreRoundsTable)
+    .where(eq(scoreRoundsTable.scoreId, score.id))
+    .orderBy(asc(scoreRoundsTable.roundNumber))
+  const scheme = score.scheme as WorkoutScheme
+  return {
+    scoreValue: score.scoreValue,
+    displayScore:
+      score.scoreValue === null
+        ? null
+        : decodeScore(score.scoreValue, scheme, { compact: false }),
+    status: score.status,
+    secondaryValue: score.secondaryValue,
+    tiebreakValue: score.tiebreakValue,
+    roundScores: rounds.map((round) => ({
+      ...round,
+      displayScore: decodeScore(round.value, scheme, { compact: false }),
+    })),
+  }
+}
 
 // ============================================================================
 // Helper Functions
@@ -589,8 +655,8 @@ async function submitBenchmarkVideoScore({
     throw new Error("A video URL is required for this benchmark submission")
   }
 
-  const { writeResult, submissionId, isUpdate } = await db.transaction(
-    async (tx) => {
+  const { writeResult, submissionId, isUpdate, acceptedScore } =
+    await db.transaction(async (tx) => {
       const writeResult = await saveBenchmarkScoreInTransaction({
         db: tx,
         context,
@@ -668,15 +734,28 @@ async function submitBenchmarkVideoScore({
         }
       }
 
-      return { writeResult, submissionId, isUpdate }
-    },
-  )
+      return {
+        writeResult,
+        submissionId,
+        isUpdate,
+        acceptedScore: await getAcceptedSubmissionScore(
+          tx,
+          userId,
+          data.trackWorkoutId,
+          context.openDivisionId,
+        ),
+      }
+    })
 
   return {
     success: true,
     submissionId: submissionId ?? undefined,
     isUpdate,
     retainedCurrentBest: writeResult.retainedCurrentBest,
+    acceptedScore,
+    submissions: submissionId
+      ? [{ submissionId, videoIndex: data.videoIndex, isUpdate }]
+      : [],
   }
 }
 
@@ -1726,6 +1805,33 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     const teamSize = await getTeamSize(registration.divisionId)
 
+    const videoSlots = data.videos
+      ? [...data.videos].sort((a, b) => a.videoIndex - b.videoIndex)
+      : [
+          {
+            videoIndex: data.videoIndex,
+            videoUrl: data.videoUrl,
+            notes: data.notes,
+          },
+        ]
+    if (
+      data.videos &&
+      (data.videos.length !== teamSize ||
+        new Set(data.videos.map((slot) => slot.videoIndex)).size !== teamSize)
+    ) {
+      throw new Error("Submit exactly one video for each team member")
+    }
+    for (const slot of videoSlots) {
+      if (slot.videoIndex >= teamSize) {
+        throw new Error(
+          `Video index ${slot.videoIndex} exceeds team size of ${teamSize}`,
+        )
+      }
+    }
+    if (benchmarkContext && data.videos) {
+      throw new Error("Benchmark submissions do not support team video batches")
+    }
+
     // Validate videoIndex against team size
     if (data.videoIndex >= teamSize) {
       throw new Error(
@@ -1737,7 +1843,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       throw new Error("Benchmark submissions are individual-only")
     }
 
-    if (!benchmarkContext && !data.videoUrl) {
+    if (!benchmarkContext && videoSlots.some((slot) => !slot.videoUrl)) {
       throw new Error("A video URL is required when submitting")
     }
 
@@ -1769,20 +1875,12 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       })
     }
 
-    const submissionVideoUrl = data.videoUrl
-    if (!submissionVideoUrl) {
-      throw new Error("A video URL is required when submitting")
-    }
-
-    // Validate score is present before saving anything.
-    // For team divisions the captain submits all videos in one form action;
-    // the score is only sent with the first slot (videoIndex 0) and shared
-    // across the team's submission, so subsequent slots intentionally arrive
-    // without a score and must not be rejected here.
+    // Legacy partner-slot calls may omit the shared score. Complete form
+    // batches must include it, regardless of the order of their videos.
     const hasRoundScores = data.roundScores && data.roundScores.length > 0
     const hasScore = data.score || hasRoundScores
 
-    if (data.videoIndex === 0 && !hasScore) {
+    if ((data.videos || data.videoIndex === 0) && !hasScore) {
       throw new Error("A score is required when submitting")
     }
 
@@ -1796,44 +1894,6 @@ export const submitVideoFn = createServerFn({ method: "POST" })
     }
 
     return db.transaction(async (tx) => {
-      // Save or update video submission
-      let submissionId: string
-
-      if (existingSubmission) {
-        // Update existing submission
-        await tx
-          .update(videoSubmissionsTable)
-          .set({
-            videoUrl: data.videoUrl,
-            notes: data.notes ?? null,
-            submittedAt: now,
-            updatedAt: now,
-            reviewStatus: "pending",
-            statusUpdatedAt: now,
-            reviewedAt: null,
-            reviewedBy: null,
-            reviewerNotes: null,
-          })
-          .where(eq(videoSubmissionsTable.id, existingSubmission.id))
-
-        submissionId = existingSubmission.id
-      } else {
-        // Create new submission
-        const id = createVideoSubmissionId()
-        await tx.insert(videoSubmissionsTable).values({
-          id,
-          registrationId: registration.id,
-          trackWorkoutId: data.trackWorkoutId,
-          videoIndex: data.videoIndex,
-          userId: session.userId,
-          videoUrl: submissionVideoUrl,
-          notes: data.notes ?? null,
-          submittedAt: now,
-        })
-
-        submissionId = id
-      }
-
       // Save claimed score (score is validated as required above)
       if (hasScore) {
         const receipt = await recordCompetitionResultInTransaction({
@@ -1876,10 +1936,82 @@ export const submitVideoFn = createServerFn({ method: "POST" })
           )
       }
 
+      // The canonical result service validates the full score/round/tiebreak
+      // claim before any evidence writes. All slots share this transaction.
+      const submissions: Array<{
+        submissionId: string
+        videoIndex: number
+        isUpdate: boolean
+      }> = []
+      for (const slot of videoSlots) {
+        const existing =
+          slot.videoIndex === data.videoIndex
+            ? existingSubmission
+            : (
+                await tx
+                  .select({ id: videoSubmissionsTable.id })
+                  .from(videoSubmissionsTable)
+                  .where(
+                    and(
+                      eq(videoSubmissionsTable.registrationId, registration.id),
+                      eq(
+                        videoSubmissionsTable.trackWorkoutId,
+                        data.trackWorkoutId,
+                      ),
+                      eq(videoSubmissionsTable.videoIndex, slot.videoIndex),
+                    ),
+                  )
+                  .limit(1)
+              )[0]
+        // Validated before starting the transaction.
+        const videoUrl = slot.videoUrl
+        if (!videoUrl)
+          throw new Error("A video URL is required when submitting")
+        const submissionId = existing?.id ?? createVideoSubmissionId()
+        if (existing) {
+          await tx
+            .update(videoSubmissionsTable)
+            .set({
+              videoUrl,
+              notes: slot.notes ?? null,
+              submittedAt: now,
+              updatedAt: now,
+              reviewStatus: "pending",
+              statusUpdatedAt: now,
+              reviewedAt: null,
+              reviewedBy: null,
+              reviewerNotes: null,
+            })
+            .where(eq(videoSubmissionsTable.id, submissionId))
+        } else {
+          await tx.insert(videoSubmissionsTable).values({
+            id: submissionId,
+            registrationId: registration.id,
+            trackWorkoutId: data.trackWorkoutId,
+            videoIndex: slot.videoIndex,
+            userId: session.userId,
+            videoUrl,
+            notes: slot.notes ?? null,
+            submittedAt: now,
+          })
+        }
+        submissions.push({
+          submissionId,
+          videoIndex: slot.videoIndex,
+          isUpdate: !!existing,
+        })
+      }
       return {
         success: true,
-        submissionId,
-        isUpdate: !!existingSubmission,
+        submissionId: submissions[0]?.submissionId,
+        isUpdate: submissions.some((slot) => slot.isUpdate),
+        submissions,
+        acceptedScore: await getAcceptedSubmissionScore(
+          tx,
+          session.userId,
+          data.trackWorkoutId,
+          registration.divisionId,
+        ),
       }
     })
   })

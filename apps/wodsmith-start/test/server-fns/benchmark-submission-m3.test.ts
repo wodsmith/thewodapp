@@ -655,6 +655,15 @@ describe("benchmark submission M3 regressions", () => {
 		expect(mockDb.mutations.videoInserts).toHaveLength(0)
 	})
 
+  // @lat: [[submission-receipts#Submission Receipts#Benchmark receipt retains best]]
+  it("returns the retained best in the receipt when a worse attempt is accepted", async () => {
+    mockDb.reset({ existingScore: createVerifiedScore({ scoreValue: 20 }), existingSubmission: createReviewedSubmission() })
+    const result = await submitVideoFn({ data: submissionPayload({ score: "15" }) })
+    expect(result).toMatchObject({ retainedCurrentBest: true, acceptedScore: { scoreValue: 20, displayScore: "20", status: "scored" } })
+    expect(mockDb.mutations.scoreUpdateSets).toHaveLength(0)
+    expect(mockDb.mutations.videoUpdateSets).toHaveLength(0)
+  })
+
 	it.each([
 		["equal", "20"],
 		["worse", "15"],

@@ -295,6 +295,83 @@ describe.skipIf(!mysqlTestConfig)("submission integrity on MySQL", () => {
     await insert(scalingLevelsTable, { id: "partner", teamSize: 2 })
   })
 
+  // @lat: [[submission-receipts#Submission Receipts#Team validation preserves all state]]
+  it.each([
+    { videos: [{ videoIndex: 0, videoUrl: "https://youtu.be/first" }, { videoIndex: 1, videoUrl: "invalid" }] },
+    { videos: [{ videoIndex: 0, videoUrl: "https://youtu.be/first" }, { videoIndex: 0, videoUrl: "https://youtu.be/duplicate" }] },
+    { videos: [{ videoIndex: 0, videoUrl: "https://youtu.be/first" }, { videoIndex: 2, videoUrl: "https://youtu.be/outside" }] },
+    { videos: [{ videoIndex: 0, videoUrl: "https://youtu.be/first" }] },
+    { tiebreakScore: "invalid" },
+    { roundScores: [{ score: "4:00" }, { score: "bad" }] },
+  ])("rejects an invalid complete team payload without changing any state: %j", async (invalid) => {
+    await seedSubmission({ divisionId: "partner", suffix: "partner" })
+    await pool.promise().query("UPDATE workouts SET tiebreak_scheme = 'time'")
+    const before = await snapshot()
+    await expect(async () => submitVideoFn({ data: {
+      ...replacement, divisionId: "partner", videos: [
+        { videoIndex: 0, videoUrl: "https://youtu.be/first" },
+        { videoIndex: 1, videoUrl: "https://youtu.be/second" },
+      ], ...invalid,
+    } })).rejects.toThrow()
+    expect(await snapshot()).toEqual(before)
+  })
+
+  // @lat: [[submission-receipts#Submission Receipts#Team write failure rolls back]]
+  it("rolls back the shared score and first video if the second video write fails, then accepts a retry", async () => {
+    await seedSubmission({ divisionId: "partner", suffix: "partner" })
+    const before = await snapshot()
+    const data = { ...replacement, divisionId: "partner", videos: [
+      { videoIndex: 0, videoUrl: "https://youtu.be/first" },
+      { videoIndex: 1, videoUrl: "https://youtu.be/second" },
+    ] }
+    await pool.promise().query("CREATE TRIGGER reject_partner BEFORE INSERT ON video_submissions FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'fixture video failure'")
+    try {
+      await expect(submitVideoFn({ data })).rejects.toThrow()
+      expect(await snapshot()).toEqual(before)
+    } finally {
+      await pool.promise().query("DROP TRIGGER reject_partner")
+    }
+    const result = await submitVideoFn({ data })
+    expect(result).toMatchObject({ success: true, acceptedScore: {
+      scoreValue: 840000, status: "cap", secondaryValue: 42,
+      roundScores: [{ roundNumber: 1, value: 240000, status: "scored" }, { roundNumber: 2, value: 600000, status: "cap", secondaryValue: 42 }],
+    }, submissions: [{ videoIndex: 0, isUpdate: true }, { videoIndex: 1, isUpdate: false }] })
+    expect(await rows(videoSubmissionsTable)).toHaveLength(2)
+    expect(await rows(scoreVerificationLogsTable)).toEqual(before[10])
+  })
+
+  // @lat: [[submission-receipts#Submission Receipts#Validation precedes evidence writes]]
+  it("rejects the tiebreak before attempting an evidence write", async () => {
+    await seedSubmission()
+    await pool.promise().query("UPDATE workouts SET tiebreak_scheme = 'time'")
+    await pool.promise().query("CREATE TRIGGER reject_evidence BEFORE UPDATE ON video_submissions FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'evidence was written before validation'")
+    try {
+      await expect(submitVideoFn({ data: { ...replacement, tiebreakScore: "invalid" } })).rejects.toThrow(/Invalid tiebreak/)
+    } finally {
+      await pool.promise().query("DROP TRIGGER reject_evidence")
+    }
+  })
+
+  // @lat: [[submission-receipts#Submission Receipts#Ordinary scores retain values]]
+  it("preserves an ordinary below-cap result and exact division in its receipt", async () => {
+    await seedSubmission()
+    await seedSubmission({ divisionId: "partner", suffix: "partner" })
+    await pool.promise().query("UPDATE workouts SET rounds_to_score = 1, score_type = 'min'")
+    const result = await submitVideoFn({ data: { ...replacement, score: "4:01", roundScores: undefined } })
+    expect(result).toMatchObject({ acceptedScore: { scoreValue: 241000, displayScore: "4:01.000", status: "scored", secondaryValue: null, roundScores: [] } })
+    expect((await rows(scoresTable)).find((row) => row.id === "score-partner")).toMatchObject({ score_value: 360000, verification_status: "verified" })
+  })
+
+  // @lat: [[submission-receipts#Submission Receipts#Receipt matches persisted cap]]
+  it("returns the saved capped score instead of the above-cap submitted value", async () => {
+    await seedSubmission()
+    await pool.promise().query("UPDATE workouts SET rounds_to_score = 1, score_type = 'min', tiebreak_scheme = 'time'")
+    const result = await submitVideoFn({ data: { ...replacement, roundScores: undefined, score: "12:00", scoreStatus: "cap", secondaryScore: "42", tiebreakScore: "2:03" } })
+    expect(result).toMatchObject({ acceptedScore: { scoreValue: 600000, displayScore: "10:00.000", status: "cap", secondaryValue: 42, tiebreakValue: 123000, roundScores: [] } })
+    expect(await rows(scoresTable)).toMatchObject([{ score_value: 600000, status: "cap", secondary_value: 42, tiebreak_value: 123000 }])
+    expect(await rows(scoreRoundsTable)).toEqual([])
+  })
+
   // @lat: [[submission-integrity#Submission Integrity#Invalid input preserves persisted state]]
   it.each([
     { score: "invalid", roundScores: undefined },
