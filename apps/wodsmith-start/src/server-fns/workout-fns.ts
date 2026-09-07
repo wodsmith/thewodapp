@@ -43,6 +43,7 @@ import {
 import { DEFAULT_SCORE_TYPES } from "@/lib/scoring/constants"
 import { normalizedWorkoutSaveSchema } from "@/lib/workout-import"
 import {
+  canReadWorkout,
   requireTrackRead,
   requireTrainingTeamMember,
   workoutVisibilityCondition,
@@ -778,6 +779,7 @@ export const getWorkoutScheduledInstancesFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
     await requireTrainingTeamMember(data.teamId)
+    if (!(await canReadWorkout(data.workoutId))) return { instances: [] }
 
     const instances = await db
       .select({
@@ -940,10 +942,11 @@ export const getScheduledWorkoutsWithResultsFn = createServerFn({
     const scheduledWorkoutsWithResults: ScheduledWorkoutWithResult[] =
       instances.map((instance) => {
         // Try to find a score by instance ID first, then by workout ID
-        const result =
-          scoresMap.get(instance.id) ||
-          (instance.workoutId ? scoresMap.get(instance.workoutId) : null) ||
-          null
+        const result = instance.workoutId
+          ? scoresMap.get(instance.id) ||
+            scoresMap.get(instance.workoutId) ||
+            null
+          : null
 
         return {
           id: instance.id,

@@ -1,5 +1,6 @@
 // SQL authorization is exercised with real memberships in integration/training-access.test.ts.
 vi.mock("@/server/training-access", () => ({
+  canReadWorkout: vi.fn(async () => true),
   workoutVisibilityCondition: vi.fn(async () => undefined),
   requireTrainingTeamMember: vi.fn(async () => undefined),
   requireTrackRead: vi.fn(async () => undefined),

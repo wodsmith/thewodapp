@@ -37,3 +37,15 @@ Schedule joins hide inaccessible private workout details; schedule writes requir
 ## Custom permissions
 
 Custom-role permissions authorize owner-team writes only while the role belongs to that team. Subscription and public visibility never imply management access.
+
+## Source lineage authorization
+
+Listing or counting public remixes requires access to their source workout. Owner reads and public source workflows retain their visible children and counts.
+
+## Legacy schedule metadata
+
+Legacy cross-team schedule rows expose neither occurrence dates nor attached scores after access to the referenced workout is lost; making the source public restores both allowed paths.
+
+## Bounded subscription filtering
+
+Subscription lookups batch current membership filtering, discard stale and foreign team IDs, preserve the public catalog and authorized subscriptions, and reject more than 100 requested IDs.

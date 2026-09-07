@@ -18,6 +18,8 @@ vi.mock("@tanstack/react-start", () => ({
 
 beforeEach(() => {
   db.reset()
+  db.registerTable("programmingTracksTable")
+  vi.mocked(db.query.programmingTracksTable.findFirst).mockResolvedValue({ id: CROSSFIT_TRACK_ID } as never)
   db.setMockReturnValue([{ id: "link", trackId: CROSSFIT_TRACK_ID }])
   db.getChainMock().limit.mockResolvedValue([{ id: "link", trackId: CROSSFIT_TRACK_ID }] as never)
   vi.mocked(requireAdmin).mockResolvedValue({ userId: "admin" } as never)

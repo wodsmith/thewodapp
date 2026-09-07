@@ -84,3 +84,27 @@ export async function requireTrackWrite(trackId: string) {
   }
   return track
 }
+
+export async function canReadWorkout(workoutId: string): Promise<boolean> {
+  const workout = await getDb().query.workouts.findFirst({
+    where: and(eq(workouts.id, workoutId), await workoutVisibilityCondition()),
+    columns: { id: true },
+  })
+  return !!workout
+}
+
+export async function getActiveTrainingTeamIds(requestedIds: string[]) {
+  const session = await getSessionFromCookie()
+  if (!session?.userId) throw new Error("Not authenticated")
+  if (!requestedIds.length) return []
+  const memberships = await getDb()
+    .select({ teamId: teamMembershipTable.teamId })
+    .from(teamMembershipTable)
+    .where(
+      and(
+        activeMembership(session.userId),
+        inArray(teamMembershipTable.teamId, requestedIds),
+      ),
+    )
+  return [...new Set(memberships.map((membership) => membership.teamId))]
+}

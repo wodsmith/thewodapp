@@ -16,7 +16,10 @@ import {
   workouts,
   workoutTags,
 } from "@/db/schemas/workouts"
-import { workoutVisibilityCondition } from "@/server/training-access"
+import {
+  canReadWorkout,
+  workoutVisibilityCondition,
+} from "@/server/training-access"
 import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
 import { getSessionFromCookie } from "@/utils/auth"
 
@@ -72,6 +75,8 @@ export const getRemixedWorkoutsFn = createServerFn({ method: "GET" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
+
+    if (!(await canReadWorkout(data.sourceWorkoutId))) return { remixes: [] }
 
     // Get remixed workouts with team names
     // Filter to only show public remixes or remixes from teams the user has access to
@@ -180,6 +185,8 @@ export const getRemixCountFn = createServerFn({ method: "GET" })
     if (!session?.userId) {
       throw new Error("Not authenticated")
     }
+
+    if (!(await canReadWorkout(data.workoutId))) return { count: 0 }
 
     const [result] = await db
       .select({ count: count() })

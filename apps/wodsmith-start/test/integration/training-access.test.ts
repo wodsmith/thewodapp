@@ -280,20 +280,26 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       workout: { id: "private" },
     })
     fixture.userId = "outsider"
-    await expect(getWorkoutsFn({ data: { teamId: "a" } })).rejects.toThrow()
-    expect((await getWorkoutsFn({ data: { teamId: "b" } })).workouts.map(workout => workout.id).sort()).toEqual(["mine", "public", "public-remix"])
+    await expect(getWorkoutsFn({ data: { teamId: "a" } })).rejects.toThrow(
+      "Team access required",
+    )
+    expect(
+      (await getWorkoutsFn({ data: { teamId: "b" } })).workouts
+        .map((workout) => workout.id)
+        .sort(),
+    ).toEqual(["mine", "public", "public-remix"])
   })
   // @lat: [[training-access-tests#Training Access Tests#Track reads]]
   it("protects private track detail, contents and team lists while filtering private children of public tracks", async () => {
     await expect(
       getProgrammingTrackByIdFn({ data: { trackId: "private-track" } }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Team access required")
     await expect(
       getTrackWorkoutsFn({ data: { trackId: "private-track" } }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Team access required")
     await expect(
       getTeamProgrammingTracksFn({ data: { teamId: "a" } }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Team access required")
     expect(
       (
         await getTrackWorkoutsFn({ data: { trackId: "public-track" } })
@@ -340,7 +346,7 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
     "rejects track operation $operation by $userId before modifying rows",
     async ({ userId, mutate }) => {
       fixture.userId = userId
-      await expect(mutate()).rejects.toThrow()
+      await expect(mutate()).rejects.toThrow("Workout import access required")
       expect(await db.select().from(programmingTracksTable)).toHaveLength(2)
       expect(await db.select().from(trackWorkoutsTable)).toHaveLength(4)
     },
@@ -351,7 +357,7 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       addWorkoutToTrackFn({
         data: { trackId: "private-track", workoutId: "mine", trackOrder: 2 },
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Workout unavailable for this track")
     for (const mutate of [
       mutations[0],
       mutations[1],
@@ -371,12 +377,16 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
   }
   // @lat: [[training-access-tests#Training Access Tests#Workout writes]]
   it("preserves create and edit authorization against persisted owner teams", async () => {
-    await expect(updateWorkoutFn({ data: edit })).rejects.toThrow()
+    await expect(updateWorkoutFn({ data: edit })).rejects.toThrow(
+      "Workout import access required",
+    )
     await expect(
       createWorkoutFn({ data: { ...edit, teamId: "a" } }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Workout import access required")
     fixture.userId = "member"
-    await expect(updateWorkoutFn({ data: edit })).rejects.toThrow()
+    await expect(updateWorkoutFn({ data: edit })).rejects.toThrow(
+      "Workout import access required",
+    )
     fixture.userId = "owner"
     expect(await updateWorkoutFn({ data: edit })).toMatchObject({
       workout: { name: "Edited", teamId: "a" },
@@ -390,10 +400,10 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       createWorkoutFn({
         data: { ...edit, teamId: "a", sourceWorkoutId: "mine" },
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Source workout unavailable")
     expect(() =>
       createWorkoutFn({ data: { ...edit, teamId: "a", name: "" } }),
-    ).toThrow()
+    ).toThrow("Name is required")
   })
   // @lat: [[training-access-tests#Training Access Tests#Remix boundaries]]
   it("hides private remix lineage and counts and preserves public template copying", async () => {
@@ -413,7 +423,7 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       createWorkoutRemixFn({
         data: { sourceWorkoutId: "private", teamId: "b" },
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Source workout not found")
     expect(
       await createWorkoutRemixFn({
         data: { sourceWorkoutId: "public", teamId: "b" },
@@ -426,32 +436,33 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       createWorkoutRemixFn({
         data: { sourceWorkoutId: "public", teamId: "a" },
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Workout import access required")
     fixture.userId = "expired"
     await expect(
       createWorkoutRemixFn({
         data: { sourceWorkoutId: "public", teamId: "a" },
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Workout import access required")
   })
   // @lat: [[training-access-tests#Training Access Tests#Indirect reads]]
   it("guards filter options, schedule IDs and subscription team IDs", async () => {
     await expect(
       getWorkoutFilterOptionsFn({ data: { teamId: "a" } }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Team access required")
     await expect(
       getWorkoutScheduledInstancesFn({
         data: { teamId: "a", workoutId: "private" },
       }),
-    ).rejects.toThrow()
-    await expect(
-      getPublicTracksWithSubscriptionsFn({ data: { userTeamIds: ["a"] } }),
-    ).rejects.toThrow()
-    await expect(
-      getTrackSubscribedTeamsFn({
+    ).rejects.toThrow("Team access required")
+    const publicTracks = await getPublicTracksWithSubscriptionsFn({
+      data: { userTeamIds: ["a"] },
+    })
+    expect(publicTracks.tracks[0].subscribedTeams).toEqual([])
+    expect(
+      await getTrackSubscribedTeamsFn({
         data: { trackId: "public-track", userTeamIds: ["a"] },
       }),
-    ).rejects.toThrow()
+    ).toEqual({ teams: [] })
     expect(
       await getPublicTracksWithSubscriptionsFn({
         data: { userTeamIds: ["b"] },
@@ -460,12 +471,12 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
     const dates = { startDate: "2026-01-01", endDate: "2026-12-31" }
     await expect(
       getScheduledWorkoutsFn({ data: { teamId: "a", ...dates } }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Team access required")
     await expect(
       getScheduledWorkoutsWithResultsFn({
         data: { teamId: "a", userId: "owner", ...dates },
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Team access required")
     await seed(scheduledWorkoutInstancesTable, {
       id: "legacy",
       teamId: "b",
@@ -491,7 +502,7 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
           scheduledDate: "2026-09-01",
         },
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Workout unavailable for this team")
     expect(
       await scheduleWorkoutFn({
         data: { teamId: "b", workoutId: "public", scheduledDate: "2026-09-01" },
@@ -536,8 +547,10 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       updateProgrammingTrackFn({
         data: { trackId: "private-track", name: "Denied" },
       }),
-    ).rejects.toThrow()
-    await expect(updateWorkoutFn({ data: edit })).rejects.toThrow()
+    ).rejects.toThrow("Workout import access required")
+    await expect(updateWorkoutFn({ data: edit })).rejects.toThrow(
+      "Workout import access required",
+    )
   })
   it("does not grant track management through a subscription or public visibility", async () => {
     await seed(teamProgrammingTracksTable, {
@@ -547,7 +560,7 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
     })
     await expect(
       getProgrammingTrackByIdFn({ data: { trackId: "private-track" } }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("Team access required")
     expect(
       (await getTeamProgrammingTracksFn({ data: { teamId: "b" } })).tracks,
     ).toEqual([])
@@ -560,6 +573,124 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
         await getTrackWorkoutsFn({ data: { trackId: "public-track" } })
       ).workouts.map((w) => w.workout.id),
     ).toEqual(["public"])
-    for (const mutate of mutations) await expect(mutate()).rejects.toThrow()
+    for (const mutate of mutations)
+      await expect(mutate()).rejects.toThrow("Not authenticated")
+  })
+  // @lat: [[training-access-tests#Training Access Tests#Source lineage authorization]]
+  it("hides public remix lineage until the source itself is readable", async () => {
+    expect(
+      await getRemixedWorkoutsFn({ data: { sourceWorkoutId: "private" } }),
+    ).toEqual({ remixes: [] })
+    expect(await getRemixCountFn({ data: { workoutId: "private" } })).toEqual({
+      count: 0,
+    })
+    fixture.userId = "owner"
+    expect(
+      (
+        await getRemixedWorkoutsFn({ data: { sourceWorkoutId: "private" } })
+      ).remixes.map((workout) => workout.id),
+    ).toEqual(["public-remix"])
+    expect(await getRemixCountFn({ data: { workoutId: "private" } })).toEqual({
+      count: 1,
+    })
+    fixture.userId = "outsider"
+    await db
+      .update(workouts)
+      .set({ scope: "public" })
+      .where(eq(workouts.id, "secret-remix"))
+    expect(await getRemixCountFn({ data: { workoutId: "public" } })).toEqual({
+      count: 1,
+    })
+  })
+  // @lat: [[training-access-tests#Training Access Tests#Legacy schedule metadata]]
+  it.each(["dates", "scores"])(
+    "hides legacy schedule %s after workout access is lost",
+    async (kind) => {
+      const dates = { startDate: "2026-01-01", endDate: "2026-12-31" }
+      await seed(scheduledWorkoutInstancesTable, {
+        id: "legacy",
+        teamId: "b",
+        workoutId: "private",
+        scheduledDate: new Date("2026-09-01"),
+      })
+      await seed(scoresTable, {
+        id: "legacy-score",
+        userId: "outsider",
+        teamId: "b",
+        workoutId: "private",
+        scheduledWorkoutInstanceId: "legacy",
+        scoreValue: 42,
+        scheme: "reps",
+        recordedAt: new Date("2026-09-01"),
+      })
+      if (kind === "dates") {
+        expect(
+          await getWorkoutScheduledInstancesFn({
+            data: { teamId: "b", workoutId: "private" },
+          }),
+        ).toEqual({ instances: [] })
+      } else {
+        expect(
+          (
+            await getScheduledWorkoutsWithResultsFn({
+              data: { teamId: "b", userId: "outsider", ...dates },
+            })
+          ).scheduledWorkoutsWithResults[0],
+        ).toMatchObject({ workout: null, result: null })
+      }
+      await db
+        .update(workouts)
+        .set({ scope: "public" })
+        .where(eq(workouts.id, "private"))
+      expect(
+        (
+          await getWorkoutScheduledInstancesFn({
+            data: { teamId: "b", workoutId: "private" },
+          })
+        ).instances,
+      ).toHaveLength(1)
+      expect(
+        (
+          await getScheduledWorkoutsWithResultsFn({
+            data: { teamId: "b", userId: "outsider", ...dates },
+          })
+        ).scheduledWorkoutsWithResults[0],
+      ).toMatchObject({
+        workout: { id: "private" },
+        result: { scoreValue: 42 },
+      })
+    },
+  )
+  // @lat: [[training-access-tests#Training Access Tests#Bounded subscription filtering]]
+  it("filters stale subscription teams while preserving the public catalog and caps request size", async () => {
+    await seed(teamProgrammingTracksTable, {
+      teamId: "b",
+      trackId: "public-track",
+      isActive: 1,
+    })
+    const data = { userTeamIds: ["a", "b", "departed"] }
+    const result = await getPublicTracksWithSubscriptionsFn({ data })
+    expect(result.tracks).toHaveLength(1)
+    expect(result.tracks[0].subscribedTeams.map((team) => team.teamId)).toEqual(
+      ["b"],
+    )
+    expect(
+      (
+        await getTrackSubscribedTeamsFn({
+          data: { ...data, trackId: "public-track" },
+        })
+      ).teams.map((team) => team.teamId),
+    ).toEqual(["b"])
+    const oversized = {
+      userTeamIds: Array.from({ length: 101 }, (_, index) => String(index)),
+    }
+    expect(() =>
+      getPublicTracksWithSubscriptionsFn({ data: oversized }),
+    ).toThrow(/Too big/)
+    expect(() =>
+      getTrackSubscribedTeamsFn({
+        data: { ...oversized, trackId: "public-track" },
+      }),
+    ).toThrow(/Too big/)
   })
 })

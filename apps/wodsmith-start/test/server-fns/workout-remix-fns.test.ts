@@ -2,6 +2,7 @@ import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
 vi.mock("@/server/workout-import/access", () => ({ requireWorkoutTeamWrite: vi.fn(async () => undefined) }))
 // SQL authorization is exercised with real memberships in integration/training-access.test.ts.
 vi.mock("@/server/training-access", () => ({
+  canReadWorkout: vi.fn(async () => true),
   workoutVisibilityCondition: vi.fn(async () => undefined),
   requireTrainingTeamMember: vi.fn(async () => undefined),
 }))
@@ -323,16 +324,15 @@ describe('Workout Remix Server Functions', () => {
         typeof vi.fn
       >
 
-      // Default mock returns empty array (for memberships, tags, movements queries)
+      // Default mock returns empty arrays for tags and movements
       mockDb.setMockReturnValue([])
 
       // Sequence of DB calls:
-      // 1. Check team membership
-      // 2. Get source workout
+      // 1. Get source workout
       limitMock.mockResolvedValueOnce([sourceWorkout])
-      // 3. Insert new workout
+      // 2. Insert new workout
       returningMock.mockResolvedValueOnce([createdRemix])
-      // 4. Get created workout
+      // 3. Get created workout
       limitMock.mockResolvedValueOnce([createdRemix])
 
       const result = await createWorkoutRemixFn({
@@ -365,10 +365,9 @@ describe('Workout Remix Server Functions', () => {
         typeof vi.fn
       >
 
-      // Default mock returns empty array (for memberships, tags, movements queries)
+      // Default mock returns empty arrays for tags and movements
       mockDb.setMockReturnValue([])
 
-      // Membership check
       // Get source workout
       limitMock.mockResolvedValueOnce([sourceWorkout])
 
@@ -405,7 +404,6 @@ describe('Workout Remix Server Functions', () => {
     it('throws when source workout not found', async () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 
-      // Membership check passes
       // Source workout not found
       limitMock.mockResolvedValueOnce([])
 

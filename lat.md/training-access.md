@@ -6,7 +6,7 @@ Training server boundaries authorize against stored resource ownership and curre
 
 Public workouts and tracks remain readable. Private resources require active, unexpired membership in their owning team. A public track does not publish its private workout children.
 
-Workout detail, movement associations, remix lineage and counts apply the same visibility predicate. Team-scoped requests validate the supplied team ID before querying private data. Missing owner teams never imply access.
+Workout detail, movement associations, remix lineage and counts apply the same visibility predicate. Team-scoped requests validate the supplied team ID before querying private data. Multi-team subscription requests filter current memberships in one query and accept at most 100 IDs. Missing owner teams never imply access.
 
 ## Owner writes
 
@@ -15,3 +15,5 @@ Track CRUD, visibility and workout membership require manage-programming permiss
 The existing current-membership permission guard remains shared with workout import. CrossFit.com retains its site-admin management rule. Public templates can be remixed into authorized destinations without granting permission to edit the source.
 
 Track edit, visibility, add and remove controls use the server-resolved management capability; hiding a control never replaces server authorization.
+
+Remix lists and counts require a readable source as well as readable children. Legacy schedule dates and attached scores are hidden when the referenced workout is unreadable.

@@ -24,6 +24,7 @@ import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import { appendCrossFitWorkout } from "@/server/append-crossfit-workout"
 import {
+  getActiveTrainingTeamIds,
   requireTrackRead,
   requireTrackWrite,
   requireTrainingTeamMember,
@@ -206,14 +207,16 @@ const unsubscribeFromTrackInputSchema = z.object({
 const getPublicTracksWithSubscriptionsInputSchema = z.object({
   userTeamIds: z
     .array(z.string().min(1))
-    .min(1, "At least one team ID required"),
+    .min(1, "At least one team ID required")
+    .max(100),
 })
 
 const getTrackSubscribedTeamsInputSchema = z.object({
   trackId: z.string().min(1, "Track ID is required"),
   userTeamIds: z
     .array(z.string().min(1))
-    .min(1, "At least one team ID required"),
+    .min(1, "At least one team ID required")
+    .max(100),
 })
 
 // ============================================================================
@@ -814,7 +817,7 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
     })
 
     const db = getDb()
-    await Promise.all(data.userTeamIds.map(requireTrainingTeamMember))
+    const userTeamIds = await getActiveTrainingTeamIds(data.userTeamIds)
 
     // Get all public tracks
     const publicTracks = await db
@@ -849,7 +852,7 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
       .innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
       .where(
         and(
-          inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
+          inArray(teamProgrammingTracksTable.teamId, userTeamIds),
           eq(teamProgrammingTracksTable.isActive, 1),
         ),
       )
@@ -906,7 +909,7 @@ export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
     }
 
     const db = getDb()
-    await Promise.all(data.userTeamIds.map(requireTrainingTeamMember))
+    const userTeamIds = await getActiveTrainingTeamIds(data.userTeamIds)
 
     await requireTrackRead(data.trackId)
     const subscriptions = await db
@@ -920,7 +923,7 @@ export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
       .where(
         and(
           eq(teamProgrammingTracksTable.trackId, data.trackId),
-          inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
+          inArray(teamProgrammingTracksTable.teamId, userTeamIds),
           eq(teamProgrammingTracksTable.isActive, 1),
         ),
       )
