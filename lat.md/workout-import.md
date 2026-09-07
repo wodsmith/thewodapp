@@ -32,7 +32,7 @@ Real MySQL tests verify complete scoring roundtrips, simultaneous retries, rollb
 
 ## Provisioning and retention
 
-The idempotent MySQL migration adds the AI Workout Import catalog entry and import session/receipt tables without adding plan or team grants. Existing admin entitlement controls provide targeted grants and revocations.
+The idempotent MySQL migration adds the Workout import catalog entry and import session/receipt tables without adding plan or team grants. Existing admin entitlement controls provide targeted grants and revocations.
 
 Sessions expire after 24 hours. Successful saves immediately clear DB proposal/source text. Ownership-only cleanup clears abandoned or cancelled drafts and expires unsaved sessions. Saved receipts keep their original expiry so late cancellation cannot invalidate retry. The backend schedules cleanup and removes private source objects; receipts retain minimal IDs and hashes for audit, without source content.
 

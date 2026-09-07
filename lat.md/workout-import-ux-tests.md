@@ -137,3 +137,43 @@ Track reads check management permission against the current owner team, preserve
 ## Managed track append
 
 The managed CrossFit source track hides explicit order and AI creation, submitting existing-workout additions through its server-assigned append contract.
+
+## Personal session import confirmation
+
+Personal AI entitlement creates a library workout, then explicit confirmation adds its rich scoring reference to the selected gym and day without logging a result.
+
+## Session import entitlement gate
+
+Both personal and coach composers retain manual creation when personal AI entitlement is denied, and the locked entry opens no import workspace.
+
+## Personal session import recovery
+
+Failed personal composition retains the imported workout preview for retry or cancellation; cancellation does not perform another session save or log a result.
+
+## Personal session import context race
+
+A completed import from a previous track or an unmounted personal session cannot queue a workout in the current session.
+
+## Personal manual session editor safety
+
+An open manual workout editor hides AI import so it cannot be overwritten without the user's existing save or discard decision.
+
+## Coach session import draft
+
+A supported import appends to the coach's unsaved draft, preserves manual sections and title, and uses the selected gym, track, and date only on explicit draft save.
+
+## Coach import scoring compatibility
+
+Caps, multiple scored rounds, and tiebreaks survive reviewed import into a canonical workout block. The selected session receives the definition only when its coach explicitly saves the draft.
+
+## Coach session import context race
+
+A library lookup that finishes after leaving the coach session cannot append a section or save a draft.
+
+## Closed session import handoff
+
+Closing import cancels a pending coach attachment while preserving the draft title and manual section; later callbacks from the closed workspace cannot restart attachment.
+
+## Coach session import capacity
+
+A coach session with 20 sections disables AI creation, preserving the existing composition limit before an import starts.

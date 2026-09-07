@@ -36,7 +36,7 @@ try {
   await page.goto(`${baseURL}/workouts/new`)
   await page.waitForLoadState("networkidle")
   await page.evaluate(({ storageKey, expiredId }) => sessionStorage.setItem(storageKey, expiredId), { storageKey, expiredId })
-  await page.getByRole("button", { name: "Create with AI", exact: true }).click()
+  await page.getByRole("button", { name: "Import workout", exact: true }).click()
   await expect(page.getByText("This import source has expired or is unavailable. Upload the image again or paste the source text.", { exact: true })).toBeVisible()
   assert.equal(await page.evaluate((key) => sessionStorage.getItem(key), storageKey), null)
   await page.getByRole("dialog").getByLabel("Workout text or image instructions").fill("100 burpees for time, cap 15 minutes")

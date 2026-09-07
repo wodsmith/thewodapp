@@ -5,7 +5,6 @@ import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   Card,
   CardContent,
@@ -13,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -29,9 +29,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  type TeamWithEntitlement,
   getFeaturesFn,
   getTeamsWithEntitlementFn,
+  type TeamWithEntitlement,
   toggleFeatureEntitlementFn,
 } from "@/server-fns/admin-entitlement-fns"
 
@@ -48,10 +48,15 @@ export const Route = createFileRoute("/admin/entitlements/")({
 
 function EntitlementsPage() {
   const {
-    features,
+    features: storedFeatures,
     teams: initialTeams,
     initialFeatureKey,
   } = Route.useLoaderData()
+  const features = storedFeatures.map((feature) =>
+    feature.key === "ai_workout_import"
+      ? { ...feature, name: "Workout import" }
+      : feature,
+  )
   const [selectedFeature, setSelectedFeature] = useState(initialFeatureKey)
   const [teams, setTeams] = useState(initialTeams)
   const [search, setSearch] = useState("")

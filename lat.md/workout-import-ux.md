@@ -39,3 +39,19 @@ The settings track page shows add-workout actions only when a fresh owner-team m
 ## Managed source tracks
 
 The managed CrossFit source track uses its administrator-only manual append contract with server-assigned order. AI creation remains available on ordinary editable tracks and is hidden for this managed source.
+
+## Session creation
+
+Personal and coach session composers offer AI import using the personal team's entitlement. The selected gym, date, and track remain the session destination; importing never logs results or publishes a session.
+
+[[apps/wodsmith-start/src/components/training/athlete-personal-session.tsx#AthletePersonalSession]] queues the saved workout in the existing library preview and requires an explicit **Add to my session**. Composition stores a library reference, preserving caps, separately recorded scores, and tiebreaks. An open manual workout editor keeps its own save/discard flow.
+
+[[apps/wodsmith-start/src/components/training/coach-planner.tsx#CoachDayEditor]] appends a supported imported workout to the unsaved draft through [[apps/wodsmith-start/src/lib/training/library-block.ts#libraryWorkoutToBlock]]. Unsupported scoring is rejected visibly while the saved workout remains in the library. Existing draft content survives import and cancellation, and the 20-section limit still applies.
+
+The shared [[apps/wodsmith-start/src/components/workout-import/workout-import-entry.tsx#WorkoutImportEntry]] reports dialog state so session navigation stays locked during import. Closing or unmounting aborts its handoff signal. Session callbacks also check captured context after asynchronous work, preventing late saves from attaching to a different gym, day, or track. Handoff errors remain visible in the dialog.
+
+## Import wording
+
+Entry buttons and dialog titles say **Import workout**, using an import icon and source-oriented access and error messages. The source input retains its factual disclosure about AI processing of text and images.
+
+The admin entitlement picker displays **Workout import** for existing `ai_workout_import` catalog rows, including grant messages. Machine identifiers, grants, and historical migrations stay stable; fresh seed data uses the same display name.

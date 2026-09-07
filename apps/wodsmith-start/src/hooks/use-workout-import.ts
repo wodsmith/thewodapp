@@ -27,13 +27,13 @@ export function workoutImportError(error: unknown): string {
       message,
     )
   )
-    return "AI Workout Import access required for this destination. Check access again to continue."
+    return "Workout import access required for this destination. Check access again to continue."
   if (/rate_limit|quota|budget|limit_exceeded/i.test(message))
     return "The import limit has been reached. Keep your source and try again later."
   if (/expired|source_missing|not_found/i.test(message))
     return "This import source has expired or is unavailable. Upload the image again or paste the source text."
   if (/timeout|provider|model/i.test(message))
-    return "The AI provider could not finish reading. Your edits are safe; try reading again."
+    return "The workout could not be read. Your edits are safe; try reading again."
   if (/question|allowed answer|workout field/i.test(message))
     return "Check each answer and make the matching correction in the workout fields before saving."
   if (/movement|scaling group/i.test(message))
@@ -93,7 +93,7 @@ export function useWorkoutImportAccess(
           loading: false,
           error: denied
             ? null
-            : "Could not check AI access. Check your connection and try again.",
+            : "Could not check import access. Check your connection and try again.",
         }))
       return denied ? ({ hasAccess: false } as const) : null
     }

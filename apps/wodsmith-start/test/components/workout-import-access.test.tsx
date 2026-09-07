@@ -14,7 +14,7 @@ describe("workout import access", () => {
   it("renders access required without opening a socket, creating a session, or uploading", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch")
     render(<WorkoutImportEntry destination={{ kind: "personal" }} saveLabel="Create workout" onSaved={vi.fn()} />)
-    const locked = await screen.findByRole("button", { name: "AI Workout Import access required" })
+    const locked = await screen.findByRole("button", { name: "Workout import access required" })
     expect(locked).toBeDisabled()
     fireEvent.click(locked)
     expect(mock.agent).not.toHaveBeenCalled()
@@ -34,7 +34,7 @@ describe("workout import access", () => {
     expect(result.current.result).toEqual({ hasAccess: false })
   })
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Save denial classification]]
-  it.each(["AI Workout Import access required", "Not authenticated", "access_required"])("recognizes save denial without a stale enabled UI: %s", (message) => {
+  it.each(["Workout import access required", "AI Workout Import access required", "Not authenticated", "access_required"])("recognizes save denial without a stale enabled UI: %s", (message) => {
     expect(isWorkoutImportAccessError(new Error(message))).toBe(true)
     expect(workoutImportError(new Error(message))).toMatch(/access required/)
   })
@@ -76,10 +76,10 @@ it("retains a successful access result after a transient focus check and recover
 it("offers a retry after an initial network error without claiming entitlement denial", async () => {
   mock.access.mockRejectedValueOnce(new Error("Failed to fetch"))
   render(<WorkoutImportEntry destination={{ kind: "personal" }} saveLabel="Create workout" onSaved={vi.fn()} />)
-  const retry = await screen.findByRole("button", { name: "Retry AI access check" })
+  const retry = await screen.findByRole("button", { name: "Retry import access check" })
   expect(retry).toBeEnabled()
-  expect(screen.queryByText("AI Workout Import access required")).not.toBeInTheDocument()
+  expect(screen.queryByText("Workout import access required")).not.toBeInTheDocument()
   fireEvent.click(retry)
-  await screen.findByRole("button", { name: "AI Workout Import access required" })
+  await screen.findByRole("button", { name: "Workout import access required" })
   expect(mock.agent).not.toHaveBeenCalled()
 })

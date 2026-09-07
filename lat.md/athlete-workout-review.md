@@ -41,3 +41,10 @@ Changing a description retains the saved rounds, tiebreak and movement selection
 ### Sub-event edits retain authored scoring
 
 Sub-event forms restore their own rounds and tiebreak, then save changes and movement selections under the child identity rather than the parent.
+
+
+## Reviewed Import Compatibility
+
+Personal sessions offer reviewed import alongside canonical manual creation and unscored sections. Imported workouts require explicit composition confirmation, preserving the chosen gym, date and track context.
+
+An open import participates in the session navigation guard; stale or cancelled handoffs cannot add to another day. Standalone component previews show an unavailable import action because they do not connect to the authenticated service. Production import behavior is covered by [[workout-import-ux-tests#Workout Import UX Tests#Personal session import confirmation]].

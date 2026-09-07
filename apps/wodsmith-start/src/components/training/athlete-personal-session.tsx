@@ -1,10 +1,11 @@
 import { ArrowDown, ArrowUp, Plus } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { CrossFitTrackDays } from "@/components/crossfit-track-days"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
 import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
 import type {
   PersonalTrainingDay,
@@ -67,6 +68,20 @@ export function AthletePersonalSession({
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const importContextKey = JSON.stringify([team.id, date, trackId])
+  const importContext = useMemo(
+    () => ({ key: importContextKey, active: true }),
+    [importContextKey],
+  )
+  const currentImportContext = useRef(importContext)
+  currentImportContext.current = importContext
+  useEffect(() => {
+    importContext.active = true
+    return () => {
+      importContext.active = false
+    }
+  }, [importContext])
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
   const [retry, setRetry] = useState(0)
@@ -80,9 +95,9 @@ export function AthletePersonalSession({
     if (editingWorkout) editorInput.current?.focus()
   }, [editingWorkout])
   useEffect(() => {
-    onInteractionBusy?.(saving || editingWorkout)
+    onInteractionBusy?.(saving || editingWorkout || importOpen)
     return () => onInteractionBusy?.(false)
-  }, [saving, editingWorkout, onInteractionBusy])
+  }, [saving, editingWorkout, importOpen, onInteractionBusy])
   const [libraryPending, setLibraryPending] = useState<string[]>(
     libraryWorkoutIds ?? (libraryWorkoutId ? [libraryWorkoutId] : []),
   )
@@ -878,6 +893,25 @@ ${workout.provenance ? "" : workout.description}`,
           >
             Add instructions or completion
           </Button>
+          <WorkoutImportEntry
+            key={importContextKey}
+            destination={{ kind: "personal" }}
+            saveLabel="Create and review for session"
+            disabled={saving || libraryPending.length > 0}
+            onOpenChange={setImportOpen}
+            onSaved={(result, signal) => {
+              if (
+                signal.aborted ||
+                !importContext.active ||
+                currentImportContext.current !== importContext
+              ) {
+                throw new Error(
+                  "The selected session changed. Your workout is saved in the library; add it from there to the intended day.",
+                )
+              }
+              setLibraryPending([result.workoutId])
+            }}
+          />
           <a
             className="inline-flex min-h-11 items-center px-3 text-sm font-medium underline underline-offset-4"
             href={`/workouts?teamId=${encodeURIComponent(team.id)}&date=${date}`}

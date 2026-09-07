@@ -111,7 +111,7 @@ Proposed retention: remove source images/text and abandoned drafts after 24 hour
 
 ### Required AI workout import entitlement
 
-Create a dedicated `FEATURES.AI_WORKOUT_IMPORT = "ai_workout_import"` feature with display name **AI Workout Import**, category `ai`, and an idempotently provisioned `features` row. This is required for launch, not an optional monetization decision. A rollout flag or rate limit cannot grant access.
+Create a dedicated `FEATURES.AI_WORKOUT_IMPORT = "ai_workout_import"` feature with display name **Workout import**, category `ai`, and an idempotently provisioned `features` row. This is required for launch, not an optional monetization decision. A rollout flag or rate limit cannot grant access.
 
 Follow the existing team feature entitlement system (`hasFeature`, plan entitlements, manual grants and overrides). Personal imports resolve the authenticated user's personal team; track imports resolve the track's owning team from trusted database records. A user must have access to that exact entitled team and the applicable create/programming permission. Entitlement on another team, basic workout tracking, an admin role alone, AI message credits, `ai_workout_generation`, and `ai_judge_scheduling` do not grant import access. Individual rollout grants can target a user's personal team; a gym-team grant covers its authorized members only in that team context.
 

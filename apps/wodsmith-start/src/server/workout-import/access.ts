@@ -28,7 +28,7 @@ export type WorkoutImportDatabase = Pick<
 >
 export class WorkoutImportAccessError extends Error {
   constructor() {
-    super("AI Workout Import access required")
+    super("Workout import access required")
     this.name = "WorkoutImportAccessError"
   }
 }
