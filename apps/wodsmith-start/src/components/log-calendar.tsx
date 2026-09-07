@@ -1,8 +1,10 @@
 "use client"
 
+import { parseISO } from "date-fns"
 import * as React from "react"
 import { LogRowCard } from "@/components/log-row-card"
 import { Calendar } from "@/components/ui/calendar"
+import { getLocalDateKey } from "@/utils/date-utils"
 
 interface LogEntry {
   id: string
@@ -30,7 +32,8 @@ export function LogCalendar({ logs }: LogCalendarProps) {
       if (selectedDate) {
         const logsForDay = logs.filter(
           (log) =>
-            new Date(log.date).toDateString() === selectedDate.toDateString(),
+            new Date(log.date).toISOString().slice(0, 10) ===
+            getLocalDateKey(selectedDate),
         )
         setSelectedLog(logsForDay.length > 0 ? logsForDay : null)
       } else {
@@ -44,7 +47,10 @@ export function LogCalendar({ logs }: LogCalendarProps) {
     handleDateSelect(date)
   }, [date, handleDateSelect])
 
-  const loggedDates = logs.map((log) => new Date(log.date))
+  // Stored log dates are calendar labels at UTC midnight; the widget uses local dates.
+  const loggedDates = logs.map((log) =>
+    parseISO(new Date(log.date).toISOString().slice(0, 10)),
+  )
 
   return (
     <div className="flex flex-col gap-4">

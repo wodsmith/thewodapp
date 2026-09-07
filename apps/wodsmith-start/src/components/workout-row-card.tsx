@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/hover-card"
 import { ListItem } from "@/components/ui/list-item"
 import type { Workout } from "@/db/schemas/workouts"
+import { decodeTime } from "@/lib/scoring"
 import { cn } from "@/utils/cn"
 
 // Result type matching the TodayScore interface from server-fns
@@ -114,7 +115,7 @@ export default function WorkoutRowCard({
                     </Badge>
                     {workout.timeCap && (
                       <span className="text-xs text-muted-foreground">
-                        {workout.timeCap} min cap
+                        {decodeTime(workout.timeCap * 1000)} cap
                       </span>
                     )}
                   </div>

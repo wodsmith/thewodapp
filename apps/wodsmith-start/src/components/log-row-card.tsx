@@ -1,7 +1,7 @@
-import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ListItem } from "@/components/ui/list-item"
+import { formatUTCDateFull } from "@/utils/date-utils"
 import { getScalingDisplayInfo } from "@/utils/scaling-display"
 
 interface LogRowCardProps {
@@ -29,7 +29,7 @@ export function LogRowCard({ logEntry }: LogRowCardProps) {
             {logEntry.workoutName || "Workout Result"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {format(logEntry.date, "MMM d, yyyy")}
+            {formatUTCDateFull(logEntry.date)}
           </p>
           {logEntry.notes && (
             <p className="text-sm text-gray-600">{logEntry.notes}</p>

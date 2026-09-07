@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { WorkoutRemixInfo } from "@/components/workout-remix-info"
 import { trackEvent } from "@/lib/posthog"
+import { decodeTime } from "@/lib/scoring"
 import { trainingDateSchema } from "@/server/training-validation"
 import { getWorkoutScoresFn, type WorkoutScore } from "@/server-fns/log-fns"
 import { getTrainingContextFn } from "@/server-fns/training-fns"
@@ -23,6 +24,7 @@ import {
   type WorkoutScheduledInstance,
 } from "@/server-fns/workout-fns"
 import { getWorkoutRemixInfoFn } from "@/server-fns/workout-remix-fns"
+import { formatUTCDateFull } from "@/utils/date-utils"
 
 export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
   component: WorkoutDetailPage,
@@ -233,7 +235,7 @@ function WorkoutDetailPage() {
                   </span>
                 </div>
                 <Badge variant="outline" className="text-base">
-                  {workout.timeCap} min
+                  {decodeTime(workout.timeCap * 1000)}
                 </Badge>
               </div>
             )}
@@ -336,11 +338,7 @@ function WorkoutDetailPage() {
 function ScoreCard({ score }: { score: WorkoutScore }) {
   const initials = score.userName ? score.userName.charAt(0).toUpperCase() : "U"
 
-  const formattedDate = new Date(score.recordedAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  })
+  const formattedDate = formatUTCDateFull(score.recordedAt)
 
   return (
     <div className="flex items-center gap-4 p-4 border rounded-lg bg-card">
