@@ -32,7 +32,7 @@ export interface KVSession {
   continent?: string
   ip?: string | null
   userAgent?: string | null
-  authenticationType?: "passkey" | "password" | "google-oauth"
+  authenticationType?: "passkey" | "password"
   passkeyCredentialId?: string
   /**
    * Teams data - contains list of teams the user is a member of

@@ -27,7 +27,7 @@ describe("supported sign-in providers", () => {
     db.registerTable("userTable")
   })
 
-  // @lat: [[auth-boundary-tests#Account boundary regressions#Legacy provider recovery]]
+  // @lat: [[auth-boundary-tests#Account boundary regressions#Crew legacy provider recovery]]
   it("uses the same password error for legacy Google-only accounts as any passwordless account", async () => {
     db.query.userTable.findFirst.mockResolvedValue({
       id: "usr_legacy",
@@ -44,7 +44,7 @@ describe("supported sign-in providers", () => {
     expect(verifyPassword).not.toHaveBeenCalled()
   })
 
-  // @lat: [[auth-boundary-tests#Account boundary regressions#Password sign-in preservation]]
+  // @lat: [[auth-boundary-tests#Account boundary regressions#Crew password sign-in preservation]]
   it("continues password sign-in for verified accounts with a legacy provider id", async () => {
     db.query.userTable.findFirst.mockResolvedValue({
       id: "usr_legacy",

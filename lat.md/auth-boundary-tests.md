@@ -41,3 +41,11 @@ A legacy provider id does not affect a verified account's normal password sign-i
 ## Volunteer name validation
 
 Volunteer account creation rejects blank and oversized names at the server input boundary before account or application side effects.
+
+## Crew legacy provider recovery
+
+Crew treats legacy Google-only records like other passwordless accounts, using existing email-based recovery without an unavailable provider instruction.
+
+## Crew password sign-in preservation
+
+Crew preserves password sign-in for verified accounts that still have a legacy provider id.
