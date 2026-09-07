@@ -200,7 +200,7 @@ describe.skipIf(!mysqlTestConfig)(
       await seed(featureTable, {
         id: "feat_ai_workout_import",
         key: FEATURES.AI_WORKOUT_IMPORT,
-        name: "AI Workout Import",
+        name: "Workout import",
         isActive: 1,
       })
       await seed(scalingGroupsTable, {

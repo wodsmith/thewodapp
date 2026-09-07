@@ -38,7 +38,7 @@ it("returns the committed receipt even when source cleanup fails", async () => {
 })
 
 it("does not clean up an unsaved draft when persistence is denied", async () => {
-  mocks.save.mockRejectedValue(new Error("AI Workout Import access required"))
+  mocks.save.mockRejectedValue(new Error("Workout import access required"))
   await expect(saveWorkoutImportFn({ data: input })).rejects.toThrow("access required")
   expect(mocks.cleanup).not.toHaveBeenCalled()
   expect(mocks.waitUntil).not.toHaveBeenCalled()
