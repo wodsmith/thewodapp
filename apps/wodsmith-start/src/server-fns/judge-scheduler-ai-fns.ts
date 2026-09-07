@@ -10,12 +10,11 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import type { CompetitionJudgeRotation } from "@/db/schema"
 import { competitionJudgeRotationsTable } from "@/db/schema"
-import { createJudgeRotationId } from "@/db/schemas/common"
 import {
   type EventContextDto,
   type JudgeRosterEntry,
@@ -111,30 +110,67 @@ export const applyAiProposalsFn = createServerFn({ method: "POST" })
       await requireAiSchedulingTeamAccess({ teamId: data.teamId, scope })
 
       const proposals = data.proposals as ProposedRotation[]
-      await validateAiProposalsForInsert(proposals, data.trackWorkoutId)
-
-      const inserts = proposalsToRotationInserts({
-        proposals,
-        competitionId: data.competitionId,
-        trackWorkoutId: data.trackWorkoutId,
+      if (
+        new Set(proposals.map((p) => p.proposalId)).size !== proposals.length
+      ) {
+        throw new Error("Duplicate AI proposal ids are not allowed")
+      }
+      if (proposals.some((p) => p.status !== "pending")) {
+        throw new Error("Only pending AI proposals can be saved as drafts")
+      }
+      const rows = await Promise.all(
+        proposals.map(async (proposal) => {
+          const [insert] = proposalsToRotationInserts({
+            proposals: [proposal],
+            competitionId: data.competitionId,
+            trackWorkoutId: data.trackWorkoutId,
+          })
+          if (!insert) throw new Error("Missing AI proposal insert")
+          return {
+            ...insert,
+            id: await aiProposalRotationId(
+              data.competitionId,
+              data.trackWorkoutId,
+              proposal,
+            ),
+          }
+        }),
+      )
+      const existing = await db
+        .select()
+        .from(competitionJudgeRotationsTable)
+        .where(
+          eq(
+            competitionJudgeRotationsTable.trackWorkoutId,
+            data.trackWorkoutId,
+          ),
+        )
+      const existingById = new Map(existing.map((row) => [row.id, row]))
+      const pending = proposals.filter((_, index) => {
+        const row = rows[index]
+        return row && !existingById.has(row.id)
       })
-
+      await validateAiProposalsForInsert(pending, data.trackWorkoutId)
+      const newRows = rows.filter((row) => !existingById.has(row.id))
       const rotations = await db.transaction(async (tx) => {
-        const ids: string[] = []
-        const rows = inserts.map((insert) => {
-          const id = createJudgeRotationId()
-          ids.push(id)
-          return { id, ...insert }
-        })
-
-        await tx.insert(competitionJudgeRotationsTable).values(rows)
-
+        if (newRows.length > 0) {
+          // The primary key also makes concurrent retries of the same proposal harmless.
+          await tx
+            .insert(competitionJudgeRotationsTable)
+            .values(newRows)
+            .onDuplicateKeyUpdate({
+              set: { id: sql`${competitionJudgeRotationsTable.id}` },
+            })
+        }
         return tx.query.competitionJudgeRotationsTable.findMany({
-          where: (table, { inArray }) => inArray(table.id, ids),
+          where: (table, { inArray }) =>
+            inArray(
+              table.id,
+              rows.map((row) => row.id),
+            ),
         })
       })
-
-      return { rotations, appliedCount: rotations.length }
+      return { rotations, appliedCount: newRows.length }
     },
   )
 
@@ -217,4 +253,26 @@ function isBlockingProposalViolation(violation: string): boolean {
     violation.startsWith("Rotation runs past") ||
     violation.includes("which overlaps this rotation")
   )
+}
+
+/** Include the definition because agent runs may reuse short IDs such as "p1". */
+async function aiProposalRotationId(
+  competitionId: string,
+  trackWorkoutId: string,
+  proposal: ProposedRotation,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(
+    JSON.stringify([
+      competitionId,
+      trackWorkoutId,
+      proposal.proposalId,
+      proposal.membershipId,
+      proposal.startingHeat,
+      proposal.startingLane,
+      proposal.heatsCount,
+      proposal.laneShiftPattern,
+    ]),
+  )
+  const digest = await crypto.subtle.digest("SHA-256", bytes)
+  return `jrot_ai_${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`
 }

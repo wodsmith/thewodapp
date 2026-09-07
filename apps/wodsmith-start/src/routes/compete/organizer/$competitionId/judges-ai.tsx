@@ -29,6 +29,7 @@ import {
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import { LANE_SHIFT_PATTERN } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { applyJudgeDrafts } from "@/lib/judge-scheduler/apply-drafts"
 import type {
   ActivityEntry,
   AgentState,
@@ -292,27 +293,40 @@ function JudgesAiPage() {
     if (!selectedWorkoutId || toApply.length === 0) return
     setIsApplying(true)
     try {
-      const result = await applyAiProposalsFn({
-        data: {
-          teamId: competition.organizingTeamId,
-          competitionId: competition.id,
-          trackWorkoutId: selectedWorkoutId,
-          proposals: toApply,
-        },
+      const result = await applyJudgeDrafts({
+        save: () =>
+          applyAiProposalsFn({
+            data: {
+              teamId: competition.organizingTeamId,
+              competitionId: competition.id,
+              trackWorkoutId: selectedWorkoutId,
+              proposals: toApply,
+            },
+          }),
+        acknowledge: () =>
+          agent.stub.markAccepted({
+            proposalIds: toApply.map((p) => p.proposalId),
+            clearOthers,
+          }),
+        refresh: () => router.invalidate(),
       })
-      toast.success(
-        `Added ${result.appliedCount} draft rotation${result.appliedCount === 1 ? "" : "s"} to the grid.`,
-      )
-      // Flip the saved proposals to accepted in agent state so the
-      // next Generate avoids their slots. Per-card accept keeps the
-      // other pending proposals visible (clearOthers=false); the
-      // batch "Save N as drafts" path drops the rest as the user is
-      // done with this run (clearOthers=true).
-      await agent.stub.markAccepted({
-        proposalIds: toApply.map((p) => p.proposalId),
-        clearOthers,
-      })
-      await router.invalidate()
+      if (!result.acknowledged) {
+        toast.warning("Draft rotations saved; AI acknowledgement failed.", {
+          description:
+            "You can retry saving these proposals safely to sync their status.",
+        })
+      } else {
+        toast.success(
+          result.appliedCount > 0
+            ? `Added ${result.appliedCount} draft rotation${result.appliedCount === 1 ? "" : "s"} to the grid.`
+            : "Draft rotations already saved; AI status synced.",
+        )
+      }
+      if (!result.refreshed) {
+        toast.warning(
+          "Draft rotations saved, but the grid could not refresh. Reload to see them.",
+        )
+      }
     } catch (err) {
       toast.error(
         err instanceof Error

@@ -160,6 +160,7 @@ function EventEditPage() {
         </>
       ) : usesHeatScheduling ? (
         <HeatSchedulePublishingCard
+          timezone={timezone}
           trackWorkoutId={event.id}
           eventName={event.workout.name}
           competitionId={competition.id}
