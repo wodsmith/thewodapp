@@ -15,7 +15,7 @@ import { env } from "cloudflare:workers"
 import { encodeHexLowerCase } from "@oslojs/encoding"
 import { createServerFn } from "@tanstack/react-start"
 import { getCookie } from "@tanstack/react-start/server"
-import { eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { z } from "zod"
 import {
   EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS,
@@ -24,7 +24,7 @@ import {
 } from "@/constants"
 import { getDb } from "@/db"
 import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
-import { createUserId, createTeamId } from "@/db/schemas/common"
+import { createTeamId, createUserId } from "@/db/schemas/common"
 import {
   addRequestContextAttribute,
   logEntityCreated,
@@ -150,7 +150,12 @@ export const signInFn = createServerFn({ method: "POST" })
     }
 
     // Create session and set cookie
-    await createAndStoreSession(user.id, "password")
+    await createAndStoreSession(
+      user.id,
+      "password",
+      undefined,
+      user.authGeneration,
+    )
 
     // Update request context with user info for downstream logs
     updateRequestContext({ userId: user.id })
@@ -277,7 +282,7 @@ export const signUpFn = createServerFn({ method: "POST" })
         }
 
         // Token valid — upgrade with auto-verification
-        await db
+        const [updatedAccount] = await db
           .update(userTable)
           .set({
             passwordHash: hashedPassword,
@@ -285,7 +290,16 @@ export const signUpFn = createServerFn({ method: "POST" })
             lastName: data.lastName,
             emailVerified: new Date(),
           })
-          .where(eq(userTable.id, existingUser.id))
+          .where(
+            and(
+              eq(userTable.id, existingUser.id),
+              eq(userTable.authGeneration, existingUser.authGeneration ?? 0),
+              isNull(userTable.emailVerified),
+              isNull(userTable.passwordHash),
+            ),
+          )
+        if (updatedAccount.affectedRows !== 1)
+          throw new Error("Account changed. Please try again")
 
         await env.KV_SESSION.delete(getClaimTokenKey(data.claimToken))
 
@@ -297,7 +311,12 @@ export const signUpFn = createServerFn({ method: "POST" })
           attributes: { userId: existingUser.id, email: data.email },
         })
 
-        await createAndStoreSession(existingUser.id, "password")
+        await createAndStoreSession(
+          existingUser.id,
+          "password",
+          undefined,
+          existingUser.authGeneration,
+        )
 
         return {
           success: true,
@@ -307,14 +326,23 @@ export const signUpFn = createServerFn({ method: "POST" })
       }
 
       // State B: No claim token — set password but require email verification
-      await db
+      const [updatedAccount] = await db
         .update(userTable)
         .set({
           passwordHash: hashedPassword,
           firstName: data.firstName,
           lastName: data.lastName,
         })
-        .where(eq(userTable.id, existingUser.id))
+        .where(
+          and(
+            eq(userTable.id, existingUser.id),
+            eq(userTable.authGeneration, existingUser.authGeneration ?? 0),
+            isNull(userTable.emailVerified),
+            isNull(userTable.passwordHash),
+          ),
+        )
+      if (updatedAccount.affectedRows !== 1)
+        throw new Error("Account changed. Please try again")
 
       const verificationToken = createToken()
       const expiresAt = new Date(
@@ -358,14 +386,14 @@ export const signUpFn = createServerFn({ method: "POST" })
     const userId = createUserId()
     const teamId = createTeamId()
 
-    // Create the user with auto-verified email
+    // A submitted address is not mailbox proof.
     await db.insert(userTable).values({
       id: userId,
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
       passwordHash: hashedPassword,
-      emailVerified: new Date(), // Auto-verify email on signup
+      emailVerified: null,
     })
 
     const user = await db.query.userTable.findFirst({
@@ -424,18 +452,26 @@ export const signUpFn = createServerFn({ method: "POST" })
       isActive: true,
     })
 
-    // Create session and set cookie
-    await createAndStoreSession(user.id, "password")
-
-    logInfo({
-      message: "[Auth] Sign-up successful",
-      attributes: {
-        userId: user.id,
-        personalTeamId: teamId,
-      },
+    const verificationToken = createToken()
+    const expiresAt = new Date(
+      Date.now() + EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS * 1000,
+    )
+    await env.KV_SESSION.put(
+      getVerificationTokenKey(verificationToken),
+      JSON.stringify({ userId: user.id, expiresAt: expiresAt.toISOString() }),
+      { expirationTtl: EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS },
+    )
+    await sendVerificationEmail({
+      email: user.email,
+      verificationToken,
+      username: user.firstName || user.email,
     })
 
-    return { success: true, userId: user.id, requiresVerification: false }
+    logInfo({
+      message: "[Auth] Sign-up awaiting mailbox verification",
+      attributes: { userId: user.id, personalTeamId: teamId },
+    })
+    return { success: true, userId: user.id, requiresVerification: true }
   })
 
 /**
@@ -621,10 +657,17 @@ export const resetPasswordFn = createServerFn({ method: "POST" })
 
     // Hash new password and update
     const passwordHash = await hashPassword({ password: data.password })
-    await db
+    const [updatedAccount] = await db
       .update(userTable)
       .set({ passwordHash })
-      .where(eq(userTable.id, resetToken.userId))
+      .where(
+        and(
+          eq(userTable.id, resetToken.userId),
+          eq(userTable.authGeneration, user.authGeneration ?? 0),
+        ),
+      )
+    if (updatedAccount.affectedRows !== 1)
+      throw new Error("Account changed. Please try again")
 
     // Delete the used token
     await env.KV_SESSION.delete(getResetTokenKey(data.token))

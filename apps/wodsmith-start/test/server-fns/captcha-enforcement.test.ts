@@ -159,12 +159,21 @@ describe("protected server functions", () => {
   })
 
   // @lat: [[auth#CAPTCHA tests#Successful signup challenge]]
-  it("continues signup account creation with a valid challenge", async () => {
+  it("continues signup to mailbox verification with a valid challenge", async () => {
     mockDb.query.userTable.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
       id: "test-user", email: signupData.email, firstName: "Test",
     })
-    await expect(signUpFn({ data: { ...signupData, captchaToken: "token" } })).resolves.toMatchObject({ success: true })
+    await expect(signUpFn({ data: { ...signupData, captchaToken: "token" } })).resolves.toMatchObject({ success: true, requiresVerification: true })
     expect(mockDb.insert).toHaveBeenCalledTimes(3)
-    expect(auth.createAndStoreSession).toHaveBeenCalledTimes(1)
+    expect(mockDb.getChainMock().values).toHaveBeenCalledWith(expect.objectContaining({
+      email: signupData.email,
+      emailVerified: null,
+    }))
+    expect(email.sendVerificationEmail).toHaveBeenCalledWith(expect.objectContaining({
+      email: signupData.email,
+      verificationToken: expect.any(String),
+    }))
+    expect(runtime.KV_SESSION.put).toHaveBeenCalledTimes(1)
+    expect(auth.createAndStoreSession).not.toHaveBeenCalled()
   })
 })

@@ -10,10 +10,7 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import {
-  createSession,
-  generateSessionToken,
-} from "@/utils/auth"
+import { createSession, generateSessionToken } from "@/utils/auth"
 import {
   corsHeaders,
   encodeBearerToken,
@@ -50,11 +47,14 @@ export const Route = createFileRoute("/api/auth/token/refresh")({
           authenticationType: session.authenticationType,
           // Token rotation must not renew authentication past a password reset.
           authenticatedAt: session.createdAt ?? 0,
+          authenticationGeneration: session.authenticationGeneration ?? 0,
         })
 
         return json(
           {
-            token: encodeBearerToken(session.userId, token).slice("Bearer ".length),
+            token: encodeBearerToken(session.userId, token).slice(
+              "Bearer ".length,
+            ),
             expiresAt: newSession.expiresAt,
             userId: session.userId,
           },

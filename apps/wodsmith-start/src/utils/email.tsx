@@ -58,6 +58,35 @@ export interface SendEmailOptions {
   replyTo?: string
 }
 
+/** Mailbox-only proof for the saved volunteer application; never return this URL publicly. */
+export async function sendVolunteerSignupConfirmationEmail({
+  email,
+  code,
+  username,
+  competitionName,
+}: {
+  email: string
+  code: string
+  username: string
+  competitionName: string
+}): Promise<void> {
+  if (!getResendApiKey())
+    throw new Error("Email delivery is temporarily unavailable")
+  const verificationLink = `${getSiteUrl()}/verify-email?code=${encodeURIComponent(code)}`
+  await sendEmail({
+    to: email,
+    subject: `Confirm your volunteer application for ${competitionName}`,
+    template: (
+      <VerifyEmail
+        verificationLink={verificationLink}
+        username={username}
+        volunteerCompetitionName={competitionName}
+      />
+    ),
+    tags: [{ name: "type", value: "volunteer-signup-confirmation" }],
+  })
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================

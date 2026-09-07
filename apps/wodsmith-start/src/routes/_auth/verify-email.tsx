@@ -10,17 +10,25 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
+import { VolunteerEmailConfirmation } from "@/components/volunteer-email-confirmation"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
 import { verifyEmailFn, verifyEmailSchema } from "@/server-fns/auth-fns"
 
 export const Route = createFileRoute("/_auth/verify-email")({
-  component: VerifyEmailPage,
+  component: VerificationPage,
+  head: () => ({ meta: [{ name: "referrer", content: "no-referrer" }] }),
   validateSearch: (search: Record<string, unknown>) => {
     return {
       token: (search.token as string) || "",
+      code: typeof search.code === "string" ? search.code : "",
     }
   },
 })
+
+function VerificationPage() {
+  const { code } = Route.useSearch()
+  return code ? <VolunteerEmailConfirmation code={code} /> : <VerifyEmailPage />
+}
 
 function VerifyEmailPage() {
   const router = useRouter()

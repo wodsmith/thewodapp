@@ -196,7 +196,7 @@ A valid challenge allows password-reset email delivery and reset-token persisten
 
 ### Successful signup challenge
 
-A valid challenge allows account and personal-team creation followed by a signed-in session.
+A valid challenge allows an unverified account and personal team to be created, then emails mailbox verification proof. CAPTCHA success alone must not verify the email or create a session.
 
 ### Disabled widget readiness
 

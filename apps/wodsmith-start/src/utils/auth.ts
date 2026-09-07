@@ -36,6 +36,7 @@ import {
   createKVSession,
   deleteKVSession,
   getKVSession,
+  getUserAuthGeneration,
   type KVSession,
   revokeUserAuthentication,
   updateKVSession,
@@ -101,7 +102,11 @@ function decodeSessionCookie(
 interface CreateSessionParams
   extends Pick<
     CreateKVSessionParams,
-    "authenticationType" | "passkeyCredentialId" | "userId" | "authenticatedAt"
+    | "authenticationType"
+    | "passkeyCredentialId"
+    | "userId"
+    | "authenticatedAt"
+    | "authenticationGeneration"
   > {
   token: string
 }
@@ -281,7 +286,11 @@ export async function createSession({
   authenticationType,
   passkeyCredentialId,
   authenticatedAt = Date.now(),
+  authenticationGeneration = 0,
 }: CreateSessionParams): Promise<KVSession> {
+  if ((await getUserAuthGeneration(userId)) !== authenticationGeneration) {
+    throw new Error("Authentication changed. Please sign in again")
+  }
   const sessionId = await generateSessionId(token)
   const expiresAt = new Date(Date.now() + getSessionLength())
 
@@ -302,6 +311,7 @@ export async function createSession({
     passkeyCredentialId,
     teams: teamsWithPermissions,
     authenticatedAt,
+    authenticationGeneration,
   })
 }
 
@@ -310,6 +320,7 @@ export async function createAndStoreSession(
   authenticationType?: CreateKVSessionParams["authenticationType"],
   passkeyCredentialId?: CreateKVSessionParams["passkeyCredentialId"],
   authenticatedAt?: number,
+  authenticationGeneration = 0,
 ) {
   const sessionToken = generateSessionToken()
   const session = await createSession({
@@ -318,6 +329,7 @@ export async function createAndStoreSession(
     authenticationType,
     passkeyCredentialId,
     authenticatedAt,
+    authenticationGeneration,
   })
   await setSessionTokenCookie({
     token: sessionToken,

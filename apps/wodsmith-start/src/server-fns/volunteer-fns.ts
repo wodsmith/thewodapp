@@ -14,6 +14,7 @@ import {
   entitlementTable,
   entitlementTypeTable,
   judgeHeatAssignmentsTable,
+  passKeyCredentialTable,
   SYSTEM_ROLES_ENUM,
   teamInvitationTable,
   teamMembershipTable,
@@ -22,6 +23,7 @@ import {
   userTable,
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
+  volunteerSignupIntentsTable,
   workouts,
 } from "@/db/schema"
 import {
@@ -48,9 +50,13 @@ import {
   canSignUp,
   createAndStoreSession,
   getSessionFromCookie,
+  revokeAllUserSessions,
 } from "@/utils/auth"
-import { sendVolunteerDirectInviteEmail } from "@/utils/email"
-import { hashPassword } from "@/utils/password-hasher"
+import { createToken } from "@/utils/auth-utils"
+import {
+  sendVolunteerDirectInviteEmail,
+  sendVolunteerSignupConfirmationEmail,
+} from "@/utils/email"
 
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -455,7 +461,12 @@ export const getScoreAccessMapFn = createServerFn({ method: "GET" })
 const volunteerApplicationSchema = z.object({
   competitionTeamId: competitionTeamIdSchema,
   signupName: z.string().min(1, "Name is required"),
-  signupEmail: z.string().email("Invalid email address"),
+  signupEmail: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Invalid email address")
+    .max(255),
   signupPhone: z.string().optional(),
   availability: z
     .enum([
@@ -611,8 +622,11 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
       return { success: true }
     }
     const session = await getSessionFromCookie()
-    if (!session) {
-      throw new Error("NOT_AUTHORIZED: You must be logged in to volunteer")
+    if (!session?.user.emailVerified || !session.user.email) {
+      throw new Error("NOT_AUTHORIZED: Verify your email before volunteering")
+    }
+    if (session.user.email.toLowerCase() !== data.signupEmail.toLowerCase()) {
+      throw new Error("Application email must match your signed-in account")
     }
 
     const db = getDb()
@@ -620,139 +634,249 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
       competitionTeamId: data.competitionTeamId,
       db,
     })
-    const { membershipId } = await db.transaction(async (tx) => {
-      await signRequiredVolunteerWaivers({
-        db: tx,
-        userId: session.userId,
-        competitionTeamId: data.competitionTeamId,
-        waiverIds: data.waiverIds,
-      })
-      return createVolunteerApplication(data, tx)
-    })
+    const { membershipId } = await db.transaction(
+      async (tx) => {
+        const [user] = await tx
+          .select()
+          .from(userTable)
+          .where(eq(userTable.id, session.userId))
+          .for("update")
+        if (
+          !user?.emailVerified ||
+          user.email?.toLowerCase() !== data.signupEmail.toLowerCase()
+        ) {
+          throw new Error(
+            "NOT_AUTHORIZED: Verify your email before volunteering",
+          )
+        }
+        await signRequiredVolunteerWaivers({
+          db: tx,
+          userId: session.userId,
+          competitionTeamId: data.competitionTeamId,
+          waiverIds: data.waiverIds,
+        })
+        return createVolunteerApplication(data, tx)
+      },
+      { isolationLevel: "read committed" },
+    )
 
     return { success: true, membershipId }
   })
 
-/**
- * Creates an account and submits a volunteer application in a single server call.
- * Used by the public volunteer signup form when the user is not logged in.
- * Avoids a bad state from two separate client-side calls where the account
- * could be created but the application could fail.
- */
+const VOLUNTEER_CONFIRMATION_PURPOSE = "volunteer-signup"
+const VOLUNTEER_CONFIRMATION_TTL_MS = 30 * 60 * 1000
+
+async function hashVolunteerConfirmationCode(code: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(code),
+  )
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("")
+}
+
+/** Save application intent only; the email-delivered code is the ownership proof. */
 export const createAccountAndApplyAsVolunteerFn = createServerFn({
   method: "POST",
 })
   .inputValidator((data: unknown) =>
     z
       .object({
-        // Account fields
-        firstName: z.string().min(1, "First name is required"),
-        lastName: z.string().min(1, "Last name is required"),
-        password: z
-          .string()
-          .min(8, "Password must be at least 8 characters")
-          .regex(/[A-Z]/, "Must contain an uppercase letter")
-          .regex(/[a-z]/, "Must contain a lowercase letter")
-          .regex(/[0-9]/, "Must contain a number"),
-        // Volunteer application fields
         ...volunteerApplicationSchema.shape,
-        website: z.string().optional(), // Honeypot
+        firstName: z.string().trim().min(1).max(255),
+        lastName: z.string().trim().min(1).max(255),
+        website: z.string().optional(),
+        // Older clients may send a password. Never persist or activate it.
+        password: z.string().optional(),
       })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    // Honeypot check
-    if (data.website && data.website.trim() !== "") {
-      return { success: true }
-    }
-
+    if (data.website?.trim())
+      return { success: true, requiresVerification: true }
     const db = getDb()
     await assertPublicVolunteerSignupAvailable({
       competitionTeamId: data.competitionTeamId,
       db,
     })
-
-    // Check if email is disposable or already fully claimed
     await canSignUp({ email: data.signupEmail })
-
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.competitionTeamId, data.competitionTeamId),
+    })
+    if (!competition) throw new Error("Competition not found")
     const existingUser = await db.query.userTable.findFirst({
       where: eq(userTable.email, data.signupEmail),
     })
+    const session = await getSessionFromCookie()
+    if (session && session.user.email?.toLowerCase() !== data.signupEmail) {
+      throw new Error("Sign out before applying with another email address")
+    }
+    const code = createToken()
+    const { password: _password, website: _website, ...application } = data
+    await db.insert(volunteerSignupIntentsTable).values({
+      id: `vsi_${createToken()}`,
+      codeHash: await hashVolunteerConfirmationCode(code),
+      purpose: VOLUNTEER_CONFIRMATION_PURPOSE,
+      email: data.signupEmail,
+      userId: existingUser?.id ?? createUserId(),
+      existingAccount: !!existingUser,
+      application: JSON.stringify(application),
+      returnPath: `/compete/${encodeURIComponent(competition.slug)}/volunteer`,
+      expiresAt: new Date(Date.now() + VOLUNTEER_CONFIRMATION_TTL_MS),
+    })
+    await sendVolunteerSignupConfirmationEmail({
+      email: data.signupEmail,
+      code,
+      username: data.firstName,
+      competitionName: competition.name,
+    })
+    return { success: true, requiresVerification: true }
+  })
 
-    const hashedPassword = await hashPassword({ password: data.password })
-
-    const { userId, membershipId } = await db.transaction(async (tx) => {
-      let userId: string
-
-      if (existingUser) {
-        // Fully verified account — ask them to sign in instead
-        if (existingUser.emailVerified && existingUser.passwordHash) {
+/** Atomically consume mailbox proof and complete exactly the saved application. */
+export const confirmVolunteerSignupFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({ code: z.string().regex(/^[a-z0-9]{32}$/) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const codeHash = await hashVolunteerConfirmationCode(data.code)
+    const session = await getSessionFromCookie()
+    const db = getDb()
+    const result = await db.transaction(
+      async (tx) => {
+        const [intent] = await tx
+          .select()
+          .from(volunteerSignupIntentsTable)
+          .where(eq(volunteerSignupIntentsTable.codeHash, codeHash))
+          .for("update")
+        if (
+          !intent ||
+          intent.purpose !== VOLUNTEER_CONFIRMATION_PURPOSE ||
+          intent.consumedAt ||
+          intent.expiresAt.getTime() <= Date.now()
+        ) {
           throw new Error(
-            "An account with this email already exists. Please sign in to apply as a volunteer.",
+            "This confirmation link is invalid, expired, or already used",
           )
         }
-        // Placeholder or unverified — upgrade with password and auto-verify
-        userId = existingUser.id
-        await tx
-          .update(userTable)
-          .set({
-            passwordHash: hashedPassword,
-            firstName: data.firstName,
-            lastName: data.lastName,
+        if (session && session.userId !== intent.userId) {
+          throw new Error(
+            "Sign out before confirming another account's application",
+          )
+        }
+        const application = z
+          .object({
+            ...volunteerApplicationSchema.shape,
+            firstName: z.string().trim().min(1).max(255),
+            lastName: z.string().trim().min(1).max(255),
+          })
+          .parse(JSON.parse(intent.application))
+        if (application.signupEmail !== intent.email)
+          throw new Error("Confirmation identity does not match")
+        await assertPublicVolunteerSignupAvailable({
+          competitionTeamId: application.competitionTeamId,
+          db: tx,
+        })
+        const [existingUser] = await tx
+          .select()
+          .from(userTable)
+          .where(eq(userTable.email, intent.email))
+          .for("update")
+        if (
+          (intent.existingAccount && existingUser?.id !== intent.userId) ||
+          (!intent.existingAccount && existingUser)
+        ) {
+          throw new Error(
+            "Account changed since this link was sent. Please request a new link",
+          )
+        }
+        const unverified = !existingUser?.emailVerified
+        const authenticationGeneration =
+          (existingUser?.authGeneration ?? 0) +
+          (existingUser && unverified ? 1 : 0)
+        if (existingUser && unverified) {
+          await tx
+            .update(userTable)
+            .set({
+              passwordHash: null,
+              authGeneration: authenticationGeneration,
+              emailVerified: new Date(),
+              firstName: application.firstName,
+              lastName: application.lastName,
+            })
+            .where(eq(userTable.id, intent.userId))
+          await tx
+            .delete(passKeyCredentialTable)
+            .where(eq(passKeyCredentialTable.userId, intent.userId))
+        } else if (!existingUser) {
+          await tx.insert(userTable).values({
+            id: intent.userId,
+            email: intent.email,
+            firstName: application.firstName,
+            lastName: application.lastName,
+            passwordHash: null,
             emailVerified: new Date(),
           })
-          .where(eq(userTable.id, existingUser.id))
-      } else {
-        // Brand-new user
-        const newUserId = createUserId()
-        const teamId = createTeamId()
-        userId = newUserId
-
-        await tx.insert(userTable).values({
-          id: newUserId,
-          email: data.signupEmail,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          passwordHash: hashedPassword,
-          emailVerified: new Date(),
+          const teamId = createTeamId()
+          await tx.insert(teamTable).values({
+            id: teamId,
+            name: `${application.firstName}'s Team (personal)`,
+            slug: `personal-${intent.userId}`,
+            isPersonalTeam: true,
+            personalTeamOwnerId: intent.userId,
+          })
+          await tx.insert(teamMembershipTable).values({
+            teamId,
+            userId: intent.userId,
+            roleId: "owner",
+            isSystemRole: true,
+            joinedAt: new Date(),
+            isActive: true,
+          })
+        }
+        await signRequiredVolunteerWaivers({
+          db: tx,
+          userId: intent.userId,
+          competitionTeamId: application.competitionTeamId,
+          waiverIds: application.waiverIds,
         })
-
-        // Create personal team
-        await tx.insert(teamTable).values({
-          id: teamId,
-          name: `${data.firstName}'s Team (personal)`,
-          slug: `${data.firstName.toLowerCase()}-${newUserId.slice(-6)}`,
-          description:
-            "Personal team for individual programming track subscriptions",
-          isPersonalTeam: true,
-          personalTeamOwnerId: newUserId,
-        })
-
-        await tx.insert(teamMembershipTable).values({
-          teamId,
-          userId: newUserId,
-          roleId: "owner",
-          isSystemRole: true,
-          joinedAt: new Date(),
-          isActive: true,
-        })
-      }
-
-      await signRequiredVolunteerWaivers({
-        db: tx,
-        userId,
-        competitionTeamId: data.competitionTeamId,
-        waiverIds: data.waiverIds,
-      })
-      const { membershipId } = await createVolunteerApplication(data, tx)
-
-      return { userId, membershipId }
-    })
-
-    // Log user in only after the application is successfully persisted
-    await createAndStoreSession(userId, "password")
-
-    return { success: true, membershipId }
+        const { membershipId } = await createVolunteerApplication(
+          application,
+          tx,
+        )
+        await tx
+          .update(volunteerSignupIntentsTable)
+          .set({ consumedAt: new Date() })
+          .where(eq(volunteerSignupIntentsTable.id, intent.id))
+        return {
+          userId: intent.userId,
+          membershipId,
+          returnPath: intent.returnPath,
+          revoke: !!existingUser && unverified,
+          authenticationGeneration,
+        }
+      },
+      { isolationLevel: "read committed" },
+    )
+    // The committed generation already rejects stale KV and in-flight credential proof.
+    // A failure here issues no session; the saved application remains complete.
+    if (result.revoke) await revokeAllUserSessions(result.userId)
+    // Revocation rejects timestamps equal to its cutoff; a later timestamp is required.
+    if (result.revoke) await new Promise((resolve) => setTimeout(resolve, 1))
+    const authenticatedAt = Date.now()
+    await createAndStoreSession(
+      result.userId,
+      "email-link",
+      undefined,
+      authenticatedAt,
+      result.authenticationGeneration,
+    )
+    return {
+      success: true,
+      membershipId: result.membershipId,
+      returnPath: result.returnPath,
+    }
   })
 
 /**
