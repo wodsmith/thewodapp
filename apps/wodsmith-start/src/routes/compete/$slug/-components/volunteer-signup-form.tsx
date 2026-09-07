@@ -50,8 +50,7 @@ interface VolunteerSignupFormProps {
 /**
  * Public volunteer sign-up form.
  * - Logged-in users: name/email pre-filled and read-only.
- * - Anonymous users: name, email, and password fields shown so they can
- *   create an account and sign up as a volunteer in one step.
+ * - Anonymous users: their complete application is saved until they confirm by email.
  */
 export function VolunteerSignupForm({
   competition,
@@ -61,6 +60,7 @@ export function VolunteerSignupForm({
   currentUser,
 }: VolunteerSignupFormProps) {
   const [submitted, setSubmitted] = useState(false)
+  const [requiresVerification, setRequiresVerification] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -126,7 +126,6 @@ export function VolunteerSignupForm({
         await submitVolunteerSignup({ data: sharedFields })
       } else {
         // Not logged in — create account + submit application in one server call
-        const password = formData.get("password") as string
         const nameParts = signupName.trim().split(/\s+/).filter(Boolean)
         if (nameParts.length < 2) {
           setError("Please enter both your first and last name.")
@@ -136,14 +135,14 @@ export function VolunteerSignupForm({
         const firstName = nameParts[0]
         const lastName = nameParts.slice(1).join(" ")
 
-        await createAccountAndApply({
+        const result = await createAccountAndApply({
           data: {
             firstName,
             lastName,
-            password,
             ...sharedFields,
           },
         })
+        setRequiresVerification(result.requiresVerification)
       }
       setSubmitted(true)
     } catch (err) {
@@ -165,13 +164,26 @@ export function VolunteerSignupForm({
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
               <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="text-2xl font-bold">Thank you for signing up!</h2>
-            <p className="text-muted-foreground">
-              Your volunteer application for{" "}
-              <span className="font-medium">{competition.name}</span> has been
-              submitted. The organizers will review your application and contact
-              you with next steps.
-            </p>
+            <h2 className="text-2xl font-bold">
+              {requiresVerification
+                ? "Check your email to confirm"
+                : "Thank you for signing up!"}
+            </h2>
+            {requiresVerification ? (
+              <p className="text-muted-foreground">
+                Your details are saved. Click the confirmation link we sent to
+                your email within 30 minutes to submit your application for{" "}
+                {competition.name} and sign in. You won’t need to enter your
+                details again.
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                Your volunteer application for{" "}
+                <span className="font-medium">{competition.name}</span> has been
+                submitted. The organizers will review your application and
+                contact you with next steps.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -185,7 +197,7 @@ export function VolunteerSignupForm({
         <CardDescription>
           {currentUser
             ? "Review your details and submit your volunteer application."
-            : "Create an account and sign up to volunteer. The organizers will review your application and reach out with more information."}
+            : "Fill in your details, then confirm by email to submit your application and sign in."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -234,34 +246,7 @@ export function VolunteerSignupForm({
               placeholder="your@email.com"
               className={currentUser ? "bg-muted" : ""}
             />
-            {!currentUser && (
-              <p className="text-sm text-muted-foreground">
-                We'll use this to contact you about your volunteer assignment.
-              </p>
-            )}
           </div>
-
-          {/* Password field — only shown for non-logged-in users */}
-          {!currentUser && (
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                Password <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                type="password"
-                id="password"
-                name="password"
-                required
-                disabled={isPending}
-                placeholder="Create a password"
-                autoComplete="new-password"
-              />
-              <p className="text-sm text-muted-foreground">
-                At least 8 characters with uppercase, lowercase, and a number.
-              </p>
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
             <Input
@@ -479,7 +464,7 @@ export function VolunteerSignupForm({
             ) : currentUser ? (
               "Sign up to volunteer"
             ) : (
-              "Create account & Sign up to volunteer"
+              "Confirm by email"
             )}
           </Button>
 

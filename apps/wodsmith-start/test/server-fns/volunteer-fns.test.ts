@@ -70,6 +70,7 @@ vi.mock('@/utils/team-auth', () => ({
 // Mock email utilities to avoid pulling in createServerOnlyFn from env.ts
 vi.mock('@/utils/email', () => ({
   sendVolunteerDirectInviteEmail: vi.fn(() => Promise.resolve()),
+  sendVolunteerSignupConfirmationEmail: vi.fn(() => Promise.resolve()),
 }))
 
 // Mock server modules
@@ -182,6 +183,7 @@ const mockCompetitionWithoutRequiredVolunteerWaivers = () => {
     id: 'comp_test123',
     competitionTeamId: 'team_comp123',
     competitionType: 'in-person',
+    slug: 'test-competition', name: 'Test Competition',
   })
   mockDb.query.waiversTable.findMany.mockResolvedValueOnce([])
 }
@@ -336,6 +338,8 @@ describe('Volunteer Server Functions', () => {
   describe('submitVolunteerSignupFn', () => {
     // @lat: [[competition-type-capabilities#Competition Type Capabilities#Public Volunteer Signup Mutation Gate]]
     it('should reject public signups when the competition type lacks the capability', async () => {
+      setMockSession({ ...mockOrganizerSession, user: { ...mockOrganizerSession.user, email: 'blocked@example.com', emailVerified: new Date() } })
+      mockDb.setMockReturnValue([{ id: mockOrganizerSession.userId, email: 'blocked@example.com', emailVerified: new Date() }])
       mockDb.query.competitionsTable.findFirst.mockResolvedValueOnce({
         id: 'comp_test123',
         competitionTeamId: 'team_comp123',
@@ -356,6 +360,8 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should create a volunteer signup invitation', async () => {
+      setMockSession({ ...mockOrganizerSession, user: { ...mockOrganizerSession.user, email: 'newvol@example.com', emailVerified: new Date() } })
+      mockDb.setMockReturnValue([{ id: mockOrganizerSession.userId, email: 'newvol@example.com', emailVerified: new Date() }])
       mockCompetitionWithoutRequiredVolunteerWaivers()
       // findMany must return [] for duplicate check
       mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
@@ -392,6 +398,8 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should reject duplicate email signups', async () => {
+      setMockSession({ ...mockOrganizerSession, user: { ...mockOrganizerSession.user, email: 'duplicate@example.com', emailVerified: new Date() } })
+      mockDb.setMockReturnValue([{ id: mockOrganizerSession.userId, email: 'duplicate@example.com', emailVerified: new Date() }])
       mockCompetitionWithoutRequiredVolunteerWaivers()
       // Return existing invitation with same email
       mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([
@@ -410,6 +418,8 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should reject when user already has volunteer membership', async () => {
+      setMockSession({ ...mockOrganizerSession, user: { ...mockOrganizerSession.user, email: 'existing@example.com', emailVerified: new Date() } })
+      mockDb.setMockReturnValue([{ id: mockOrganizerSession.userId, email: 'existing@example.com', emailVerified: new Date() }])
       mockCompetitionWithoutRequiredVolunteerWaivers()
       // No existing invitations with matching email
       mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
@@ -975,73 +985,21 @@ describe('Volunteer Server Functions', () => {
       expect(mockDb.insert).not.toHaveBeenCalled()
     })
 
-    it('should create a new user account and volunteer application', async () => {
+    it.each([null, { id: 'user_placeholder', email: 'jane@example.com', emailVerified: null, passwordHash: 'existing-hash' }, { id: 'user_verified', email: 'jane@example.com', emailVerified: new Date(), passwordHash: 'existing-hash' }])('saves intent without modifying an existing or new account', async (user) => {
+      setMockSession(null)
       mockCompetitionWithoutRequiredVolunteerWaivers()
-      // No existing user in account creation check
-      mockDb.query.userTable.findFirst.mockResolvedValueOnce(null)
-      // No duplicate invitations in createVolunteerApplication
-      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
-      // No existing user found for membership check in createVolunteerApplication
-      mockDb.query.userTable.findFirst.mockResolvedValueOnce(null)
-      // Created invitation returned after insert
-      mockDb.query.teamInvitationTable.findFirst.mockResolvedValueOnce({id: 'tinv_new123'})
-
-      const result = await createAccountAndApplyAsVolunteerFn({data: baseInput})
-
-      expect(result.success).toBe(true)
-      expect(result.membershipId).toBe('tinv_new123')
-      expect(canSignUp).toHaveBeenCalledWith({email: 'jane@example.com'})
-      expect(hashPassword).toHaveBeenCalledWith({password: 'Password123'})
-      expect(createAndStoreSession).toHaveBeenCalled()
-      // Should insert user, team, membership + invitation
-      expect(mockDb.insert).toHaveBeenCalledTimes(4)
-    })
-
-    it('should upgrade an existing placeholder user and create volunteer application', async () => {
-      mockCompetitionWithoutRequiredVolunteerWaivers()
-      const placeholderUser = {
-        id: 'user_placeholder123',
-        email: 'jane@example.com',
-        emailVerified: null,
-        passwordHash: null,
-      }
-      // Existing placeholder found in account creation check
-      mockDb.query.userTable.findFirst.mockResolvedValueOnce(placeholderUser)
-      // No duplicate invitations in createVolunteerApplication
-      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
-      // No existing membership for this user
-      mockDb.query.userTable.findFirst.mockResolvedValueOnce(placeholderUser)
-      mockDb.query.teamMembershipTable.findFirst.mockResolvedValueOnce(null)
-      // Created invitation returned after insert
-      mockDb.query.teamInvitationTable.findFirst.mockResolvedValueOnce({id: 'tinv_upgraded456'})
-
-      const result = await createAccountAndApplyAsVolunteerFn({data: baseInput})
-
-      expect(result.success).toBe(true)
-      expect(result.membershipId).toBe('tinv_upgraded456')
-      // Should update existing user (not insert new user/team)
-      expect(mockDb.update).toHaveBeenCalled()
-      expect(createAndStoreSession).toHaveBeenCalledWith('user_placeholder123', 'password')
-      // Only the invitation insert (no user/team inserts)
-      expect(mockDb.insert).toHaveBeenCalledTimes(1)
-    })
-
-    it('should reject an existing fully-verified user', async () => {
-      mockCompetitionWithoutRequiredVolunteerWaivers()
-      const verifiedUser = {
-        id: 'user_verified789',
-        email: 'jane@example.com',
-        emailVerified: new Date(),
-        passwordHash: 'already_hashed',
-      }
-      mockDb.query.userTable.findFirst.mockResolvedValueOnce(verifiedUser)
-
-      await expect(
-        createAccountAndApplyAsVolunteerFn({data: baseInput}),
-      ).rejects.toThrow('An account with this email already exists')
-
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce(user)
+      const result = await createAccountAndApplyAsVolunteerFn({ data: baseInput })
+      expect(result).toEqual({ success: true, requiresVerification: true })
+      expect(mockDb.update).not.toHaveBeenCalled()
+      expect(hashPassword).not.toHaveBeenCalled()
       expect(createAndStoreSession).not.toHaveBeenCalled()
+      expect(mockDb.insert).toHaveBeenCalledTimes(1)
+      const saved = mockDb.getChainMock().values.mock.calls[0][0] as { application: string; codeHash: string }
+      expect(saved.application).not.toContain('Password123')
+      expect(saved.codeHash).toHaveLength(64)
     })
+
   })
 
   // ============================================================================

@@ -16,11 +16,13 @@ import {
 interface VerifyEmailProps {
   verificationLink?: string
   username?: string
+  volunteerCompetitionName?: string
 }
 
 export const VerifyEmail = ({
   verificationLink = "https://example.com/verify-email",
   username = "User",
+  volunteerCompetitionName,
 }: VerifyEmailProps) => {
   const expirationHours = EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS / 60 / 60
 
@@ -32,19 +34,38 @@ export const VerifyEmail = ({
           <Heading style={preheader}>Verify your {SITE_DOMAIN} email</Heading>
           <Text style={paragraph}>Hi {username},</Text>
           <Text style={paragraph}>
-            Thanks for signing up for {SITE_DOMAIN}! We need to verify your
-            email address to complete your registration. Please click the button
-            below to verify your email address.
+            {volunteerCompetitionName ? (
+              <>
+                Confirm your volunteer application for{" "}
+                {volunteerCompetitionName}. Your answers and waiver agreements
+                are saved. This link submits your application and signs you in;
+                there is nothing to enter again.
+              </>
+            ) : (
+              <>
+                Thanks for signing up for {SITE_DOMAIN}! We need to verify your
+                email address to complete your registration. Please click the
+                button below to verify your email address.
+              </>
+            )}
           </Text>
           <Section style={buttonContainer}>
             <Link style={button} href={verificationLink}>
-              Verify Email Address
+              {volunteerCompetitionName
+                ? "Confirm volunteer application"
+                : "Verify Email Address"}
             </Link>
           </Section>
           <Text style={paragraph}>
-            This verification link will expire in {expirationHours} hour
-            {expirationHours > 1 ? "s" : ""}. After that, you&apos;ll need to
-            request a new verification email.
+            {volunteerCompetitionName ? (
+              "This confirmation link expires in 30 minutes and can be used once."
+            ) : (
+              <>
+                This verification link will expire in {expirationHours} hour
+                {expirationHours > 1 ? "s" : ""}. After that, you&apos;ll need
+                to request a new verification email.
+              </>
+            )}
           </Text>
           <Text style={paragraph}>
             If you&apos;re having trouble with the button above, copy and paste

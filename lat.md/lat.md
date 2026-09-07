@@ -4,6 +4,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[domain]] — Core domain model: teams, competitions, workouts, scoring, volunteers
 - [[submission-integrity]] — Atomic online submissions, review resets, and division-scoped verification tests
 - [[auth]] — Authentication, sessions, authorization, and placeholder users
+- [[volunteer-confirmation]] — Atomic mailbox proof and saved volunteer signup applications
 - [[commerce]] — Stripe payments, registration checkout, coupons, entitlements
 - [[registration]] — Registration flow, payment, capacity, team formation, workflows
 - [[organizer-dashboard]] — Competition organizer dashboard pages and features
