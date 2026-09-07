@@ -62,6 +62,7 @@ import {
   getTrainingContext,
   getTrainingHistory,
   getTrainingWeek,
+  getTrainingWorkoutOptions,
   publishTrainingSession,
   saveTrainingDraft,
   saveTrainingResult,
@@ -729,6 +730,148 @@ describe.skipIf(!databaseUrl)(
           })
         ).teamResults,
       ).toEqual([])
+    })
+
+    // @lat: [[training#Rich Workout Results#Published result snapshots persist]]
+    it("persists rich published rounds, clears replaced cap facts, and retains prior versions", async () => {
+      const rich: TrainingBlock = {
+        ...block,
+        kind: "workout",
+        title: "Intervals",
+        prescription: "Two efforts",
+        workout: {
+          name: "Intervals",
+          description: "Two efforts",
+          scheme: "time-with-cap",
+          scoreType: "sum",
+          roundsToScore: 2,
+          timeCapSeconds: 180,
+          repsPerRound: null,
+          tiebreakScheme: "reps",
+          scalingGroupId: null,
+          movementIds: [],
+          scope: "private",
+        },
+      }
+      const saved = await saveTrainingDraft({
+        ...draft,
+        content: { ...content, blocks: [rich] },
+      })
+      const live = await publishTrainingSession({
+        sessionId: saved.id,
+        expectedRevision: saved.revision,
+      })
+      const claim: SaveTrainingResultInput = {
+        ...score,
+        sessionId: live.id,
+        score: "",
+        roundScores: [
+          { score: "", status: "cap", secondaryScore: "35" },
+          { score: "2:00" },
+        ],
+        tiebreakScore: "7",
+      }
+      const result = await saveTrainingResult(claim)
+      expect(result.details).toMatchObject({
+        status: "cap",
+        secondaryValue: 35,
+        tiebreakValue: 7,
+        rounds: [
+          { value: 180000, secondaryValue: 35 },
+          { value: 120000, secondaryValue: null },
+        ],
+      })
+      const [stored] = await db
+        .select()
+        .from(trainingResultsTable)
+        .where(eq(trainingResultsTable.id, result.id))
+      expect(stored.details).toEqual(result.details)
+      state.userId = userIds[1]
+      const shared = await getTrainingWeek({
+        ...draft,
+        startDate: draft.trainingDate,
+        mode: "athlete",
+      })
+      expect(shared.teamResults[0].details).toEqual(result.details)
+      expect(JSON.stringify(shared)).not.toContain(score.notes)
+      state.userId = userIds[0]
+      const edited = await saveTrainingResult({
+        ...claim,
+        roundScores: [{ score: "2:01.234" }, { score: "2:02" }],
+        tiebreakScore: "",
+      })
+      expect(edited.id).toBe(result.id)
+      expect(edited.details).toMatchObject({
+        status: "scored",
+        secondaryValue: null,
+        tiebreakValue: null,
+        scoreValue: 243234,
+      })
+      const next = await saveTrainingDraft({
+        ...draft,
+        expectedRevision: live.revision,
+        content: { ...content, blocks: [block] },
+      })
+      await publishTrainingSession({
+        sessionId: next.id,
+        expectedRevision: next.revision,
+      })
+      expect((await getTrainingHistory(draft))[0]).toMatchObject({
+        block: rich,
+        details: edited.details,
+        publishedVersion: 1,
+      })
+      expect(
+        (
+          await getTrainingWeek({
+            ...draft,
+            startDate: draft.trainingDate,
+            mode: "athlete",
+          })
+        ).teamResults,
+      ).toEqual([])
+    })
+
+    // @lat: [[training#Rich Workout Results#Workout options require programming access]]
+    it("protects workout options and rejects invalid workout references before saving", async () => {
+      expect(await getTrainingWorkoutOptions({ teamId: draft.teamId })).toEqual(
+        { movements: [], scalingGroups: [] },
+      )
+      const definition = {
+        name: "Work",
+        description: "Do work",
+        scheme: "reps" as const,
+        scoreType: "max" as const,
+        roundsToScore: 1,
+        timeCapSeconds: null,
+        repsPerRound: null,
+        tiebreakScheme: null,
+        scalingGroupId: null,
+        movementIds: ["unknown-movement"],
+        scope: "private" as const,
+      }
+      await expect(
+        saveTrainingDraft({
+          ...draft,
+          content: {
+            ...content,
+            blocks: [
+              {
+                ...block,
+                kind: "workout",
+                title: definition.name,
+                prescription: definition.description,
+                workout: definition,
+              },
+            ],
+          },
+        }),
+      ).rejects.toThrow()
+      expect(await db.select().from(trainingSessionsTable)).toEqual([])
+      state.userId = userIds[1]
+      await expect(
+        getTrainingWorkoutOptions({ teamId: draft.teamId }),
+      ).rejects.toThrow("FORBIDDEN")
     })
 
     it("makes cheer retries idempotent and removes cheers when a result becomes private", async () => {

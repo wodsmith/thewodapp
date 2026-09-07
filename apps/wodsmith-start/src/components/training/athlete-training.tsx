@@ -21,6 +21,7 @@ import {
 import { AthletePersonalSession } from "./athlete-personal-session"
 import { AthleteTeamResults } from "./athlete-team-results"
 import { EarlierTrainingHistory } from "./earlier-training-history"
+import { TrainingWorkoutResultDetails } from "./training-workout-result-details"
 
 type TrainingView = "training" | "team" | "progress"
 
@@ -780,6 +781,7 @@ function AthleteHistory({
                     ? "Only you"
                     : "Shared with gym"}
                 </p>
+                <TrainingWorkoutResultDetails details={result.details} />
                 <details className="mt-2">
                   <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
                     Prescription and notes

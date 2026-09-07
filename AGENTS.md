@@ -3,6 +3,15 @@
 - Run `lat search` to find sections relevant to your task. Read them to understand the design intent before writing code.
 - Run `lat expand` on user prompts to expand any `[[refs]]` — this resolves section names to file locations and provides context.
 
+# Production workout authoring
+
+When adding or changing a workout creation or editing surface, inspect Compete's `CreateEventDialog` and `EventDetailsForm` and read `lat.md/workout-authoring.md` first. Reuse `apps/wodsmith-start/src/components/workouts/workout-definition-fields.tsx` for workout definition controls instead of introducing a parallel set of fields.
+
+- Keep workout labels, scoring options, conditional fields, units, and accessible field controls in the shared component. Pass explicit capabilities when a context has different supported scoring behavior; never silently flatten a scoring definition.
+- Keep form and dialog lifecycle, saving, permissions, and context-specific fields in the consumer. Competition settings, gym/track/date selection, and personal ownership do not belong in shared workout fields.
+- When adding a consumer, extend the scoped workout-authoring boundary test and cover its value-to-submit adapter. When changing shared behavior, verify a Compete and a programming consumer, including mobile layout. Preserve controlled import review state and field hooks in existing library forms.
+- Mockup-specific design guidance is scoped to its artifact. It does not override production component reuse or establish application-wide design rules.
+
 # Post-task checklist (REQUIRED — do not skip)
 
 After EVERY task, before responding to the user:

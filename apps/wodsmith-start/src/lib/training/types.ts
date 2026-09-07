@@ -1,10 +1,25 @@
-export type TrainingBlockKind = "check" | "load" | "time" | "reps" | "note"
+import type {
+  TrainingRichScoreInput,
+  TrainingScoreDetailsSnapshot,
+} from "@repo/wodsmith-db/schemas/training"
+import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
+export type TrainingScoreDetails = TrainingScoreDetailsSnapshot
+export type TrainingWorkoutScoreInput = TrainingRichScoreInput
+
+export type TrainingBlockKind =
+  | "check"
+  | "load"
+  | "time"
+  | "reps"
+  | "note"
+  | "workout"
 export type TrainingScaling = "rx" | "scaled" | "custom"
 export type TrainingAudience = "gym" | "private"
 
 export interface TrainingBlock {
   id: string
   kind: TrainingBlockKind
+  workout?: NormalizedWorkoutSave
   title: string
   prescription: string
   scalingGuidance: string
@@ -63,6 +78,7 @@ export interface TrainingResult {
   block: TrainingBlock
   scoreValue: number | null
   displayScore: string
+  details?: TrainingScoreDetails | null
   scaling: TrainingScaling
   modification: string
   audience: TrainingAudience
@@ -115,7 +131,7 @@ export interface SaveTrainingDraftInput {
   content: TrainingContent
 }
 
-export interface SaveTrainingResultInput {
+export interface SaveTrainingResultInput extends TrainingRichScoreInput {
   sessionId: string
   blockId: string
   publishedVersion: number

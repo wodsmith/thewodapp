@@ -1,9 +1,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
 import { useId, useState } from "react"
-import { MovementsList } from "@/components/movements-list"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -12,61 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  type Movement,
-  SCORE_TYPE_VALUES,
-  type ScoreType,
-  type TiebreakScheme,
-  WORKOUT_SCHEME_VALUES,
-  type WorkoutScheme,
+import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
+import type {
+  Movement,
+  ScoreType,
+  TiebreakScheme,
+  WorkoutScheme,
 } from "@/db/schemas/workouts"
-
-// Scheme display labels
-const SCHEME_LABELS: Record<WorkoutScheme, string> = {
-  time: "For Time",
-  "time-with-cap": "For Time (with cap)",
-  "rounds-reps": "AMRAP (Rounds + Reps)",
-  reps: "Max Reps",
-  emom: "EMOM",
-  load: "Max Load",
-  calories: "Calories",
-  meters: "Meters",
-  feet: "Feet",
-  points: "Points",
-  "pass-fail": "Pass/Fail",
-}
-
-// Score type display labels
-const SCORE_TYPE_LABELS: Record<ScoreType, string> = {
-  min: "Min (lowest single set wins)",
-  max: "Max (highest single set wins)",
-  sum: "Sum (total across rounds)",
-  average: "Average (mean across rounds)",
-  first: "First",
-  last: "Last",
-}
-
-// Get default score type based on scheme
-function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
-  switch (scheme) {
-    case "time":
-    case "time-with-cap":
-      return "min" // Lower time is better
-    case "rounds-reps":
-    case "reps":
-    case "calories":
-    case "meters":
-    case "feet":
-    case "load":
-    case "emom":
-    case "pass-fail":
-    case "points":
-      return "max" // Higher is better
-    default:
-      return "max"
-  }
-}
 
 export type WorkoutFormData = {
   name: string
@@ -155,22 +105,6 @@ export function WorkoutForm({
   } = value
   const cancel = () => (onCancel ? onCancel() : navigate({ to: backUrl }))
 
-  const handleMovementToggle = (movementId: string) => {
-    update({
-      movementIds: selectedMovements.includes(movementId)
-        ? selectedMovements.filter((id) => id !== movementId)
-        : [...selectedMovements, movementId],
-    })
-  }
-
-  const handleSchemeChange = (newScheme: WorkoutScheme) => {
-    update({
-      scheme: newScheme,
-      scoreType: getDefaultScoreType(newScheme),
-      timeCap: newScheme === "time-with-cap" ? timeCap : undefined,
-    })
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -245,123 +179,43 @@ export function WorkoutForm({
             : "space-y-6 border-2 border-border p-6 rounded-lg"
         }
       >
-        {/* Name */}
-        <div className="space-y-2">
-          <Label htmlFor={fieldId("name")} className="font-bold uppercase">
-            Workout Name
-          </Label>
-          <Input
-            id={fieldId("name")}
-            data-import-field="name"
-            type="text"
-            placeholder="e.g., Fran, Cindy, Custom WOD"
-            value={name}
-            onChange={(e) => update({ name: e.target.value })}
-            required
-          />
-        </div>
-
-        {/* Description */}
-        <div className="space-y-2">
-          <Label
-            htmlFor={fieldId("description")}
-            className="font-bold uppercase"
-          >
-            Description
-          </Label>
-          <Textarea
-            id={fieldId("description")}
-            data-import-field="description"
-            rows={4}
-            placeholder="Describe the workout (e.g., 21-15-9 reps for time of Thrusters and Pull-ups)"
-            value={description}
-            onChange={(e) => update({ description: e.target.value })}
-            required
-          />
-        </div>
-
-        {/* Movements - only show if movements are provided */}
-        {movements.length > 0 && (
-          <MovementsList
-            movements={movements}
-            selectedMovements={selectedMovements}
-            onMovementToggle={handleMovementToggle}
-            mode="selectable"
-            variant="default"
-            containerHeight="h-[300px]"
-          />
-        )}
-
-        {/* Scheme */}
-        <div className="space-y-2">
-          <Label htmlFor={fieldId("scheme")} className="font-bold uppercase">
-            Scheme
-          </Label>
-          <Select value={scheme ?? ""} onValueChange={handleSchemeChange}>
-            <SelectTrigger id={fieldId("scheme")} data-import-field="scheme">
-              <SelectValue placeholder="Select a scheme" />
-            </SelectTrigger>
-            <SelectContent>
-              {WORKOUT_SCHEME_VALUES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {SCHEME_LABELS[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Score Type - only show when scheme is selected */}
-        {scheme && (
-          <div className="space-y-2">
-            <Label
-              htmlFor={fieldId("scoreType")}
-              className="font-bold uppercase"
-            >
-              Score Type
-            </Label>
-            <Select
-              value={scoreType ?? ""}
-              onValueChange={(v) => update({ scoreType: v as ScoreType })}
-            >
-              <SelectTrigger
-                id={fieldId("scoreType")}
-                data-import-field="scoreType"
-              >
-                <SelectValue placeholder="Select score type" />
-              </SelectTrigger>
-              <SelectContent>
-                {SCORE_TYPE_VALUES.map((st) => (
-                  <SelectItem key={st} value={st}>
-                    {SCORE_TYPE_LABELS[st]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Time Cap - only show for time-with-cap scheme */}
-        {scheme === "time-with-cap" && (
-          <div className="space-y-2">
-            <Label htmlFor={fieldId("timeCap")} className="font-bold uppercase">
-              Time Cap (seconds)
-            </Label>
-            <Input
-              id={fieldId("timeCap")}
-              data-import-field="timeCap"
-              type="number"
-              placeholder="e.g., 600 (10 minutes)"
-              value={timeCap ?? ""}
-              onChange={(e) =>
-                update({
-                  timeCap: e.target.value ? Number(e.target.value) : undefined,
-                })
-              }
-              min="1"
-            />
-          </div>
-        )}
+        <WorkoutDefinitionFields
+          allowEmptyScoreType={false}
+          value={{ ...value, timeCapSeconds: value.timeCap }}
+          onChange={(patch) => {
+            const {
+              timeCapSeconds,
+              scoreType,
+              repsPerRound,
+              tiebreakScheme,
+              scalingGroupId,
+              ...rest
+            } = patch
+            update({
+              ...rest,
+              ...("timeCapSeconds" in patch
+                ? { timeCap: timeCapSeconds ?? undefined }
+                : {}),
+              ...("scoreType" in patch
+                ? { scoreType: scoreType ?? undefined }
+                : {}),
+              ...("repsPerRound" in patch
+                ? { repsPerRound: repsPerRound ?? undefined }
+                : {}),
+              ...("tiebreakScheme" in patch
+                ? { tiebreakScheme: tiebreakScheme ?? undefined }
+                : {}),
+              ...("scalingGroupId" in patch
+                ? { scalingGroupId: scalingGroupId ?? undefined }
+                : {}),
+            })
+          }}
+          movements={movements}
+          scalingGroups={scalingGroups}
+          disabled={isSubmitting}
+          required
+          errors={{ ...fieldMessages, timeCapSeconds: fieldMessages.timeCap }}
+        />
 
         {/* Scope */}
         <div className="space-y-2">
@@ -381,120 +235,6 @@ export function WorkoutForm({
             </SelectContent>
           </Select>
         </div>
-
-        {/* Advanced Options */}
-        <div className="space-y-2">
-          <Label
-            htmlFor={fieldId("roundsToScore")}
-            className="font-bold uppercase"
-          >
-            Number of separately recorded scores
-          </Label>
-          <Input
-            id={fieldId("roundsToScore")}
-            data-import-field="roundsToScore"
-            type="number"
-            placeholder="1 (one final result)"
-            value={roundsToScore ?? ""}
-            onChange={(e) =>
-              update({
-                roundsToScore: e.target.value
-                  ? Number(e.target.value)
-                  : undefined,
-              })
-            }
-            min="1"
-          />
-        </div>
-
-        {(embedded || mode === "edit") && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor={fieldId("repsPerRound")}>
-                Reps per round (optional)
-              </Label>
-              <Input
-                id={fieldId("repsPerRound")}
-                data-import-field="repsPerRound"
-                type="number"
-                min="1"
-                value={value.repsPerRound ?? ""}
-                onChange={(e) =>
-                  update({
-                    repsPerRound: e.target.value
-                      ? Number(e.target.value)
-                      : undefined,
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={fieldId("tiebreakScheme")}>
-                Tiebreak (optional)
-              </Label>
-              <Select
-                value={value.tiebreakScheme ?? "none"}
-                onValueChange={(v) =>
-                  update({
-                    tiebreakScheme:
-                      v === "none" ? undefined : (v as TiebreakScheme),
-                  })
-                }
-              >
-                <SelectTrigger
-                  id={fieldId("tiebreakScheme")}
-                  data-import-field="tiebreakScheme"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="time">Time</SelectItem>
-                  <SelectItem value="reps">Reps</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={fieldId("scalingGroupId")}>
-                Scaling group (optional)
-              </Label>
-              <Select
-                value={value.scalingGroupId ?? "none"}
-                onValueChange={(id) =>
-                  update({ scalingGroupId: id === "none" ? undefined : id })
-                }
-              >
-                <SelectTrigger
-                  id={fieldId("scalingGroupId")}
-                  data-import-field="scalingGroupId"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {scalingGroups.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.title}
-                    </SelectItem>
-                  ))}
-                  {value.scalingGroupId &&
-                    !scalingGroups.some(
-                      (group) => group.id === value.scalingGroupId,
-                    ) && (
-                      <SelectItem value={value.scalingGroupId}>
-                        {embedded
-                          ? "Matched group is unavailable"
-                          : "Current scaling group"}
-                      </SelectItem>
-                    )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Loads and scaling prescriptions stay in the description.
-              </p>
-            </div>
-          </>
-        )}
 
         {Object.entries(fieldMessages).length > 0 && (
           <div role="alert" className="text-sm text-destructive space-y-1">

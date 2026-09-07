@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
 import type {
   PersonalTrainingDay,
@@ -17,6 +18,7 @@ import type {
   TrainingSession,
   TrainingTeam,
 } from "@/lib/training/types"
+import { normalizedWorkoutSaveSchema } from "@/lib/workout-import/schemas"
 import { getTrainingWeekFn } from "@/server-fns/training-fns"
 import {
   getPersonalTrainingDayFn,
@@ -240,7 +242,20 @@ export function AthletePersonalSession({
             id: crypto.randomUUID(),
             title: "",
             prescription: "",
-            kind: "check",
+            kind: "workout",
+            workout: {
+              name: "",
+              description: "",
+              scheme: "time",
+              scoreType: "min",
+              roundsToScore: 1,
+              timeCapSeconds: null,
+              repsPerRound: null,
+              tiebreakScheme: null,
+              movementIds: [],
+              scalingGroupId: null,
+              scope: "private",
+            },
             coachGuidance: "",
             scalingGuidance: "",
           },
@@ -572,6 +587,15 @@ ${workout.provenance ? "" : workout.description}`,
                               itemId: item.id,
                               expectedRevision: personal.revision,
                               score: input.score,
+                              ...(item.block.kind === "workout"
+                                ? {
+                                    status: input.status,
+                                    secondaryScore: input.secondaryScore,
+                                    roundScores: input.roundScores,
+                                    tiebreakScore: input.tiebreakScore,
+                                    distanceUnit: input.distanceUnit,
+                                  }
+                                : {}),
                               notes: input.notes,
                               unit: input.unit,
                               completed: input.completed,
@@ -619,6 +643,25 @@ ${workout.provenance ? "" : workout.description}`,
           className="space-y-4 border-t border-border py-6"
           onSubmit={async (event) => {
             event.preventDefault()
+            let savedBlock = editor.block
+            if (editor.block.kind === "workout") {
+              const parsed = normalizedWorkoutSaveSchema.safeParse(
+                editor.block.workout,
+              )
+              if (!parsed.success) {
+                setError(
+                  parsed.error.issues[0]?.message ??
+                    "Check the workout details before saving.",
+                )
+                return
+              }
+              savedBlock = {
+                ...editor.block,
+                workout: parsed.data,
+                title: parsed.data.name,
+                prescription: parsed.data.description,
+              }
+            }
             const original = items.find((item) => item.id === editor.itemId)
             const next: PersonalTrainingItemInput = {
               id:
@@ -627,7 +670,7 @@ ${workout.provenance ? "" : workout.description}`,
                   : crypto.randomUUID(),
               kind: "personal",
               block: {
-                ...editor.block,
+                ...savedBlock,
                 id:
                   original?.kind === "personal"
                     ? original.block.id
@@ -663,66 +706,102 @@ ${workout.provenance ? "" : workout.description}`,
           <p className="text-sm text-muted-foreground">
             Your prescription and results stay private.
           </p>
-          <fieldset disabled={saving} className="space-y-4">
-            <legend className="sr-only">Workout details</legend>
-            <div className="space-y-2">
-              <Label htmlFor="personal-title">Workout name</Label>
-              <Input
-                ref={editorInput}
-                id="personal-title"
-                required
-                maxLength={160}
-                value={editor.block.title}
-                onChange={(event) =>
-                  setEditor({
-                    ...editor,
-                    block: { ...editor.block, title: event.target.value },
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="personal-prescription">Workout</Label>
-              <Textarea
-                id="personal-prescription"
-                required
-                rows={5}
-                value={editor.block.prescription}
-                onChange={(event) =>
-                  setEditor({
-                    ...editor,
-                    block: {
-                      ...editor.block,
-                      prescription: event.target.value,
-                    },
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="personal-kind">Record</Label>
-              <select
-                id="personal-kind"
-                className="min-h-11 w-full rounded-md border border-input bg-background px-3"
-                value={editor.block.kind}
-                onChange={(event) =>
-                  setEditor({
-                    ...editor,
-                    block: {
-                      ...editor.block,
-                      kind: event.target.value as TrainingBlock["kind"],
-                    },
-                  })
-                }
-              >
-                <option value="check">Completion</option>
-                <option value="load">Load</option>
-                <option value="time">Time</option>
-                <option value="reps">Reps</option>
-                <option value="note">Instructions only</option>
-              </select>
-            </div>
-          </fieldset>
+          {editor.block.kind === "workout" && editor.block.workout ? (
+            <WorkoutDefinitionFields
+              value={editor.block.workout}
+              nameLabel="Workout name"
+              required
+              autoFocus
+              disabled={saving}
+              fields={[
+                "name",
+                "description",
+                "scheme",
+                "scoreType",
+                "timeCapSeconds",
+                "roundsToScore",
+                "repsPerRound",
+                "tiebreakScheme",
+              ]}
+              onChange={(patch) =>
+                setEditor((current) =>
+                  current?.block.workout
+                    ? {
+                        ...current,
+                        block: {
+                          ...current.block,
+                          workout: { ...current.block.workout, ...patch },
+                          title: patch.name ?? current.block.title,
+                          prescription:
+                            patch.description ?? current.block.prescription,
+                        },
+                      }
+                    : current,
+                )
+              }
+            />
+          ) : (
+            <fieldset disabled={saving} className="space-y-4">
+              <legend className="sr-only">Workout details</legend>
+              <div className="space-y-2">
+                <Label htmlFor="personal-title">Workout name</Label>
+                <Input
+                  ref={editorInput}
+                  id="personal-title"
+                  required
+                  maxLength={160}
+                  value={editor.block.title}
+                  onChange={(event) =>
+                    setEditor({
+                      ...editor,
+                      block: { ...editor.block, title: event.target.value },
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="personal-prescription">Workout</Label>
+                <Textarea
+                  id="personal-prescription"
+                  required
+                  rows={5}
+                  value={editor.block.prescription}
+                  onChange={(event) =>
+                    setEditor({
+                      ...editor,
+                      block: {
+                        ...editor.block,
+                        prescription: event.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="personal-kind">Record</Label>
+                <select
+                  id="personal-kind"
+                  className="min-h-11 w-full rounded-md border border-input bg-background px-3"
+                  value={editor.block.kind}
+                  onChange={(event) =>
+                    setEditor({
+                      ...editor,
+                      block: {
+                        ...editor.block,
+                        kind: event.target.value as TrainingBlock["kind"],
+                      },
+                    })
+                  }
+                >
+                  <option value="check">Completion</option>
+                  <option value="load">Load</option>
+                  <option value="time">Time</option>
+                  <option value="reps">Reps</option>
+                  <option value="note">Instructions only</option>
+                </select>
+              </div>
+            </fieldset>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button
               className="min-h-11 bg-primary text-black hover:bg-primary hover:brightness-110 dark:text-black dark:hover:bg-primary"

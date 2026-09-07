@@ -43,6 +43,13 @@
       "when": 1788714139485,
       "tag": "0005_workout_import_domain",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1788745682632,
+      "tag": "0006_training_workout_results",
+      "breakpoints": true
     }
   ]
 }

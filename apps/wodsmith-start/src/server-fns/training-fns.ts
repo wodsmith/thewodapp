@@ -4,6 +4,7 @@ import {
   getTrainingContext,
   getTrainingHistory,
   getTrainingWeek,
+  getTrainingWorkoutOptions,
   publishTrainingSession,
   saveTrainingDraft,
   saveTrainingResult,
@@ -43,3 +44,9 @@ export const setTrainingCheerFn = createServerFn({ method: "POST" })
 export const getTrainingHistoryFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => trainingTrackInputSchema.parse(data))
   .handler(({ data }) => getTrainingHistory(data))
+
+export const getTrainingWorkoutOptionsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    trainingTrackInputSchema.pick({ teamId: true }).parse(data),
+  )
+  .handler(({ data }) => getTrainingWorkoutOptions(data))

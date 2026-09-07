@@ -1,3 +1,4 @@
+import { normalizedWorkoutSaveSchema } from "@/lib/workout-import/schemas"
 import type { TrainingBlock } from "./types"
 
 export interface LibraryBlockSource {
@@ -9,6 +10,8 @@ export interface LibraryBlockSource {
   timeCap: number | null
   repsPerRound: number | null
   tiebreakScheme: string | null
+  scalingGroupId?: string | null
+  movementIds?: string[]
 }
 
 // @lat: [[training#Workout Library]]
@@ -16,35 +19,26 @@ export function libraryWorkoutToBlock(
   workout: LibraryBlockSource,
   id: string,
 ): TrainingBlock {
-  if (workout.name.length > 160) {
-    throw new Error(
-      "This workout name exceeds the session limit of 160 characters. Shorten its name in the library before adding it.",
-    )
-  }
-  if (workout.description.length > 6000) {
-    throw new Error(
-      "This workout prescription exceeds the session limit of 6,000 characters. Shorten it in the library before adding it.",
-    )
-  }
-  if (
-    !["time", "load", "reps"].includes(workout.scheme) ||
-    (workout.roundsToScore ?? 1) !== 1 ||
-    workout.timeCap != null ||
-    workout.repsPerRound != null ||
-    workout.tiebreakScheme != null ||
-    (workout.scoreType != null &&
-      workout.scoreType !== (workout.scheme === "time" ? "min" : "max"))
-  ) {
-    throw new Error(
-      "This workout uses scoring the session composer cannot preserve yet. Choose a single time, load, or reps workout without rounds, caps, or tiebreaks.",
-    )
-  }
+  const definition = normalizedWorkoutSaveSchema.parse({
+    name: workout.name,
+    description: workout.description,
+    scheme: workout.scheme,
+    scoreType: workout.scoreType,
+    roundsToScore: workout.roundsToScore ?? 1,
+    timeCapSeconds: workout.timeCap,
+    repsPerRound: workout.repsPerRound,
+    tiebreakScheme: workout.tiebreakScheme,
+    scalingGroupId: workout.scalingGroupId ?? null,
+    movementIds: workout.movementIds ?? [],
+    scope: "private",
+  })
   return {
     id,
-    kind: workout.scheme as "time" | "load" | "reps",
-    title: workout.name,
-    prescription: workout.description,
+    kind: "workout",
+    title: definition.name,
+    prescription: definition.description,
     scalingGuidance: "",
     coachGuidance: "",
+    workout: definition,
   }
 }

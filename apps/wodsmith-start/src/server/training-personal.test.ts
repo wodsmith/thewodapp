@@ -11,14 +11,14 @@ import {
   workouts,
 } from "@repo/wodsmith-db/schema"
 import {
+  trainingResultsTable,
+  trainingSessionsTable,
+} from "@repo/wodsmith-db/schemas/training"
+import {
   personalTrainingResultsTable,
   personalTrainingSessionsTable,
   trainingPreferencesTable,
 } from "@repo/wodsmith-db/schemas/training-personal"
-import {
-  trainingResultsTable,
-  trainingSessionsTable,
-} from "@repo/wodsmith-db/schemas/training"
 import { eq } from "drizzle-orm"
 import mysql from "mysql2"
 import {
@@ -32,9 +32,10 @@ import {
 } from "vitest"
 import type { PersonalTrainingItemInput } from "@/lib/training/personal-types"
 import type { TrainingBlock } from "@/lib/training/types"
-import { personalTrainingSaveSchema } from "./training-personal-validation"
-import { normalizePersonalLibraryScore } from "./training-personal-scoring"
 import * as roundWriter from "./training-logs/rounds"
+import { normalizePersonalLibraryScore } from "./training-personal-scoring"
+import { personalTrainingSaveSchema } from "./training-personal-validation"
+
 const state = vi.hoisted(() => ({
   userId: "personal_athlete",
   feature: true,
@@ -51,10 +52,11 @@ vi.mock("@/utils/team-auth", () => ({
 vi.mock("@/server/entitlements", () => ({
   hasFeature: async () => state.feature,
 }))
+
 import { saveTrainingResult } from "./training"
 import {
-  getPersonalTrainingDay,
   getPersonalLibraryScalingLevels,
+  getPersonalTrainingDay,
   getPersonalTrainingHistory,
   getTrainingLibraryWorkout,
   linkPersonalTrainingScore,
@@ -63,6 +65,7 @@ import {
   savePersonalTrainingSession,
   saveTrainingPreference,
 } from "./training-personal"
+
 const day = { teamId: "personal_gym", trainingDate: "2026-09-05" }
 const block: TrainingBlock = {
   id: "block",
@@ -559,6 +562,71 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     expect(
       await getPersonalTrainingHistory({ teamId: day.teamId }),
     ).toHaveLength(0)
+  })
+  // @lat: [[training-personal#Verification#Rich private results retain their performed definition]]
+  it("persists private rich rounds and retains them after removing the workout", async () => {
+    const rich: TrainingBlock = {
+      ...block,
+      kind: "workout",
+      workout: {
+        name: block.title,
+        description: block.prescription,
+        scheme: "load",
+        scoreType: "max",
+        roundsToScore: 2,
+        timeCapSeconds: null,
+        repsPerRound: null,
+        tiebreakScheme: null,
+        scalingGroupId: null,
+        movementIds: [],
+        scope: "private",
+      },
+    }
+    const session = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [{ id: "rich", kind: "personal", block: rich }],
+    })
+    const saved = await savePersonalTrainingResult({
+      personalSessionId: session.id,
+      itemId: "rich",
+      expectedRevision: 1,
+      score: "",
+      roundScores: [{ score: "100" }, { score: "105" }],
+      notes: "Own training detail",
+      unit: "kg",
+      completed: true,
+    })
+    expect(saved).toMatchObject({
+      audience: "private",
+      details: {
+        scoreValue: 105000,
+        input: {
+          unit: "kg",
+          roundScores: [{ score: "100" }, { score: "105" }],
+        },
+      },
+    })
+    const [stored] = await db
+      .select()
+      .from(personalTrainingResultsTable)
+      .where(eq(personalTrainingResultsTable.id, saved.id))
+    expect(stored.details).toEqual(saved.details)
+    await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 1,
+      items: [],
+    })
+    expect(
+      (await getPersonalTrainingHistory({ teamId: day.teamId }))[0],
+    ).toMatchObject({
+      block: { workout: rich.workout },
+      details: stored.details,
+      notes: "Own training detail",
+    })
+    expect(await db.select().from(trainingResultsTable)).toEqual([])
+    state.userId = "personal_other"
+    expect(await getPersonalTrainingHistory({ teamId: day.teamId })).toEqual([])
   })
   // @lat: [[training-personal#Verification#Mixed track result identity]]
   it("returns unchanged source results from every composed track", async () => {

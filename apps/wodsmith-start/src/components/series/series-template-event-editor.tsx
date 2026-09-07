@@ -166,6 +166,7 @@ export function SeriesTemplateEventEditor({
     description?: string
   }) => {
     setIsCreating(true)
+    let created = false
     try {
       const result = await addEvent({
         data: {
@@ -180,6 +181,7 @@ export function SeriesTemplateEventEditor({
           parentEventId: subEventParentId ?? undefined,
         },
       })
+      created = true
       setEvents((prev) => [...prev, result.event])
       setShowCreateDialog(false)
       setSubEventParentId(null)
@@ -191,6 +193,7 @@ export function SeriesTemplateEventEditor({
       await onEventsChanged()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create event")
+      if (!created) throw e
     } finally {
       setIsCreating(false)
     }

@@ -1,14 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { MovementsList } from "@/components/movements-list"
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -17,41 +10,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { SCORE_TYPES, TIEBREAK_SCHEMES, WORKOUT_SCHEMES } from "@/constants"
+import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import type { Movement } from "@/db/schemas/workouts"
 import type {
   ScoreType,
   TiebreakScheme,
   WorkoutScheme,
 } from "@/lib/scoring/types"
-
-// Get default score type based on scheme
-function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
-  switch (scheme) {
-    case "time":
-    case "time-with-cap":
-      return "min" // Lower time is better
-    case "rounds-reps":
-    case "reps":
-    case "calories":
-    case "meters":
-    case "feet":
-    case "load":
-    case "emom":
-    case "pass-fail":
-    case "points":
-      return "max" // Higher is better
-  }
-}
+import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
 interface CreateEventDialogProps {
   open: boolean
@@ -76,242 +42,114 @@ export function CreateEventDialog({
   isCreating,
   movements,
 }: CreateEventDialogProps) {
-  const [name, setName] = useState("")
-  const [scheme, setScheme] = useState<WorkoutScheme>("time")
-  const [scoreType, setScoreType] = useState<ScoreType>("min")
-  const [description, setDescription] = useState("")
-  const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
-    undefined,
-  )
-  const [tiebreakScheme, setTiebreakScheme] = useState<
-    TiebreakScheme | undefined
-  >(undefined)
-  const [selectedMovements, setSelectedMovements] = useState<string[]>([])
-  const [showAdvanced, setShowAdvanced] = useState(false)
-
-  // Auto-set scoreType when scheme changes
-  useEffect(() => {
-    const defaultScoreType = getDefaultScoreType(scheme)
-    setScoreType(defaultScoreType)
-  }, [scheme])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim() || !scheme) return
-
-    await onCreateEvent({
-      name: name.trim(),
-      scheme,
-      scoreType,
-      description: description.trim() || undefined,
-      roundsToScore,
-      tiebreakScheme,
-      movementIds: selectedMovements.length > 0 ? selectedMovements : undefined,
-    })
-
-    // Reset form
-    resetForm()
-  }
+  const [value, setValue] = useState<Partial<NormalizedWorkoutSave>>({
+    name: "",
+    scheme: "time",
+    scoreType: "min",
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
+  const busy = isCreating || submitting
 
   const resetForm = () => {
-    setName("")
-    setScheme("time" as WorkoutScheme)
-    setScoreType("min" as ScoreType)
-    setDescription("")
-    setRoundsToScore(undefined)
-    setTiebreakScheme(undefined)
-    setSelectedMovements([])
-    setShowAdvanced(false)
+    setValue({ name: "", scheme: "time", scoreType: "min" })
+    setError("")
   }
-
-  const handleMovementToggle = (movementId: string) => {
-    if (selectedMovements.includes(movementId)) {
-      setSelectedMovements(selectedMovements.filter((id) => id !== movementId))
-    } else {
-      setSelectedMovements([...selectedMovements, movementId])
-    }
+  const handleOpenChange = (next: boolean) => {
+    if (busy) return
+    if (!next) resetForm()
+    onOpenChange(next)
   }
-
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      // Reset form when closing
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (busy || !value.name?.trim() || !value.scheme) return
+    setSubmitting(true)
+    setError("")
+    try {
+      await onCreateEvent({
+        name: value.name.trim(),
+        scheme: value.scheme,
+        scoreType: value.scoreType ?? undefined,
+        description: value.description?.trim() || undefined,
+        roundsToScore: value.roundsToScore,
+        tiebreakScheme: value.tiebreakScheme ?? undefined,
+        movementIds: value.movementIds?.length ? value.movementIds : undefined,
+      })
       resetForm()
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not create the event. Your entries are still here; try again.",
+      )
+    } finally {
+      setSubmitting(false)
     }
-    onOpenChange(newOpen)
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto"
+        onEscapeKeyDown={(e) => {
+          if (busy) e.preventDefault()
+        }}
+        onInteractOutside={(e) => {
+          if (busy) e.preventDefault()
+        }}
+      >
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Create new event</DialogTitle>
             <DialogDescription>
-              Create a new workout event for this competition. You can add more
-              details like division-specific descriptions after creating.
+              Create a new workout event for this competition. Add
+              division-specific descriptions and other event settings after
+              creating.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Event Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Event 1 - Fran"
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="scheme">Scheme</Label>
-              <Select
-                value={scheme}
-                onValueChange={(v) => setScheme(v as WorkoutScheme)}
-              >
-                <SelectTrigger id="scheme">
-                  <SelectValue placeholder="Select scheme" />
-                </SelectTrigger>
-                <SelectContent>
-                  {WORKOUT_SCHEMES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {scheme && (
-              <div className="space-y-2">
-                <Label htmlFor="scoreType">Score Type</Label>
-                <Select
-                  value={scoreType}
-                  onValueChange={(v) => setScoreType(v as ScoreType)}
-                >
-                  <SelectTrigger id="scoreType">
-                    <SelectValue placeholder="Select score type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SCORE_TYPES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="py-4">
+            <WorkoutDefinitionFields
+              allowEmptyScoreType={false}
+              value={value}
+              onChange={(patch) =>
+                setValue((current) => ({ ...current, ...patch }))
+              }
+              nameLabel="Event Name"
+              movements={movements}
+              disabled={busy}
+              autoFocus
+              fields={[
+                "name",
+                "scheme",
+                "scoreType",
+                "roundsToScore",
+                "tiebreakScheme",
+                "description",
+                "movementIds",
+              ]}
+            />
+            {value.scheme === "time-with-cap" && (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Set the time cap in Event Details after creating this event.
+              </p>
             )}
-
-            <div className="space-y-2">
-              <Label htmlFor="roundsToScore">
-                Rounds to Score{" "}
-                <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Input
-                id="roundsToScore"
-                type="number"
-                placeholder="e.g., 4"
-                value={roundsToScore ?? ""}
-                onChange={(e) =>
-                  setRoundsToScore(
-                    e.target.value
-                      ? Number.parseInt(e.target.value)
-                      : undefined,
-                  )
-                }
-                min="1"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tiebreakScheme">
-                Tiebreak Scheme{" "}
-                <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Select
-                value={tiebreakScheme ?? "none"}
-                onValueChange={(v) =>
-                  setTiebreakScheme(
-                    v === "none" ? undefined : (v as TiebreakScheme),
-                  )
-                }
-              >
-                <SelectTrigger id="tiebreakScheme">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {TIEBREAK_SCHEMES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Movements - Collapsible */}
-            <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-              <CollapsibleTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full justify-between"
-                >
-                  <span>Movements</span>
-                  <span className="text-muted-foreground text-sm">
-                    {selectedMovements.length > 0
-                      ? `(${selectedMovements.length} selected)`
-                      : "(optional)"}
-                  </span>
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  {selectedMovements.length > 0 && (
-                    <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
-                      {movements
-                        .filter((m) => selectedMovements.includes(m.id))
-                        .map((movement) => (
-                          <Badge
-                            key={movement.id}
-                            variant="default"
-                            className="cursor-pointer"
-                            onClick={() => handleMovementToggle(movement.id)}
-                          >
-                            {movement.name} ✓
-                          </Badge>
-                        ))}
-                    </div>
-                  )}
-                  <div className="border rounded-md">
-                    <MovementsList
-                      movements={movements}
-                      selectedMovements={selectedMovements}
-                      onMovementToggle={handleMovementToggle}
-                      mode="selectable"
-                      variant="compact"
-                      showLabel={false}
-                      containerHeight="h-[200px]"
-                    />
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
           </div>
-
+          {error && (
+            <p role="alert" className="mb-4 text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
+              disabled={busy}
               onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreating || !name.trim()}>
-              {isCreating ? "Creating..." : "Create event"}
+            <Button type="submit" disabled={busy || !value.name?.trim()}>
+              {busy ? "Creating..." : "Create event"}
             </Button>
           </DialogFooter>
         </form>

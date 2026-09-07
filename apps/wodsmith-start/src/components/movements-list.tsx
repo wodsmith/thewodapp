@@ -175,6 +175,7 @@ export function MovementsList({
                     key={movement.id}
                     type="button"
                     variant={isSelected ? "default" : "outline"}
+                    aria-pressed={isSelected}
                     className="w-full justify-between"
                     onClick={() => onMovementToggle?.(movement.id)}
                   >

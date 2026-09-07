@@ -260,6 +260,7 @@ export function OrganizerEventManager({
         error_message: message,
       })
       toast.error(message)
+      throw error
     } finally {
       setIsCreating(false)
     }

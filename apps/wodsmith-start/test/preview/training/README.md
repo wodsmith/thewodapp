@@ -8,7 +8,7 @@ From the repository root:
 pnpm --filter wodsmith-start exec vite --config test/preview/training/vite.config.ts
 ```
 
-Open `http://127.0.0.1:8766/training` or `/training/programming`. The fixture creates today's session in the gym timezone. Athlete results, draft changes, publication, and copying persist in the browser. Clear the `wodsmith-training-component-preview-v1` localStorage key to reset the fixture.
+Open `http://127.0.0.1:8766/training` or `/training/programming`. `/compete-reference` mounts the production Compete creation dialog for comparison with the shared programmer fields. The fixture creates today's session in the gym timezone. Athlete results, draft changes, publication, and copying persist in the browser. Clear the `wodsmith-training-component-preview-v1` localStorage key to reset the fixture.
 
 Production routes do not import these fixtures. The Vite alias is confined to this preview configuration; the normal application calls authenticated training server functions.
 

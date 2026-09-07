@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Trash2,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import {
@@ -46,6 +47,7 @@ import {
 import { cn } from "@/utils/cn"
 import { CoachLibraryPicker } from "./coach-library-picker"
 import { CoachSessionPreview, coachBlockLabels } from "./coach-session-preview"
+import { TrainingWorkoutDialog } from "./training-workout-dialog"
 
 const selectClass =
   "h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
@@ -583,6 +585,10 @@ function CoachDayEditor({
   const [restConfirm, setRestConfirm] = useState(false)
   const [deleteBlock, setDeleteBlock] = useState<string | null>(null)
   const [editingBlock, setEditingBlock] = useState<string | null>(null)
+  const [workoutEditor, setWorkoutEditor] = useState<{
+    block?: TrainingBlock
+  } | null>(null)
+  const [workoutDirty, setWorkoutDirty] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [copyDate, setCopyDate] = useState(shiftDate(trainingDate, 1))
   const [copyTrack, setCopyTrack] = useState(trackId)
@@ -602,8 +608,8 @@ function CoachDayEditor({
         : ""
 
   useEffect(() => {
-    onDirtyChange(dirty)
-  }, [dirty, onDirtyChange])
+    onDirtyChange(dirty || workoutDirty)
+  }, [dirty, workoutDirty, onDirtyChange])
   useEffect(() => {
     onBusyChange(busy)
   }, [busy, onBusyChange])
@@ -822,7 +828,8 @@ function CoachDayEditor({
               <div className="divide-y divide-border border-y border-border">
                 {!content.blocks.length && (
                   <p className="py-6 text-sm text-muted-foreground">
-                    Start with a warm-up, a scored section, or a coaching note.
+                    Add a workout, or include warm-up instructions and coaching
+                    notes.
                   </p>
                 )}
                 {content.blocks.map((block, index) => (
@@ -867,14 +874,28 @@ function CoachDayEditor({
                           className={actionClass}
                           aria-expanded={editingBlock === block.id}
                           aria-controls={`coach-edit-${block.id}`}
-                          onClick={() =>
-                            setEditingBlock(
-                              editingBlock === block.id ? null : block.id,
-                            )
-                          }
+                          onClick={() => {
+                            if (block.kind !== "check" && block.kind !== "note")
+                              setWorkoutEditor({ block })
+                            else
+                              setEditingBlock(
+                                editingBlock === block.id ? null : block.id,
+                              )
+                          }}
                         >
                           {editingBlock === block.id ? "Done" : "Edit"}
                         </Button>
+                        {block.kind !== "check" && block.kind !== "note" && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="size-11 text-destructive"
+                            aria-label={`Remove ${block.title || "workout"}`}
+                            onClick={() => setDeleteBlock(block.id)}
+                          >
+                            <Trash2 />
+                          </Button>
+                        )}
                       </div>
                     </div>
                     {editingBlock === block.id ? (
@@ -896,13 +917,15 @@ function CoachDayEditor({
                               })
                             }
                           >
-                            {Object.entries(coachBlockLabels).map(
-                              ([kind, label]) => (
+                            {Object.entries(coachBlockLabels)
+                              .filter(
+                                ([kind]) => kind === "check" || kind === "note",
+                              )
+                              .map(([kind, label]) => (
                                 <option key={kind} value={kind}>
                                   {label}
                                 </option>
-                              ),
-                            )}
+                              ))}
                           </select>
                         </div>
                         <div className="space-y-2">
@@ -987,31 +1010,41 @@ function CoachDayEditor({
                 ))}
               </div>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              className={actionClass}
-              disabled={libraryOpen || content.blocks.length >= 20}
-              onClick={() => {
-                const block: TrainingBlock = {
-                  id: crypto.randomUUID(),
-                  kind: "check",
-                  title: "",
-                  prescription: "",
-                  scalingGuidance: "",
-                  coachGuidance: "",
-                }
-                setContent({
-                  ...content,
-                  isRestDay: false,
-                  blocks: [...content.blocks, block],
-                })
-                setEditingBlock(block.id)
-              }}
-            >
-              <Plus />
-              Add a section
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                disabled={libraryOpen || content.blocks.length >= 20}
+                onClick={() => setWorkoutEditor({})}
+              >
+                <Plus />
+                Create workout
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={actionClass}
+                disabled={libraryOpen || content.blocks.length >= 20}
+                onClick={() => {
+                  const block: TrainingBlock = {
+                    id: crypto.randomUUID(),
+                    kind: "check",
+                    title: "",
+                    prescription: "",
+                    scalingGuidance: "",
+                    coachGuidance: "",
+                  }
+                  setContent({
+                    ...content,
+                    isRestDay: false,
+                    blocks: [...content.blocks, block],
+                  })
+                  setEditingBlock(block.id)
+                }}
+              >
+                <Plus />
+                Add instructions
+              </Button>
+            </div>
             <CoachLibraryPicker
               key={team.id}
               teamId={team.id}
@@ -1023,7 +1056,7 @@ function CoachDayEditor({
                   isRestDay: false,
                   blocks: [...current.blocks, block],
                 }))
-                setEditingBlock(block.id)
+                setEditingBlock(null)
               }}
             />
           </fieldset>
@@ -1036,6 +1069,26 @@ function CoachDayEditor({
           timezone={timezone}
         />
       </div>
+      {workoutEditor && (
+        <TrainingWorkoutDialog
+          onDirtyChange={setWorkoutDirty}
+          teamId={team.id}
+          block={workoutEditor.block}
+          onClose={() => setWorkoutEditor(null)}
+          onSave={(block) => {
+            setContent((current) => ({
+              ...current,
+              isRestDay: false,
+              blocks: workoutEditor.block
+                ? current.blocks.map((item) =>
+                    item.id === block.id ? block : item,
+                  )
+                : [...current.blocks, block],
+            }))
+            setEditingBlock(null)
+          }}
+        />
+      )}
       <footer className="space-y-4 border-t border-border p-5 lg:p-6">
         {error && !reviewOpen && (
           <p role="alert" className="break-words text-sm text-destructive">

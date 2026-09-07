@@ -1,6 +1,7 @@
 import type { TrainingBlockKind, TrainingContent } from "@/lib/training/types"
 
 export const coachBlockLabels: Record<TrainingBlockKind, string> = {
+  workout: "Workout",
   check: "Optional check-off",
   load: "Load",
   time: "Finish time",
@@ -9,6 +10,7 @@ export const coachBlockLabels: Record<TrainingBlockKind, string> = {
 }
 
 const scoreLabels: Record<TrainingBlockKind, string> = {
+  workout: "Log workout scores",
   check: "Mark complete · optional",
   load: "Log load · athlete chooses lb or kg",
   time: "Log time · minutes and seconds",
@@ -95,7 +97,9 @@ export function CoachSessionPreview({
                   </details>
                 )}
                 <p className="mt-4 border-t border-border pt-3 text-sm text-muted-foreground">
-                  {scoreLabels[block.kind]}
+                  {block.kind === "workout" && block.workout
+                    ? `${block.workout.roundsToScore} score${block.workout.roundsToScore === 1 ? "" : "s"} · ${block.workout.scheme}${block.workout.timeCapSeconds ? ` · ${block.workout.timeCapSeconds / 60} min cap` : ""}`
+                    : scoreLabels[block.kind]}
                 </p>
               </section>
             ))}

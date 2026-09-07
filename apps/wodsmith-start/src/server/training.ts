@@ -1,5 +1,7 @@
 import {
+  movements,
   programmingTracksTable,
+  scalingGroupsTable,
   TEAM_PERMISSIONS,
   teamMembershipTable,
   teamProgrammingTracksTable,
@@ -38,6 +40,7 @@ import type {
   TrainingWeek,
 } from "@/lib/training/types"
 import { hasFeature } from "@/server/entitlements"
+import { validateWorkoutReferences } from "@/server/workout-import/persistence"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getActiveTeamId } from "@/utils/team-auth"
 import { getPublishedCrossFitDays } from "./crossfit-import"
@@ -257,6 +260,7 @@ async function trainingResultViews(
     block: result.block,
     scoreValue: result.scoreValue,
     displayScore: result.displayScore,
+    details: result.details,
     scaling: result.scaling,
     modification: result.modification,
     notes: result.notes,
@@ -367,9 +371,13 @@ export async function saveTrainingDraft(
   input: SaveTrainingDraftInput,
 ): Promise<TrainingSession> {
   await requireTrainingAccess(input.teamId, input.trackId, true)
+  const content = trainingContentSchema.parse(input.content)
   const db = getDb()
   try {
     return await db.transaction(async (tx) => {
+      for (const block of content.blocks)
+        if (block.workout)
+          await validateWorkoutReferences(tx, block.workout, input.teamId)
       const [existing] = await tx
         .select()
         .from(trainingSessionsTable)
@@ -390,7 +398,7 @@ export async function saveTrainingDraft(
           trackId: input.trackId,
           trainingDate: input.trainingDate,
           timezone: input.timezone,
-          draft: input.content,
+          draft: content,
         })
         return trainingSession(await lockTrainingSession(tx, id), true)
       }
@@ -399,7 +407,7 @@ export async function saveTrainingDraft(
       await tx
         .update(trainingSessionsTable)
         .set({
-          draft: input.content,
+          draft: content,
           timezone: input.timezone,
           revision: existing.revision + 1,
         })
@@ -431,6 +439,9 @@ export async function publishTrainingSession(input: {
     assertTrainingRevision(current.revision, input.expectedRevision)
     if (!current.draft) throw new Error("There is no draft to publish")
     const content = trainingContentSchema.parse(current.draft)
+    for (const block of content.blocks)
+      if (block.workout)
+        await validateWorkoutReferences(tx, block.workout, current.teamId)
     if (!content.title || content.blocks.some((block) => !block.title))
       throw new Error(
         "Give the session and each block a title before publishing",
@@ -523,6 +534,7 @@ export async function saveTrainingResult(
     const values = {
       block,
       ...normalized,
+      details: normalized.details ?? null,
       scaling: input.scaling,
       modification: input.modification,
       notes: input.notes,
@@ -661,4 +673,29 @@ export async function getTrainingHistory(input: {
     )
     .limit(100)
   return trainingResultViews(rows, userId)
+}
+
+export async function getTrainingWorkoutOptions(input: { teamId: string }) {
+  await requireTrainingAccess(input.teamId, undefined, true)
+  const db = getDb()
+  const [movementOptions, scalingGroups] = await Promise.all([
+    db
+      .select({ id: movements.id, name: movements.name, type: movements.type })
+      .from(movements)
+      .orderBy(movements.name),
+    db
+      .select({ id: scalingGroupsTable.id, title: scalingGroupsTable.title })
+      .from(scalingGroupsTable)
+      .where(
+        or(
+          eq(scalingGroupsTable.teamId, input.teamId),
+          and(
+            isNull(scalingGroupsTable.teamId),
+            eq(scalingGroupsTable.isSystem, true),
+          ),
+        ),
+      )
+      .orderBy(scalingGroupsTable.title),
+  ])
+  return { movements: movementOptions, scalingGroups }
 }

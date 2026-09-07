@@ -18,6 +18,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[tests]] — Executable characterization and regression specifications
 - [[gameday]] — Native iOS athlete schedules, spectator browsing, secure sessions, and heat reminders.
 - [[training]] — Implemented gym training, versioned results, draft publication, permissions, and interface tests
+- [[workout-authoring]] — Shared production workout fields, context boundaries, and consumer reuse tests
 - [[workout-import-integration]] — Workout import acceptance, current-access checks, and reviewed save boundaries
 - [[workout-import-contract]] — Browser-safe import schemas and scoring boundary tests
 

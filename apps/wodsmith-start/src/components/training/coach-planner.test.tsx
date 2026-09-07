@@ -17,6 +17,7 @@ import { CoachPlanner } from "./coach-planner"
 
 const api = vi.hoisted(() => ({
   getWeek: vi.fn(),
+  getOptions: vi.fn(),
   saveDraft: vi.fn(),
   publish: vi.fn(),
   copy: vi.fn(),
@@ -25,6 +26,7 @@ const api = vi.hoisted(() => ({
 
 vi.mock("@/server-fns/training-fns", () => ({
   getTrainingWeekFn: api.getWeek,
+  getTrainingWorkoutOptionsFn: api.getOptions,
   saveTrainingDraftFn: api.saveDraft,
   publishTrainingSessionFn: api.publish,
   copyTrainingSessionFn: api.copy,
@@ -101,6 +103,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-09-07T12:00:00Z"))
   api.blocker.mockReturnValue({ status: "idle" })
   api.getWeek.mockResolvedValue(week())
+  api.getOptions.mockResolvedValue({ movements: [], scalingGroups: [] })
 })
 
 afterEach(() => {
@@ -355,16 +358,53 @@ it("reserves the remaining section slot while a library import is pending", asyn
   fireEvent.click(
     screen.getByRole("button", { name: "Add from workout library" }),
   )
-  expect(screen.getByRole("button", { name: "Add a section" })).toBeDisabled()
+  expect(
+    screen.getByRole("button", { name: "Add instructions" }),
+  ).toBeDisabled()
+  expect(screen.getByRole("button", { name: "Create workout" })).toBeDisabled()
   fireEvent.click(screen.getByRole("button", { name: "Search library" }))
   fireEvent.click(
     await screen.findByRole("button", { name: "Add Fran to draft" }),
   )
-  fireEvent.click(screen.getByRole("button", { name: "Add a section" }))
+  fireEvent.click(screen.getByRole("button", { name: "Add instructions" }))
   await act(async () => completeDetail(workout))
-  expect(screen.getByRole("button", { name: "Add a section" })).toBeDisabled()
+  expect(
+    screen.getByRole("button", { name: "Add instructions" }),
+  ).toBeDisabled()
+  expect(screen.getByRole("button", { name: "Create workout" })).toBeDisabled()
   api.saveDraft.mockResolvedValue(session({ revision: 5 }))
   fireEvent.click(screen.getByRole("button", { name: "Save draft" }))
   await waitFor(() => expect(api.saveDraft).toHaveBeenCalled())
   expect(api.saveDraft.mock.lastCall?.[0].data.content.blocks).toHaveLength(20)
+})
+
+// @lat: [[workout-authoring#Programmer workflow regressions]]
+it("guards an unapplied workout, preserves legacy content in the shared editor, and removes the edited workout", async () => {
+  await renderPlanner()
+  const section = screen.getByRole("region", { name: "Section 1: Back squat" })
+  fireEvent.click(within(section).getByRole("button", { name: "Edit" }))
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply changes" })).toBeEnabled(),
+  )
+  expect(screen.getByLabelText("Workout Name")).toHaveValue("Back squat")
+  expect(screen.getByLabelText("Description")).toHaveValue("5 sets of 5")
+  expect(api.blocker.mock.lastCall?.[0].shouldBlockFn()).toBe(false)
+  fireEvent.change(screen.getByLabelText("Rounds to Score"), {
+    target: { value: "5" },
+  })
+  expect(api.blocker.mock.lastCall?.[0].shouldBlockFn()).toBe(true)
+  expect(api.saveDraft).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole("button", { name: "Apply changes" }))
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  expect(
+    screen.getByRole("complementary", { name: "Athlete preview" }),
+  ).toHaveTextContent("5 scores")
+  fireEvent.click(screen.getByRole("button", { name: "Remove Back squat" }))
+  expect(screen.getByRole("alertdialog")).toHaveTextContent(
+    "Remove this section?",
+  )
+  fireEvent.click(screen.getByRole("button", { name: "Remove section" }))
+  expect(
+    screen.queryByRole("region", { name: "Section 1: Back squat" }),
+  ).not.toBeInTheDocument()
 })

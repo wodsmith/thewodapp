@@ -37,7 +37,7 @@ beforeEach(() => {
     return { defaultTrackId: "everyday", selectedTrackId: selected, sourceSession: source, personalSession: null, results: [], libraryResults: [], items: source ? [{ id: "source-squat", kind: "source", block, trackId: selected, trackName: selected, sourceTrainingDate: source.trainingDate, sourceSessionId: source.id, sourceBlockId: block.id, sourcePublishedVersion: source.publishedVersion }] : [] }
   })
   vi.mocked(saveTrainingPreferenceFn).mockResolvedValue(undefined)
-  vi.mocked(getTrainingLibraryWorkoutFn).mockResolvedValue({ id: "fran", name: "Fran", description: "21-15-9 thrusters and pull-ups", scheme: "time", scoreType: "min", roundsToScore: 1, timeCap: null, repsPerRound: null, tiebreakScheme: null, scalingGroupId: null })
+  vi.mocked(getTrainingLibraryWorkoutFn).mockResolvedValue({ id: "fran", name: "Fran", description: "21-15-9 thrusters and pull-ups", scheme: "time", scoreType: "min", roundsToScore: 1, timeCap: null, repsPerRound: null, tiebreakScheme: null, scalingGroupId: null, movementIds: [] })
   vi.mocked(getTrainingWeekFn).mockResolvedValue({ sessions: [session], myResults: [], teamResults: [] })
   vi.mocked(getTrainingHistoryFn).mockResolvedValue([])
   vi.mocked(saveTrainingResultFn).mockResolvedValue(result)
@@ -310,10 +310,11 @@ it("clears a cancelled library deep link and does not reopen it when the date ch
 })
 
 // @lat: [[training#Athlete Interface Tests#Personal titles match server limits]]
-it("limits personal workout names to the server-supported length", async () => {
+it("limits legacy personal workout names to the server-supported length", async () => {
   render(<AthletePersonalSession team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[]} onSaved={vi.fn()} />)
   await screen.findByRole("heading", { name: "Back squat" })
-  fireEvent.click(screen.getByRole("button", { name: "Create workout" }))
+  fireEvent.click(screen.getByRole("button", { name: "Customize session" }))
+  fireEvent.click(screen.getByRole("button", { name: "Remix to edit" }))
   expect(screen.getByLabelText("Workout name")).toHaveAttribute("maxlength", "160")
 })
 

@@ -21,6 +21,10 @@ import type {
   TrainingSession,
 } from "@/lib/training/types"
 import { saveTrainingResultFn } from "@/server-fns/training-fns"
+import {
+  initialWorkoutScore,
+  TrainingWorkoutScoreFields,
+} from "./training-workout-score-fields"
 
 interface TrainingResultDialogProps {
   session: TrainingSession
@@ -73,6 +77,9 @@ export function TrainingResultDialog({
 }: TrainingResultDialogProps) {
   const [open, setOpen] = useState(false)
   const [fields, setFields] = useState(() => initialFields(result))
+  const [workoutScore, setWorkoutScore] = useState(() =>
+    initialWorkoutScore(block.workout, result),
+  )
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -89,6 +96,7 @@ export function TrainingResultDialog({
   function changeOpen(next: boolean) {
     if (saving || disabled) return
     setFields(initialFields(result))
+    setWorkoutScore(initialWorkoutScore(block.workout, result))
     setDirty(false)
     setError(null)
     setOpen(next)
@@ -117,6 +125,15 @@ export function TrainingResultDialog({
         audience: privateOnly ? "private" : fields.audience,
         unit: fields.unit,
         completed: block.kind === "check" ? fields.completed : true,
+        ...(block.kind === "workout"
+          ? {
+              ...workoutScore,
+              roundScores:
+                (block.workout?.roundsToScore ?? 1) > 1
+                  ? workoutScore.roundScores
+                  : undefined,
+            }
+          : {}),
       })
       onSaved(saved)
       setDirty(false)
@@ -173,7 +190,17 @@ export function TrainingResultDialog({
         <form onSubmit={submit} className="space-y-5">
           <fieldset disabled={saving} className="space-y-5">
             <legend className="sr-only">Result details</legend>
-            {block.kind === "time" ? (
+            {block.kind === "workout" && block.workout ? (
+              <TrainingWorkoutScoreFields
+                id={fieldId}
+                workout={block.workout}
+                value={workoutScore}
+                onChange={(value) => {
+                  setWorkoutScore(value)
+                  setDirty(true)
+                }}
+              />
+            ) : block.kind === "time" ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor={`${fieldId}-minutes`}>Minutes</Label>

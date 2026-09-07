@@ -1,6 +1,6 @@
 import { bigint, boolean, index, int, json, mysqlTable, text, uniqueIndex, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
-import type { TrainingBlockSnapshot } from "./training"
+import type { TrainingBlockSnapshot, TrainingScoreDetailsSnapshot } from "./training"
 
 export interface ProviderProvenanceSnapshot {
   importId: string
@@ -58,6 +58,7 @@ export const personalTrainingResultsTable = mysqlTable("personal_training_result
   itemId: varchar({ length: 64 }).notNull(),
   userId: varchar({ length: 255 }).notNull(),
   block: json().$type<TrainingBlockSnapshot>(),
+  details: json().$type<TrainingScoreDetailsSnapshot>(),
   libraryItem: json().$type<PersonalLibraryItemSnapshot>(),
   scoreValue: bigint({ mode: "number" }),
   displayScore: varchar({ length: 100 }).notNull(),

@@ -118,6 +118,10 @@ Linking a score captures the complete library item, and an earlier association w
 
 Count scores require whole numbers and rounds-reps scores require complete supported syntax. Numeric prefixes with trailing text are rejected in individual and round results, while valid time and load parsing remains unchanged.
 
+### Rich private results retain their performed definition
+
+Private canonical workout results persist every round and entered unit. Removing the workout preserves its performed definition and details in owner-only history without creating a shared source result.
+
 ### Multiple component consent
 
 The component test cancels multiple additions without writes and verifies that a failed atomic save keeps the preview, performed date, and ordered component request available for retry.
@@ -125,6 +129,8 @@ The component test cancels multiple additions without writes and verifies that a
 ### Provider snapshot and atomic additions
 
 The real MySQL test persists capped time and multi-round load scores, checks revision and capacity rejection, and retains source identity after unfollowing and workout edits or removal.
+
+Library details retain provider provenance alongside movement IDs, scaling group, and complete scoring metadata.
 
 
 ### Preview personal result persistence
