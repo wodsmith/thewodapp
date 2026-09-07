@@ -19,7 +19,11 @@ export const Route = createFileRoute("/_protected/programming/$trackId/")({
   }),
   loaderDeps: ({ search }) => ({ date: search.date }),
   loader: async ({ params, context, deps }) => {
-    const date = deps.date ?? crossFitScheduledDate(Date.now())
+    const date =
+      deps.date ??
+      (params.trackId === CROSSFIT_TRACK_ID
+        ? crossFitScheduledDate(Date.now())
+        : undefined)
     const [track, workouts, days, selected, state] = await Promise.all([
       getProgrammingTrackByIdFn({ data: { trackId: params.trackId } }),
       getTrackWorkoutsFn({ data: { trackId: params.trackId } }),

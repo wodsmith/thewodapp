@@ -33,7 +33,9 @@ export function workoutScoring(workout: {
     workout.roundsToScore && workout.roundsToScore > 1
       ? `${workout.roundsToScore} scores · ${workout.scoreType ?? "max"}`
       : null,
-    workout.timeCap ? `${workout.timeCap / 60} minute cap` : null,
+    workout.timeCap
+      ? `${Math.floor(workout.timeCap / 60)}:${String(workout.timeCap % 60).padStart(2, "0")} cap`
+      : null,
   ]
     .filter(Boolean)
     .join(" · ")

@@ -21,3 +21,5 @@ pnpm --filter wodsmith-start exec vite --config test/preview/training/vite.track
 ```
 
 Open `http://127.0.0.1:8767/programming/ptrk_crossfit_dotcom?admin=1&date=2026-09-04` for a multi-score day, or choose September 6 for rest. Omit `admin=1` for the ordinary reader. Import controls are at `/admin/programming/ptrk_crossfit_dotcom`; Training is at `/training?date=2026-09-04`. Reloading resets this preview's in-memory state. Production authorization and persistence are verified separately by the server and disposable-MySQL tests.
+
+Personal additions in the track preview share one workspace/date session and result store, including private history after removal. Library score links lead to `/log/new`, which this fixture does not render; real rich-library result persistence is covered by the disposable-MySQL suite. Admin fixture publishes appear in fixture history and exact-date reads.

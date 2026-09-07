@@ -15,8 +15,10 @@ vi.mock("@tanstack/react-router", () => ({
 describe("CrossFit dated track feed", () => {
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Rest and component display]]
   it("shows source attribution and grouped scores while leaving rest days unscoreable", () => {
+    const add = vi.fn()
     const { rerender } = render(
       <CrossFitTrackDays
+        onAdd={add}
         days={[
           {
             id: "rest",
@@ -59,6 +61,7 @@ describe("CrossFit dated track feed", () => {
     expect(screen.queryByText("Add to my day")).not.toBeInTheDocument()
     rerender(
       <CrossFitTrackDays
+        onAdd={add}
         selectedDate="2026-09-04"
         days={[
           {
@@ -80,6 +83,8 @@ describe("CrossFit dated track feed", () => {
         .getAllByRole("link", { name: "View workout" })
         .map((link) => link.getAttribute("href")),
     ).toEqual(["/workouts/time", "/workouts/load"])
+    fireEvent.click(screen.getByRole("button", { name: "Add all to my day" }))
+    expect(add).toHaveBeenCalledWith(["time", "load"])
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Deferred programming text]]
   it("mounts Markdown only while a day's programming is expanded", () => {

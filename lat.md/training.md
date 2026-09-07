@@ -86,6 +86,8 @@ Progress shows the performed prescription snapshot for an earlier version rather
 
 Opening Training uses the saved default track. Browsing another track does not change the preference or create a personal session; Make default track persists the athlete's choice.
 
+Generic track links omit a date unless explicitly selected, allowing Training to choose today in the selected workspace timezone. Following is a disabled status; unfollow remains a separate explicit action.
+
 ### Composition creates personal ownership lazily
 
 Viewing programming, logging an unchanged source workout, and opening customization do not create a session. Removing a workout saves the athlete's ordered composition with an expected revision.
@@ -274,8 +276,12 @@ Changing the selected track clears the previous day response before loading. A f
 
 ### Unavailable defaults stay explicit
 
-An unavailable saved track may fall back for browsing, but the fallback is not labeled as a saved default. Make default track remains available and writes only after the athlete explicitly chooses it.
+An unavailable saved track may fall back for browsing, but the fallback is not labeled as a saved default. The Make default track action stays available and writes only after the athlete explicitly chooses it.
 
 ### Follow feedback tracks the current request
 
 Personal follow and gym-library actions clear earlier success feedback when a new request begins. A failed request retains the current input and shows its error without a stale success message.
+
+### Visible gym selection
+
+Changing the gym search clears the prior selection, so adding a track always targets a visible choice.

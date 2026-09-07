@@ -295,7 +295,7 @@ describe.skipIf(!url)("provider projection and persistence", () => {
       }),
     ).toHaveLength(1)
   })
-  // @lat: [[training-personal#Provider Source Snapshots#Provider snapshot and atomic additions]]
+  // @lat: [[training-personal#Verification#Provider snapshot and atomic additions]]
   it("atomically stores ordered rich components and server provenance on the performed date", async () => {
     const performed = { ...day, trainingDate: "2026-09-07" }
     const items = [

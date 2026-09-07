@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { desc, eq } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { env, getDb } from "@/db"
 import { externalWorkoutImportsTable } from "@/db/schema"
@@ -21,8 +21,9 @@ export const getCrossFitTrackDaysFn = createServerFn({ method: "GET" })
     ),
   )
 
-export const getCrossFitImportsFn = createServerFn({ method: "GET" }).handler(
-  async () => {
+export const getCrossFitImportsFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ date: sourceDateSchema.optional() }).optional())
+  .handler(async ({ data }) => {
     await requireAdmin()
     const rows = await getDb()
       .select({
@@ -35,12 +36,18 @@ export const getCrossFitImportsFn = createServerFn({ method: "GET" }).handler(
         sourceMarkdown: externalWorkoutImportsTable.sourceMarkdown,
       })
       .from(externalWorkoutImportsTable)
-      .where(eq(externalWorkoutImportsTable.trackId, CROSSFIT_TRACK_ID))
+      .where(
+        and(
+          eq(externalWorkoutImportsTable.trackId, CROSSFIT_TRACK_ID),
+          data?.date
+            ? eq(externalWorkoutImportsTable.sourceDate, data.date)
+            : undefined,
+        ),
+      )
       .orderBy(desc(externalWorkoutImportsTable.sourceDate))
       .limit(60)
     return rows
-  },
-)
+  })
 
 export const getCrossFitRunStatusFn = createServerFn({ method: "GET" })
   .inputValidator(

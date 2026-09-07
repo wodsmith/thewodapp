@@ -16,7 +16,7 @@ export function TrackFollowActions({
   gymOnly = false,
 }: {
   trackId: string
-  date: string
+  date?: string
   state: State
   onChanged: () => void
   gymOnly?: boolean
@@ -76,7 +76,10 @@ export function TrackFollowActions({
                 <Input
                   id="gym-search"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value)
+                    setGymId("")
+                  }}
                 />
               </label>
               <label className="block space-y-2" htmlFor="track-gym">
@@ -116,7 +119,7 @@ export function TrackFollowActions({
                 state.gyms.some((gym) => gym.id === gymId && gym.added) && (
                   <a
                     className="block min-h-11 py-3 underline"
-                    href={`/training?teamId=${encodeURIComponent(gymId)}&trackId=${encodeURIComponent(trackId)}&date=${date}`}
+                    href={`/training?teamId=${encodeURIComponent(gymId)}&trackId=${encodeURIComponent(trackId)}${date ? `&date=${date}` : ""}`}
                   >
                     View gym Training
                   </a>
@@ -130,7 +133,7 @@ export function TrackFollowActions({
             <Button
               className="min-h-11"
               variant={state.following ? "outline" : "default"}
-              disabled={busy || !state.personalTeamId}
+              disabled={busy || state.following || !state.personalTeamId}
               onClick={state.following ? undefined : follow}
             >
               {state.following ? "Following" : "Follow track"}
@@ -153,7 +156,7 @@ export function TrackFollowActions({
             {state.following && state.trainingAvailable && (
               <a
                 className="inline-flex min-h-11 items-center underline"
-                href={`/training?teamId=${encodeURIComponent(state.personalTeamId ?? "")}&trackId=${encodeURIComponent(trackId)}&date=${date}`}
+                href={`/training?teamId=${encodeURIComponent(state.personalTeamId ?? "")}&trackId=${encodeURIComponent(trackId)}${date ? `&date=${date}` : ""}`}
               >
                 View in Training
               </a>

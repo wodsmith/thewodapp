@@ -162,10 +162,18 @@ The actual reader hides administrator operations for ordinary users, exposes onl
 
 The isolated admin preview uses the selected fixture date for source text and workout or rest classification. Dates without fixtures report unavailable data rather than reusing another day's prescription.
 
+### Selected admin date outside history
+
+Administrator publication checks the selected date independently of the sixty-entry history, waits for successful lookup, and reuses loader history without an extra initial list read.
+
+### Selected archive workout deduplication
+
+An older selected provider day's workouts stay out of the legacy library even when the day is outside the recent archive.
+
 ## Reader and Administrator Destinations
 
 The track page leads with selected-date programming and keeps following, gym-library access, and administrator operations distinct. The selected date uses a calendar-safe URL field and explicit fixed-PST Today labeling.
 
 [[apps/wodsmith-start/src/components/track-detail-view.tsx#TrackDetailView]] renders the shared production reader. Its bounded archive contains the latest sixty published days, while exact-date queries work independently. Legacy workouts stay navigable under a collapsed library without raw order badges or literal Markdown title markers. Prescription text appears once per day; source/scaling Markdown mounts only after expansion.
 
-Site administrators receive a labeled Admin section linking to `/admin/programming/ptrk_crossfit_dotcom`. Its loader calls an admin-authorized server read. Preview and publish remain separate; preview state resets with the chosen source date. The Workflow accepts an optional expected source hash and holds changed content for review before snapshot or publication. Automatic scheduled runs keep their existing parameters and cron semantics.
+Site administrators receive a labeled Admin section linking to `/admin/programming/ptrk_crossfit_dotcom`. Its loader calls an admin-authorized server read. Preview and publish remain separate; preview state resets with the chosen source date. The Workflow accepts an optional expected source hash and holds changed content for review before snapshot or publication. Automatic scheduled runs keep their existing parameters and cron semantics. Active publication stays locked through read errors until terminal status and a successful date read, or a terminal Workflow failure. Needs-review completion clears stale preview consent. Exact-date reads remain admin-authorized; publication waits for a successful selected-date lookup.

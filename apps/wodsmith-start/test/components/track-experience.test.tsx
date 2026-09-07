@@ -48,6 +48,13 @@ it("separates personal following and gym access and keeps missing dates explicit
     "href",
     "/training?teamId=mine&trackId=track&date=2026-09-04",
   )
+  expect(screen.getByRole("button", { name: "Following" })).toBeDisabled()
+  rerender(
+    <TrackFollowActions trackId="track" state={state} onChanged={() => {}} />,
+  )
+  expect(
+    screen.getByRole("link", { name: "View in Training" }),
+  ).toHaveAttribute("href", "/training?teamId=mine&trackId=track")
   expect(screen.queryByText("For your gym")).not.toBeInTheDocument()
   rerender(<CrossFitTrackDays days={[]} selectedDate="2026-09-04" />)
   expect(
@@ -219,3 +226,86 @@ it.each([false, true])(
     )
   },
 )
+
+// @lat: [[training#Provider Verification#Visible gym selection]]
+it("clears a selected gym when filtering changes the visible choices", () => {
+  render(
+    <TrackFollowActions
+      gymOnly
+      trackId="track"
+      state={{
+        personalTeamId: "mine",
+        following: true,
+        trainingAvailable: true,
+        gyms: [
+          { id: "first", name: "First gym", added: false },
+          { id: "second", name: "Second gym", added: false },
+        ],
+      }}
+      onChanged={() => {}}
+    />,
+  )
+  screen.getByText("For your gym").closest("details")!.open = true
+  fireEvent.change(screen.getByLabelText("Gym library"), {
+    target: { value: "first" },
+  })
+  expect(
+    screen.getByRole("button", { name: "Add to gym library" }),
+  ).toBeEnabled()
+  fireEvent.change(screen.getByLabelText("Find a gym"), {
+    target: { value: "Second" },
+  })
+  expect(screen.getByLabelText("Gym library")).toHaveValue("")
+  expect(
+    screen.queryByRole("option", { name: "First gym" }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole("button", { name: "Add to gym library" }),
+  ).toBeDisabled()
+})
+// @lat: [[crossfit-import#CrossFit Daily Import#Tests#Selected archive workout deduplication]]
+it("excludes the selected older provider workout from the legacy library", () => {
+  const old = {
+    id: "old-import",
+    date: "2025-01-01",
+    kind: "workout",
+    url: "https://www.crossfit.com/250101",
+    markdown: "For time",
+    workouts: [
+      { workoutId: "old-workout", name: "Older workout", scheme: "time" },
+    ],
+  }
+  render(
+    <TrackDetailView
+      data={
+        {
+          track: { id: "ptrk_crossfit_dotcom", name: "CrossFit.com" },
+          date: old.date,
+          days: [],
+          selected: [old],
+          canManageImports: false,
+          state: {
+            personalTeamId: "mine",
+            following: true,
+            trainingAvailable: true,
+            gyms: [],
+          },
+          workouts: [
+            {
+              id: "legacy",
+              workout: { id: "old-workout", name: "Older workout" },
+            },
+          ],
+        } as unknown as TrackDetailData
+      }
+      onChanged={() => {}}
+      onDateChange={() => {}}
+    />,
+  )
+  expect(
+    screen.getByRole("heading", { name: "Older workout" }),
+  ).toBeInTheDocument()
+  expect(
+    screen.queryByRole("link", { name: "Older workout", hidden: true }),
+  ).not.toBeInTheDocument()
+})

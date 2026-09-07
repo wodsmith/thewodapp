@@ -19,8 +19,9 @@ vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
     inputValidator: (schema: { parse: (value: unknown) => unknown }) => ({
       handler:
-        (fn: (ctx: { data: unknown }) => unknown) => (ctx: { data: unknown }) =>
-          fn({ data: schema.parse(ctx.data) }),
+        (fn: (ctx: { data: unknown }) => unknown) =>
+        (ctx?: { data: unknown }) =>
+          fn({ data: schema.parse(ctx?.data) }),
     }),
     handler: (fn: () => unknown) => fn,
   }),
@@ -35,6 +36,9 @@ beforeEach(() => {
 })
 it("authorizes administrator reads and both workflow mutations before accessing infrastructure", async () => {
   await expect(getCrossFitImportsFn()).rejects.toThrow("Admin required")
+  await expect(
+    getCrossFitImportsFn({ data: { date: "2025-01-01" } }),
+  ).rejects.toThrow("Admin required")
   await expect(
     getCrossFitRunStatusFn({ data: { id: "crossfit-admin-auth-test" } }),
   ).rejects.toThrow("Admin required")
@@ -60,4 +64,30 @@ it("requires an expected preview hash even for an authorized manual publish", as
     }),
   ).rejects.toThrow("Preview this date")
   expect(mocks.create).not.toHaveBeenCalled()
+})
+
+it("filters authorized selected-date reads independently of bounded history", async () => {
+  const { MySqlDialect } = await import("drizzle-orm/mysql-core")
+  mocks.admin.mockResolvedValue({ userId: "admin" })
+  const where = vi.fn()
+  const query = {
+    select: vi.fn(),
+    from: vi.fn(),
+    where,
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+  }
+  for (const method of [query.select, query.from, where, query.orderBy])
+    method.mockReturnValue(query)
+  query.limit.mockResolvedValue([
+    { id: "older", sourceDate: "2025-01-01", status: "published" },
+  ])
+  mocks.db.mockReturnValue(query)
+  await expect(
+    getCrossFitImportsFn({ data: { date: "2025-01-01" } }),
+  ).resolves.toMatchObject([{ sourceDate: "2025-01-01" }])
+  expect(new MySqlDialect().sqlToQuery(where.mock.calls[0]![0]).params).toEqual(
+    ["ptrk_crossfit_dotcom", "2025-01-01"],
+  )
+  expect(query.limit).toHaveBeenCalledWith(60)
 })

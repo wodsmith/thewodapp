@@ -123,18 +123,25 @@ export async function addTrackToGymFn() {
 export async function getTrackFollowStateFn() {
   return followState
 }
-export async function getCrossFitImportsFn() {
-  return [
-    {
-      id: "preview-import",
-      sourceDate: "2026-09-06",
+const publishedDates = new Set(["2026-09-06"])
+export async function getCrossFitImportsFn(input?: {
+  data?: { date?: string }
+}) {
+  return providerDays
+    .filter(
+      (day) =>
+        publishedDates.has(day.date) &&
+        (!input?.data?.date || day.date === input.data.date),
+    )
+    .map((day) => ({
+      id: day.id,
+      sourceDate: day.date,
       status: "published",
-      kind: "rest",
+      kind: day.kind,
       error: null,
-      sourceMarkdown: "Rest Day",
-      publishedAt: new Date("2026-09-06T13:00:00Z"),
-    },
-  ]
+      sourceMarkdown: day.markdown,
+      publishedAt: new Date(`${day.date}T13:00:00Z`),
+    }))
 }
 let runDate = "2026-09-04"
 let runMode = "dry-run"
@@ -149,13 +156,14 @@ export async function runCrossFitImportFn({
 }
 export async function getCrossFitRunStatusFn() {
   const source = providerDays.find((day) => day.date === runDate)
-  if (runMode === "dry-run" && !source) {
+  if (!source) {
     return {
       status: "errored",
       error: "No preview fixture exists for this date.",
       output: "null",
     }
   }
+  if (runMode === "publish") publishedDates.add(runDate)
   return {
     status: "complete",
     error: null,

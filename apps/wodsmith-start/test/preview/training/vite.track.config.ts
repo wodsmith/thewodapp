@@ -13,9 +13,11 @@ export default defineConfig({
       configureServer(server) {
         server.middlewares.use((request, _response, next) => {
           if (
-            request.url?.startsWith("/training") ||
-            request.url?.startsWith("/programming") ||
-            request.url?.startsWith("/admin")
+            request.method === "GET" &&
+            request.headers.accept?.includes("text/html") &&
+            (request.url?.startsWith("/training") ||
+              request.url?.startsWith("/programming") ||
+              request.url?.startsWith("/admin"))
           )
             request.url = "/track-preview.html"
           next()

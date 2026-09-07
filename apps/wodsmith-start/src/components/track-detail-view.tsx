@@ -1,7 +1,11 @@
 import { CrossFitTrackDays } from "@/components/crossfit-track-days"
 import { TrackFollowActions } from "@/components/track-follow-actions"
 import { providerDateLabel, workoutTitle } from "@/lib/crossfit/display"
-import { CROSSFIT_TRACK_ID, sourceDateSchema } from "@/lib/crossfit/source"
+import {
+  CROSSFIT_TRACK_ID,
+  crossFitScheduledDate,
+  sourceDateSchema,
+} from "@/lib/crossfit/source"
 import type { getCrossFitTrackDaysFn } from "@/server-fns/crossfit-import-fns"
 import type {
   ProgrammingTrackWithOwner,
@@ -14,7 +18,7 @@ export interface TrackDetailData {
   days: Awaited<ReturnType<typeof getCrossFitTrackDaysFn>>
   selected: Awaited<ReturnType<typeof getCrossFitTrackDaysFn>>
   state: Awaited<ReturnType<typeof getTrackFollowStateFn>>
-  date: string
+  date?: string
   canManageImports: boolean
 }
 export function TrackDetailView({
@@ -40,8 +44,11 @@ export function TrackDetailView({
         </a>
       </main>
     )
+  const sourceDate = date ?? crossFitScheduledDate(Date.now())
   const imported = new Set(
-    days.flatMap((day) => day.workouts.map((workout) => workout.workoutId)),
+    [...days, ...selected].flatMap((day) =>
+      day.workouts.map((workout) => workout.workoutId),
+    ),
   )
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-8 space-y-8">
@@ -75,7 +82,7 @@ export function TrackDetailView({
               id="track-date"
               className="block min-h-11 w-full max-w-xs rounded-md border bg-background px-3"
               type="date"
-              value={date}
+              value={sourceDate}
               onChange={(e) => {
                 if (sourceDateSchema.safeParse(e.target.value).success)
                   onDateChange(e.target.value)
@@ -84,13 +91,13 @@ export function TrackDetailView({
           </label>
           <CrossFitTrackDays
             days={selected}
-            selectedDate={date}
+            selectedDate={sourceDate}
             onAdd={
               state.trainingAvailable
                 ? (ids) => {
                     const query = new URLSearchParams({
                       view: "training",
-                      date,
+                      date: sourceDate,
                       workoutIds: ids.join(","),
                     })
                     if (state.following) query.set("trackId", track.id)

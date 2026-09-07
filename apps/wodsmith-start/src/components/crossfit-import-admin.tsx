@@ -25,16 +25,22 @@ const previewSchema = z.object({
   normalized: crossFitConversionSchema,
 })
 type Preview = z.infer<typeof previewSchema>
-export function CrossFitImportAdmin() {
+type ImportRows = Awaited<ReturnType<typeof getCrossFitImportsFn>>
+export function CrossFitImportAdmin({
+  initialRows,
+}: {
+  initialRows?: ImportRows
+} = {}) {
   const load = useServerFn(getCrossFitImportsFn)
   const run = useServerFn(runCrossFitImportFn)
   const status = useServerFn(getCrossFitRunStatusFn)
-  const [rows, setRows] = useState<
-    Awaited<ReturnType<typeof getCrossFitImportsFn>>
-  >([])
+  const [rows, setRows] = useState<ImportRows>(initialRows ?? [])
   const [date, setDate] = useState(() => crossFitScheduledDate(Date.now()))
+  const [selectedRows, setSelectedRows] = useState<ImportRows>([])
+  const [selectedReady, setSelectedReady] = useState<string | null>(null)
   const generation = useRef(0)
   const [busy, setBusy] = useState(false)
+  const [activePublish, setActivePublish] = useState(false)
   const [error, setError] = useState("")
   const [runId, setRunId] = useState("")
   const [result, setResult] = useState<Awaited<
@@ -42,6 +48,7 @@ export function CrossFitImportAdmin() {
   > | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   useEffect(() => {
+    if (initialRows !== undefined) return
     let active = true
     load()
       .then((data) => {
@@ -53,8 +60,28 @@ export function CrossFitImportAdmin() {
     return () => {
       active = false
     }
-  }, [load])
+  }, [load, initialRows])
+  useEffect(() => {
+    let active = true
+    setSelectedRows([])
+    setSelectedReady(null)
+    if (!sourceDateSchema.safeParse(date).success) return
+    load({ data: { date } })
+      .then((data) => {
+        if (active) {
+          setSelectedRows(data)
+          setSelectedReady(date)
+        }
+      })
+      .catch((e: Error) => {
+        if (active) setError(e.message)
+      })
+    return () => {
+      active = false
+    }
+  }, [date, load])
   async function start(mode: "dry-run" | "publish") {
+    if (busy || activePublish) return
     const current = generation.current
     setBusy(true)
     setError("")
@@ -68,7 +95,10 @@ export function CrossFitImportAdmin() {
             mode === "publish" ? preview?.source.hash : undefined,
         },
       })
-      if (current === generation.current) setRunId(created.id)
+      if (current === generation.current) {
+        setRunId(created.id)
+        setActivePublish(mode === "publish")
+      }
     } catch (e) {
       if (current === generation.current)
         setError(e instanceof Error ? e.message : "Unable to start import")
@@ -77,6 +107,8 @@ export function CrossFitImportAdmin() {
     }
   }
   async function refresh() {
+    let completed = false
+    let needsReview = false
     const current = generation.current
     setBusy(true)
     setError("")
@@ -85,24 +117,51 @@ export function CrossFitImportAdmin() {
         const next = await status({ data: { id: runId } })
         if (current !== generation.current) return
         setResult(next)
+        completed = next.status === "complete"
+        if (["errored", "terminated"].includes(next.status))
+          setActivePublish(false)
         if (next.output) {
-          const output = previewSchema.safeParse(JSON.parse(next.output))
+          const parsed: unknown = JSON.parse(next.output)
+          needsReview =
+            completed &&
+            typeof parsed === "object" &&
+            parsed !== null &&
+            "status" in parsed &&
+            parsed.status === "needs_review"
+          const output = previewSchema.safeParse(parsed)
           if (output.success && output.data.date === date)
             setPreview(output.data)
         }
       }
-      const nextRows = await load()
-      if (current === generation.current) setRows(nextRows)
+      const [nextRows, selectedDateRows] = await Promise.all([
+        load(),
+        load({ data: { date } }),
+      ])
+      if (current === generation.current) {
+        setRows(nextRows)
+        setSelectedRows(selectedDateRows)
+        setSelectedReady(date)
+        if (
+          completed ||
+          selectedDateRows.some(
+            (row) => row.sourceDate === date && row.status === "published",
+          )
+        )
+          setActivePublish(false)
+        if (needsReview) setPreview(null)
+      }
     } catch (e) {
-      if (current === generation.current)
+      if (current === generation.current) {
+        setSelectedReady(null)
         setError(
           e instanceof Error ? e.message : "Unable to load import status",
         )
+      }
     } finally {
       if (current === generation.current) setBusy(false)
     }
   }
-  const published = rows.find(
+  const published = [...selectedRows, ...rows].find(
     (row) => row.sourceDate === date && row.status === "published",
   )
   return (
@@ -121,7 +180,7 @@ export function CrossFitImportAdmin() {
             id="crossfit-source-date"
             type="date"
             value={date}
-            disabled={busy}
+            disabled={busy || activePublish}
             onChange={(e) => {
               generation.current++
               setDate(e.target.value)
@@ -138,7 +197,9 @@ export function CrossFitImportAdmin() {
         <Button
           variant="outline"
           className="min-h-11"
-          disabled={busy || !sourceDateSchema.safeParse(date).success}
+          disabled={
+            busy || activePublish || !sourceDateSchema.safeParse(date).success
+          }
           onClick={() => start("dry-run")}
         >
           Preview import
@@ -149,9 +210,9 @@ export function CrossFitImportAdmin() {
           {error}
         </p>
       )}
-      {runId && (
+      {(runId || error) && (
         <section className="space-y-3">
-          <output>Import {result?.status ?? "started"}</output>
+          {runId && <output>Import {result?.status ?? "started"}</output>}
           {result?.error && <p role="alert">{result.error}</p>}
           <Button variant="outline" disabled={busy} onClick={refresh}>
             Refresh status
@@ -204,7 +265,7 @@ export function CrossFitImportAdmin() {
             </p>
             <Button
               className="min-h-11"
-              disabled={busy}
+              disabled={busy || activePublish || selectedReady !== date}
               onClick={() => start("publish")}
             >
               Publish date

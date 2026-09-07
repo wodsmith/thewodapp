@@ -334,7 +334,7 @@ it("opens an explicit track without changing the saved default", async () => {
   expect(saveTrainingPreferenceFn).not.toHaveBeenCalled()
 })
 
-// @lat: [[training-personal#Provider Source Snapshots#Multiple component consent]]
+// @lat: [[training-personal#Verification#Multiple component consent]]
 it("cancels a multi-workout request without writes, then retains it after a failed atomic save", async () => {
   const props = {
     team: context.teams[0],

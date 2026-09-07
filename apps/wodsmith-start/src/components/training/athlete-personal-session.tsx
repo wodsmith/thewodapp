@@ -330,8 +330,8 @@ export function AthletePersonalSession({
               : "Selected library workout"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            It will be added to {team.name} on {providerDateLabel(date)}. Its
-            original scoring format stays available.
+            Add to {team.name} on {providerDateLabel(date)}. The original
+            scoring format stays available.
           </p>
           {libraryError ? (
             <p role="alert" className="text-sm text-destructive">

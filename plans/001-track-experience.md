@@ -153,7 +153,7 @@ Only change the following application surfaces and their direct tests. Documenta
 - Types: `src/lib/training/types.ts`, `personal-types.ts`; source date helpers in `src/lib/crossfit/source.ts` only if needed for reuse, and `src/lib/crossfit/display.ts` for shared date/scoring labels, without changing cron semantics.
 - Workflow preview binding: `src/workflows/crossfit-daily-import-workflow.ts` and its direct tests may accept an optional expected source hash and reject changed content before publication. Preserve cron behavior and the existing publication transaction.
 - Shared snapshot typing: `packages/wodsmith-db/src/schemas/training-personal.ts` adds optional provider provenance to existing JSON item/result types; no DDL or migration.
-- New tests: `test/components/track-experience.test.tsx`, `test/components/crossfit-import-admin.test.tsx`, `test/server-fns/track-follow.test.ts`, `test/server-fns/crossfit-import-admin-auth.test.ts`, `src/server/training-provider.test.ts`.
+- New tests: `test/components/track-experience.test.tsx`, `test/components/track-preview-fixtures.test.ts`, `test/components/crossfit-import-admin.test.tsx`, `test/server-fns/track-follow.test.ts`, `test/server-fns/crossfit-import-admin-auth.test.ts`, `src/server/training-provider.test.ts`.
 - Existing tests: `test/components/crossfit-track-days.test.tsx`, `test/server-fns/crossfit-track-mutations.test.ts`, `test/components/training/athlete-training.test.tsx`, `src/server/training-personal.test.ts` and directly associated preview fixtures under `test/preview/training/`.
 - Documentation: `lat.md/crossfit-import.md`, `lat.md/training.md`, `lat.md/training-personal.md`, this plan and its index.
 
@@ -205,7 +205,7 @@ These commands come from the current package scripts. Use existing installed dep
 | Schema ownership | `pnpm check:schema-ownership` | Exit 0 |
 | Architecture links | `lat check` | All checks passed |
 | Whitespace | `git diff --check` | Exit 0 |
-| Design detector | `node /Users/zacjones/.agents/skills/impeccable/scripts/detect.mjs --json <changed-UI-files>` | Run once after UI implementation; resolve applicable findings |
+| Design detector (set `IMPECCABLE_SKILL_DIR` to your installed Impeccable skill directory) | `node "$IMPECCABLE_SKILL_DIR/scripts/detect.mjs" --json <changed-UI-files>` | Run once after UI implementation; resolve applicable findings |
 
 DB verification uses an explicitly supplied disposable local `training_test` database through `TRAINING_TEST_DATABASE_URL`, following `src/server/training-personal.test.ts`. Never use the default localhost proxy without verifying its destination; it may proxy production. No credentials belong in this plan or logs.
 
@@ -240,7 +240,7 @@ Future providers must supply dated publication and rich component identities rat
 
 ## Implementation review
 
-The approved flow is implemented in `/tmp/wodsmith-track-experience` on `codex/track-experience`, based on `18bfd7f8b`. The reviewer approved the scoped implementation after independent functional, visual, and regression verification.
+The approved flow is implemented on `codex/track-experience`, based on `18bfd7f8b`. The reviewer approved the scoped implementation after independent functional, visual, and regression verification.
 
 The reader leads with dated programming; personal Follow and eligible gym-library actions are separate. Admin operations have their own server-protected destination and same-date, hash-bound preview. Training projects provider days without creating coach sessions; explicit additions preserve scoring, performed/source dates, and snapshots after unfollowing or provider removal. Personal ownership does not expose gym coaching controls. Failed track reads discard stale visible source data and retain a retry for the selected context.
 

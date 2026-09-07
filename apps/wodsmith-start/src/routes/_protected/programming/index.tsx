@@ -58,7 +58,13 @@ function PublicProgrammingPage() {
           </li>
         ))}
       </ul>
-      {!matches.length && <p>No tracks match this search.</p>}
+      {!matches.length && (
+        <p>
+          {tracks.length
+            ? "No tracks match this search."
+            : "No public tracks are available yet."}
+        </p>
+      )}
     </main>
   )
 }

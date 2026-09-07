@@ -6,21 +6,32 @@ export const Route = createFileRoute("/_protected/admin/programming/$trackId/")(
   {
     loader: async ({ params }) => {
       if (params.trackId !== CROSSFIT_TRACK_ID) throw notFound()
-      await getCrossFitImportsFn()
+      return getCrossFitImportsFn()
     },
     component: CrossFitAdminPage,
   },
 )
 function CrossFitAdminPage() {
+  const rows = Route.useLoaderData()
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-8">
       <nav aria-label="Breadcrumb" className="mb-6 text-sm">
-        Admin / Programming / CrossFit.com
+        <a className="underline" href="/admin">
+          Admin
+        </a>{" "}
+        /{" "}
+        <a className="underline" href="/admin/teams/programming">
+          Programming
+        </a>{" "}
+        /{" "}
+        <a className="underline" href="/programming/ptrk_crossfit_dotcom">
+          CrossFit.com
+        </a>
       </nav>
       <h1 className="mb-8 text-3xl font-semibold">
         Admin · CrossFit.com imports
       </h1>
-      <CrossFitImportAdmin />
+      <CrossFitImportAdmin initialRows={rows} />
     </main>
   )
 }

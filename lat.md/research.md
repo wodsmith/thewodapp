@@ -38,7 +38,7 @@ The approved track experience separates athlete following, gym-library access, a
 
 The handoff is `plans/001-track-experience.md`. It specifies a workout-first reader, an explicitly labeled Admin destination, eligible gym selection, calendar-safe dates, and provider provenance in personal library snapshots. The user approved personal following and separate gym-library actions on September 6, 2026.
 
-Implementation is on `codex/track-experience` in `/tmp/wodsmith-track-experience`, pending release. The [[crossfit-import]] ledger supplies published source dates; [[training#Training#Session Model]] and [[training-personal]] preserve coach ownership, explicit personal composition, and rich scoring.
+Implementation is on `codex/track-experience`, pending release. The [[crossfit-import]] ledger supplies published source dates; [[training#Training#Session Model]] and [[training-personal]] preserve coach ownership, explicit personal composition, and rich scoring.
 
 ## Benchmark Competition Workout Directory
 
