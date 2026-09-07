@@ -42,6 +42,11 @@ import {
 } from "@/db/schemas/workouts"
 import { DEFAULT_SCORE_TYPES } from "@/lib/scoring/constants"
 import { normalizedWorkoutSaveSchema } from "@/lib/workout-import"
+import {
+  requireTrackRead,
+  requireTrainingTeamMember,
+  workoutVisibilityCondition,
+} from "@/server/training-access"
 import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
 import {
   insertWorkoutWithMovements,
@@ -153,6 +158,8 @@ export const getWorkoutsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const validatedData = data as GetWorkoutsInput
     const db = getDb()
+    await requireTrainingTeamMember(data.teamId)
+    if (data.trackId) await requireTrackRead(data.trackId)
     const offset = (validatedData.page - 1) * validatedData.pageSize
 
     // Determine which joins we need based on filters
@@ -360,7 +367,7 @@ export const getWorkoutByIdFn = createServerFn({ method: "GET" })
         updatedAt: workouts.updatedAt,
       })
       .from(workouts)
-      .where(eq(workouts.id, data.id))
+      .where(and(eq(workouts.id, data.id), await workoutVisibilityCondition()))
       .limit(1)
 
     if (!workout[0]) {
@@ -591,6 +598,20 @@ export const scheduleWorkoutFn = createServerFn({ method: "POST" })
       throw new Error("Not authenticated")
     }
 
+    await requireWorkoutTeamWrite(
+      session.userId,
+      data.teamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+      db,
+    )
+    const workout = await db.query.workouts.findFirst({
+      where: and(
+        eq(workouts.id, data.workoutId),
+        or(eq(workouts.teamId, data.teamId), eq(workouts.scope, "public")),
+      ),
+    })
+    if (!workout) throw new Error("Workout unavailable for this team")
+
     // Parse the date and normalize to noon UTC to avoid timezone boundary issues
     const scheduledDate = new Date(data.scheduledDate)
     scheduledDate.setUTCHours(12, 0, 0, 0)
@@ -647,6 +668,7 @@ export const getScheduledWorkoutsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    await requireTrainingTeamMember(data.teamId)
 
     const startDate = new Date(data.startDate)
     const endDate = new Date(data.endDate)
@@ -656,7 +678,7 @@ export const getScheduledWorkoutsFn = createServerFn({ method: "GET" })
       .select({
         id: scheduledWorkoutInstancesTable.id,
         scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
-        workoutId: scheduledWorkoutInstancesTable.workoutId,
+        workoutId: workouts.id,
         workoutName: workouts.name,
         workoutDescription: workouts.description,
         workoutScheme: workouts.scheme,
@@ -664,7 +686,10 @@ export const getScheduledWorkoutsFn = createServerFn({ method: "GET" })
       .from(scheduledWorkoutInstancesTable)
       .leftJoin(
         workouts,
-        eq(scheduledWorkoutInstancesTable.workoutId, workouts.id),
+        and(
+          eq(scheduledWorkoutInstancesTable.workoutId, workouts.id),
+          await workoutVisibilityCondition(),
+        ),
       )
       .where(
         and(
@@ -752,6 +777,7 @@ export const getWorkoutScheduledInstancesFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    await requireTrainingTeamMember(data.teamId)
 
     const instances = await db
       .select({
@@ -778,6 +804,7 @@ export const getScheduledWorkoutsWithResultsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    await requireTrainingTeamMember(data.teamId)
 
     const startDate = new Date(data.startDate)
     const endDate = new Date(data.endDate)
@@ -787,7 +814,7 @@ export const getScheduledWorkoutsWithResultsFn = createServerFn({
       .select({
         id: scheduledWorkoutInstancesTable.id,
         scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
-        workoutId: scheduledWorkoutInstancesTable.workoutId,
+        workoutId: workouts.id,
         workoutName: workouts.name,
         workoutDescription: workouts.description,
         workoutScheme: workouts.scheme,
@@ -795,7 +822,10 @@ export const getScheduledWorkoutsWithResultsFn = createServerFn({
       .from(scheduledWorkoutInstancesTable)
       .leftJoin(
         workouts,
-        eq(scheduledWorkoutInstancesTable.workoutId, workouts.id),
+        and(
+          eq(scheduledWorkoutInstancesTable.workoutId, workouts.id),
+          await workoutVisibilityCondition(),
+        ),
       )
       .where(
         and(
@@ -1086,6 +1116,7 @@ export const getWorkoutFilterOptionsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    await requireTrainingTeamMember(data.teamId)
 
     // Verify authentication
     const session = await getSessionFromCookie()

@@ -10,11 +10,13 @@ import type { ProgrammingTrackWithOwner } from "@/server-fns/programming-fns"
 interface TrackHeaderProps {
   track: ProgrammingTrackWithOwner
   onSuccess?: () => void
+  canManage?: boolean
 }
 
 export function TrackHeader({
   track: initialTrack,
   onSuccess,
+  canManage = false,
 }: TrackHeaderProps) {
   const [track, setTrack] = useState(initialTrack)
 
@@ -44,22 +46,24 @@ export function TrackHeader({
           </p>
         )}
       </div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-        <ProgrammingTrackEditDialog
-          track={track}
-          trigger={
-            <Button variant="outline" size="sm">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit track
-            </Button>
-          }
-          onSuccess={handleEditSuccess}
-        />
-        <TrackVisibilitySelector
-          track={track}
-          onVisibilityChange={handleVisibilityChange}
-        />
-      </div>
+      {canManage && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <ProgrammingTrackEditDialog
+            track={track}
+            trigger={
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit track
+              </Button>
+            }
+            onSuccess={handleEditSuccess}
+          />
+          <TrackVisibilitySelector
+            track={track}
+            onVisibilityChange={handleVisibilityChange}
+          />
+        </div>
+      )}
     </div>
   )
 }

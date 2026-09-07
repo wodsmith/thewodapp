@@ -5,10 +5,10 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, desc, eq, inArray, or } from "drizzle-orm"
+import { and, count, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import {
   movements,
   tags,
@@ -16,6 +16,8 @@ import {
   workouts,
   workoutTags,
 } from "@/db/schemas/workouts"
+import { workoutVisibilityCondition } from "@/server/training-access"
+import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // Input validation schemas
@@ -71,16 +73,6 @@ export const getRemixedWorkoutsFn = createServerFn({ method: "GET" })
       throw new Error("Not authenticated")
     }
 
-    const userId = session.userId
-
-    // Get user's team IDs for access filtering
-    const userMemberships = await db
-      .select({ teamId: teamMembershipTable.teamId })
-      .from(teamMembershipTable)
-      .where(eq(teamMembershipTable.userId, userId))
-
-    const userTeamIds = userMemberships.map((m) => m.teamId)
-
     // Get remixed workouts with team names
     // Filter to only show public remixes or remixes from teams the user has access to
     const remixedWorkouts = await db
@@ -100,13 +92,7 @@ export const getRemixedWorkoutsFn = createServerFn({ method: "GET" })
       .where(
         and(
           eq(workouts.sourceWorkoutId, data.sourceWorkoutId),
-          // Only show public remixes or remixes from user's teams
-          userTeamIds.length > 0
-            ? or(
-                eq(workouts.scope, "public"),
-                inArray(workouts.teamId, userTeamIds),
-              )
-            : eq(workouts.scope, "public"),
+          await workoutVisibilityCondition(),
         ),
       )
       .orderBy(desc(workouts.updatedAt))
@@ -136,7 +122,12 @@ export const getSourceWorkoutFn = createServerFn({ method: "GET" })
           sourceWorkoutId: workouts.sourceWorkoutId,
         })
         .from(workouts)
-        .where(eq(workouts.id, data.workoutId))
+        .where(
+          and(
+            eq(workouts.id, data.workoutId),
+            await workoutVisibilityCondition(),
+          ),
+        )
         .limit(1)
 
       if (!workout?.sourceWorkoutId) {
@@ -153,7 +144,12 @@ export const getSourceWorkoutFn = createServerFn({ method: "GET" })
         })
         .from(workouts)
         .leftJoin(teamTable, eq(workouts.teamId, teamTable.id))
-        .where(eq(workouts.id, workout.sourceWorkoutId))
+        .where(
+          and(
+            eq(workouts.id, workout.sourceWorkoutId),
+            await workoutVisibilityCondition(),
+          ),
+        )
         .limit(1)
 
       if (!source) {
@@ -188,7 +184,12 @@ export const getRemixCountFn = createServerFn({ method: "GET" })
     const [result] = await db
       .select({ count: count() })
       .from(workouts)
-      .where(eq(workouts.sourceWorkoutId, data.workoutId))
+      .where(
+        and(
+          eq(workouts.sourceWorkoutId, data.workoutId),
+          await workoutVisibilityCondition(),
+        ),
+      )
 
     return { count: result?.count || 0 }
   })
@@ -208,49 +209,27 @@ export const createWorkoutRemixFn = createServerFn({ method: "POST" })
       throw new Error("Not authenticated")
     }
 
-    // Validate that the user is a member of the target team
-    const [membership] = await db
-      .select()
-      .from(teamMembershipTable)
-      .where(
-        and(
-          eq(teamMembershipTable.teamId, data.teamId),
-          eq(teamMembershipTable.userId, session.userId),
-        ),
-      )
-      .limit(1)
-
-    if (!membership) {
-      throw new Error("You are not authorized to create workouts for this team")
-    }
+    await requireWorkoutTeamWrite(
+      session.userId,
+      data.teamId,
+      TEAM_PERMISSIONS.CREATE_COMPONENTS,
+      db,
+    )
 
     // Get the source workout
     const [sourceWorkout] = await db
       .select()
       .from(workouts)
-      .where(eq(workouts.id, data.sourceWorkoutId))
+      .where(
+        and(
+          eq(workouts.id, data.sourceWorkoutId),
+          await workoutVisibilityCondition(),
+        ),
+      )
       .limit(1)
 
     if (!sourceWorkout) {
       throw new Error("Source workout not found")
-    }
-
-    // Check if user can view the source workout
-    // User can view if: it's public OR they belong to the workout's team
-    const userMemberships = await db
-      .select({ teamId: teamMembershipTable.teamId })
-      .from(teamMembershipTable)
-      .where(eq(teamMembershipTable.userId, session.userId))
-
-    const userTeamIds = userMemberships.map((m) => m.teamId)
-
-    const canViewSource =
-      sourceWorkout.scope === "public" ||
-      sourceWorkout.teamId === data.teamId ||
-      (sourceWorkout.teamId && userTeamIds.includes(sourceWorkout.teamId))
-
-    if (!canViewSource) {
-      throw new Error("You don't have permission to view the source workout")
     }
 
     // Get source workout's tags and movements
@@ -380,7 +359,12 @@ export const getWorkoutRemixInfoFn = createServerFn({ method: "GET" })
           sourceWorkoutId: workouts.sourceWorkoutId,
         })
         .from(workouts)
-        .where(eq(workouts.id, data.workoutId))
+        .where(
+          and(
+            eq(workouts.id, data.workoutId),
+            await workoutVisibilityCondition(),
+          ),
+        )
         .limit(1)
 
       if (!workout) {
@@ -400,14 +384,24 @@ export const getWorkoutRemixInfoFn = createServerFn({ method: "GET" })
               })
               .from(workouts)
               .leftJoin(teamTable, eq(workouts.teamId, teamTable.id))
-              .where(eq(workouts.id, workout.sourceWorkoutId))
+              .where(
+                and(
+                  eq(workouts.id, workout.sourceWorkoutId),
+                  await workoutVisibilityCondition(),
+                ),
+              )
               .limit(1)
           : Promise.resolve([]),
         // Get remix count
         db
           .select({ count: count() })
           .from(workouts)
-          .where(eq(workouts.sourceWorkoutId, data.workoutId)),
+          .where(
+            and(
+              eq(workouts.sourceWorkoutId, data.workoutId),
+              await workoutVisibilityCondition(),
+            ),
+          ),
       ])
 
       const source = sourceWorkoutResult[0]
