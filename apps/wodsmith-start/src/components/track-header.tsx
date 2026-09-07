@@ -16,14 +16,15 @@ export function TrackHeader({
   track: initialTrack,
   onSuccess,
 }: TrackHeaderProps) {
-  const [track, setTrack] = useState(initialTrack)
+  const [visibility, setVisibility] = useState<boolean | null>(null)
+  const track = {
+    ...initialTrack,
+    isPublic: visibility === null ? initialTrack.isPublic : visibility ? 1 : 0,
+  }
 
   const handleVisibilityChange = (isPublic: boolean) => {
     // Update local state when visibility changes
-    setTrack((prev) => ({
-      ...prev,
-      isPublic: isPublic ? 1 : 0,
-    }))
+    setVisibility(isPublic)
   }
 
   const handleEditSuccess = () => {

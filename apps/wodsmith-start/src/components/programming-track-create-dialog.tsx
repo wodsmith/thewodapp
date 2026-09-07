@@ -75,6 +75,7 @@ export function ProgrammingTrackCreateDialog({
   })
 
   const onSubmit = async (data: FormValues) => {
+    form.clearErrors("root")
     try {
       await createProgrammingTrackFn({
         data: {
@@ -91,6 +92,12 @@ export function ProgrammingTrackCreateDialog({
       dialogCloseRef.current?.click()
       onSuccess?.()
     } catch (error) {
+      form.setError("root", {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to create programming track. Please try again.",
+      })
       console.error(
         "Failed to create programming track:",
         error instanceof Error ? error.message : error,
@@ -174,6 +181,12 @@ export function ProgrammingTrackCreateDialog({
                 </FormItem>
               )}
             />
+
+            {form.formState.errors.root && (
+              <p role="alert" className="text-sm text-destructive">
+                {form.formState.errors.root.message}
+              </p>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <DialogClose ref={dialogCloseRef} asChild>
