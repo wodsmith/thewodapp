@@ -17,6 +17,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[research]] — Product, market, and workflow research notes
 - [[tests]] — Executable characterization and regression specifications
 - [[gameday]] — Native iOS athlete schedules, spectator browsing, secure sessions, and heat reminders.
+- [[calculators]] — Barbell unit boundaries, attainable loads, warm-up rounding, and accessible calculator tests
 - [[training]] — Implemented gym training, versioned results, draft publication, permissions, and interface tests
 - [[workout-authoring]] — Shared production workout fields, context boundaries, and consumer reuse tests
 - [[authoring-series-review]] — Series creation field fidelity and post-create refresh recovery
