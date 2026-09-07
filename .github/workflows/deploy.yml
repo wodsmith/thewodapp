@@ -204,7 +204,7 @@ jobs:
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
-          NODE_OPTIONS: --max-old-space-size=5120
+          NODE_OPTIONS: --max-old-space-size=8192
           STAGE: ${{ env.STAGE }}
           DATABASE_URL: ${{ env.DATABASE_URL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -298,7 +298,7 @@ jobs:
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
-          NODE_OPTIONS: --max-old-space-size=5120
+          NODE_OPTIONS: --max-old-space-size=8192
           STAGE: demo
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
