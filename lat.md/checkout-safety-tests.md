@@ -81,3 +81,15 @@ Checking again can confirm newly completed participation after a timeout. Switch
 ## Missing loaded registration stays unconfirmed
 
 The confirmation banner stays hidden until the active registration proved by the checkout is also present in the page's loaded participation.
+
+## Cancellation failure preserves registration loading
+
+Stripe cancellation failures cannot abort the registration loader. The page still loads division, waiver, question, and invitation context while settlement or expiry retains responsibility for pending holds.
+
+## Cancellation return still releases owned checkout
+
+Successful cancellation still releases the specified owned checkout and allows registration data to finish loading.
+
+## Auckland daylight-saving boundary
+
+Opening and closing guards agree with display availability across Auckland's September spring-forward day, whose midnight boundaries are only 23 hours apart.

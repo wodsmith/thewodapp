@@ -326,13 +326,18 @@ export const Route = createFileRoute("/compete/$slug/register")({
 
     // 2.5. If user canceled from Stripe, release their reservation immediately
     if (canceled === "true" && purchaseId) {
-      await cancelPendingPurchaseFn({
-        data: {
-          userId: session.userId,
-          competitionId: competition.id,
-          purchaseId,
-        },
-      })
+      try {
+        await cancelPendingPurchaseFn({
+          data: {
+            userId: session.userId,
+            competitionId: competition.id,
+            purchaseId,
+          },
+        })
+      } catch {
+        // Cancellation is best-effort. Keep rendering the form if Stripe is
+        // unavailable or payment won the race; settlement/expiry owns the hold.
+      }
     }
 
     // 3. Parallel fetch: existing registrations, affiliate name, waivers,

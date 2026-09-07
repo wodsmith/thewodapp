@@ -370,28 +370,10 @@ describe("Division Reservation System", () => {
 				expect(mockDb.update).toHaveBeenCalled()
 			})
 
-			it("should only cancel PENDING status purchases", async () => {
-				mockDb.setMockReturnValue([{ sessionId: "cs_owned" }])
-				await cancelPendingPurchaseFn({
-					data: {
-						purchaseId: testPurchaseId1,
-						userId: testUserId,
-						competitionId: testCompetitionId,
-					},
-				})
-
-				// Verify the where clause includes status check
-				expect(mockDb.update).toHaveBeenCalled()
-				// The actual SQL verification would require inspecting the where clause
-				// which FakeDrizzleDb tracks via the where spy
-			})
 		})
 
-		// Note: True isolation testing would require a real database or more
-		// sophisticated mocking that can verify where clause arguments.
-		// The where clause in cancelPendingPurchaseFn filters by userId,
-		// competitionId, checkout session, and PENDING status. checkout-safety.test.ts
-		// exercises the actual predicates against real rows.
+		// checkout-safety.test.ts exercises owner, competition, session, and
+		// PENDING predicates against real rows, including completed purchases.
 	})
 
 	describe("getPublicCompetitionDivisionsFn", () => {

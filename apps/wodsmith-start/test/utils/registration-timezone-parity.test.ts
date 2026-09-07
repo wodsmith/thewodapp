@@ -31,3 +31,27 @@ it.each([
   expect(visible).toBe(expected)
   expect(accepted).toBe(expected)
 })
+
+// @lat: [[checkout-safety-tests#Checkout Safety Tests#Auckland daylight-saving boundary]]
+it.each<[string, boolean]>([
+  ["2026-09-26T11:59:59Z", false],
+  ["2026-09-26T12:00:00Z", true],
+  ["2026-09-27T10:59:59Z", true],
+  ["2026-09-27T11:00:00Z", false],
+])(
+  "agrees across Auckland's 23-hour registration day at %s",
+  (now, expected) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(now))
+    const day = "2026-09-27"
+    const timezone = "Pacific/Auckland"
+    expect(
+      getRegistrationWindowStatus({ opensAt: day, closesAt: day, timezone })
+        .registrationOpen,
+    ).toBe(expected)
+    expect(
+      hasDateStartedInTimezone(day, timezone) &&
+        !isDeadlinePassedInTimezone(day, timezone),
+    ).toBe(expected)
+  },
+)
