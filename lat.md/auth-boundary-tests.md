@@ -20,7 +20,7 @@ Profile updates require an authenticated user and never change another account b
 
 ## Verification redirect cancellation
 
-Leaving the successful verification page cancels its delayed sign-in redirect so it cannot override later navigation.
+Leaving ordinary token verification cancels its delayed sign-in redirect, including when the route also supports separate volunteer confirmation codes.
 
 ## Late verification completion
 

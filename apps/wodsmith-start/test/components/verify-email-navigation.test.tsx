@@ -19,6 +19,7 @@ vi.mock("@/server-fns/auth-fns", async () => ({
   verifyEmailFn: vi.fn(),
   verifyEmailSchema: (await import("@/schemas/auth.schema")).verifyEmailSchema,
 }))
+vi.mock("@/server-fns/volunteer-fns", () => ({ confirmVolunteerSignupFn: vi.fn() }))
 const Page = Route.options.component as ComponentType
 
 describe("verification navigation", () => {
