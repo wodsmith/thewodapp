@@ -1,3 +1,4 @@
+vi.mock("@/components/workout-import/workout-import-entry", () => ({ WorkoutImportEntry: () => null }))
 import {
   act,
   cleanup,

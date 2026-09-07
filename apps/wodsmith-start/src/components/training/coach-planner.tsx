@@ -6,7 +6,7 @@ import {
   ChevronRight,
   Plus,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
+import { libraryWorkoutToBlock } from "@/lib/training/library-block"
 import type {
   TrainingBlock,
   TrainingBlockKind,
@@ -43,6 +45,7 @@ import {
   publishTrainingSessionFn,
   saveTrainingDraftFn,
 } from "@/server-fns/training-fns"
+import { getTrainingLibraryWorkoutFn } from "@/server-fns/training-personal-fns"
 import { cn } from "@/utils/cn"
 import { CoachLibraryPicker } from "./coach-library-picker"
 import { CoachSessionPreview, coachBlockLabels } from "./coach-session-preview"
@@ -584,6 +587,22 @@ function CoachDayEditor({
   const [deleteBlock, setDeleteBlock] = useState<string | null>(null)
   const [editingBlock, setEditingBlock] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const importContextKey = JSON.stringify([team.id, trainingDate, trackId])
+  const importContext = useMemo(
+    () => ({ key: importContextKey, active: true }),
+    [importContextKey],
+  )
+  const currentImportContext = useRef(importContext)
+  currentImportContext.current = importContext
+  useEffect(() => {
+    importContext.active = true
+    return () => {
+      importContext.active = false
+    }
+  }, [importContext])
+  const currentContent = useRef(content)
+  currentContent.current = content
   const [copyDate, setCopyDate] = useState(shiftDate(trainingDate, 1))
   const [copyTrack, setCopyTrack] = useState(trackId)
   const [copyError, setCopyError] = useState("")
@@ -605,8 +624,8 @@ function CoachDayEditor({
     onDirtyChange(dirty)
   }, [dirty, onDirtyChange])
   useEffect(() => {
-    onBusyChange(busy)
-  }, [busy, onBusyChange])
+    onBusyChange(busy || importOpen)
+  }, [busy, importOpen, onBusyChange])
   useEffect(() => {
     if (editingBlock)
       document.getElementById(`coach-title-${editingBlock}`)?.focus()
@@ -1018,6 +1037,46 @@ function CoachDayEditor({
               onOpenChange={setLibraryOpen}
               disabled={busy || content.blocks.length >= 20}
               onAdd={(block) => {
+                setContent((current) => ({
+                  ...current,
+                  isRestDay: false,
+                  blocks: [...current.blocks, block],
+                }))
+                setEditingBlock(block.id)
+              }}
+            />
+            <WorkoutImportEntry
+              key={importContextKey}
+              destination={{ kind: "personal" }}
+              saveLabel="Create and add to draft"
+              disabled={busy || libraryOpen || content.blocks.length >= 20}
+              onOpenChange={setImportOpen}
+              onSaved={async (result, signal) => {
+                const workout = await getTrainingLibraryWorkoutFn({
+                  data: { teamId: team.id, workoutId: result.workoutId },
+                })
+                if (
+                  signal.aborted ||
+                  !importContext.active ||
+                  currentImportContext.current !== importContext
+                ) {
+                  throw new Error(
+                    "The selected session changed. Your workout is saved in the library; add it from there to the intended day.",
+                  )
+                }
+                if (currentContent.current.blocks.length >= 20) {
+                  throw new Error(
+                    "This session already has 20 sections. Your workout is saved in the library; remove a section before adding it.",
+                  )
+                }
+                let block: TrainingBlock
+                try {
+                  block = libraryWorkoutToBlock(workout, crypto.randomUUID())
+                } catch (cause) {
+                  throw new Error(
+                    `${cause instanceof Error ? cause.message : "This workout cannot be added to a session."} Your workout is saved in the library.`,
+                  )
+                }
                 setContent((current) => ({
                   ...current,
                   isRestDay: false,
