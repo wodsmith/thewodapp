@@ -22,6 +22,8 @@ export interface CompetitionResultClaim {
 }
 
 export interface RecordCompetitionResultCommand {
+  /** Known competition context; omit only for standalone programmed workouts. */
+  competitionId?: string
   athleteUserId: string
   trackWorkoutId: string
   divisionScope: DivisionScope

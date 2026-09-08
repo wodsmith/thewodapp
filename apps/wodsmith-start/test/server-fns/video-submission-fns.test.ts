@@ -1,3 +1,15 @@
+// Registration locking and stale snapshots are exercised against real MySQL
+// in purchase-transfer-transactions.test.ts; these tests isolate score adapters.
+vi.mock(
+  "@/server/competition-results/registration-lock",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/server/competition-results/registration-lock")
+    >()),
+    lockRegistrationForResult: vi.fn().mockResolvedValue(undefined),
+  }),
+)
+
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { FakeDrizzleDb } from "@repo/test-utils"
 import {
@@ -226,6 +238,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockDb.reset()
+        ;(mockDb.getChainMock().for as ReturnType<typeof vi.fn>).mockReturnValue({
+          limit: vi.fn().mockResolvedValue([]),
+        })
 		// Reset to authenticated session
 		setMockSession(mockAuthenticatedSession)
 	})
@@ -655,6 +670,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
 			const existingSubmission = createTestVideoSubmission({ id: "sub-existing" })
+            ;(mockDb.getChainMock().for as ReturnType<typeof vi.fn>).mockReturnValue({
+              limit: vi.fn().mockResolvedValue([existingSubmission]),
+            })
 			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
 			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 

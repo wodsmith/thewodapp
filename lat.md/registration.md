@@ -159,6 +159,22 @@ Organizers can move a registration between divisions via `transferRegistrationDi
 
 Validates same team size between source and target divisions (individual-to-team blocked). Updates the registration's `divisionId`, removes heat assignments (division-specific), and updates the commerce purchase record. Does not enforce capacity (organizer decision).
 
+A division move is blocked when the registration's captain or teammates have recorded results in the current division (including a null division). The server checks inside the write transaction, preserves every score, and asks the organizer to contact support to agree on a results policy. Results in other divisions do not block an otherwise valid move. See [[transfer-integrity-tests#Scored division moves]] and [[transfer-integrity-tests#Unscored division moves]].
+
+### Concurrent submissions
+
+Division moves and result writers serialize on the active registration row, then validate its current owner, division, and team participation before changing results or evidence.
+
+[[apps/wodsmith-start/src/server/competition-results/registration-lock.ts#lockRegistrationForResult]] discovers candidate registration IDs, locks each by primary key with `FOR UPDATE`, and validates current state after waiting. Teammate membership is also a current locking read. This rejects stale pretransaction input and old REPEATABLE READ snapshots. Locking the changing division index instead can deadlock with a move, so discovery does not lock that index range.
+
+Known competition context travels through every canonical command and writer target; a workout linked to multiple competitions cannot be resolved without it. The lock validates that the workout belongs to that competition. Unbound ambiguous lookups reject instead of choosing a first row.
+
+Physical scores still use athlete, track workout and null-aware division without a competition ID. Before writing, [[apps/wodsmith-start/src/server/competition-results/registration-lock.ts#assertUnambiguousResultOwnership]] checks other competitions for possible ownership through registrations of any status, captain identity, memberships of any status, or completed purchase transfers. Current locking reads include stored historical participation. An ambiguous tuple rejects with a support message instead of overwriting a shared legacy result. Distinct athletes and divisions remain supported. Independent competition-owned scores require a separate domain decision; this guard adds no history or schema.
+
+Writers acquire registration before score, rounds, and video mutations. Canonical and organizer manual result persistence, benchmark retained-best writes, the score and video APIs, and legacy video-only submission all use this protocol. Unlinked programmed workouts retain non-competition persistence support. API writers return 409 on changed or ambiguous registration ownership. Video writers refresh the exact slot with a current read after result and round writes; waiting first submissions reuse its ID instead of inserting from stale absence.
+
+The division-transfer transaction takes the registration lock before its first score snapshot, so it sees a winning writer's committed result. A winning move changes the division before a waiting writer revalidates it; that writer rolls back without score, round, or video changes. Acceptance also validates the registration with a current locking read before membership and result mutations. See [[transfer-integrity-tests#Transfer integrity#Concurrent score wins]], [[transfer-integrity-tests#Transfer integrity#Concurrent division move wins]], and [[transfer-integrity-tests#Transfer integrity#Stale submission snapshots]].
+
 ## Day-of Check-In
 
 In-person competitions can mark teams as physically arrived via the volunteer-facing kiosk at `/compete/{slug}/check-in`.

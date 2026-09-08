@@ -1,7 +1,19 @@
+// Registration locking and stale snapshots are exercised against real MySQL
+// in purchase-transfer-transactions.test.ts; these tests isolate score adapters.
+vi.mock(
+  "@/server/competition-results/registration-lock",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/server/competition-results/registration-lock")
+    >()),
+    lockRegistrationForResult: vi.fn().mockResolvedValue(undefined),
+  }),
+)
+
+import { FakeDrizzleDb } from "@repo/test-utils"
 import type { SQL } from "drizzle-orm"
 import { MySqlDialect } from "drizzle-orm/mysql-core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { FakeDrizzleDb } from "@repo/test-utils"
 import { scoresTable } from "@/db/schemas/scores"
 
 const mockDb = new FakeDrizzleDb()
@@ -17,8 +29,7 @@ vi.mock("@/server/benchmark-submissions", () => ({
 
 vi.mock("@/utils/bearer-auth", () => ({
   corsHeaders: vi.fn(() => ({ "Access-Control-Allow-Origin": "*" })),
-  getSessionFromBearerOrCookie: (...args: unknown[]) =>
-    mockGetSession(...args),
+  getSessionFromBearerOrCookie: (...args: unknown[]) => mockGetSession(...args),
 }))
 
 vi.mock("@tanstack/react-router", () => ({
@@ -67,15 +78,17 @@ function validBody(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function arrangeSuccessfulWrite(options: {
-  divisionId?: string | null
-  workout?: {
-    scheme: string
-    scoreType: string | null
-    tiebreakScheme: string | null
-    timeCap: number | null
-  }
-} = {}) {
+function arrangeSuccessfulWrite(
+  options: {
+    divisionId?: string | null
+    workout?: {
+      scheme: string
+      scoreType: string | null
+      tiebreakScheme: string | null
+      timeCap: number | null
+    }
+  } = {},
+) {
   const limit = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
   const now = Date.now()
   limit
@@ -133,7 +146,9 @@ describe("mobile score submit route characterization", () => {
     mockGetSession.mockResolvedValueOnce(null)
     const unauthorized = await post({ request: request(validBody()) })
     expect(unauthorized.status).toBe(401)
-    await expect(unauthorized.json()).resolves.toEqual({ error: "Unauthorized" })
+    await expect(unauthorized.json()).resolves.toEqual({
+      error: "Unauthorized",
+    })
 
     mockGetSession.mockResolvedValueOnce({ userId: "athlete-1" })
     const invalidJson = await post({
@@ -165,7 +180,9 @@ describe("mobile score submit route characterization", () => {
     })
 
     mockDb.reset()
-    ;(mockDb.getChainMock().limit as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+    ;(
+      mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce([
       { id: "registration-1", divisionId: "rx" },
       { id: "registration-2", divisionId: "scaled" },
     ])
@@ -180,7 +197,7 @@ describe("mobile score submit route characterization", () => {
   })
 
   // @lat: [[workout-result-adapters#Workout-result Adapter Characterization#Mobile score nullable-division readback]]
-  it("writes a null division but leaves the legacy final-score readback unscoped", async () => {
+  it("writes and reads back the exact null division", async () => {
     arrangeSuccessfulWrite({ divisionId: null })
 
     const response = await post({
@@ -194,7 +211,8 @@ describe("mobile score submit route characterization", () => {
     const finalScoreSql = renderCondition(where.mock.calls.at(-1)?.[0])
     expect(finalScoreSql).toContain("competitionEventId")
     expect(finalScoreSql).toContain("userId")
-    expect(finalScoreSql).not.toContain("scalingLevelId")
+    expect(finalScoreSql).toContain("scalingLevelId")
+    expect(finalScoreSql).toContain("is null")
   })
 
   // @lat: [[workout-result-adapters#Workout-result Adapter Characterization#Mobile score explicit CAP and tiebreak]]
@@ -230,18 +248,18 @@ describe("mobile score submit route characterization", () => {
     })
   })
 
-  // @lat: [[workout-result-adapters#Workout-result Adapter Characterization#Mobile score non-transactional response]]
-  it("upserts before readback without a transaction and preserves the response envelope", async () => {
+  // @lat: [[workout-result-adapters#Workout-result Adapter Characterization#Mobile score transactional response]]
+  it("upserts and reads back in a transaction and preserves the response envelope", async () => {
     arrangeSuccessfulWrite()
 
     const response = await post({ request: request(validBody()) })
     const chain = mockDb.getChainMock()
 
-    expect(chain.transaction).not.toHaveBeenCalled()
+    expect(chain.transaction).toHaveBeenCalledOnce()
     expect(chain.onDuplicateKeyUpdate).toHaveBeenCalledTimes(1)
-    expect(
-      chain.onDuplicateKeyUpdate.mock.invocationCallOrder[0],
-    ).toBeLessThan(chain.limit.mock.invocationCallOrder.at(-1) ?? 0)
+    expect(chain.onDuplicateKeyUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+      chain.limit.mock.invocationCallOrder.at(-1) ?? 0,
+    )
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*")
     await expect(response.json()).resolves.toEqual({
       success: true,

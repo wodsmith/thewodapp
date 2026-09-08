@@ -782,6 +782,7 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
         const insertedId = await insertManualSubmissionWorkoutResult({
           db: tx,
           target: {
+            competitionId: data.competitionId,
             userId: scoreUserId,
             teamId: ownerTeamId,
             workoutId: trackWorkout.workoutId,

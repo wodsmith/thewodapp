@@ -12,6 +12,8 @@ Online athlete submissions persist evidence, scores, and rounds together; replac
 
 The real MySQL tests at [[apps/wodsmith-start/test/integration/submission-integrity.test.ts]] use InnoDB, production column types, and the score/video/round unique constraints in a disposable database. Other required fields are nullable to keep unrelated seed data out of the fixture. They run in the database integration CI job; normal unit tests require no MySQL. The shared integration runner requires explicit local fixture configuration and never reads application database credentials.
 
+The MySQL fixture includes team memberships so resubmission rollback tests exercise the production registration lock and its current participation checks. See [[registration#Division Transfer#Concurrent submissions]].
+
 ## Invalid input preserves persisted state
 
 Invalid scores, round values, and tiebreaks are rejected before any persisted evidence, score, round, or review state changes.

@@ -1,3 +1,7 @@
+import {
+  lockRegistrationForResult,
+  RegistrationChangedError,
+} from "@/server/competition-results/registration-lock"
 import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 /**
  * Video Submission API
@@ -222,20 +226,49 @@ export const Route = createFileRoute("/api/compete/video/submit")({
             )
           }
 
-          // Check for existing submission
-          const [existingSubmission] = await db
-            .select({ id: videoSubmissionsTable.id })
-            .from(videoSubmissionsTable)
-            .where(
-              and(
-                eq(videoSubmissionsTable.registrationId, registration.id),
-                eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
-              ),
-            )
-            .limit(1)
-
           return await db.transaction(async (tx) => {
             const now = new Date()
+            await lockRegistrationForResult(tx, {
+              competitionId: data.competitionId,
+              athleteUserId: userId,
+              trackWorkoutId: data.trackWorkoutId,
+              divisionId: registration.divisionId,
+              registrationId: registration.id,
+            })
+            // Save claimed score if provided
+            if (data.score) {
+              await recordCompetitionResultInTransaction({
+                db: tx,
+                command: {
+                  competitionId: data.competitionId,
+                  athleteUserId: userId,
+                  trackWorkoutId: data.trackWorkoutId,
+                  divisionScope: divisionScopeFromId(registration.divisionId),
+                  recordedAt: now,
+                  claim: {
+                    score: data.score,
+                    status: data.scoreStatus ?? "scored",
+                    secondaryScore: data.secondaryScore,
+                    tiebreakScore: data.tiebreakScore,
+                  },
+                },
+              })
+            }
+
+            // Current evidence lookup follows the registration and result locks.
+            const [existingSubmission] = await tx
+              .select({ id: videoSubmissionsTable.id })
+              .from(videoSubmissionsTable)
+              .where(
+                and(
+                  eq(videoSubmissionsTable.registrationId, registration.id),
+                  eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+                  eq(videoSubmissionsTable.videoIndex, 0),
+                ),
+              )
+              .for("update")
+              .limit(1)
+
             let submissionId: string
 
             if (existingSubmission) {
@@ -255,6 +288,7 @@ export const Route = createFileRoute("/api/compete/video/submit")({
                 id,
                 registrationId: registration.id,
                 trackWorkoutId: data.trackWorkoutId,
+                videoIndex: 0,
                 userId,
                 videoUrl: data.videoUrl,
                 notes: data.notes ?? null,
@@ -263,31 +297,15 @@ export const Route = createFileRoute("/api/compete/video/submit")({
               submissionId = id
             }
 
-            // Save claimed score if provided
-            if (data.score) {
-              await recordCompetitionResultInTransaction({
-                db: tx,
-                command: {
-                  athleteUserId: userId,
-                  trackWorkoutId: data.trackWorkoutId,
-                  divisionScope: divisionScopeFromId(registration.divisionId),
-                  recordedAt: now,
-                  claim: {
-                    score: data.score,
-                    status: data.scoreStatus ?? "scored",
-                    secondaryScore: data.secondaryScore,
-                    tiebreakScore: data.tiebreakScore,
-                  },
-                },
-              })
-            }
-
             return json(
               { success: true, submissionId, isUpdate: !!existingSubmission },
               { headers },
             )
           })
         } catch (err) {
+          if (err instanceof RegistrationChangedError) {
+            return json({ error: err.message }, { status: 409, headers })
+          }
           if (err instanceof CompetitionResultError) {
             return json(
               { error: err.message },
