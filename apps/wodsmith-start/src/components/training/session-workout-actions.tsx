@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react"
+import { matchesLibraryOccurrence } from "@/lib/training/library-occurrence"
 import { Button } from "@/components/ui/button"
-import type { PersonalTrainingDay } from "@/lib/training/personal-types"
+import type {
+  PersonalTrainingDay,
+  PersonalTrainingSession,
+} from "@/lib/training/personal-types"
 import {
   getPersonalTrainingDayFn,
   savePersonalTrainingSessionFn,
@@ -27,6 +31,8 @@ export function SessionWorkoutActions({
   onOpenSession?: () => void
 }) {
   const [day, setDay] = useState(suppliedDay)
+  const latestDay = useRef(day)
+  latestDay.current = day
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [added, setAdded] = useState(false)
@@ -46,7 +52,9 @@ export function SessionWorkoutActions({
     setAdded(false)
     setBusy(false)
     setError("")
-    if (onChanged || !teamId) return
+    if (onChanged) return
+    setDay(undefined)
+    if (!teamId) return
     getPersonalTrainingDayFn({ data: { teamId, trainingDate: date } })
       .then((next) => {
         if (!cancelled) setDay(next)
@@ -63,30 +71,27 @@ export function SessionWorkoutActions({
   const included = personal?.items.find(
     (item) =>
       item.kind === "library" &&
-      item.workoutId === workoutId &&
-      item.occurrence?.trackId === trackId &&
-      item.occurrence?.sourceDate === sourceDate,
+      matchesLibraryOccurrence(item, workoutId, { trackId, sourceDate }),
   )
-  const result = day?.libraryResults.find(
-    (result) =>
-      result.workoutId === workoutId &&
-      !!result.occurrence &&
-      result.occurrence.trackId === trackId &&
-      result.occurrence.sourceDate === sourceDate,
-  )
+  const result = included
+    ? day?.libraryResults.find((result) => result.itemId === included.id)
+    : day?.libraryResults.find((result) =>
+        matchesLibraryOccurrence(result, workoutId, { trackId, sourceDate }),
+      )
   const returnTo = `/training?teamId=${encodeURIComponent(teamId ?? "")}&date=${date}&surface=track${trackId ? `&trackId=${encodeURIComponent(trackId)}` : ""}`
   const sessionHref = returnTo.replace("surface=track", "surface=session")
   const logHref = result
     ? `/log/${encodeURIComponent(result.scoreId)}/edit?redirectUrl=${encodeURIComponent(returnTo)}`
-    : `/log/new?workoutId=${encodeURIComponent(workoutId)}&teamId=${encodeURIComponent(teamId ?? "")}&date=${date}${trackId ? `&trackId=${encodeURIComponent(trackId)}${sourceDate ? `&sourceDate=${sourceDate}` : ""}` : ""}`
+    : `/log/new?returnSurface=track&workoutId=${encodeURIComponent(workoutId)}&teamId=${encodeURIComponent(teamId ?? "")}&date=${date}${trackId ? `&trackId=${encodeURIComponent(trackId)}${sourceDate ? `&sourceDate=${sourceDate}` : ""}` : ""}${included && personal ? `&personalSessionId=${encodeURIComponent(personal.id)}&personalItemId=${encodeURIComponent(included.id)}&personalRevision=${personal.revision}` : ""}`
   async function mutate(mode: "append" | "undo") {
     if (!teamId || !day || busy) return
     const operationContext = context
+    const previousIds = new Set(personal?.items.map((item) => item.id))
     intent.current ??= crypto.randomUUID()
     setBusy(true)
     setError("")
     try {
-      const saved = await savePersonalTrainingSessionFn({
+      const request = {
         data: {
           teamId,
           trainingDate: date,
@@ -105,13 +110,42 @@ export function SessionWorkoutActions({
             },
           ],
         },
-      })
+      }
+      let currentDay = day
+      let saved: PersonalTrainingSession
+      try {
+        saved = await savePersonalTrainingSessionFn(request)
+      } catch (cause) {
+        if (
+          mode !== "append" ||
+          !(cause instanceof Error) ||
+          !cause.message.includes("CONFLICT")
+        )
+          throw cause
+        currentDay = await getPersonalTrainingDayFn({
+          data: { teamId, trainingDate: date },
+        })
+        if (active.current !== operationContext) return
+        request.data.expectedRevision =
+          currentDay.personalSession?.revision ?? 0
+        saved = await savePersonalTrainingSessionFn(request)
+      }
       if (active.current !== operationContext) return
-      const next = { ...day, personalSession: saved, items: saved.items }
+      const committedDay = {
+        ...currentDay,
+        personalSession: saved,
+        items: saved.items,
+      }
+      const latest = latestDay.current
+      const next =
+        latest && (latest.personalSession?.revision ?? 0) > saved.revision
+          ? latest
+          : committedDay
       setDay(next)
       onChanged?.(next)
       const inserted =
         mode === "append" &&
+        !previousIds.has(intent.current) &&
         saved.items.some((item) => item.id === intent.current)
       setAdded(inserted)
       setInsertedId(inserted ? intent.current : null)

@@ -10,6 +10,9 @@ Plan 001 is complete. Plan 002 implements direct track logging, optional session
 | --- | --- | --- | --- | --- | --- |
 | [001](001-track-experience.md) | Make tracks understandable from discovery through daily Training | P1 | L | None | DONE — implemented and independently verified; awaiting release |
 | [002](002-my-session-and-direct-scoring.md) | Direct track logging and an optional My session | P1 | L | Plan 001 DONE; PR #691 final verified head incorporated | DONE — independently verified; [PR #699](https://github.com/wodsmith/thewodapp/pull/699) open |
+| [003](003-session-review-fixes.md) | Resolve session UX review regressions | P1 | M | Plan 002 implemented; migration integration held | DONE — independently verified; runtime review fixes ready for PR #699 |
+
+PR #699 is not merge-ready. Plan 003's runtime review fixes are complete; the migration waits for PR #691 and the #698/#695 migration dependencies to merge through their own authorized reviews. The migration prototype is disposable and will not be published.
 
 ## Decision record
 

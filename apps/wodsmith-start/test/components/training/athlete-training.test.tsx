@@ -512,3 +512,33 @@ it("offers an explicit default save when the saved track is unavailable", async 
   expect(screen.queryByRole("button", { name: "Make default track" })).not.toBeInTheDocument()
   expect(screen.queryByText(/Your saved default is unavailable/)).not.toBeInTheDocument()
 })
+
+// @lat: [[session-review-tests#Browser Back restores absent training context]]
+it("restores the default track, date and workspace when Back removes search parameters",async()=>{
+ vi.useFakeTimers({toFake:["Date"]})
+ vi.setSystemTime(new Date("2026-09-07T16:00:00Z"))
+ window.history.replaceState(null,"","/training")
+ render(<AthleteTraining context={context}/>)
+ await screen.findByRole("heading",{name:"Strength for the week"})
+ fireEvent.change(screen.getByLabelText("Training track"),{target:{value:"compete"}})
+ fireEvent.change(screen.getByLabelText("Choose training date"),{target:{value:"2026-09-09"}})
+ await act(async()=>{window.history.replaceState(null,"","/training");window.dispatchEvent(new PopStateEvent("popstate"))})
+ expect(screen.getByLabelText("Training track")).toHaveValue("everyday")
+ expect(screen.getByLabelText("Choose training date")).toHaveValue("2026-09-07")
+ fireEvent.change(screen.getByLabelText("Training for"),{target:{value:"other"}})
+ await act(async()=>{window.history.replaceState(null,"","/training");window.dispatchEvent(new PopStateEvent("popstate"))})
+ expect(screen.getByLabelText("Training for")).toHaveValue("gym")
+ fireEvent.change(screen.getByLabelText("Training for"),{target:{value:"other"}})
+ await waitFor(()=>expect(getPersonalTrainingDayFn).toHaveBeenLastCalledWith({data:expect.objectContaining({teamId:"other",trackId:undefined})}))
+})
+
+// @lat: [[session-review-tests#My session edits a previously performed occurrence]]
+it("opens the exact reused score from My session performance mode",async()=>{
+ const item={id:"performed",kind:"library" as const,workoutId:"saved-workout",workout:{name:"Saved work",description:"Original prescription",scheme:"time"},occurrence:{trackId:"everyday",sourceDate:session.trainingDate}}
+ vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({defaultTrackId:"everyday",selectedTrackId:"everyday",sourceSession:null,personalSession:{id:"personal",teamId:"gym",trainingDate:session.trainingDate,revision:2,compositionState:"customized",items:[item]},items:[item],results:[],libraryResults:[{itemId:"performed",scoreId:"existing-score",displayScore:"1:23"}]})
+ render(<AthletePersonalSession surface="session" team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[]} onSaved={vi.fn()} />)
+ const edit=await screen.findByRole("link",{name:"Edit score · 1:23"})
+ expect(edit).toHaveAttribute("href",expect.stringContaining("/log/existing-score/edit"))
+ expect(decodeURIComponent(edit.getAttribute("href")!)).toContain("surface=session")
+ expect(screen.queryByRole("link",{name:"Log score"})).not.toBeInTheDocument()
+})

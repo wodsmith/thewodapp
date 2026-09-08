@@ -93,6 +93,36 @@ export function AthleteTraining({
   const [selectedTeamId, setSelectedTeamId] = useState(
     initialTeamId ?? context.activeTeamId ?? context.teams[0]?.id ?? "",
   )
+  const [restoredContext, setRestoredContext] = useState<{
+    teamId: string
+    date?: string
+    trackId?: string
+    surface: "track" | "session"
+  } | null>(null)
+  useEffect(() => {
+    const restore = () => {
+      const query = new URLSearchParams(window.location.search)
+      const requested = query.get("teamId")
+      const next =
+        context.teams.find((team) => team.id === requested)?.id ??
+        context.activeTeamId ??
+        context.teams[0]?.id ??
+        ""
+      setSelectedTeamId(next)
+      const requestedDate = query.get("date")
+      setRestoredContext({
+        teamId: next,
+        date:
+          requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+            ? requestedDate
+            : undefined,
+        trackId: query.get("trackId") ?? undefined,
+        surface: query.get("surface") === "session" ? "session" : "track",
+      })
+    }
+    window.addEventListener("popstate", restore)
+    return () => window.removeEventListener("popstate", restore)
+  }, [context.teams, context.activeTeamId])
   const team =
     context.teams.find((item) => item.id === selectedTeamId) ?? context.teams[0]
 
@@ -119,13 +149,24 @@ export function AthleteTraining({
       team={team}
       context={context}
       initialView={initialView}
-      initialSurface={initialSurface}
-      initialDate={initialDate}
+      initialSurface={restoredContext?.surface ?? initialSurface}
+      initialDate={
+        restoredContext
+          ? restoredContext.teamId === selectedTeamId
+            ? restoredContext.date
+            : undefined
+          : initialDate
+      }
       initialTrackId={
-        selectedTeamId ===
-        (initialTeamId ?? context.activeTeamId ?? context.teams[0]?.id)
-          ? initialTrackId
-          : undefined
+        restoredContext
+          ? restoredContext.teamId === selectedTeamId &&
+            team.tracks.some((track) => track.id === restoredContext.trackId)
+            ? restoredContext.trackId
+            : undefined
+          : selectedTeamId ===
+              (initialTeamId ?? context.activeTeamId ?? context.teams[0]?.id)
+            ? initialTrackId
+            : undefined
       }
       libraryWorkoutIds={pendingLibraryWorkoutIds}
       libraryWorkoutId={pendingLibraryWorkoutId}
@@ -204,18 +245,21 @@ function AthleteTrainingGym({
       const query = new URLSearchParams(window.location.search)
       setSurface(query.get("surface") === "session" ? "session" : "track")
       const previousTrack = query.get("trackId")
-      if (
-        previousTrack &&
-        team.tracks.some((track) => track.id === previousTrack)
+      setTrackId(
+        previousTrack && team.tracks.some((track) => track.id === previousTrack)
+          ? previousTrack
+          : (defaultTrackId ?? team.tracks[0]?.id ?? ""),
       )
-        setTrackId(previousTrack)
       const previousDate = query.get("date")
-      if (previousDate && /^\d{4}-\d{2}-\d{2}$/.test(previousDate))
-        setSelectedDate(previousDate)
+      setSelectedDate(
+        previousDate && /^\d{4}-\d{2}-\d{2}$/.test(previousDate)
+          ? previousDate
+          : gymToday(team.timezone),
+      )
     }
     window.addEventListener("popstate", restore)
     return () => window.removeEventListener("popstate", restore)
-  }, [team.tracks])
+  }, [team.tracks, team.timezone, defaultTrackId])
 
   useEffect(() => {
     let cancelled = false

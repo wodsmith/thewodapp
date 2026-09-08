@@ -652,20 +652,18 @@ export async function getTrainingHistory(input: {
   teamId: string
   trackId?: string
 }): Promise<OwnTrainingResult[]> {
-  const { userId } = await requireTrainingAccess(input.teamId, input.trackId)
+  const { userId } = await requireTrainingAccess(input.teamId)
+  const tracks = await eligibleTrainingTracks(input.teamId)
   const rows = await getDb()
     .select({
       result: trainingResultsTable,
       session: trainingSessionsTable,
-      firstName: userTable.firstName,
-      lastName: userTable.lastName,
     })
     .from(trainingResultsTable)
     .innerJoin(
       trainingSessionsTable,
       eq(trainingSessionsTable.id, trainingResultsTable.sessionId),
     )
-    .innerJoin(userTable, eq(userTable.id, trainingResultsTable.userId))
     .where(
       and(
         eq(trainingSessionsTable.teamId, input.teamId),
@@ -680,7 +678,32 @@ export async function getTrainingHistory(input: {
       desc(trainingResultsTable.updatedAt),
     )
     .limit(100)
-  return trainingResultViews(rows, userId)
+  // Owned performed snapshots remain available under current workspace access.
+  // History never hydrates live source programming, people or cheers.
+  return rows.map(({ result, session }) => ({
+    id: result.id,
+    sessionId: result.sessionId,
+    blockId: result.blockId,
+    publishedVersion: result.publishedVersion,
+    userId: result.userId,
+    userName: "You",
+    trainingDate: session.trainingDate,
+    trackId: tracks.some((track) => track.id === session.trackId)
+      ? session.trackId
+      : "",
+    block: result.block,
+    scoreValue: result.scoreValue,
+    displayScore: result.displayScore,
+    details: result.details,
+    scaling: result.scaling,
+    modification: result.modification,
+    notes: result.notes,
+    audience: result.audience,
+    unit: result.unit,
+    completed: result.completed,
+    cheerCount: 0,
+    hasCheered: false,
+  }))
 }
 
 export async function getTrainingWorkoutOptions(input: { teamId: string }) {

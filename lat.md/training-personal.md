@@ -209,7 +209,7 @@ Multiple components remain ordered, with independent full score metadata, caps, 
 
 Training opens the selected track in performance mode. My session is a separate optional composition; switching tracks never substitutes private items for another track's programming or saves a default.
 
-Customize starts a local draft from the displayed day. Start empty, section selection, private editing, repeats, removal and ordering stay local until Save session. Cancel discards the draft; saving returns to the performance surface. Warm-ups, cooldowns and instructions use the original check/note kinds and source snapshots.
+Customize edits the existing private composition when one exists; otherwise it starts from the displayed day. Start empty, section selection, private editing, repeats, removal and ordering stay local until Save session. Cancel discards the draft; saving returns to the performance surface. Warm-ups, cooldowns and instructions use the original check/note kinds and source snapshots.
 
 Source and personal surfaces retain track, date and workspace context in Training. Library and detail actions identify the destination, append selected work only, show a server-confirmed receipt, and offer Open session and revision-protected Undo. Undo rejects both personal results and exact published source results. Stable item identity protects retries; a separate repeat in the builder creates a new identity.
 
@@ -234,3 +234,13 @@ Run `pnpm exec playwright test --config test/preview/training/playwright.session
 ### Provider selection and attributed instructions
 
 The builder can select provider workouts from another programmed date and save a user-chosen excerpt as an attributed private note, keeping undivided source prose readable without fabricating sections.
+
+## Reviewed session identity and editing
+
+Composition and scoring share exact occurrence identities without making composition a prerequisite for recording a result.
+
+Normal Add or Customize reuses an owned performed item and its frozen snapshot; deliberate repeats remain separate. Legacy provider snapshots resolve missing occurrence metadata from saved provenance. New unscoped library items persist an explicit empty occurrence so provenance never implicitly scopes them. Stable append retries refresh a stale revision once, and out-of-order responses cannot replace newer day data. Undo receipts include only newly inserted, unscored identities.
+
+Personal score normalization rejects incomplete time prefixes before persistence while retaining raw seconds, colon and period formats. Existing load forms decode to three decimal places and convert units through stored grams, preserving notes-only and unit-only edits. New source/workspace/date occurrences reset fields and attempt identity; recognized import handoffs retain notes. Source-origin planned logs return to their track, while My session logs return to performance mode.
+
+See [[session-review-tests]] for focused reproduction and regression coverage. The migration lineage remains held as recorded in Plan 003; this review changes no canonical schema or migration artifacts.

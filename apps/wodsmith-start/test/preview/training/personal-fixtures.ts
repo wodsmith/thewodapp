@@ -1,3 +1,4 @@
+import { fixtureAdditionExists } from "./append-fixture"
 import type { PersonalTrainingDay, PersonalTrainingItem, PersonalTrainingSession, SavePersonalTrainingResultInput, SavePersonalTrainingSessionInput } from "@/lib/training/personal-types"
 import type { OwnTrainingResult } from "@/lib/training/types"
 import { context, getTrainingWeekFn } from "./fixtures"
@@ -15,8 +16,9 @@ export async function getPersonalTrainingDayFn({data}: {data:{teamId:string;trai
 export async function saveTrainingPreferenceFn({data}:{data:{defaultTrackId:string}}) { state.defaultTrackId=data.defaultTrackId;persist() }
 export async function savePersonalTrainingSessionFn({data}:{data:SavePersonalTrainingSessionInput}) {
  let session=state.sessions.find(item=>item.teamId===data.teamId&&item.trainingDate===data.trainingDate)
+ if(data.mode==="append" && session && data.items.every(item=>fixtureAdditionExists(session?.items ?? [],item,data.allowDuplicate)))return structuredClone(session)
  if((session?.revision??0)!==data.expectedRevision)throw new Error("This session changed. Reload before saving.")
- if(data.mode==="append") data={...data,items:[...(session?.items??[]),...data.items]}
+ if(data.mode==="append") data={...data,items:[...(session?.items??[]),...data.items.filter(item=>!fixtureAdditionExists(session?.items ?? [],item,data.allowDuplicate))]}
  if(data.mode==="undo") data={...data,items:(session?.items??[]).filter(item=>!data.items.some(removed=>removed.id===item.id))}
  const items:PersonalTrainingItem[]=[]
  for(const item of data.items) {

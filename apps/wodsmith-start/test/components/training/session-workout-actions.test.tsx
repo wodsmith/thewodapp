@@ -79,3 +79,48 @@ it("disables Add while the newly selected destination is still loading", async (
  fireEvent.click(screen.getByRole("button",{name:"Add to My session"}))
  await waitFor(()=>expect(api.save).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({trainingDate:"2026-09-08",expectedRevision:0})})))
 })
+
+// @lat: [[session-review-tests#Included occurrences use the planned score identity]]
+it("logs and edits the exact planned item instead of creating an independent attempt", () => {
+ const included={id:"planned",kind:"library" as const,workoutId:"workout-b",workout,occurrence:{trackId:"b",sourceDate:"2026-09-07"}}
+ const current={...day,personalSession:{id:"session",teamId:"gym",trainingDate:"2026-09-07",revision:3,items:[included]}}
+ const view=render(<SessionWorkoutActions teamId="gym" date="2026-09-07" trackId="b" workoutId="workout-b" day={current} onChanged={()=>{}} />)
+ const href=screen.getByRole("link",{name:"Log score"}).getAttribute("href") ?? ""
+ expect(href).toContain("personalItemId=planned")
+ expect(href).toContain("personalSessionId=session")
+ expect(href).toContain("personalRevision=3")
+ view.rerender(<SessionWorkoutActions teamId="gym" date="2026-09-07" trackId="b" workoutId="workout-b" day={{...current,libraryResults:[{itemId:"planned",scoreId:"saved-planned",displayScore:"1:23"}]}} onChanged={()=>{}} />)
+ expect(screen.getByRole("link",{name:"Edit score · 1:23"})).toHaveAttribute("href",expect.stringContaining("/log/saved-planned/edit"))
+})
+
+// @lat: [[session-review-tests#Legacy provider snapshots remain included]]
+it("recognizes a legacy provider item while keeping explicitly unscoped attempts separate", () => {
+ const legacy={id:"legacy",kind:"library" as const,workoutId:"workout-b",workout,provenance:{trackId:"b",sourceDate:"2026-09-07",importId:"published",trackName:"Track B",sourceUrl:"https://example.com/source"}}
+ const current={...day,personalSession:{id:"session",teamId:"gym",trainingDate:"2026-09-07",revision:2,items:[legacy]}}
+ const view=render(<SessionWorkoutActions teamId="gym" date="2026-09-07" trackId="b" workoutId="workout-b" day={current} onChanged={()=>{}} />)
+ expect(screen.getByRole("link",{name:"In My session"})).toBeVisible()
+ view.rerender(<SessionWorkoutActions teamId="gym" date="2026-09-07" trackId="b" workoutId="workout-b" day={{...current,personalSession:{...current.personalSession,items:[{...legacy,occurrence:{}}]}}} onChanged={()=>{}} />)
+ expect(screen.getByRole("button",{name:"Add to My session"})).toBeVisible()
+})
+
+// @lat: [[session-review-tests#Uncontrolled destination changes discard stale data]]
+it("clears an uncontrolled old day while its new destination request is pending", async () => {
+ const view=render(<SessionWorkoutActions teamId="gym" date="2026-09-07" workoutId="workout-b" />)
+ await waitFor(()=>expect(screen.getByRole("button",{name:"Add to My session"})).toBeEnabled())
+ api.day.mockReturnValueOnce(new Promise(()=>{}))
+ view.rerender(<SessionWorkoutActions teamId="gym" date="2026-09-08" workoutId="workout-b" />)
+ expect(screen.getByRole("button",{name:"Add to My session"})).toBeDisabled()
+})
+
+// @lat: [[session-review-tests#Concurrent additions retain both intents]]
+it("refreshes a stale append revision once and preserves its item identity",async()=>{
+ const prior={id:"other-row",kind:"library" as const,workoutId:"other-workout",workout,occurrence:{}}
+ api.save.mockRejectedValueOnce(new Error("CONFLICT: Session changed"))
+ api.day.mockResolvedValue({...day,personalSession:{id:"session",teamId:"gym",trainingDate:"2026-09-07",revision:1,items:[prior]}})
+ api.save.mockImplementation(async({data})=>({id:"session",teamId:"gym",trainingDate:data.trainingDate,revision:data.expectedRevision+1,items:[prior,...data.items.map((item:object)=>({...item,workout,occurrence:{trackId:"b",sourceDate:"2026-09-07"}}))]}))
+ render(<Host />)
+ fireEvent.click(screen.getByRole("button",{name:"Add to My session"}))
+ await screen.findByRole("button",{name:"Undo"})
+ expect(api.save).toHaveBeenCalledTimes(2)
+ expect(api.save.mock.calls[1][0].data).toMatchObject({expectedRevision:1,items:api.save.mock.calls[0][0].data.items})
+})

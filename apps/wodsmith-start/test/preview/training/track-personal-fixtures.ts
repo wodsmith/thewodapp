@@ -1,3 +1,4 @@
+import { fixtureAdditionExists } from "./append-fixture"
 export {getDirectLibraryEntryFn,saveDirectLibraryResultFn,getPersonalLibraryScalingLevelsFn,savePersonalLibraryResultFn} from "./log-fixtures"
 import { previewAttempts } from "./log-fixtures"
 export * from "./personal-fixtures"
@@ -14,7 +15,8 @@ import type { OwnTrainingResult } from "@/lib/training/types"
 const results = new Map<string, OwnTrainingResult>()
 let defaultTrackId = "ptrk_crossfit_dotcom"
 export async function saveTrainingPreferenceFn({data}:{data:{defaultTrackId:string}}){defaultTrackId=data.defaultTrackId}
-const sessions = new Map<string, PersonalTrainingSession>()
+const sessions = new Map<string, PersonalTrainingSession>(JSON.parse(sessionStorage.getItem("session-ux-plans") ?? "[]"))
+export function previewPersonalSession(id:string) { return [...sessions.values()].find(session=>session.id === id) }
 export async function getPersonalTrainingDayFn({
   data,
 }: {
@@ -70,9 +72,10 @@ export async function savePersonalTrainingSessionFn({
   data: SavePersonalTrainingSessionInput
 }) {
   const old = sessions.get(`${data.teamId}:${data.trainingDate}`)
+  if(data.mode === "append" && old && data.items.every(item => fixtureAdditionExists(old.items,item,data.allowDuplicate))) return old
   if ((old?.revision ?? 0) !== data.expectedRevision)
     throw new Error("Session changed. Reload.")
-  if (data.mode === "append") data = {...data, items: [...(old?.items ?? []), ...data.items.filter(item => !old?.items.some(previous => previous.id === item.id))]}
+  if (data.mode === "append") data = {...data, items: [...(old?.items ?? []), ...data.items.filter(item => !fixtureAdditionExists(old?.items ?? [],item,data.allowDuplicate))]}
   if (data.mode === "undo") data = {...data, items: (old?.items ?? []).filter(item => !data.items.some(removed => removed.id === item.id))}
   const items = await Promise.all(
     data.items.map(async (item) => {
@@ -88,7 +91,7 @@ export async function savePersonalTrainingSessionFn({
       const workout = await getTrainingLibraryWorkoutFn({
         data: { workoutId: item.workoutId },
       })
-      return { ...item, workout, provenance: workout.provenance, occurrence:item.sourceTrackId ? {trackId:item.sourceTrackId,sourceDate:item.sourceDate} : undefined }
+      return { ...item, workout, provenance: workout.provenance, occurrence:{trackId:item.sourceTrackId,sourceDate:item.sourceDate} }
     }),
   )
   const session = {
@@ -100,6 +103,7 @@ export async function savePersonalTrainingSessionFn({
     items,
   }
   sessions.set(`${data.teamId}:${data.trainingDate}`, session)
+  sessionStorage.setItem("session-ux-plans",JSON.stringify([...sessions]))
   return session
 }
 

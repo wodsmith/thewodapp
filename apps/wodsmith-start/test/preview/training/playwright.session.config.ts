@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { defineConfig } from "@playwright/test"
 const port = 8778
@@ -10,5 +12,5 @@ export default defineConfig({
  workers:1,
  use:{baseURL,browserName:"chromium",trace:"retain-on-failure"},
  projects:[{name:"desktop",use:{viewport:{width:1440,height:1000}}},{name:"mobile",use:{viewport:{width:390,height:844}}}],
- outputDir:"/private/tmp/session-ux-playwright-results",
+ outputDir:join(tmpdir(),"session-ux-playwright-results"),
 })

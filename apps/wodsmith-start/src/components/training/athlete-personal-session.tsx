@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
+import { libraryOccurrence } from "@/lib/training/library-occurrence"
 import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
 import type {
   PersonalTrainingDay,
@@ -45,8 +46,8 @@ function itemInput(item: PersonalTrainingItem): PersonalTrainingItemInput {
       id: item.id,
       kind: item.kind,
       workoutId: item.workoutId,
-      sourceTrackId: item.occurrence?.trackId,
-      sourceDate: item.occurrence?.sourceDate,
+      sourceTrackId: libraryOccurrence(item).trackId,
+      sourceDate: libraryOccurrence(item).sourceDate,
     }
   return item
 }
@@ -323,10 +324,13 @@ export function AthletePersonalSession({
     return true
   }
   async function append(entries: PersonalTrainingItemInput[]) {
+    const existingIds = new Set(personal?.items.map((item) => item.id))
     const saved = await save(entries, "append")
     if (saved) {
-      const inserted = entries.filter((entry) =>
-        saved.items.some((item) => item.id === entry.id),
+      const inserted = entries.filter(
+        (entry) =>
+          !existingIds.has(entry.id) &&
+          saved.items.some((item) => item.id === entry.id),
       )
       setReceipt(
         inserted.length
@@ -342,6 +346,11 @@ export function AthletePersonalSession({
   }
   async function beginBuilder(empty = false) {
     const builderContext = importContext
+    if (!empty && customized && personal) {
+      setDraft([...personal.items])
+      setEditing(true)
+      return
+    }
     if (!empty && surface === "track" && day?.source?.kind === "provider-day") {
       try {
         const entries = await Promise.all(
@@ -509,7 +518,7 @@ export function AthletePersonalSession({
         ) : null}
         {editing ? (
           <p className="mt-4 max-w-prose text-sm text-muted-foreground">
-            {`${surface === "session" && customized ? "Your private composition" : `Based on ${selectedTrackName}`} · ${date}. Changes stay in this draft until you save.`}
+            {`${customized ? "Your private composition" : `Based on ${selectedTrackName}`} · ${date}. Changes stay in this draft until you save.`}
             <Button
               variant="ghost"
               className="min-h-11"
@@ -827,7 +836,7 @@ ${workout.provenance ? "" : workout.description}`,
                     day.libraryResults.find(
                       (result) => result.itemId === item.id,
                     )
-                      ? `/log/${encodeURIComponent(day.libraryResults.find((result) => result.itemId === item.id)?.scoreId ?? "")}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${team.id}&date=${date}`)}`
+                      ? `/log/${encodeURIComponent(day.libraryResults.find((result) => result.itemId === item.id)?.scoreId ?? "")}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${team.id}&date=${date}&surface=session`)}`
                       : `/log/new?workoutId=${encodeURIComponent(item.workoutId)}&date=${date}&teamId=${encodeURIComponent(team.id)}&personalSessionId=${encodeURIComponent(personal?.id ?? "")}&personalItemId=${encodeURIComponent(item.id)}&personalRevision=${personal?.revision ?? 0}`
                   }
                 >

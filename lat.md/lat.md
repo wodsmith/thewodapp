@@ -30,6 +30,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[workout-import-ux-tests]] — Draft, access, source, cancellation and destination interaction tests
 - [[crossfit-import]] — Daily CrossFit.com source ingestion, scoring conversion, atomic publication, and dated track display
 
+- [[session-review-tests]] — Regression proof for composition preservation, occurrence identity, score editing and history access.
 - [[training-personal]] — Athlete-owned composition, durable defaults, source snapshots, and private results.
 
 - [[review-backend]] — Training review regressions for score validation, historical references, and athlete catalog access.

@@ -13,6 +13,13 @@ import {
 } from "@/lib/scoring/result"
 import type { PersonalLibraryItem } from "@/lib/training/personal-types"
 
+function isCompleteTime(value: string) {
+  return (
+    /^\d+(?::\d+){1,2}(?:\.\d+)?$/.test(value) ||
+    /^\d+(?:\.\d+){0,3}$/.test(value)
+  )
+}
+
 export function normalizePersonalLibraryScore(
   workout: PersonalLibraryItem["workout"],
   input: {
@@ -56,6 +63,11 @@ export function normalizePersonalLibraryScore(
         )
       if (scheme === "rounds-reps" && !/^\d+(?:\s*[+.]\s*\d+)?$/.test(raw))
         throw new Error("Enter complete rounds or rounds+reps, such as 5+12")
+      if (
+        (scheme === "time" || scheme === "time-with-cap") &&
+        !isCompleteTime(raw)
+      )
+        throw new Error("Enter a complete time without trailing text")
       const parsed = parseScore(raw, scheme, {
         unit: input.unit === "kg" ? "kg" : "lbs",
       })
@@ -106,6 +118,8 @@ export function normalizePersonalLibraryScore(
   const rawTiebreak = input.tiebreakScore?.trim()
   if (rawTiebreak && tiebreakScheme === "reps" && !/^\d+$/.test(rawTiebreak))
     throw new Error("Enter a whole-number tiebreak without trailing text")
+  if (rawTiebreak && tiebreakScheme === "time" && !isCompleteTime(rawTiebreak))
+    throw new Error("Enter a complete tiebreak time without trailing text")
   const tiebreak =
     input.tiebreakScore?.trim() && tiebreakScheme
       ? parseScore(input.tiebreakScore, tiebreakScheme)

@@ -27,6 +27,7 @@ export const Route = createFileRoute("/_protected/log/new/")({
   validateSearch: (
     search: Record<string, unknown>,
   ): {
+    returnSurface?: "track" | "session"
     workoutId?: string
     trackId?: string
     sourceDate?: string
@@ -36,6 +37,10 @@ export const Route = createFileRoute("/_protected/log/new/")({
     personalItemId?: string
     personalRevision?: number
   } => ({
+    returnSurface:
+      search.returnSurface === "track" || search.returnSurface === "session"
+        ? search.returnSurface
+        : undefined,
     sourceDate:
       typeof search.sourceDate === "string" ? search.sourceDate : undefined,
     trackId: typeof search.trackId === "string" ? search.trackId : undefined,
@@ -116,7 +121,7 @@ export const Route = createFileRoute("/_protected/log/new/")({
     )
     if (previous)
       throw redirect({
-        href: `/log/${encodeURIComponent(previous.scoreId)}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${personal.teamId}&date=${personal.trainingDate}`)}`,
+        href: `/log/${encodeURIComponent(previous.scoreId)}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${encodeURIComponent(personal.teamId)}&date=${personal.trainingDate}&surface=${deps.returnSurface ?? "session"}${deps.trackId ? `&trackId=${encodeURIComponent(deps.trackId)}` : ""}`)}`,
       })
     const levelsResult = await getPersonalLibraryScalingLevelsFn({
       data: { personalSessionId: personal.id, itemId: item.id },
@@ -152,7 +157,7 @@ function LogNewPage() {
   const attemptId = useRef(crypto.randomUUID())
   const search = Route.useSearch()
   const workoutId = selectedWorkout?.id
-  const returnTo = `/training?teamId=${encodeURIComponent(teamId)}&date=${trainingDate}&surface=${personalSessionId ? "session" : "track"}${search.trackId ? `&trackId=${encodeURIComponent(search.trackId)}` : ""}`
+  const returnTo = `/training?teamId=${encodeURIComponent(teamId)}&date=${trainingDate}&surface=${search.returnSurface ?? (personalSessionId ? "session" : "track")}${search.trackId ? `&trackId=${encodeURIComponent(search.trackId)}` : ""}`
 
   const [score, setScore] = useState("")
   const [notes, setNotes] = useState("")
@@ -175,11 +180,25 @@ function LogNewPage() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: A different personal occurrence needs fresh score inputs even when its scoring shape is unchanged.
   useEffect(() => {
+    if (!workoutId || !importedItems.current.has(workoutId)) setNotes("")
     setScore("")
+    setUnit("lb")
+    setTiebreakScore("")
+    setError(null)
+    attemptId.current = crypto.randomUUID()
     setRoundScores(Array(numRounds).fill(""))
     setSelectedScalingLevelId(scalingLevels[0]?.id)
     setAsRx(true)
-  }, [personalItemId, numRounds, scalingLevels])
+  }, [
+    workoutId,
+    personalSessionId,
+    personalItemId,
+    teamId,
+    trainingDate,
+    search.trackId,
+    search.sourceDate,
+    numRounds,
+  ])
 
   // Handle round score changes
   const handleRoundScoreChange = (roundIndex: number, value: string) => {

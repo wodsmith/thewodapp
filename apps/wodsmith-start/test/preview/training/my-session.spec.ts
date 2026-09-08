@@ -95,3 +95,64 @@ test("borrows provider work and chosen instructions from another date without in
  await expect(page.getByText('Source: CrossFit.com · 2026-09-04',{exact:false})).toBeVisible()
  await expect(page.getByRole('heading',{name:'My session',exact:true})).toBeVisible()
 })
+
+// @lat: [[session-review-tests#Customize preserves an existing cross-track composition]]
+test("customizing another track preserves the existing session until explicitly starting empty",async({page})=>{
+ await page.goto('/training?date=2026-09-04&trackId=recovery')
+ const cooldown=page.locator('[id^="session-item-"]').filter({has:page.getByRole('heading',{name:'Recovery cooldown',exact:true})})
+ await cooldown.getByRole('button',{name:'Add to My session',exact:true}).click()
+ await expect(page.getByRole('button',{name:'My session · 1',exact:true})).toBeVisible()
+ await page.getByLabel('Training track',{exact:true}).selectOption('everyday')
+ await page.getByRole('button',{name:'Customize session',exact:true}).click()
+ await expect(page.getByText('Your private composition · 2026-09-04. Changes stay in this draft until you save.',{exact:false})).toBeVisible()
+ await page.getByRole('button',{name:'Save session',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Recovery cooldown',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Strict pull-ups',exact:true})).toHaveCount(0)
+})
+
+// @lat: [[session-review-tests#Repeated add-all cannot undo previous work]]
+test("repeating Add all leaves existing work outside a new Undo receipt",async({page})=>{
+ await page.goto('/training?date=2026-09-04&trackId=ptrk_crossfit_dotcom')
+ await page.getByRole('button',{name:'Add all to my day',exact:true}).click()
+ await expect(page.getByRole('button',{name:'My session · 2',exact:true})).toBeVisible()
+ await page.reload()
+ await page.getByRole('button',{name:'Add all to my day',exact:true}).click()
+ await expect(page.getByRole('button',{name:'Undo',exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'My session · 2',exact:true})).toBeVisible()
+})
+
+// @lat: [[session-review-tests#Planned provider scores save in the browser]]
+test("saves a first planned provider score and edits it from the source",async({page})=>{
+ await page.goto('/training?date=2026-09-04&trackId=ptrk_crossfit_dotcom')
+ const row=page.getByRole('listitem').filter({has:page.getByRole('heading',{name:'Back squat',exact:true})})
+ await row.getByRole('button',{name:'Add to My session',exact:true}).click()
+ await row.getByRole('link',{name:'Log score',exact:true}).click()
+ for(const [index,value] of ['100','110','105'].entries()) await page.getByLabel(`Round ${index+1}`,{exact:true}).fill(value)
+ await page.getByRole('button',{name:'Save result',exact:true}).click()
+ await expect(page).toHaveURL(/\/training\?/)
+ await page.getByLabel('Training track',{exact:true}).selectOption('ptrk_crossfit_dotcom')
+ await expect(row.getByRole('link',{name:/Edit score/})).toBeVisible()
+})
+
+// @lat: [[session-review-tests#Editing weight units preserves exact stored loads]]
+test("preserves fractional grams on notes-only edit and a unit-only round conversion",async({page})=>{
+ await page.goto('/training?date=2026-09-04&trackId=ptrk_crossfit_dotcom')
+ const row=page.getByRole('listitem').filter({has:page.getByRole('heading',{name:'Back squat',exact:true})})
+ await row.getByRole('link',{name:'Log score',exact:true}).click()
+ await page.getByLabel('Weight unit').selectOption('kg')
+ for(const [index,value] of ['100.123','110.457','105.789'].entries()) await page.getByLabel(`Round ${index+1}`,{exact:true}).fill(value)
+ await page.getByRole('button',{name:'Save result',exact:true}).click()
+ await expect(page).toHaveURL(/\/training\?/)
+ const stored=()=>page.evaluate(()=>Object.values(JSON.parse(sessionStorage.getItem('session-ux-score-attempts')??'{}')).map((attempt:any)=>({score:attempt.result.scoreValue,rounds:attempt.result.rounds})))
+ const before=await stored()
+ await row.getByRole('link',{name:/Edit score/}).click()
+ await page.getByLabel('Notes (optional)').fill('Only a note')
+ await page.getByRole('button',{name:'Save changes',exact:true}).click()
+ await expect(page).toHaveURL(/\/training\?/)
+ expect(await stored()).toEqual(before)
+ await row.getByRole('link',{name:/Edit score/}).click()
+ await page.getByLabel('Weight unit').selectOption('lb')
+ await page.getByRole('button',{name:'Save changes',exact:true}).click()
+ await expect(page).toHaveURL(/\/training\?/)
+ expect(await stored()).toEqual(before)
+})

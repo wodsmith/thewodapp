@@ -5,7 +5,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import { LayoutGrid, LayoutList, Plus, Search } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { z } from "zod"
 import { Pagination } from "@/components/pagination"
 import { Button } from "@/components/ui/button"
@@ -182,11 +182,25 @@ function WorkoutsPage() {
   const q = search.q ?? ""
   const { tagIds, movementIds, workoutType, trackId, type } = search
   const [personalDay, setPersonalDay] = useState<PersonalTrainingDay>()
+  const receivePersonalDay = useCallback(
+    (next: PersonalTrainingDay) =>
+      setPersonalDay((current) =>
+        (current?.personalSession?.revision ?? 0) >
+        (next.personalSession?.revision ?? 0)
+          ? current
+          : next,
+      ),
+    [],
+  )
   const [sessionError, setSessionError] = useState("")
   const [sessionRetry, setSessionRetry] = useState(0)
+  const loadedDestination = useRef("")
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The retry counter explicitly reruns the same-destination read without clearing its loaded data.
   useEffect(() => {
     let current = true
-    if (!sessionRetry) setPersonalDay(undefined)
+    const destination = `${teamId}:${date}`
+    if (loadedDestination.current !== destination) setPersonalDay(undefined)
+    loadedDestination.current = destination
     setSessionError("")
     if (teamId)
       void getPersonalTrainingDayFn({ data: { teamId, trainingDate: date } })
@@ -463,7 +477,7 @@ function WorkoutsPage() {
                   date={date}
                   workoutId={workout.id}
                   day={personalDay}
-                  onChanged={setPersonalDay}
+                  onChanged={receivePersonalDay}
                 />
               )}
             </li>
@@ -498,7 +512,7 @@ function WorkoutsPage() {
                   date={date}
                   workoutId={workout.id}
                   day={personalDay}
-                  onChanged={setPersonalDay}
+                  onChanged={receivePersonalDay}
                 />
               )}
             </div>

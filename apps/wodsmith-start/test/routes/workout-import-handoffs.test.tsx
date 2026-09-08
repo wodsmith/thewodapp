@@ -142,3 +142,21 @@ it("hides manual and AI add actions for a track without owner-team management pe
   expect(screen.queryByRole("button", { name: "Add workout" })).not.toBeInTheDocument()
   expect(screen.queryByRole("button", { name: "Import workout" })).not.toBeInTheDocument()
 })
+
+// @lat: [[session-review-tests#New workout inputs reset without leaking notes]]
+it("resets the unit, tiebreak and score when a different direct workout has the same shape",()=>{
+ const levels:unknown[]=[]
+ mock.data={...mock.data,personalSessionId:undefined,personalItemId:undefined,scalingLevels:levels,selectedWorkout:{id:"load-one",name:"Load one",scheme:"load",roundsToScore:1,tiebreakScheme:"time"}}
+ const Page=LogRoute.options.component as ComponentType
+ const view=render(<Page />)
+ fireEvent.change(screen.getByLabelText("Weight unit"),{target:{value:"kg"}})
+ fireEvent.change(screen.getByLabelText("Tiebreak (time)"),{target:{value:"1:00"}})
+ fireEvent.change(screen.getByLabelText("Score"),{target:{value:"100"}})
+ fireEvent.change(screen.getByLabelText(/Notes/),{target:{value:"Keep notes"}})
+ mock.data={...mock.data,selectedWorkout:{id:"load-two",name:"Load two",scheme:"load",roundsToScore:1,tiebreakScheme:"time"}}
+ view.rerender(<Page />)
+ expect(screen.getByLabelText("Weight unit")).toHaveValue("lb")
+ expect(screen.getByLabelText("Tiebreak (time)")).toHaveValue("")
+ expect(screen.getByLabelText("Score")).toHaveValue("")
+ expect(screen.getByLabelText(/Notes/)).toHaveValue("")
+})

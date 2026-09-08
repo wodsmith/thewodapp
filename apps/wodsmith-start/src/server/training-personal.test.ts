@@ -311,7 +311,7 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     state.feature = true
     await db
       .update(workouts)
-      .set({ scope: "private" })
+      .set({ scope: "private", description:"Private" })
       .where(eq(workouts.id, "personal_secret"))
     await db.delete(personalTrainingResultsTable)
     await db.delete(personalTrainingSessionsTable)
@@ -386,6 +386,23 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     await db.delete(userTable)
     await pool.promise().end()
   })
+  // @lat: [[session-review-tests#Composing after logging preserves score identity]]
+  it.each(["append", "replace"] as const)("reuses a direct score identity on normal %s while deliberate repeats stay independent", async(mode)=>{
+    await db.update(workouts).set({scope:"public"}).where(eq(workouts.id,"personal_secret"))
+    const saved=await saveDirectLibraryResult({...day,workoutId:"personal_secret",itemId:"performed",score:"1:23",asRx:true})
+    await db.update(workouts).set({description:"Changed live prescription"}).where(eq(workouts.id,"personal_secret"))
+    const plan=await savePersonalTrainingSession({...day,mode,expectedRevision:1,items:[{id:"new-planned",kind:"library",workoutId:"personal_secret"}]})
+    expect(plan.items.map(item=>item.id)).toEqual(["performed"])
+    expect(plan.items[0]).toMatchObject({workout:{description:"Private"}})
+    const view=await getPersonalTrainingDay(day)
+    expect(view.libraryResults).toContainEqual(expect.objectContaining({itemId:plan.items[0].id,scoreId:saved.scoreId}))
+    expect(await db.select().from(scoresTable)).toHaveLength(1)
+    const repeat=await savePersonalTrainingSession({...day,mode:"append",allowDuplicate:true,expectedRevision:plan.revision,items:[{id:"repeat",kind:"library",workoutId:"personal_secret"}]})
+    expect(repeat.items.map(item=>item.id)).toEqual(["performed","repeat"])
+    await expect(savePersonalTrainingSession({...day,mode:"undo",expectedRevision:repeat.revision,items:[{id:"performed",kind:"library",workoutId:"personal_secret"}]})).rejects.toThrow("score")
+    expect(await db.select().from(scoresTable)).toHaveLength(1)
+  })
+
   // @lat: [[training-personal#Verification#Direct private attempts]]
   it("logs a foreign public workout atomically without composing, retries and edits without reinsertion", async () => {
     await db
@@ -436,7 +453,7 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     expect((await getPersonalTrainingDay(day)).items).toEqual([])
     await db
       .update(workouts)
-      .set({ scope: "private" })
+      .set({ scope: "private", description:"Private" })
       .where(eq(workouts.id, "personal_secret"))
   })
   // @lat: [[training-personal#Verification#Direct scoring preserves custom plans]]

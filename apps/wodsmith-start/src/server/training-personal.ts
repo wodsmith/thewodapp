@@ -1,4 +1,8 @@
 import {
+  libraryOccurrence,
+  matchesLibraryOccurrence,
+} from "@/lib/training/library-occurrence"
+import {
   createScoreId,
   externalWorkoutImportItemsTable,
   externalWorkoutImportsTable,
@@ -508,9 +512,10 @@ export async function savePersonalTrainingSession(
         left.id === right.id &&
         left.kind === right.kind &&
         (left.kind === "library" && right.kind === "library"
-          ? left.workoutId === right.workoutId &&
-            left.occurrence?.trackId === right.sourceTrackId &&
-            left.occurrence?.sourceDate === right.sourceDate
+          ? matchesLibraryOccurrence(left, right.workoutId, {
+              trackId: right.sourceTrackId,
+              sourceDate: right.sourceDate,
+            })
           : left.kind === "source" && right.kind === "source"
             ? sourceMatches(left, right)
             : JSON.stringify(left) === JSON.stringify(right))
@@ -521,9 +526,10 @@ export async function savePersonalTrainingSession(
         data.allowDuplicate
           ? sameInput(left, right)
           : left.kind === "library" && right.kind === "library"
-            ? left.workoutId === right.workoutId &&
-              left.occurrence?.trackId === right.sourceTrackId &&
-              left.occurrence?.sourceDate === right.sourceDate
+            ? matchesLibraryOccurrence(left, right.workoutId, {
+                trackId: right.sourceTrackId,
+                sourceDate: right.sourceDate,
+              })
             : left.kind === "source" && right.kind === "source"
               ? sourceMatches(left, right)
               : sameInput(left, right)
@@ -535,6 +541,39 @@ export async function savePersonalTrainingSession(
         )
       )
         return personalSession(existing)
+      const previousResults = existing
+        ? await tx
+            .select()
+            .from(personalTrainingResultsTable)
+            .where(
+              eq(personalTrainingResultsTable.personalSessionId, existing.id),
+            )
+        : []
+      if (data.mode !== "undo" && !data.allowDuplicate) {
+        const used = new Set(data.items.map((item) => item.id))
+        data.items = data.items.map((item) => {
+          if (
+            item.kind !== "library" ||
+            previous.some((old) => old.id === item.id)
+          )
+            return item
+          const performed = previousResults.find(
+            (result) =>
+              result.libraryItem &&
+              !used.has(result.itemId) &&
+              !previous.some((old) => old.id === result.itemId) &&
+              matchesLibraryOccurrence(result.libraryItem, item.workoutId, {
+                trackId: item.sourceTrackId,
+                sourceDate: item.sourceDate,
+              }),
+          )
+          if (!performed) return item
+          used.add(performed.itemId)
+          const definition = library.get(item.id)
+          if (definition) library.set(performed.itemId, definition)
+          return { ...item, id: performed.itemId }
+        })
+      }
       assertTrainingRevision(existing?.revision ?? 0, data.expectedRevision)
       if (data.mode === "append") {
         if (
@@ -600,14 +639,6 @@ export async function savePersonalTrainingSession(
       }
       if (data.items.length > 40)
         throw new Error("Your session can contain up to 40 sections")
-      const previousResults = existing
-        ? await tx
-            .select()
-            .from(personalTrainingResultsTable)
-            .where(
-              eq(personalTrainingResultsTable.personalSessionId, existing.id),
-            )
-        : []
       for (const item of data.items) {
         if (item.kind !== "personal" || !item.block.workout) continue
         const stored = previous.find(
@@ -680,6 +711,17 @@ export async function savePersonalTrainingSession(
                 old.workoutId === item.workoutId,
             )
             if (preserved) return preserved
+            const performed = previousResults.find(
+              (result) => result.itemId === item.id,
+            )?.libraryItem
+            if (
+              performed &&
+              matchesLibraryOccurrence(performed, item.workoutId, {
+                trackId: item.sourceTrackId,
+                sourceDate: item.sourceDate,
+              })
+            )
+              return performed
             const workout = library.get(item.id)
             if (!workout)
               throw new Error("NOT_FOUND: Library workout not found")
@@ -687,9 +729,10 @@ export async function savePersonalTrainingSession(
               ...item,
               workout,
               provenance: workout.provenance,
-              occurrence: item.sourceTrackId
-                ? { trackId: item.sourceTrackId, sourceDate: item.sourceDate }
-                : undefined,
+              occurrence: {
+                trackId: item.sourceTrackId,
+                sourceDate: item.sourceDate,
+              },
             }
           }
           if (item.remixedFrom) {
@@ -707,7 +750,8 @@ export async function savePersonalTrainingSession(
         },
       )
       for (const result of previousResults) {
-        const before = previous.find((i) => i.id === result.itemId)
+        const before =
+          previous.find((i) => i.id === result.itemId) ?? result.libraryItem
         const after = items.find((i) => i.id === result.itemId)
         if (
           result.legacyScoreId &&
@@ -1222,6 +1266,12 @@ export async function getPersonalTrainingHistory(input: {
     .pick({ teamId: true })
     .parse(input)
   const { userId } = await requireTrainingAccess(teamId)
+  const context = await getTrainingContext()
+  const accessibleTracks = new Set(
+    context.teams
+      .find((team) => team.id === teamId)
+      ?.tracks.map((track) => track.id),
+  )
   const rows = await getDb()
     .select({
       result: personalTrainingResultsTable,
@@ -1264,7 +1314,9 @@ export async function getPersonalTrainingHistory(input: {
         userId,
         userName: "You",
         trainingDate: session.trainingDate,
-        trackId: item.provenance?.trackId ?? "",
+        trackId: accessibleTracks.has(libraryOccurrence(item).trackId ?? "")
+          ? (libraryOccurrence(item).trackId ?? "")
+          : "",
         block: {
           id: result.itemId,
           kind: "note",
@@ -1286,7 +1338,9 @@ export async function getPersonalTrainingHistory(input: {
         logScoreId: result.legacyScoreId,
         sourceLabel: item.provenance
           ? `${item.provenance.trackName} · Programmed ${item.provenance.sourceDate}`
-          : "Workout library",
+          : libraryOccurrence(item).sourceDate
+            ? `Programmed ${libraryOccurrence(item).sourceDate}`
+            : "Workout library",
       },
     ]
   })

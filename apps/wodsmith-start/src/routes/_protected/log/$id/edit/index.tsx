@@ -8,7 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
-import { decodeScore } from "@/lib/scoring"
+import {
+  decodeScore,
+  decodeLoad,
+  parseScore as parseEncodedScore,
+} from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import {
   getLogByIdFn,
@@ -95,6 +99,16 @@ export const Route = createFileRoute("/_protected/log/$id/edit/")({
   },
 })
 
+function decodeEditableScore(
+  value: number,
+  scheme: WorkoutScheme,
+  unit: "lb" | "kg",
+) {
+  return scheme === "load"
+    ? decodeLoad(value, { unit: unit === "kg" ? "kg" : "lbs", decimals: 3 })
+    : decodeScore(value, scheme)
+}
+
 function LogEditPage() {
   const { score, workout, scalingLevels, existingRounds } =
     Route.useLoaderData()
@@ -135,9 +149,11 @@ function LogEditPage() {
     score.personalSessionId && score.status === "cap"
       ? `CAP+${score.secondaryValue ?? 0}`
       : score.scoreValue !== null
-        ? decodeScore(score.scoreValue, scheme, {
-            weightUnit: score.personalUnit === "kg" ? "kg" : "lbs",
-          })
+        ? decodeEditableScore(
+            score.scoreValue,
+            scheme,
+            score.personalUnit ?? "lb",
+          )
         : ""
   const [singleScore, setSingleScore] = useState(decodedScore)
 
@@ -153,11 +169,37 @@ function LogEditPage() {
       if (!round) return ""
       return score.personalSessionId && round.status === "cap"
         ? `CAP+${round.secondaryValue ?? 0}`
-        : (decodeScore(round.value, scheme, {
-            weightUnit: score.personalUnit === "kg" ? "kg" : "lbs",
-          }) ?? "")
+        : (decodeEditableScore(
+            round.value,
+            scheme,
+            score.personalUnit ?? "lb",
+          ) ?? "")
     })
   })
+
+  function changeWeightUnit(nextUnit: "lb" | "kg") {
+    const convert = (value: string) => {
+      if (!value.trim()) return value
+      const parsed = parseEncodedScore(value, "load", {
+        unit: unit === "kg" ? "kg" : "lbs",
+      })
+      if (!parsed.isValid || parsed.encoded == null)
+        throw new Error("Enter a valid weight before changing units")
+      return decodeEditableScore(parsed.encoded, "load", nextUnit)
+    }
+    try {
+      const nextSingle = convert(singleScore)
+      const nextRounds = roundScores.map(convert)
+      setSingleScore(nextSingle)
+      setRoundScores(nextRounds)
+      setUnit(nextUnit)
+      setError(null)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not convert weight",
+      )
+    }
+  }
 
   // Handle round score changes
   const handleRoundScoreChange = (roundIndex: number, value: string) => {
@@ -451,7 +493,7 @@ function LogEditPage() {
                     className="min-h-11 w-full rounded-xl border border-input bg-background px-3"
                     value={unit}
                     onChange={(event) =>
-                      setUnit(event.target.value as "lb" | "kg")
+                      changeWeightUnit(event.target.value as "lb" | "kg")
                     }
                   >
                     <option value="lb">lb</option>
