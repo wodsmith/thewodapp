@@ -9,7 +9,7 @@ Checks used Node 24.15.0 in `/private/tmp/wodsmith-session-ux`. The advisor inde
 - `pnpm --filter wodsmith-start type-check`: passed.
 - `pnpm --filter crew type-check`: passed.
 - `pnpm --filter @repo/wodsmith-db type-check` and `pnpm check:schema-ownership`: passed after the additive canonical schema change.
-- From `apps/wodsmith-start`, `pnpm exec vitest run --maxWorkers=2`: 3,558 passed, 140 environment-gated tests skipped. `pnpm test:workout-import-runtime`: 39 passed. These are the two commands in the application's `test` script, with worker count capped for the main suite to avoid local resource contention.
+- From `apps/wodsmith-start`, `pnpm exec vitest run --minWorkers=1 --maxWorkers=2`: 3,558 passed, 140 environment-gated tests skipped. `pnpm test:workout-import-runtime`: 39 passed. These are the two commands in the application's `test` script, with worker count capped for the main suite to avoid local resource contention.
 - Disposable local MySQL: serial `vitest run` for `src/server/training-personal.test.ts`, `training.test.ts`, `training-provider.test.ts`, `training-workout.test.ts`, and `test/integration/training-access.test.ts` with `--no-file-parallelism`: 112 passed, no skips. This includes the access dependency's 41 boundary cases. The database was localhost `training_test`, separate from production.
 - `pnpm exec playwright test --config test/preview/training/playwright.session.config.ts`: 8 passed. The config cold-starts its own fixture preview on port 8778, with desktop and 390px mobile projects. Fixture tests are outside production E2E discovery.
 - `pnpm --filter wodsmith-start build` with the local 12GB Node heap and credential-free Wrangler fixture: passed (client 23.61s, SSR 40.49s).

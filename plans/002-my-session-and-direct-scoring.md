@@ -4,7 +4,7 @@ This execution plan makes training and logging primary, separates source tracks 
 
 ## Status and baseline
 
-IN PROGRESS. User authorized implementation and opening a PR on September 7, 2026, including a UI refinement pass. Do not merge, deploy, or write production data.
+DONE. Implemented, independently verified, and opened as [PR #699](https://github.com/wodsmith/thewodapp/pull/699) on September 7, 2026, including the UI refinement pass. See 002-session-ux-verification.md for evidence. Not merged or deployed.
 
 Use /private/tmp/wodsmith-session-ux on zac/training-session-ux, based on aecbb2790e598bcf26b066e1fbc82209f86cd6b8 from PR #691. Owner confirmed this final implementation head and passing CI; PR remains open. Plan 001 is DONE. Parent verified main 0d36543dd is an ancestor and inspected dependency changes. PR #691 changes access readers but does not implement personal scoring. Stack our PR on its branch while unmerged and document the dependency.
 

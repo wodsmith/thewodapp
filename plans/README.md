@@ -9,7 +9,7 @@ Plan 001 is complete. Plan 002 implements direct track logging, optional session
 | Plan | Title | Priority | Effort | Depends on | Status |
 | --- | --- | --- | --- | --- | --- |
 | [001](001-track-experience.md) | Make tracks understandable from discovery through daily Training | P1 | L | None | DONE — implemented and independently verified; awaiting release |
-| [002](002-my-session-and-direct-scoring.md) | Direct track logging and an optional My session | P1 | L | Plan 001 DONE; PR #691 final verified head incorporated | IN PROGRESS |
+| [002](002-my-session-and-direct-scoring.md) | Direct track logging and an optional My session | P1 | L | Plan 001 DONE; PR #691 final verified head incorporated | DONE — independently verified; [PR #699](https://github.com/wodsmith/thewodapp/pull/699) open |
 
 ## Decision record
 
