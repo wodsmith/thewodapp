@@ -201,6 +201,7 @@ jobs:
       - run: pnpm --filter crew exec playwright test e2e/crew-organizer-flow.spec.ts e2e/crew-volunteer-flow.spec.ts e2e/crew-mobile.spec.ts
         env:
           CI: true
+          CREW_E2E_DB_PREPARED: "1"
           DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

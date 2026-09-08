@@ -618,6 +618,8 @@ Crew CI runs the complete unit suite and uses the isolated MySQL browser-test da
 
 The unit job in `.github/workflows/ci.yaml` includes Crew. The Crew job in `.github/workflows/e2e.yaml` runs [[crew#Crew Purchase Integration Tests]] before the browser suite. Full-platform refund and revenue component tests remain in WODsmith Start, where those components exist.
 
+The Crew CI setup step owns schema provisioning and both seeds. Only its later Playwright step sets CREW_E2E_DB_PREPARED=1. [[apps/crew/e2e/fixtures/prepared-database.ts#verifyPreparedCrewDatabase]] requires CI=true and a local MySQL database ending in _test or _e2e, then verifies the exact full-column unique active-invite index with an ordered, parameterized metadata read. Missing or malformed constraints fail without another schema push. Local runs without the flag retain the existing setup script; the flag is rejected outside CI.
+
 Volunteer add, edit, and email-paste dialogs scroll within the viewport so their submit actions remain reachable on small screens. The fresh-event browser test creates a volunteer and shift, assigns coverage, and checks that success URLs cannot bypass purchase.
 
 The seeded demo includes a Basic plan with its complimentary grant. Browser tests verify that active access produces a downloadable CSV containing the assigned volunteers.
@@ -653,3 +655,38 @@ Production deployment [34007246762](https://github.com/wodsmith/thewodapp/action
 Both `CREW_STRIPE_CHECKOUT_ENABLED` and `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` are true. Live verification covered HTTP 200 on the homepage, organizer signup, private draft event creation, HTTP 401 for an invalid Stripe signature, a live Checkout Session showing $200.00, and cancellation returning to the production billing page. No card details were entered and no live charge was made.
 
 The clearly labeled production verification draft remains private and unpaid; its abandoned Checkout Session may stay pending until Stripe expires it. Earlier sandbox verification covered successful payment, export access, duplicate webhook delivery, cancellation/resumption, and session expiration recovery.
+
+
+## Prepared Crew CI skips duplicate provisioning
+
+Prepared CI global setup verifies the existing constraint and never invokes setup or seed commands, preventing a second schema push on seeded data.
+
+## Ordinary Crew E2E setup remains available
+
+Without an explicit preparation flag, local global setup still runs the existing setup-e2e-db script with NODE_ENV=test.
+
+## Invalid prepared state never falls back to provisioning
+
+An invalid flag, non-CI use or missing required index fails immediately without retrying setup or mutating the database.
+
+## Prepared Crew database requires isolated CI context
+
+Prepared verification rejects remote hosts, non-test database names, non-MySQL URLs and URL parameters before connecting; it only accepts explicit CI use.
+
+## Prepared Crew verifies exact unique index shape
+
+The verifier rejects a missing, nonunique, reordered, prefixed or extra-column index and always closes the established connection.
+
+## Prepared Crew verification uses read-only parameterized metadata
+
+The valid prepared path performs one ordered metadata SELECT with parameterized schema/table/index names, respects the URL port and closes its connection.
+
+## Prepared Crew read failures close connections
+
+A failed metadata read releases the connection and propagates the error rather than falling back to provisioning.
+
+## Prepared Crew real database preserves seeded data
+
+Real MySQL checks prove actual prepared global setup preserves every seeded table checksum and rejects a missing index in a separate test-owned fixture, restoring that fixture's index and preserving its row.
+
+Run with an explicit CREW_TEST_DATABASE_URL pointing to a disposable local _test or _e2e database. The fixture creates and removes only its own uniquely named test database; it never drops an index from the seeded application database. Unit mocks prove dispatch and exact validation separately from this integration check.
