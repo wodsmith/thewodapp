@@ -35,3 +35,5 @@ A partner video-only replacement leaves a zeroed invalid score and its review me
 ## Review stays in the score division
 
 Verify, adjust, and invalidate update only videos belonging to the score's division, including the null division, when the same athlete also owns a registration in another division.
+
+The MySQL fixture includes team memberships so resubmission rollback tests exercise the production registration lock and its current participation checks. See [[registration#Division Transfer#Concurrent submissions]].
