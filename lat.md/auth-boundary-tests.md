@@ -57,3 +57,11 @@ Wodsmith rejects unsupported method tags in older KV records while preserving pa
 ## Crew persisted session method validation
 
 Crew rejects unsupported persisted method tags while preserving supported or unspecified methods without changing authentication age or inventing proof.
+
+## Unsupported session quota cleanup
+
+Wodsmith excludes unsupported records from the current quota calculation even when KV deletion stays stale. Oldest/newest invalid records cannot evict supported sessions or affect another user.
+
+## Crew unsupported session quota cleanup
+
+Crew excludes oldest/newest unsupported records from the current quota despite stale KV deletion, preserving supported sessions and other users while purging only owned invalid keys.

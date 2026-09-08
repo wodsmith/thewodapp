@@ -11,6 +11,13 @@ import { getIP } from "./get-IP"
 const SESSION_PREFIX = "session:"
 const authenticationTypes = ["passkey", "password"] as const
 
+function isSupportedAuthenticationType(method: unknown): boolean {
+  return (
+    method === undefined ||
+    authenticationTypes.some((supported) => supported === method)
+  )
+}
+
 export function getSessionKey(userId: string, sessionId: string): string {
   return `${SESSION_PREFIX}${userId}:${sessionId}`
 }
@@ -161,7 +168,17 @@ export async function createKVSession({
   }
 
   // Check if user has reached the session limit
-  const existingSessions = await getAllSessionIdsOfUser(userId)
+  const listedSessions = await getAllSessionIdsOfUser(userId)
+  const existingSessions: typeof listedSessions = []
+  for (const existing of listedSessions) {
+    const record = await kv.get(existing.key)
+    if (!record) continue
+    if (!isSupportedAuthenticationType(JSON.parse(record).authenticationType)) {
+      await kv.delete(existing.key)
+      continue
+    }
+    existingSessions.push(existing)
+  }
 
   // If user has MAX_SESSIONS_PER_USER or more sessions, delete the oldest one
   if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
@@ -204,10 +221,8 @@ export async function getKVSession(
 
   const session = JSON.parse(sessionStr) as KVSession
   // Persisted records can outlive a supported authentication method.
-  if (
-    session.authenticationType !== undefined &&
-    !authenticationTypes.includes(session.authenticationType)
-  ) {
+  if (!isSupportedAuthenticationType(session.authenticationType)) {
+    await kv.delete(getSessionKey(userId, sessionId))
     return null
   }
 
