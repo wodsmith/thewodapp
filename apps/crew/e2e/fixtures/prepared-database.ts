@@ -7,7 +7,11 @@ const requiredColumns = [
   "active_marker",
 ]
 
-/** Verify CI's existing preparation without changing schema or seeded data. */
+/**
+ * Read-only early guard for the active-invite unique index, not whole-schema or
+ * seed-completeness verification. CI's successful schema push and both seeds
+ * own preparation; this check does not replace those ordered steps.
+ */
 export async function verifyPreparedCrewDatabase(
   databaseUrl: string | undefined,
   ci: string | undefined,

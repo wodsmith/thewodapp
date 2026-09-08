@@ -191,8 +191,8 @@ jobs:
           pnpm db:seed
           pnpm db:seed:e2e
 
-      - name: Verify Crew purchase transactions
-        run: pnpm --filter crew test test/integration/crew-purchase.test.ts
+      - name: Verify Crew purchase transactions and prepared database
+        run: pnpm --filter crew exec vitest run test/integration/crew-purchase.test.ts test/integration/crew-prepared-database.test.ts --no-file-parallelism
         env:
           CREW_TEST_DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e
 

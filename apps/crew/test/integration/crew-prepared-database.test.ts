@@ -52,8 +52,31 @@ describe.skipIf(!databaseUrl)("prepared Crew database integration", () => {
         `CHECKSUM TABLE ${names} EXTENDED`,
       )
       expect(rows).toHaveLength(tables.length)
-      expect(rows.every((row) => typeof row.Checksum === "number")).toBe(true)
-      return createHash("sha256").update(JSON.stringify(rows)).digest("hex")
+      const normalizedRows = rows.map((row) => {
+        const checksum: unknown = row.Checksum
+        let normalized: string
+        if (
+          typeof checksum === "number" &&
+          Number.isSafeInteger(checksum) &&
+          checksum >= 0
+        ) {
+          normalized = String(checksum)
+        } else if (
+          typeof checksum === "string" &&
+          checksum.length > 0 &&
+          !/\D/.test(checksum)
+        ) {
+          normalized = BigInt(checksum).toString()
+        } else {
+          throw new Error(
+            "CHECKSUM TABLE returned an invalid or unavailable checksum",
+          )
+        }
+        return { ...row, Checksum: normalized }
+      })
+      return createHash("sha256")
+        .update(JSON.stringify(normalizedRows))
+        .digest("hex")
     }
     const before = await digest()
     const prior = {

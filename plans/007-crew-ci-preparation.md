@@ -34,6 +34,10 @@ Use a narrowly named flag such as CREW_E2E_DB_PREPARED=1 on that step. Global se
 
 Use a small test-only helper for prepared-database verification if it keeps the global setup readable. Reuse mysql2/promise already installed. Parameterize database selection safely; never print credentials. Close the connection in finally. The read-only verification must not execute DDL, modify seed rows, invoke a shell schema command or accept a missing constraint as success. The actual CI database URL is mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e; reject remote or non-test names for the prepared shortcut.
 
+## Verifier guarantee
+
+The prepared check is a targeted early guard for competition_invites_active_invite_idx, not a whole-schema or seed-completeness audit. The successful first workflow push and both ordered seed commands own preparation; integration and browser tests exercise the prepared state. A second push printing Changes applied is not proof that the first push left schema incomplete. No superficial row-count check or duplicate push is part of the guard.
+
 ## Scope and tests
 
 Allowed implementation files are .github/workflows/e2e.yaml, apps/crew/e2e/global-setup.ts and a focused helper apps/crew/e2e/fixtures/prepared-database.ts if needed. Keep apps/crew/scripts/setup-e2e-db.ts unchanged unless a smaller well-supported design requires it and is reported to the parent first. No package, lockfile, schema or migration edits.

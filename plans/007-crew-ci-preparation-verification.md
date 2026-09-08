@@ -28,7 +28,11 @@ Global setup accepts that explicit flag only with CI=true and a local mysql URL 
 
 The prepared path requires exactly four full columns in the expected order, all unique, with contiguous sequence numbers and no prefix lengths. Missing or incorrect constraints fail without invoking setup as a fallback. The established connection closes in finally, including query and validation failures. The helper performs no DDL or seed writes. Without the flag, normal local setup still invokes the unchanged setup-e2e-db.ts script; an invalid flag or use outside CI rejects.
 
-The real integration suite verifies every seeded table has a numeric checksum and the complete checksum digest remains equal across actual prepared globalSetup. Its missing-index negative uses a separate uniquely named fixture database, restores its test-owned index and proves its row unchanged before removing only that fixture. No index was removed from the seeded application database.
+At the Plan 007 verification head, the real integration suite checked numeric checksums and passed independently against MySQL. Plan 008 later normalizes safe nonnegative integer numbers and decimal digit strings before hashing, retaining table identity and count; the complete digest must remain equal across actual prepared globalSetup. Its missing-index negative uses a separate uniquely named fixture database, restores its test-owned index and proves its row unchanged before removing only that fixture. No index was removed from the seeded application database.
+
+## Verifier guarantee
+
+The prepared check is a targeted early guard for competition_invites_active_invite_idx, not a whole-schema or seed-completeness audit. The successful first workflow push and both ordered seed commands own preparation; integration and browser tests exercise the prepared state. A second push printing Changes applied is not proof that the first push left schema incomplete. No superficial row-count check or duplicate push is part of the guard.
 
 ## Reproducible commands and results
 
