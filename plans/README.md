@@ -16,6 +16,7 @@ Plan 001 is complete. Plan 002 implements direct track logging, optional session
 | [006](006-session-action-consistency.md) | Complete session action consistency | P2 | S | Plan 005 DONE | DONE — independently verified; delayed review dispositions recorded |
 | [007](007-crew-ci-preparation.md) | Verify CI database preparation without a second push | P2 | S | Plan 006 DONE | DONE — independently verified; published CI tracked separately |
 | [008](008-crew-review-coverage.md) | Clarify prepared verification and run its database regression in CI | P2 | S | Plan 007 DONE | DONE — independently verified; latest two comments addressed |
+| [010](010-crew-print-coverage.md) | Verify every printed schedule day | P2 | S | Plan 008 DONE | DONE — independently verified; all printed headings covered |
 
 PR #699 is not merge-ready. Plans 003–006 address the verified review findings and passed independent checks. Published CI and review output are evaluated separately. The migration waits for PR #691 and the #698/#695 migration dependencies to merge through their own authorized reviews. The migration prototype is disposable and will not be published.
 

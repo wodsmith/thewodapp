@@ -209,6 +209,7 @@ test("creates and assigns a volunteer schedule on a small phone", async ({
   }
 })
 
+// @lat: [[crew#Mobile Layout and Navigation#Printed schedule day coverage]]
 test("phone exports remain readable and retain the complete print table", async ({
   page,
 }) => {
@@ -226,10 +227,24 @@ test("phone exports remain readable and retain the complete print table", async 
     `${TEST_DATA.crewDemo.slug}-master-schedule.csv`,
   )
   await page.emulateMedia({ media: "print" })
-  await expect(
-    page.getByRole("columnheader", { name: "People", exact: true }),
-  ).toBeVisible()
-  await expect(
-    page.getByRole("columnheader", { name: "Time", exact: true }),
-  ).toBeVisible()
+  const peopleHeaders = page.getByRole("columnheader", {
+    name: "People",
+    exact: true,
+    includeHidden: true,
+  })
+  const timeHeaders = page.getByRole("columnheader", {
+    name: "Time",
+    exact: true,
+    includeHidden: true,
+  })
+  await expect(peopleHeaders.first()).toBeVisible()
+  const dayCount = await peopleHeaders.count()
+  expect(dayCount).toBeGreaterThan(0)
+  await expect(timeHeaders).toHaveCount(dayCount)
+  for (const header of [
+    ...(await peopleHeaders.all()),
+    ...(await timeHeaders.all()),
+  ]) {
+    await expect(header).toBeVisible()
+  }
 })

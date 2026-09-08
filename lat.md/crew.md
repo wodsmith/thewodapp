@@ -20,7 +20,11 @@ The homepage stacks its primary actions on phones. Calculator assumptions, roste
 
 Nested flex and grid regions shrink around scrollable scheduling tools instead of widening the page. Dialogs have inset edges and scroll within the dynamic viewport. Print previews use a fixed-layout outer table and restore full tables and repeated headers when printing.
 
-[[apps/crew/e2e/crew-mobile.spec.ts]] checks public and populated organizer pages at 320, 390, 768, and 1280 pixels, navigation focus restoration, short-phone form sizing, schedule creation and assignments, and the purchase/export boundary. Export checks verify downloadable CSV and complete print columns. The Crew E2E job runs these checks in Chromium and iPhone WebKit, alongside the existing organizer and volunteer scenarios.
+[[apps/crew/e2e/crew-mobile.spec.ts]] checks public and populated organizer pages at 320, 390, 768, and 1280 pixels, navigation focus restoration, short-phone form sizing, schedule creation and assignments, and the purchase/export boundary. Export checks verify downloadable CSV and complete print columns: after waiting for print visibility, the test requires nonempty, matching sets of Time and People headers and checks every header is visible. Multi-day exports intentionally repeat these headings. The Crew E2E job runs these checks in Chromium and iPhone WebKit, alongside the existing organizer and volunteer scenarios.
+
+### Printed schedule day coverage
+
+Phone export verification requires nonempty, matching sets of Time and People headings with every header visible, preserving CSV download and overflow checks across Chromium and WebKit.
 
 ## Crew Billing Catalog
 
