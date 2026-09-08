@@ -170,3 +170,25 @@ it("normalizes reordered personal payloads but rejects changed same-ID work and 
   ).toBe(false)
   expect(fixtureAdditionExists([source], source, true)).toBe(true)
 })
+
+// @lat: [[session-navigation-tests#Preview rejects invalid personal retry payloads]]
+it("rejects an invalid same-ID personal retry rather than treating it as a new addition", () => {
+  const original = {
+    id: "personal-work",
+    kind: "personal" as const,
+    block: {
+      id: "personal-work",
+      kind: "check" as const,
+      title: "Cooldown",
+      prescription: "Walk",
+      scalingGuidance: "",
+      coachGuidance: "",
+    },
+  }
+  expect(() =>
+    fixtureAdditionExists([original], {
+      ...original,
+      block: { ...original.block, prescription: "" },
+    }),
+  ).toThrow("Give the workout a title and prescription")
+})

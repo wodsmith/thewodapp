@@ -209,7 +209,11 @@ Multiple components remain ordered, with independent full score metadata, caps, 
 
 Training opens the selected track in performance mode. My session is a separate optional composition; switching tracks never substitutes private items for another track's programming or saves a default.
 
+Provider Customize shows disabled preparation feedback while loading one batch of workout definitions. Failure permits retry; old workspace/date/track responses and cleanup cannot affect a newer preparation. Preparing a draft does not persist a composition.
+
 Customize edits the existing private composition when one exists; otherwise it starts from the displayed day. Start empty, section selection, private editing, repeats, removal and ordering stay local until Save session. Cancel discards the draft; saving returns to the performance surface. Warm-ups, cooldowns and instructions use the original check/note kinds and source snapshots.
+
+Source Add labels and disabled states use the same exact session/block/published-version membership. Workout detail exposes its single shared header Add/Log entry; schedules and earlier results do not repeat a pending-add navigation action.
 
 Source and personal surfaces retain track, date and workspace context in Training. Library and detail actions identify the destination, append selected work only, show a server-confirmed receipt, and offer Open session and revision-protected Undo. Undo rejects both personal results and exact published source results. Stable item identity protects retries; a separate repeat in the builder creates a new identity.
 
@@ -219,7 +223,7 @@ A visible workout can record a private score without a remix, follow, or planned
 
 Direct library writes reuse the existing score-and-round transaction, storing a server-resolved performed snapshot and exact optional source occurrence. The day has compositionState=result_only until an explicit composition save. Existing days default to customized, including intentionally empty plans. Direct scores leave an existing custom plan, order and revision unchanged.
 
-The additive generated migration `0007_material_champions.sql` adds composition_state to the canonical personal session table. Apply it before using the new APIs. Rich private scores retain entered weight units, rounds, capped zero reps and tiebreak values. Historical edit uses the saved snapshot without reinserting planned work. Progress includes the athlete's results across tracks and independent library attempts.
+The generated composition_state migration is pending integration: `0007_material_champions.sql` collides with #695 and must not be applied as the final lineage. Under Option C, reconcile only after the authorized #691 and #695/#698 dependencies merge, then recheck the actual next migration reservation and regenerate against that lineage. The disposable prototype used 0009 provisionally; it is not an instruction to apply or publish that artifact. PR #699 is not merge-ready while this hold remains. Rich private scores retain entered weight units, rounds, capped zero reps and tiebreak values. Historical edit uses the saved snapshot without reinserting planned work. Progress includes the athlete's results across tracks and independent library attempts.
 
 ## Session UX Verification
 

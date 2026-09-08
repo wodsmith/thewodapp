@@ -50,6 +50,8 @@ Notes-only edits and unit conversions preserve the same gram values for every fr
 
 An append that races another row refreshes its revision and retries the same identity without replacing earlier work.
 
+The retry assertion snapshots the first payload inside the rejecting mock, proving revision zero becomes one without comparing aliased mutable call records. Item identity and contents remain unchanged.
+
 ## New workout inputs reset without leaking notes
 
 Changing to another workout or occurrence clears inputs and creates a new attempt identity; recognized import handoffs preserve their notes.

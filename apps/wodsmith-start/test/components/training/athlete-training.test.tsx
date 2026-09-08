@@ -803,3 +803,237 @@ it.each(["new", "existing", "scored"] as const)(
     }
   },
 )
+
+function providerPreparationDay() {
+  return {
+    defaultTrackId: "everyday",
+    selectedTrackId: "compete",
+    sourceSession: null,
+    personalSession: null,
+    items: [],
+    results: [],
+    libraryResults: [],
+    source: {
+      kind: "provider-day" as const,
+      day: {
+        id: "provider",
+        date: session.trainingDate,
+        url: "https://example.com/work",
+        kind: "workout" as const,
+        markdown: "Work",
+        workouts: [
+          { workoutId: "first", name: "First work", scheme: "time" },
+          { workoutId: "second", name: "Second work", scheme: "time" },
+        ],
+      },
+    },
+  }
+}
+function deferredProviderWorkout() {
+  let resolve!: (
+    value: Awaited<ReturnType<typeof getTrainingLibraryWorkoutFn>>,
+  ) => void
+  let reject!: (reason: Error) => void
+  const promise = new Promise<
+    Awaited<ReturnType<typeof getTrainingLibraryWorkoutFn>>
+  >((done, fail) => {
+    resolve = done
+    reject = fail
+  })
+  return { promise, resolve, reject }
+}
+const preparedWorkout: Awaited<ReturnType<typeof getTrainingLibraryWorkoutFn>> =
+  {
+    id: "prepared",
+    name: "Prepared work",
+    description: "Current prescription",
+    scheme: "time",
+    roundsToScore: 1,
+    scoreType: "min",
+    timeCap: null,
+    repsPerRound: null,
+    tiebreakScheme: null,
+    scalingGroupId: null,
+    movementIds: [],
+  }
+
+// @lat: [[session-navigation-tests#Provider preparation has one visible request batch]]
+it("shows disabled preparation feedback and loads one provider batch without saving", async () => {
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue(
+    providerPreparationDay(),
+  )
+  const pending = deferredProviderWorkout()
+  vi.mocked(getTrainingLibraryWorkoutFn).mockReturnValue(pending.promise)
+  render(
+    <AthletePersonalSession
+      team={context.teams[0]!}
+      trackId="compete"
+      date={session.trainingDate}
+      sourceResults={[]}
+      onSaved={vi.fn()}
+    />,
+  )
+  const trigger = await screen.findByRole("button", {
+    name: "Customize session",
+  })
+  fireEvent.click(trigger)
+  fireEvent.click(trigger)
+  expect(
+    screen.getByRole("button", { name: "Preparing session…" }),
+  ).toBeDisabled()
+  expect(getTrainingLibraryWorkoutFn).toHaveBeenCalledTimes(2)
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  await act(async () => pending.resolve(preparedWorkout))
+  expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled()
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+})
+
+// @lat: [[session-navigation-tests#Failed provider preparation can retry]]
+it("restores Customize after preparation fails and clears the failure on retry", async () => {
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue(
+    providerPreparationDay(),
+  )
+  vi.mocked(getTrainingLibraryWorkoutFn).mockRejectedValueOnce(
+    new Error("Provider offline"),
+  )
+  render(
+    <AthletePersonalSession
+      team={context.teams[0]!}
+      trackId="compete"
+      date={session.trainingDate}
+      sourceResults={[]}
+      onSaved={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Customize session" }),
+  )
+  await screen.findByText("Provider offline")
+  const pending = deferredProviderWorkout()
+  vi.mocked(getTrainingLibraryWorkoutFn).mockReturnValue(pending.promise)
+  fireEvent.click(screen.getByRole("button", { name: "Customize session" }))
+  expect(screen.queryByText("Provider offline")).not.toBeInTheDocument()
+  expect(
+    screen.getByRole("button", { name: "Preparing session…" }),
+  ).toBeDisabled()
+  await act(async () => pending.resolve(preparedWorkout))
+  expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled()
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+})
+
+// @lat: [[session-navigation-tests#Late provider preparation cannot replace a newer context]]
+it.each([
+  ["track", "success"],
+  ["track", "error"],
+  ["date", "success"],
+  ["date", "error"],
+  ["workspace", "success"],
+  ["workspace", "error"],
+] as const)(
+  "ignores late %s preparation %s while a newer request stays pending",
+  async (change, outcome) => {
+    vi.mocked(getPersonalTrainingDayFn).mockResolvedValue(
+      providerPreparationDay(),
+    )
+    const old = deferredProviderWorkout()
+    const next = deferredProviderWorkout()
+    vi.mocked(getTrainingLibraryWorkoutFn).mockReturnValue(old.promise)
+    const props = {
+      team: context.teams[0]!,
+      trackId: "compete",
+      date: session.trainingDate,
+      sourceResults: [],
+      onSaved: vi.fn(),
+    }
+    const view = render(<AthletePersonalSession {...props} />)
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Customize session" }),
+    )
+    vi.mocked(getTrainingLibraryWorkoutFn).mockReturnValue(next.promise)
+    view.rerender(
+      <AthletePersonalSession
+        {...props}
+        trackId={change === "track" ? "everyday" : props.trackId}
+        date={change === "date" ? "2026-09-08" : props.date}
+        team={change === "workspace" ? context.teams[1]! : props.team}
+      />,
+    )
+    const trigger = await screen.findByRole("button", {
+      name: "Customize session",
+    })
+    expect(trigger).toBeEnabled()
+    fireEvent.click(trigger)
+    await act(async () =>
+      outcome === "success"
+        ? old.resolve({ ...preparedWorkout, name: "Obsolete work" })
+        : old.reject(new Error("Obsolete failure")),
+    )
+    expect(screen.queryByText("Obsolete failure")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("heading", { name: "Obsolete work" }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Preparing session…" }),
+    ).toBeDisabled()
+    expect(
+      screen.queryByRole("button", { name: "Save session" }),
+    ).not.toBeInTheDocument()
+    await act(async () => next.resolve(preparedWorkout))
+    expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled()
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  },
+)
+
+// @lat: [[session-navigation-tests#Source membership labels use the published version]]
+it.each([1, 2])(
+  "labels and enables source Add consistently for saved version %s",
+  async (savedVersion) => {
+    const sourceItem = {
+      id: "current",
+      kind: "source" as const,
+      block,
+      trackId: "everyday",
+      trackName: "Everyday",
+      sourceTrainingDate: session.trainingDate,
+      sourceSessionId: session.id,
+      sourceBlockId: block.id,
+      sourcePublishedVersion: 2,
+    }
+    const savedItem = {
+      ...sourceItem,
+      id: "saved",
+      sourcePublishedVersion: savedVersion,
+    }
+    vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({
+      defaultTrackId: "everyday",
+      selectedTrackId: "everyday",
+      sourceSession: session,
+      personalSession: {
+        id: "personal",
+        teamId: "gym",
+        trainingDate: session.trainingDate,
+        revision: 1,
+        compositionState: "customized",
+        items: [savedItem],
+      },
+      items: [savedItem],
+      results: [],
+      libraryResults: [],
+    })
+    render(
+      <AthletePersonalSession
+        team={context.teams[0]!}
+        trackId="everyday"
+        date={session.trainingDate}
+        sourceResults={[]}
+        onSaved={vi.fn()}
+      />,
+    )
+    const action = await screen.findByRole("button", {
+      name: savedVersion === 2 ? "In My session" : "Add to My session",
+    })
+    if (savedVersion === 2) expect(action).toBeDisabled()
+    else expect(action).toBeEnabled()
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  },
+)

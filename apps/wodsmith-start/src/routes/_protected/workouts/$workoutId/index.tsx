@@ -271,20 +271,6 @@ function WorkoutDetailPage() {
               <CalendarDays className="h-5 w-5" />
               <h2 className="text-lg font-semibold">Scheduled dates</h2>
             </div>
-            <Button asChild variant="outline">
-              <Link
-                to="/training"
-                search={{
-                  view: "training",
-                  teamId,
-                  date,
-                  workoutId: workout.id,
-                }}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                Add to my session
-              </Link>
-            </Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {scheduledInstances.map((instance) => {
@@ -317,14 +303,6 @@ function WorkoutDetailPage() {
             <ListChecks className="h-5 w-5" />
             <h2 className="text-lg font-semibold">EARLIER WORKOUT RESULTS</h2>
           </div>
-          <Button asChild>
-            <Link
-              to="/training"
-              search={{ view: "training", teamId, date, workoutId: workout.id }}
-            >
-              Add to my session
-            </Link>
-          </Button>
         </div>
 
         {scores.length > 0 ? (

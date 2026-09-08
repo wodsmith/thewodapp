@@ -57,3 +57,31 @@ The preview normalizes personal payloads with the production schema so reordered
 ## Provider draft save boundary in the browser
 
 Native desktop/mobile journeys prevent scoring unsaved provider drafts, preserve an empty composition on Cancel, and open the real personal score form only after explicit Save.
+
+## Provider preparation has one visible request batch
+
+Customize displays disabled preparation feedback and requests each provider workout once until that batch settles, without persisting a composition.
+
+## Failed provider preparation can retry
+
+A failed provider read restores Customize and clears its error when a new preparation begins, while composition writes still require Save.
+
+## Late provider preparation cannot replace a newer context
+
+Old success, failure and cleanup cannot replace or clear preparation for a newer workspace, date or track; each context becomes available independently.
+
+## Source membership labels use the published version
+
+An earlier saved publication leaves the current source Add enabled and correctly labeled; exact session/block/version membership displays disabled In My session.
+
+## Workout detail has one direct Add action
+
+Workout detail retains schedules and earlier scores while exposing only its shared header Add action, without legacy links to pending-add navigation.
+
+## Log form selects distinct personal and direct writers
+
+Real form submissions call the personal writer only with planned item identity, or the direct writer with destination and occurrence context; import handoffs call neither writer.
+
+## Preview rejects invalid personal retry payloads
+
+Invalid same-ID personal retry payloads fail validation instead of becoming another addition, matching the production input boundary.

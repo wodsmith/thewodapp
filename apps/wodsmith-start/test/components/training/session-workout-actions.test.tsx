@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { useState } from "react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
-import type { PersonalTrainingDay } from "@/lib/training/personal-types"
+import type { PersonalTrainingDay, SavePersonalTrainingSessionInput } from "@/lib/training/personal-types"
 const api = vi.hoisted(() => ({day: vi.fn(), save: vi.fn()}))
 vi.mock("@/server-fns/training-personal-fns", () => ({getPersonalTrainingDayFn: api.day, savePersonalTrainingSessionFn: api.save}))
 import { SessionWorkoutActions } from "@/components/training/session-workout-actions"
@@ -113,14 +113,53 @@ it("clears an uncontrolled old day while its new destination request is pending"
 })
 
 // @lat: [[session-review-tests#Concurrent additions retain both intents]]
-it("refreshes a stale append revision once and preserves its item identity",async()=>{
- const prior={id:"other-row",kind:"library" as const,workoutId:"other-workout",workout,occurrence:{}}
- api.save.mockRejectedValueOnce(new Error("CONFLICT: Session changed"))
- api.day.mockResolvedValue({...day,personalSession:{id:"session",teamId:"gym",trainingDate:"2026-09-07",revision:1,items:[prior]}})
- api.save.mockImplementation(async({data})=>({id:"session",teamId:"gym",trainingDate:data.trainingDate,revision:data.expectedRevision+1,items:[prior,...data.items.map((item:object)=>({...item,workout,occurrence:{trackId:"b",sourceDate:"2026-09-07"}}))]}))
- render(<Host />)
- fireEvent.click(screen.getByRole("button",{name:"Add to My session"}))
- await screen.findByRole("button",{name:"Undo"})
- expect(api.save).toHaveBeenCalledTimes(2)
- expect(api.save.mock.calls[1][0].data).toMatchObject({expectedRevision:1,items:api.save.mock.calls[0][0].data.items})
+it("refreshes a stale append revision once and preserves its item identity", async () => {
+  const prior = {
+    id: "other-row",
+    kind: "library" as const,
+    workoutId: "other-workout",
+    workout,
+    occurrence: {},
+  }
+  let firstPayload: SavePersonalTrainingSessionInput | undefined
+  api.save.mockImplementationOnce(
+    async ({ data }: { data: SavePersonalTrainingSessionInput }) => {
+      firstPayload = structuredClone(data)
+      throw new Error("CONFLICT: Session changed")
+    },
+  )
+  api.day.mockResolvedValue({
+    ...day,
+    personalSession: {
+      id: "session",
+      teamId: "gym",
+      trainingDate: "2026-09-07",
+      revision: 1,
+      items: [prior],
+    },
+  })
+  api.save.mockImplementation(async ({ data }) => ({
+    id: "session",
+    teamId: "gym",
+    trainingDate: data.trainingDate,
+    revision: data.expectedRevision + 1,
+    items: [
+      prior,
+      ...data.items.map((item: object) => ({
+        ...item,
+        workout,
+        occurrence: { trackId: "b", sourceDate: "2026-09-07" },
+      })),
+    ],
+  }))
+  render(<Host />)
+  fireEvent.click(screen.getByRole("button", { name: "Add to My session" }))
+  await screen.findByRole("button", { name: "Undo" })
+  expect(api.save).toHaveBeenCalledTimes(2)
+  expect(firstPayload).toMatchObject({ expectedRevision: 0 })
+  expect(firstPayload?.items).toHaveLength(1)
+  expect(api.save.mock.calls[1][0].data).toMatchObject({
+    expectedRevision: 1,
+    items: firstPayload?.items,
+  })
 })

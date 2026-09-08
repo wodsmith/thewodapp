@@ -96,6 +96,8 @@ export function AthletePersonalSession({
     }
   }, [importContext])
   const [editing, setEditing] = useState(false)
+  const [preparingBuilder, setPreparingBuilder] = useState(false)
+  const preparingContext = useRef<typeof importContext | null>(null)
   const [draft, setDraft] = useState<PersonalTrainingItem[]>([])
   const [receipt, setReceipt] = useState<{
     items: PersonalTrainingItemInput[]
@@ -196,6 +198,8 @@ export function AthletePersonalSession({
     setError("")
     setEditor(null)
     setEditing(false)
+    preparingContext.current = null
+    setPreparingBuilder(false)
     setReceipt(null)
     setAdding(false)
     getPersonalTrainingDayFn({
@@ -356,12 +360,16 @@ export function AthletePersonalSession({
   }
   async function beginBuilder(empty = false) {
     const builderContext = importContext
+    if (preparingContext.current === builderContext) return
     if (!empty && customized && personal) {
       setDraft([...personal.items])
       setEditing(true)
       return
     }
     if (!empty && surface === "track" && day?.source?.kind === "provider-day") {
+      preparingContext.current = builderContext
+      setPreparingBuilder(true)
+      setError("")
       try {
         const entries = await Promise.all(
           day.source.day.workouts.map(async (entry) => {
@@ -386,15 +394,33 @@ export function AthletePersonalSession({
             }
           }),
         )
-        if (currentImportContext.current !== builderContext) return
+        if (
+          !builderContext.active ||
+          currentImportContext.current !== builderContext
+        )
+          return
         setDraft(entries)
         setEditing(true)
       } catch (cause) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Could not load this session",
-        )
+        if (
+          builderContext.active &&
+          currentImportContext.current === builderContext
+        ) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Could not load this session",
+          )
+        }
+      } finally {
+        if (
+          builderContext.active &&
+          currentImportContext.current === builderContext &&
+          preparingContext.current === builderContext
+        ) {
+          preparingContext.current = null
+          setPreparingBuilder(false)
+        }
       }
       return
     }
@@ -440,7 +466,10 @@ export function AthletePersonalSession({
   }
 
   return (
-    <section aria-labelledby="training-session-title" aria-busy={saving}>
+    <section
+      aria-labelledby="training-session-title"
+      aria-busy={saving || preparingBuilder}
+    >
       <div className="pb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h2
@@ -487,11 +516,14 @@ export function AthletePersonalSession({
                   ref={builderTrigger}
                   variant="outline"
                   className="min-h-11"
+                  disabled={preparingBuilder}
                   onClick={() => beginBuilder()}
                 >
-                  {surface === "session" && customized
-                    ? "Edit session"
-                    : "Customize session"}
+                  {preparingBuilder
+                    ? "Preparing session…"
+                    : surface === "session" && customized
+                      ? "Edit session"
+                      : "Customize session"}
                 </Button>
                 <Button
                   variant="ghost"
@@ -697,6 +729,15 @@ ${workout.provenance ? "" : workout.description}`,
               : item.remixedFrom
                 ? "Your remix"
                 : "Your workout"
+        const inSession =
+          item.kind === "source" &&
+          !!personal?.items.some(
+            (existing) =>
+              existing.kind === "source" &&
+              existing.sourceSessionId === item.sourceSessionId &&
+              existing.sourceBlockId === item.sourceBlockId &&
+              existing.sourcePublishedVersion === item.sourcePublishedVersion,
+          )
         const renderedSession: TrainingSession = {
           id:
             item.kind === "source"
@@ -875,19 +916,7 @@ ${workout.provenance ? "" : workout.description}`,
                         <Button
                           variant="outline"
                           className="min-h-11"
-                          disabled={
-                            saving ||
-                            !!personal?.items.some(
-                              (existing) =>
-                                existing.kind === "source" &&
-                                item.kind === "source" &&
-                                existing.sourceSessionId ===
-                                  item.sourceSessionId &&
-                                existing.sourceBlockId === item.sourceBlockId &&
-                                existing.sourcePublishedVersion ===
-                                  item.sourcePublishedVersion,
-                            )
-                          }
+                          disabled={saving || inSession}
                           onClick={() =>
                             void append([
                               {
@@ -901,16 +930,7 @@ ${workout.provenance ? "" : workout.description}`,
                             ])
                           }
                         >
-                          {personal?.items.some(
-                            (existing) =>
-                              existing.kind === "source" &&
-                              item.kind === "source" &&
-                              existing.sourceSessionId ===
-                                item.sourceSessionId &&
-                              existing.sourceBlockId === item.sourceBlockId,
-                          )
-                            ? "In My session"
-                            : "Add to My session"}
+                          {inSession ? "In My session" : "Add to My session"}
                         </Button>
                       </div>
                     ) : null

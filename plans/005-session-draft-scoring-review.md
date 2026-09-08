@@ -8,7 +8,7 @@ Written against 621a8e091197df00430e672eb6bf8cdde7c9641a for PR #699 in /private
 
 Status: DONE. The parent independently approved the complete source, tests, documentation, three review dispositions and affected verification gates. See [the verification receipt](005-session-draft-scoring-verification.md).
 
-Only the executor edits source. Do not commit until parent review approval; do not push, merge, deploy, change the base, apply migrations or edit dependency branches. Option C migration integration remains held. No server implementation, access policy, schema or migration changes are in scope.
+The executor made the source changes and committed after parent review approval; the parent published the approved commit under the user's authorization. No merge, deployment, base change, migration application or dependency edit occurred. Option C migration integration remains held.
 
 ## Findings and intended behavior
 
@@ -38,4 +38,4 @@ The parent will independently rerun focused tests, complete session browser cove
 
 ## Completion and maintenance
 
-Return the full diff, before/after results, impact scope, the three dispositions and remaining limitations for parent review. Keep this plan IN PROGRESS until approval. Future builder scoring changes must retain explicit Save as the persistence boundary and must not confuse navigation return context with source provenance.
+The executor returned the full diff, before/after results, impact scope, three dispositions and remaining limitations. Parent approval completed this plan before commit and publication. Future builder scoring changes must retain explicit Save as the persistence boundary and keep return context separate from source provenance.

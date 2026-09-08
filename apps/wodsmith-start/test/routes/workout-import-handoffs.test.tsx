@@ -2,9 +2,19 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ComponentType, ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 const mock = vi.hoisted(() => ({
-  navigate: vi.fn().mockResolvedValue(undefined), invalidate: vi.fn(), submitLog: vi.fn(), getWorkouts: vi.fn(),
-  getDirectEntry: vi.fn(), getContext: vi.fn(), getPersonalDay: vi.fn(), savePersonalSession: vi.fn(), importFailed: vi.fn(),
-  search: {} as Record<string, unknown>, data: {} as Record<string, unknown>, panelProps: {} as Record<string, unknown>,
+  navigate: vi.fn().mockResolvedValue(undefined),
+  invalidate: vi.fn(),
+  submitDirectLog: vi.fn(),
+  submitPersonalLog: vi.fn(),
+  getWorkouts: vi.fn(),
+  getDirectEntry: vi.fn(),
+  getContext: vi.fn(),
+  getPersonalDay: vi.fn(),
+  savePersonalSession: vi.fn(),
+  importFailed: vi.fn(),
+  search: {} as Record<string, unknown>,
+  data: {} as Record<string, unknown>,
+  panelProps: {} as Record<string, unknown>,
 }))
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options, useLoaderData: () => mock.data, useSearch: () => ({ workoutId: "original", ...mock.search }) }),
@@ -16,9 +26,9 @@ vi.mock("@/lib/posthog", () => ({ trackEvent: vi.fn() }))
 vi.mock("@/server-fns/training-personal-fns", () => ({
   getPersonalTrainingDayFn: mock.getPersonalDay,
   getDirectLibraryEntryFn: mock.getDirectEntry,
-  saveDirectLibraryResultFn: mock.submitLog,
+  saveDirectLibraryResultFn: mock.submitDirectLog,
   getPersonalLibraryScalingLevelsFn: vi.fn(),
-  savePersonalLibraryResultFn: mock.submitLog,
+  savePersonalLibraryResultFn: mock.submitPersonalLog,
   savePersonalTrainingSessionFn: mock.savePersonalSession,
 }))
 vi.mock("@/server-fns/training-fns", () => ({getTrainingContextFn: mock.getContext}))
@@ -39,6 +49,8 @@ import { Route as AdminRoute } from "@/routes/_protected/admin/teams/programming
 
 beforeEach(() => {
   mock.search = {}
+  mock.submitDirectLog.mockResolvedValue({scoreId: "direct-score"})
+  mock.submitPersonalLog.mockResolvedValue({scoreId: "personal-score"})
   mock.getContext.mockResolvedValue({teams:[{id:"team-personal", name:"My training",timezone:"UTC",isPersonal:true}]})
   mock.getDirectEntry.mockResolvedValue({workout:{id:"original", name:"Original workout", scheme:"time"},levels:[]})
   mock.navigate.mockResolvedValue(undefined)
@@ -74,7 +86,8 @@ describe("workout import route handoffs", () => {
     expect(screen.getByLabelText("Date")).toHaveValue("2026-08-10")
     expect(screen.getByLabelText(/Notes/)).toHaveValue("Keep my session notes")
     expect(screen.getByLabelText("Score")).toHaveValue("")
-    expect(mock.submitLog).not.toHaveBeenCalled()
+    expect(mock.submitDirectLog).not.toHaveBeenCalled()
+    expect(mock.submitPersonalLog).not.toHaveBeenCalled()
   })
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Personal attachment retry]]
@@ -92,7 +105,8 @@ describe("workout import route handoffs", () => {
     await waitFor(() => expect(mock.navigate).toHaveBeenCalled())
     expect(mock.savePersonalSession).toHaveBeenCalledTimes(1)
     expect(mock.navigate.mock.calls[0][0].search.personalItemId).toBe(mock.savePersonalSession.mock.calls[0][0].data.items[2].id)
-    expect(mock.submitLog).not.toHaveBeenCalled()
+    expect(mock.submitDirectLog).not.toHaveBeenCalled()
+    expect(mock.submitPersonalLog).not.toHaveBeenCalled()
   })
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Personal attachment conflict]]
@@ -107,7 +121,8 @@ describe("workout import route handoffs", () => {
     expect(screen.getByLabelText(/Notes/)).toHaveValue("Unsaved notes")
     expect(screen.getByLabelText("Score")).toHaveValue("75")
     expect(mock.navigate).not.toHaveBeenCalled()
-    expect(mock.submitLog).not.toHaveBeenCalled()
+    expect(mock.submitDirectLog).not.toHaveBeenCalled()
+    expect(mock.submitPersonalLog).not.toHaveBeenCalled()
   })
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Legacy log handoff]]
@@ -116,7 +131,8 @@ describe("workout import route handoffs", () => {
     await expect(loader({ deps: { workoutId: "original" } })).resolves.toMatchObject({selectedWorkout:{id:"original"},teamId:"team-personal",personalSessionId:undefined})
     expect(mock.getPersonalDay).not.toHaveBeenCalled()
     expect(mock.savePersonalSession).not.toHaveBeenCalled()
-    expect(mock.submitLog).not.toHaveBeenCalled()
+    expect(mock.submitDirectLog).not.toHaveBeenCalled()
+    expect(mock.submitPersonalLog).not.toHaveBeenCalled()
   })
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Track alias placement]]
@@ -255,3 +271,61 @@ it("keeps return navigation when a new-log link finds an existing personal score
     trackId: "browsed-track",
   })
 })
+
+// @lat: [[session-navigation-tests#Log form selects distinct personal and direct writers]]
+it.each(["personal", "direct"] as const)(
+  "submits the real %s score form only to its matching writer",
+  async (mode) => {
+    mock.search = { trackId: "source-track", sourceDate: "2026-08-01" }
+    if (mode === "direct")
+      mock.data = {
+        ...mock.data,
+        personalSessionId: undefined,
+        personalItemId: undefined,
+        personalRevision: undefined,
+      }
+    const Page = LogRoute.options.component as ComponentType
+    render(<Page />)
+    fireEvent.change(screen.getByLabelText("Score"), {
+      target: { value: "12" },
+    })
+    fireEvent.change(screen.getByLabelText(/Notes/), {
+      target: { value: "Private result" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Save result" }))
+    const selected =
+      mode === "personal" ? mock.submitPersonalLog : mock.submitDirectLog
+    const other =
+      mode === "personal" ? mock.submitDirectLog : mock.submitPersonalLog
+    await waitFor(() => expect(selected).toHaveBeenCalledTimes(1))
+    expect(other).not.toHaveBeenCalled()
+    const data = selected.mock.calls[0][0].data
+    expect(data).toMatchObject({
+      score: "12",
+      notes: "Private result",
+      unit: "lb",
+      asRx: true,
+    })
+    if (mode === "personal") {
+      expect(data).toMatchObject({
+        personalSessionId: "session-owned",
+        itemId: "item-original",
+        expectedRevision: 3,
+      })
+      expect(data).not.toHaveProperty("workoutId")
+      expect(data).not.toHaveProperty("sourceTrackId")
+    } else {
+      expect(data).toMatchObject({
+        teamId: "team-personal",
+        trainingDate: "2026-08-10",
+        workoutId: "original",
+        sourceTrackId: "source-track",
+        sourceDate: "2026-08-01",
+        itemId: expect.any(String),
+      })
+      expect(data).not.toHaveProperty("personalSessionId")
+      expect(data).not.toHaveProperty("expectedRevision")
+    }
+    expect(mock.savePersonalSession).not.toHaveBeenCalled()
+  },
+)
