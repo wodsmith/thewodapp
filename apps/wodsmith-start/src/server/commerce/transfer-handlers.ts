@@ -12,6 +12,7 @@ import {
   waiverSignaturesTable,
   waiversTable,
 } from "@/db/schema"
+import { assertUnambiguousResultOwnership } from "@/server/competition-results/registration-lock"
 
 interface TransferContext {
   purchaseId: string
@@ -241,7 +242,10 @@ export async function handleCompetitionRegistrationTransfer(
   if (competitionEvents.length > 0) {
     const eventIds = competitionEvents.map((e) => e.trackWorkoutId)
     const transferredScores = await db
-      .select({ id: scoresTable.id })
+      .select({
+        id: scoresTable.id,
+        trackWorkoutId: scoresTable.competitionEventId,
+      })
       .from(scoresTable)
       .where(
         and(
@@ -255,6 +259,15 @@ export async function handleCompetitionRegistrationTransfer(
       .for("update")
 
     if (transferredScores.length > 0) {
+      for (const score of transferredScores) {
+        if (score.trackWorkoutId)
+          await assertUnambiguousResultOwnership(db, {
+            competitionId: ctx.competitionId,
+            trackWorkoutId: score.trackWorkoutId,
+            athleteUserId: ctx.sourceUserId,
+            divisionId: registration.divisionId,
+          })
+      }
       const scoreIds = transferredScores.map((score) => score.id)
       await db
         .delete(scoreRoundsTable)

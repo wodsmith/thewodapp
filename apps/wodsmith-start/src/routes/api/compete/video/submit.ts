@@ -226,21 +226,10 @@ export const Route = createFileRoute("/api/compete/video/submit")({
             )
           }
 
-          // Check for existing submission
-          const [existingSubmission] = await db
-            .select({ id: videoSubmissionsTable.id })
-            .from(videoSubmissionsTable)
-            .where(
-              and(
-                eq(videoSubmissionsTable.registrationId, registration.id),
-                eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
-              ),
-            )
-            .limit(1)
-
           return await db.transaction(async (tx) => {
             const now = new Date()
             await lockRegistrationForResult(tx, {
+              competitionId: data.competitionId,
               athleteUserId: userId,
               trackWorkoutId: data.trackWorkoutId,
               divisionId: registration.divisionId,
@@ -251,6 +240,7 @@ export const Route = createFileRoute("/api/compete/video/submit")({
               await recordCompetitionResultInTransaction({
                 db: tx,
                 command: {
+                  competitionId: data.competitionId,
                   athleteUserId: userId,
                   trackWorkoutId: data.trackWorkoutId,
                   divisionScope: divisionScopeFromId(registration.divisionId),
@@ -264,6 +254,20 @@ export const Route = createFileRoute("/api/compete/video/submit")({
                 },
               })
             }
+
+            // Current evidence lookup follows the registration and result locks.
+            const [existingSubmission] = await tx
+              .select({ id: videoSubmissionsTable.id })
+              .from(videoSubmissionsTable)
+              .where(
+                and(
+                  eq(videoSubmissionsTable.registrationId, registration.id),
+                  eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+                  eq(videoSubmissionsTable.videoIndex, 0),
+                ),
+              )
+              .for("update")
+              .limit(1)
 
             let submissionId: string
 
@@ -284,6 +288,7 @@ export const Route = createFileRoute("/api/compete/video/submit")({
                 id,
                 registrationId: registration.id,
                 trackWorkoutId: data.trackWorkoutId,
+                videoIndex: 0,
                 userId,
                 videoUrl: data.videoUrl,
                 notes: data.notes ?? null,

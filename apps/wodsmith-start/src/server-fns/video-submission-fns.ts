@@ -428,7 +428,12 @@ async function submitBenchmarkVideoScore({
   existingSubmission: { id: string } | undefined
   userId: string
   now: Date
-}) {
+}): Promise<{
+  success: boolean
+  submissionId: string | undefined
+  isUpdate: boolean
+  retainedCurrentBest: boolean
+}> {
   if (data.videoIndex !== 0) {
     throw new Error("Benchmark submissions are individual-only")
   }
@@ -600,6 +605,52 @@ async function submitBenchmarkVideoScore({
         score: scoreWriteInput,
       })
 
+      if (writeResult.written && encodedRounds.length > 0) {
+        const scoreId =
+          writeResult.scoreId ??
+          (
+            await tx
+              .select({ id: scoresTable.id })
+              .from(scoresTable)
+              .where(
+                and(
+                  eq(scoresTable.competitionEventId, data.trackWorkoutId),
+                  eq(scoresTable.userId, userId),
+                  eq(scoresTable.scalingLevelId, context.openDivisionId),
+                ),
+              )
+              .limit(1)
+          )[0]?.id
+
+        if (scoreId) {
+          await tx
+            .delete(scoreRoundsTable)
+            .where(eq(scoreRoundsTable.scoreId, scoreId))
+          await tx.insert(scoreRoundsTable).values(
+            encodedRounds.map((value, index) => ({
+              scoreId,
+              roundNumber: index + 1,
+              value,
+              status: roundStatuses[index] ?? null,
+            })),
+          )
+        }
+      }
+      // Refresh evidence after score/round writes and the registration mutex.
+      const [lockedSubmission] = await tx
+        .select({ id: videoSubmissionsTable.id })
+        .from(videoSubmissionsTable)
+        .where(
+          and(
+            eq(videoSubmissionsTable.registrationId, registration.id),
+            eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+            eq(videoSubmissionsTable.videoIndex, data.videoIndex),
+          ),
+        )
+        .for("update")
+        .limit(1)
+      existingSubmission = lockedSubmission
+
       let submissionId: string | null = existingSubmission?.id ?? null
       let isUpdate = !!existingSubmission
 
@@ -634,38 +685,6 @@ async function submitBenchmarkVideoScore({
 
         if (submissionId) {
           await resetBenchmarkVideoReviewState(submissionId, now, tx)
-        }
-
-        if (encodedRounds.length > 0) {
-          const scoreId =
-            writeResult.scoreId ??
-            (
-              await tx
-                .select({ id: scoresTable.id })
-                .from(scoresTable)
-                .where(
-                  and(
-                    eq(scoresTable.competitionEventId, data.trackWorkoutId),
-                    eq(scoresTable.userId, userId),
-                    eq(scoresTable.scalingLevelId, context.openDivisionId),
-                  ),
-                )
-                .limit(1)
-            )[0]?.id
-
-          if (scoreId) {
-            await tx
-              .delete(scoreRoundsTable)
-              .where(eq(scoreRoundsTable.scoreId, scoreId))
-            await tx.insert(scoreRoundsTable).values(
-              encodedRounds.map((value, index) => ({
-                scoreId,
-                roundNumber: index + 1,
-                value,
-                status: roundStatuses[index] ?? null,
-              })),
-            )
-          }
         }
       }
 
@@ -1798,6 +1817,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     return db.transaction(async (tx) => {
       await lockRegistrationForResult(tx, {
+        competitionId: data.competitionId,
         athleteUserId: session.userId,
         trackWorkoutId: data.trackWorkoutId,
         divisionId: registration.divisionId,
@@ -1808,6 +1828,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
         const receipt = await recordCompetitionResultInTransaction({
           db: tx,
           command: {
+            competitionId: data.competitionId,
             athleteUserId: session.userId,
             trackWorkoutId: data.trackWorkoutId,
             divisionScope: divisionScopeFromId(registration.divisionId),
@@ -1845,10 +1866,23 @@ export const submitVideoFn = createServerFn({ method: "POST" })
           )
       }
 
+      const [currentSubmission] = await tx
+        .select({ id: videoSubmissionsTable.id })
+        .from(videoSubmissionsTable)
+        .where(
+          and(
+            eq(videoSubmissionsTable.registrationId, registration.id),
+            eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+            eq(videoSubmissionsTable.videoIndex, data.videoIndex),
+          ),
+        )
+        .for("update")
+        .limit(1)
+
       // Save or update video submission
       let submissionId: string
 
-      if (existingSubmission) {
+      if (currentSubmission) {
         // Update existing submission
         await tx
           .update(videoSubmissionsTable)
@@ -1863,9 +1897,9 @@ export const submitVideoFn = createServerFn({ method: "POST" })
             reviewedBy: null,
             reviewerNotes: null,
           })
-          .where(eq(videoSubmissionsTable.id, existingSubmission.id))
+          .where(eq(videoSubmissionsTable.id, currentSubmission.id))
 
-        submissionId = existingSubmission.id
+        submissionId = currentSubmission.id
       } else {
         // Create new submission
         const id = createVideoSubmissionId()
@@ -1886,7 +1920,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       return {
         success: true,
         submissionId,
-        isUpdate: !!existingSubmission,
+        isUpdate: !!currentSubmission,
       }
     })
   })

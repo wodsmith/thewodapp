@@ -425,6 +425,7 @@ export async function saveBenchmarkScoreInTransaction({
   )
 
   await lockRegistrationForResult(db, {
+    competitionId: context.competitionId,
     athleteUserId: score.userId,
     trackWorkoutId: score.competitionEventId,
     divisionId: context.openDivisionId,

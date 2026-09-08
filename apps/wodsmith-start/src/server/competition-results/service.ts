@@ -83,6 +83,7 @@ export async function recordCompetitionResultInTransaction(input: {
   return persistCompetitionResultInTransaction({
     db,
     target: {
+      competitionId: command.competitionId,
       athleteUserId: command.athleteUserId,
       ownerTeamId: track.ownerTeamId,
       workoutId: programmedWorkout.workoutId,

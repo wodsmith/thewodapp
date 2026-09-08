@@ -1,3 +1,7 @@
+vi.mock("@/server/competition-results/registration-lock", () => ({
+  assertUnambiguousResultOwnership: vi.fn().mockResolvedValue(undefined),
+}))
+
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeDrizzleDb} from '@repo/test-utils'
 

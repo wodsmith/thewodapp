@@ -343,6 +343,7 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
           const ownerTeamId = track.ownerTeamId
           return await db.transaction(async (tx) => {
             await lockRegistrationForResult(tx, {
+              competitionId: data.competitionId,
               athleteUserId: userId,
               trackWorkoutId: data.trackWorkoutId,
               divisionId: registration.divisionId,

@@ -92,6 +92,7 @@ import {
   persistCompetitionResultInTransaction,
 } from "@/server/competition-results/repository"
 import { normalizeManualSubmissionWorkoutResult } from "@/server/competition-results/review"
+import { recordCompetitionResultInTransaction } from "@/server/competition-results/service"
 import { acceptPurchaseTransferFn } from "@/server-fns/purchase-transfer-accept-fns"
 import { cancelPurchaseTransferFn } from "@/server-fns/purchase-transfer-fns"
 import { transferRegistrationDivisionFn } from "@/server-fns/registration-fns"
@@ -1034,6 +1035,404 @@ describe.skipIf(!mysqlTestConfig)(
       expect(await rows(scoresTable)).toEqual([])
     })
 
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Reused workout competition identity]]
+    it.each([
+      ["division", "source", "retained"],
+      [null, "source", "retained"],
+      ["division", "other-athlete", "division"],
+    ] as const)(
+      "binds a reused workout to %s while retaining %s in %s",
+      async (divisionId, retainedUserId, retainedDivisionId) => {
+        await pool.promise().query("DELETE FROM scores")
+        await pool
+          .promise()
+          .query("UPDATE competition_registrations SET division_id = ?", [
+            divisionId,
+          ])
+        await insert(competitionsTable, { id: "other-competition" })
+        await insert(competitionEventsTable, {
+          id: "a-event",
+          competitionId: "other-competition",
+          trackWorkoutId: "track-workout",
+        })
+        await insert(competitionRegistrationsTable, {
+          id: "retained",
+          eventId: "other-competition",
+          userId: retainedUserId,
+          divisionId: retainedDivisionId,
+          status: "active",
+        })
+        await insert(scoresTable, {
+          id: "retained-score",
+          userId: retainedUserId,
+          competitionEventId: "track-workout",
+          scalingLevelId: retainedDivisionId,
+          scoreValue: 99,
+        })
+        await insert(programmingTracksTable, {
+          id: "track",
+          ownerTeamId: "organizer",
+        })
+        await insert(workouts, {
+          id: "workout",
+          scheme: "reps",
+          scoreType: "max",
+          roundsToScore: 1,
+        })
+        await insert(trackWorkoutsTable, {
+          id: "track-workout",
+          trackId: "track",
+          workoutId: "workout",
+        })
+        const retainedScore = await rows(scoresTable)
+        const registrations = await rows(competitionRegistrationsTable)
+        await fixture.db!.transaction((tx) =>
+          recordCompetitionResultInTransaction({
+            db: tx,
+            command: {
+              competitionId: "competition",
+              athleteUserId: "source",
+              trackWorkoutId: "track-workout",
+              divisionScope: divisionId
+                ? { kind: "division", divisionId }
+                : { kind: "open" },
+              claim: { score: "42", status: "scored" },
+            },
+          }),
+        )
+        expect(await rows(scoresTable)).toEqual(
+          expect.arrayContaining(retainedScore),
+        )
+        expect(await rows(scoresTable)).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              user_id: "source",
+              scaling_level_id: divisionId,
+              score_value: 42,
+            }),
+          ]),
+        )
+        expect(await rows(competitionRegistrationsTable)).toEqual(registrations)
+      },
+    )
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Ambiguous workout registration lock]]
+    it("rejects ambiguous unbound workout participation without writes", async () => {
+      await insert(competitionEventsTable, {
+        id: "z-event",
+        competitionId: "another-competition",
+        trackWorkoutId: "track-workout",
+      })
+      const before = await snapshot()
+      await expect(
+        fixture.db!.transaction((tx) =>
+          registrationLock.lockRegistrationForResult(tx, {
+            athleteUserId: "source",
+            trackWorkoutId: "track-workout",
+            divisionId: "division",
+          }),
+        ),
+      ).rejects.toThrow("Registration changed")
+      expect(await snapshot()).toEqual(before)
+    })
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Ambiguous shared score ownership]]
+    it.each([
+      ["division", "active"],
+      [null, "active"],
+      ["division", "removed"],
+      [null, "inactive-member"],
+      ["division", "transferred-owner"],
+    ] as const)(
+      "preserves every row when a %s result has %s competing ownership",
+      async (divisionId, history) => {
+        await pool
+          .promise()
+          .query("UPDATE competition_registrations SET division_id = ?", [
+            divisionId,
+          ])
+        await pool
+          .promise()
+          .query("UPDATE scores SET scaling_level_id = ?", [divisionId])
+        await insert(scoreRoundsTable, {
+          id: "ambiguous-round",
+          scoreId: "source-score",
+          roundNumber: 1,
+          value: 42,
+        })
+        await insert(videoSubmissionsTable, {
+          id: "ambiguous-video",
+          registrationId: "registration",
+          trackWorkoutId: "track-workout",
+          videoIndex: 0,
+          userId: "source",
+          videoUrl: "https://youtu.be/original",
+        })
+        await insert(competitionEventsTable, {
+          id: "shared-event",
+          competitionId: "other-competition",
+          trackWorkoutId: "track-workout",
+        })
+        await insert(competitionRegistrationsTable, {
+          id: "other-registration",
+          eventId: "other-competition",
+          userId:
+            history === "inactive-member" || history === "transferred-owner"
+              ? "another-owner"
+              : "source",
+          divisionId,
+          status: history === "removed" ? "removed" : "active",
+          athleteTeamId: history === "inactive-member" ? "old-team" : null,
+          commercePurchaseId:
+            history === "transferred-owner" ? "old-purchase" : null,
+        })
+        if (history === "inactive-member")
+          await insert(teamMembershipTable, {
+            id: "past-member",
+            userId: "source",
+            teamId: "old-team",
+            isActive: false,
+          })
+        if (history === "transferred-owner")
+          await insert(purchaseTransfersTable, {
+            id: "past-transfer",
+            purchaseId: "old-purchase",
+            sourceUserId: "source",
+            targetUserId: "another-owner",
+            transferState: "COMPLETED",
+          })
+        const before = await snapshot()
+        await expect(
+          accept({ data: { transferId: "transfer" } }),
+        ).rejects.toThrow("multiple competitions")
+        expect(await snapshot()).toEqual(before)
+        await expect(
+          fixture.db!.transaction((tx) =>
+            persistCompetitionResultInTransaction({
+              db: tx,
+              target: {
+                competitionId: "competition",
+                athleteUserId: "source",
+                ownerTeamId: "organizer",
+                workoutId: "workout",
+                trackWorkoutId: "track-workout",
+                divisionId,
+              },
+              revision: decideCompetitionResult(
+                { score: "99", status: "scored" },
+                {
+                  workoutId: "workout",
+                  scheme: "reps",
+                  scoreType: "max",
+                  roundsToScore: 1,
+                  timeCap: null,
+                  tiebreakScheme: null,
+                },
+              ),
+              recordedAt: new Date(),
+            }),
+          ),
+        ).rejects.toThrow("multiple competitions")
+        expect(await snapshot()).toEqual(before)
+      },
+    )
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Concurrent ambiguous writers]]
+    it.each(["division", null])(
+      "rejects both concurrent competition writers for an ambiguous %s tuple",
+      async (divisionId) => {
+        await pool
+          .promise()
+          .query("UPDATE competition_registrations SET division_id = ?", [
+            divisionId,
+          ])
+        await pool
+          .promise()
+          .query("UPDATE scores SET scaling_level_id = ?", [divisionId])
+        await insert(competitionEventsTable, {
+          id: "other-event",
+          competitionId: "other-competition",
+          trackWorkoutId: "track-workout",
+        })
+        await insert(competitionRegistrationsTable, {
+          id: "other-registration",
+          eventId: "other-competition",
+          userId: "source",
+          divisionId,
+          status: "active",
+        })
+        const before = await snapshot()
+        const write = (competitionId: string) =>
+          fixture.db!.transaction((tx) =>
+            persistCompetitionResultInTransaction({
+              db: tx,
+              target: {
+                competitionId,
+                athleteUserId: "source",
+                ownerTeamId: "organizer",
+                workoutId: "workout",
+                trackWorkoutId: "track-workout",
+                divisionId,
+              },
+              revision: decideCompetitionResult(
+                { score: "99", status: "scored" },
+                {
+                  workoutId: "workout",
+                  scheme: "reps",
+                  scoreType: "max",
+                  roundsToScore: 1,
+                  timeCap: null,
+                  tiebreakScheme: null,
+                },
+              ),
+              recordedAt: new Date(),
+            }),
+          )
+        const results = await Promise.allSettled([
+          write("competition"),
+          write("other-competition"),
+        ])
+        expect(results).toMatchObject([
+          {
+            status: "rejected",
+            reason: expect.objectContaining({
+              message: expect.stringContaining("multiple competitions"),
+            }),
+          },
+          {
+            status: "rejected",
+            reason: expect.objectContaining({
+              message: expect.stringContaining("multiple competitions"),
+            }),
+          },
+        ])
+        expect(await snapshot()).toEqual(before)
+      },
+    )
+
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Concurrent first video submissions]]
+    it.each(["API", "legacy"])(
+      "serializes concurrent first %s submissions into one slot and returns its current ID",
+      async (writer) => {
+        await pool.promise().query("DELETE FROM scores")
+        await pool
+          .promise()
+          .query("UPDATE competitions SET competition_type = 'online'")
+        await insert(programmingTracksTable, {
+          id: "track",
+          ownerTeamId: "organizer",
+        })
+        await insert(workouts, {
+          id: "workout",
+          scheme: "reps",
+          scoreType: "max",
+          roundsToScore: 1,
+        })
+        await insert(trackWorkoutsTable, {
+          id: "track-workout",
+          trackId: "track",
+          workoutId: "workout",
+        })
+        await pool
+          .promise()
+          .query(
+            "ALTER TABLE video_submissions ALTER COLUMN video_index SET DEFAULT 0",
+          )
+        await pool
+          .promise()
+          .query(
+            "ALTER TABLE scores ADD UNIQUE INDEX fixture_score_key (competition_event_id, user_id, scaling_level_id)",
+          )
+        await pool
+          .promise()
+          .query(
+            "ALTER TABLE video_submissions ADD UNIQUE INDEX fixture_video_slot (registration_id, track_workout_id, video_index)",
+          )
+        const entered = deferred(),
+          release = deferred()
+        const originalLock = registrationLock.lockRegistrationForResult
+        vi.spyOn(
+          registrationLock,
+          "lockRegistrationForResult",
+        ).mockImplementationOnce(async (...args) => {
+          await originalLock(...args)
+          entered.resolve()
+          await release.promise
+        })
+        const post = (
+          videoRoute as unknown as {
+            server: {
+              handlers: {
+                POST: (arg: { request: Request }) => Promise<Response>
+              }
+            }
+          }
+        ).server.handlers.POST
+        const request = (score: string) =>
+          new Request("https://test.example/api/compete/video/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              competitionId: "competition",
+              trackWorkoutId: "track-workout",
+              divisionId: "division",
+              videoUrl: "https://youtu.be/" + score,
+              score,
+              scoreStatus: "scored",
+            }),
+          })
+        vi.mocked(getSessionFromCookie).mockResolvedValue({
+          userId: "source",
+        } as Awaited<ReturnType<typeof getSessionFromCookie>>)
+        const write = async (score: string) => {
+          if (writer === "API") return post({ request: request(score) })
+          const result = await submitVideoFn({
+            data: {
+              competitionId: "competition",
+              trackWorkoutId: "track-workout",
+              divisionId: "division",
+              videoUrl: "https://youtu.be/" + score,
+              score,
+              scoreStatus: "scored",
+            },
+          })
+          return new Response(JSON.stringify(result))
+        }
+        try {
+          const first = write("42")
+          await Promise.race([entered.promise, first])
+          const second = write("43")
+          const responses = Promise.all([first, second])
+          try {
+            await Promise.race([second, waitForTransferLock()])
+          } finally {
+            release.resolve()
+          }
+          const result = await responses
+          expect(result.map((r) => r.status)).toEqual([200, 200])
+          const bodies = await Promise.all(result.map((r) => r.json()))
+          expect(bodies[1]).toMatchObject({
+            submissionId: (bodies[0] as { submissionId: string }).submissionId,
+            isUpdate: true,
+          })
+          expect(await rows(videoSubmissionsTable)).toMatchObject([
+            { video_url: "https://youtu.be/43" },
+          ])
+          expect(await rows(scoresTable)).toMatchObject([{ score_value: 43 }])
+        } finally {
+          release.resolve()
+          await pool
+            .promise()
+            .query(
+              "ALTER TABLE video_submissions DROP INDEX fixture_video_slot",
+            )
+          await pool
+            .promise()
+            .query("ALTER TABLE scores DROP INDEX fixture_score_key")
+        }
+      },
+    )
+
     // @lat: [[transfer-integrity-tests#Transfer integrity#Stale submission snapshots]]
     it.each([
       "canonical",
@@ -1055,7 +1454,10 @@ describe.skipIf(!mysqlTestConfig)(
           .promise()
           .query(
             "UPDATE competition_events SET submission_opens_at = ?, submission_closes_at = ?",
-            [new Date(Date.now() - 60_000).toISOString(), new Date(Date.now() + 60_000)],
+            [
+              new Date(Date.now() - 60_000).toISOString(),
+              new Date(Date.now() + 60_000),
+            ],
           )
         await insert(programmingTracksTable, {
           id: "track",

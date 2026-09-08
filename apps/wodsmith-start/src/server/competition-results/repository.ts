@@ -14,6 +14,7 @@ export type ResultTransaction = Parameters<
 >[0]
 
 export interface CompetitionResultTarget {
+  competitionId?: string
   athleteUserId: string
   ownerTeamId: string
   workoutId: string
@@ -169,6 +170,7 @@ export async function updateReviewedSubmissionWorkoutResult(input: {
 }
 
 export interface ManualSubmissionWorkoutResultTarget {
+  competitionId?: string
   userId: string
   teamId: string
   workoutId: string

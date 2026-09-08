@@ -65,3 +65,23 @@ A real MySQL division move holding the registration lock causes a waiting score 
 ## Stale submission snapshots
 
 Canonical, manual, benchmark, legacy video-only, score API and video API writers reject a winning division move despite a pre-lock REPEATABLE READ snapshot, leaving no scores, rounds or video evidence behind.
+
+## Reused workout competition identity
+
+A canonical result command uses its explicit competition context when a workout is reused, for named and null divisions, preserving results and participation for distinct retained athletes and divisions.
+
+## Ambiguous workout registration lock
+
+An unbound workout linked to multiple competitions rejects instead of choosing an arbitrary registration, without any database mutation.
+
+## Ambiguous shared score ownership
+
+Writes and acceptance reject a shared athlete/workout/division tuple, including null, when another active, removed, historical team or transferred participation may own it. All registrations, scores, rounds and evidence remain unchanged.
+
+## Concurrent first video submissions
+
+Real concurrent API and legacy video submissions wait on the registration mutex, then update the current slot instead of inserting from stale absence. Production unique constraints preserve one score and video, and both calls return the same slot ID.
+
+## Concurrent ambiguous writers
+
+Two real MySQL writers in different competitions reject the same ambiguous named or null-division score tuple. Neither commits a score mutation or deadlocks while trying to select its preferred registration.
