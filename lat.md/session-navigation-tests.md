@@ -45,3 +45,15 @@ The browser retains a private completion borrowed from another date and loads th
 ## Existing score redirect preserves return navigation
 
 When a personal new-log link resolves an existing result, its edit redirect preserves the selected return track, workspace, date and surface.
+
+## Draft library scoring requires explicit save
+
+New and existing library drafts hide new/edit score links until explicit Save, while Cancel writes nothing and saved links retain personal item identity and return context.
+
+## Preview personal retries use validated payloads
+
+The preview normalizes personal payloads with the production schema so reordered retries succeed, changed same-ID prescriptions conflict, and distinct personal IDs remain intentional separate items.
+
+## Provider draft save boundary in the browser
+
+Native desktop/mobile journeys prevent scoring unsaved provider drafts, preserve an empty composition on Cancel, and open the real personal score form only after explicit Save.

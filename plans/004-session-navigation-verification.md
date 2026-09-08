@@ -25,6 +25,8 @@ Each of the eight new comments was checked against source and relevant behavior.
 
 ## Before and focused after evidence
 
+All /private/tmp paths below are disposable machine-local diagnostics, not committed or portable proof. Observed counts and before-failure descriptions are historical execution records. Reproduce behavior using the committed tests and commands; raw logs are intentionally not included.
+
 Checks used Node 24 and only the disposable local database. Failed initial test selectors are distinguished from substantive before-fix reproductions.
 
 - Before UI: /private/tmp/session-004-before-ui.log records four failures, three substantive (new/edit return track and import return) and one incomplete Add-all fixture. Before preview state: /private/tmp/session-004-before-state.log records three substantive fixture failures plus the same incomplete Add-all fixture.
@@ -34,6 +36,15 @@ Checks used Node 24 and only the disposable local database. Failed initial test 
 - New native browser cases: dedicated Playwright session config with grep `browsed non-default|private borrowed` passed 4/4 across desktop/mobile (/private/tmp/session-004-browser.log). Initial assertions used incorrect existing UI labels; corrected assertions use the actual Default track label and pressed Undo completion control.
 - Parent independently passed the full app suite: 3,578 tests, with 146 environment-dependent skips. Targeted personal/provider real MySQL suites passed 32/32 with no skips. Complete desktop/mobile session browser coverage passed 20/20. Lint passed with 148 warnings and no errors.
 - Parent type review found two untyped new mock arguments. The correction uses guarded typed data extraction without suppressions. App type-check now passes independently and locally (/private/tmp/session-004-types-final.log); the narrow component rerun passes 27/27 (/private/tmp/session-004-typed-component.log). Parent production build passed (client 23.12 seconds, SSR 38.35 seconds), runtime passed 39/39 and final lat check passed.
+
+## Reproducible checks
+
+The committed test files and commands are the portable verification contract. Run these from the repository root with Node 24 and the installed workspace dependencies.
+
+- Component and route regressions: `pnpm --filter wodsmith-start exec vitest run test/components/training/session-preview-state.test.ts test/components/training/athlete-training.test.tsx test/routes/workout-import-handoffs.test.tsx --minWorkers=1 --maxWorkers=2`.
+- Provider persistence regressions in `apps/wodsmith-start/src/server/training-provider.test.ts`: `pnpm --filter wodsmith-start exec vitest run src/server/training-provider.test.ts --no-file-parallelism`. Set TRAINING_TEST_DATABASE_URL to a disposable localhost training_test database; cases must not be skipped to claim database coverage.
+- Native desktop/mobile journeys in `apps/wodsmith-start/test/preview/training/my-session.spec.ts`: `pnpm --filter wodsmith-start exec playwright test --config test/preview/training/playwright.session.config.ts`. The configuration cold-starts its local fixture server; setup and storage reset behavior are documented in the adjacent README.
+- Static verification: `pnpm --filter wodsmith-start type-check`, `pnpm --filter wodsmith-start lint`, `lat check`, and `git diff --check`.
 
 ## Impact, documentation and limits
 

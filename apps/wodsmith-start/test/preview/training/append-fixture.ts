@@ -3,6 +3,7 @@ import type {
   PersonalTrainingItem,
   PersonalTrainingItemInput,
 } from "@/lib/training/personal-types"
+import { personalTrainingItemSchema } from "@/server/training-personal-validation"
 
 export function fixtureAdditionExists(
   previous: PersonalTrainingItem[],
@@ -20,8 +21,10 @@ export function fixtureAdditionExists(
           ? old.sourceSessionId === item.sourceSessionId &&
             old.sourceBlockId === item.sourceBlockId &&
             old.sourcePublishedVersion === item.sourcePublishedVersion
-          : old.kind === item.kind &&
-            JSON.stringify(old) === JSON.stringify(item)
+          : old.kind === "personal" &&
+            item.kind === "personal" &&
+            JSON.stringify(personalTrainingItemSchema.parse(old)) ===
+              JSON.stringify(personalTrainingItemSchema.parse(item))
     if (old.id === item.id) {
       if (!samePayload)
         throw new Error(

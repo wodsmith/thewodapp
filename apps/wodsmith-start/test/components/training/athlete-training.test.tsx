@@ -680,3 +680,126 @@ it("emits independent Add-all identities across destinations and sources but reu
   expect(ids[0]).toBe(ids[5])
   expect(new Set([ids[0], ids[2], ids[3], ids[4]]).size).toBe(4)
 })
+
+// @lat: [[session-navigation-tests#Draft library scoring requires explicit save]]
+it.each(["new", "existing", "scored"] as const)(
+  "keeps library scoring unavailable while editing a %s session until explicit Save",
+  async (state) => {
+    const item = {
+      id: "planned-work",
+      kind: "library" as const,
+      workoutId: "fran",
+      workout: { name: "Fran", description: "21-15-9", scheme: "time" },
+      occurrence: { trackId: "compete", sourceDate: session.trainingDate },
+    }
+    vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({
+      defaultTrackId: "everyday",
+      selectedTrackId: "compete",
+      sourceSession: null,
+      personalSession:
+        state === "new"
+          ? null
+          : {
+              id: "personal",
+              teamId: "gym",
+              trainingDate: session.trainingDate,
+              revision: 2,
+              compositionState: "customized",
+              items: [item],
+            },
+      items: state === "new" ? [] : [item],
+      results: [],
+      libraryResults:
+        state === "scored"
+          ? [{ itemId: item.id, scoreId: "recorded", displayScore: "1:23" }]
+          : [],
+      source: {
+        kind: "provider-day",
+        day: {
+          id: "provider",
+          date: session.trainingDate,
+          url: "https://example.com/work",
+          kind: "workout",
+          markdown: "Work",
+          workouts: [{ workoutId: "fran", name: "Fran", scheme: "time" }],
+        },
+      },
+    })
+    const onSurfaceChange = vi.fn()
+    const props = {
+      team: context.teams[0]!,
+      trackId: "compete",
+      date: session.trainingDate,
+      sourceResults: [],
+      onSaved: vi.fn(),
+      onSurfaceChange,
+    }
+    const view = render(
+      <AthletePersonalSession
+        {...props}
+        surface={state === "new" ? "track" : "session"}
+      />,
+    )
+    const triggerName = state === "new" ? "Customize session" : "Edit session"
+    fireEvent.click(await screen.findByRole("button", { name: triggerName }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Save session" }),
+      ).toBeEnabled(),
+    )
+    expect(
+      screen.queryAllByRole("link", { name: /^(Log score|Edit score)/ }),
+    ).toHaveLength(0)
+    expect(
+      screen.getByText("Save your session to record this section."),
+    ).toBeVisible()
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: triggerName }))
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Add another attempt",
+      }),
+    )
+    expect(
+      screen.queryAllByRole("link", { name: /^(Log score|Edit score)/ }),
+    ).toHaveLength(0)
+    expect(
+      screen.getAllByText("Save your session to record this section."),
+    ).toHaveLength(2)
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Save session" }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Save session" }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(savePersonalTrainingSessionFn).toHaveBeenCalledTimes(1)
+    expect(onSurfaceChange).toHaveBeenLastCalledWith("session")
+    view.rerender(<AthletePersonalSession {...props} surface="session" />)
+    const links = screen.getAllByRole("link", {
+      name: /^(Log score|Edit score)/,
+    })
+    expect(links).toHaveLength(2)
+    for (const link of links) {
+      const url = new URL(link.getAttribute("href")!, "https://example.com")
+      if (url.pathname.includes("/edit")) {
+        expect(url.pathname).toBe("/log/recorded/edit")
+        expect(
+          new URL(url.searchParams.get("redirectUrl")!, url).searchParams.get(
+            "trackId",
+          ),
+        ).toBe("compete")
+      } else {
+        expect(Object.fromEntries(url.searchParams)).toMatchObject({
+          personalSessionId: "personal",
+          personalRevision: state === "new" ? "1" : "3",
+          returnTrackId: "compete",
+          returnSurface: "session",
+        })
+        expect(url.searchParams.get("personalItemId")).toBeTruthy()
+      }
+    }
+  },
+)

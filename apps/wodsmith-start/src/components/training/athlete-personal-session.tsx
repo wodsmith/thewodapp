@@ -843,22 +843,28 @@ ${workout.provenance ? "" : workout.description}`,
                 <p className="text-sm text-muted-foreground">
                   {item.workout.scheme}
                 </p>
-                <a
-                  className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
-                  href={
-                    day.libraryResults.find(
+                {editing ? (
+                  <p className="text-sm text-muted-foreground">
+                    Save your session to record this section.
+                  </p>
+                ) : (
+                  <a
+                    className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+                    href={
+                      day.libraryResults.find(
+                        (result) => result.itemId === item.id,
+                      )
+                        ? `/log/${encodeURIComponent(day.libraryResults.find((result) => result.itemId === item.id)?.scoreId ?? "")}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${encodeURIComponent(team.id)}&date=${date}&trackId=${encodeURIComponent(trackId)}&surface=session`)}`
+                        : `/log/new?workoutId=${encodeURIComponent(item.workoutId)}&date=${date}&teamId=${encodeURIComponent(team.id)}&personalSessionId=${encodeURIComponent(personal?.id ?? "")}&personalItemId=${encodeURIComponent(item.id)}&personalRevision=${personal?.revision ?? 0}&returnSurface=session&returnTrackId=${encodeURIComponent(trackId)}`
+                    }
+                  >
+                    {day.libraryResults.some(
                       (result) => result.itemId === item.id,
                     )
-                      ? `/log/${encodeURIComponent(day.libraryResults.find((result) => result.itemId === item.id)?.scoreId ?? "")}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${encodeURIComponent(team.id)}&date=${date}&trackId=${encodeURIComponent(trackId)}&surface=session`)}`
-                      : `/log/new?workoutId=${encodeURIComponent(item.workoutId)}&date=${date}&teamId=${encodeURIComponent(team.id)}&personalSessionId=${encodeURIComponent(personal?.id ?? "")}&personalItemId=${encodeURIComponent(item.id)}&personalRevision=${personal?.revision ?? 0}&returnSurface=session&returnTrackId=${encodeURIComponent(trackId)}`
-                  }
-                >
-                  {day.libraryResults.some(
-                    (result) => result.itemId === item.id,
-                  )
-                    ? `Edit score · ${day.libraryResults.find((result) => result.itemId === item.id)?.displayScore ?? "Saved"}`
-                    : "Log score"}
-                </a>
+                      ? `Edit score · ${day.libraryResults.find((result) => result.itemId === item.id)?.displayScore ?? "Saved"}`
+                      : "Log score"}
+                  </a>
+                )}
               </div>
             ) : (
               <ol>

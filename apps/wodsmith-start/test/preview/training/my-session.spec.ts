@@ -239,3 +239,53 @@ test("retains private borrowed completion and the default track across native re
     page.getByRole("button", { name: "Undo completion", exact: true }),
   ).toHaveAttribute("aria-pressed", "true")
 })
+
+// @lat: [[session-navigation-tests#Provider draft save boundary in the browser]]
+test("requires explicit Save before scoring provider draft items and Cancel leaves no composition", async ({
+  page,
+}) => {
+  await page.goto("/training?date=2026-09-04&trackId=ptrk_crossfit_dotcom")
+  await page
+    .getByRole("button", { name: "Customize session", exact: true })
+    .click()
+  await expect(
+    page.getByRole("heading", { name: "Build My session", exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: /^(Log score|Edit score)/ }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByText("Save your session to record this section.", {
+      exact: true,
+    }),
+  ).toHaveCount(2)
+  expect(
+    await page.evaluate(() => sessionStorage.getItem("session-ux-plans")),
+  ).toBeNull()
+  await page.getByRole("button", { name: "Cancel", exact: true }).click()
+  expect(
+    await page.evaluate(() => sessionStorage.getItem("session-ux-plans")),
+  ).toBeNull()
+  await page
+    .getByRole("button", { name: "Customize session", exact: true })
+    .click()
+  await page.getByRole("button", { name: "Save session", exact: true }).click()
+  await expect(
+    page.getByRole("heading", { name: "My session", exact: true }),
+  ).toBeVisible()
+  const links = page.getByRole("link", { name: "Log score", exact: true })
+  await expect(links).toHaveCount(2)
+  for (const link of await links.all()) {
+    const url = new URL((await link.getAttribute("href"))!, page.url())
+    expect(url.searchParams.get("personalSessionId")).toBeTruthy()
+    expect(url.searchParams.get("personalItemId")).toBeTruthy()
+    expect(url.searchParams.get("returnTrackId")).toBe("ptrk_crossfit_dotcom")
+  }
+  await links.first().click()
+  await expect(
+    page.getByRole("heading", { name: "Log result", exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Save result", exact: true }),
+  ).toBeVisible()
+})

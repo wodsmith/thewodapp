@@ -250,3 +250,9 @@ See [[session-review-tests]] for focused reproduction and regression coverage. T
 Return navigation identifies where training continues; source occurrence identifies the workout's actual programming. They remain separate throughout logging and import handoffs.
 
 My session new/edit links preserve workspace, date, selected track and personal surface. An imported workout retains the originating return surface and return track but does not inherit the previous workout's source date or source track. Add-all identity includes destination workspace/date and exact source track/date/workout; retries retain identity, while source or destination changes receive independent identities. Explicit repeat IDs remain independently retryable. See [[session-navigation-tests]].
+
+## Draft scoring boundary
+
+The builder requires explicit Save before any section can be scored. Library items use the same save-first message as other block kinds, including existing scored items and newly added repeats during editing.
+
+Cancel discards the draft without a write. Saving restores personal new/edit score links with persisted session/item identity and the selected return context. Preview personal retries use the existing input schema to compare canonical payloads rather than property insertion order; different personal IDs remain separate entries.

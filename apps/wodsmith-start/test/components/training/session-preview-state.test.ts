@@ -103,3 +103,70 @@ it("returns detached snapshots for normal reads and duplicate appends", async ()
   current.items.length = 0
   expect((await api.getPersonalTrainingDayFn({ data })).items).toHaveLength(1)
 })
+
+// @lat: [[session-navigation-tests#Preview personal retries use validated payloads]]
+it("normalizes reordered personal payloads but rejects changed same-ID work and keeps distinct entries", () => {
+  const original = {
+    id: "personal-work",
+    kind: "personal" as const,
+    block: {
+      id: "personal-work",
+      kind: "check" as const,
+      title: "Cooldown",
+      prescription: "Walk",
+      scalingGuidance: "",
+      coachGuidance: "",
+    },
+    remixedFrom: {
+      sourceSessionId: "source",
+      sourceBlockId: "work",
+      sourcePublishedVersion: 1,
+    },
+  }
+  const reordered = {
+    remixedFrom: {
+      sourcePublishedVersion: 1,
+      sourceBlockId: "work",
+      sourceSessionId: "source",
+    },
+    block: {
+      coachGuidance: "",
+      prescription: "Walk",
+      title: "Cooldown",
+      kind: "check" as const,
+      scalingGuidance: "",
+      id: "personal-work",
+    },
+    kind: "personal" as const,
+    id: "personal-work",
+  }
+  expect(fixtureAdditionExists([original], reordered)).toBe(true)
+  expect(fixtureAdditionExists([original], reordered, true)).toBe(true)
+  expect(() =>
+    fixtureAdditionExists([original], {
+      ...reordered,
+      block: { ...reordered.block, prescription: "Run" },
+    }),
+  ).toThrow("CONFLICT")
+  expect(
+    fixtureAdditionExists([original], { ...reordered, id: "separate" }),
+  ).toBe(false)
+  const source = {
+    id: "source-item",
+    kind: "source" as const,
+    sourceSessionId: "source",
+    sourceBlockId: "work",
+    sourcePublishedVersion: 1,
+    block: original.block,
+    trackId: "a",
+    trackName: "Track A",
+    sourceTrainingDate: "2026-09-04",
+  }
+  expect(
+    fixtureAdditionExists([source], { ...source, id: "source-other" }),
+  ).toBe(true)
+  expect(
+    fixtureAdditionExists([source], { ...source, id: "source-other" }, true),
+  ).toBe(false)
+  expect(fixtureAdditionExists([source], source, true)).toBe(true)
+})

@@ -12,8 +12,9 @@ Plan 001 is complete. Plan 002 implements direct track logging, optional session
 | [002](002-my-session-and-direct-scoring.md) | Direct track logging and an optional My session | P1 | L | Plan 001 DONE; PR #691 final verified head incorporated | DONE — independently verified; [PR #699](https://github.com/wodsmith/thewodapp/pull/699) open |
 | [003](003-session-review-fixes.md) | Resolve session UX review regressions | P1 | M | Plan 002 implemented; migration integration held | DONE — independently verified; runtime review fixes ready for PR #699 |
 | [004](004-session-navigation-and-intents.md) | Preserve session navigation and addition intent | P2 | S | Plan 003 DONE | DONE — independently verified; second-review follow-up |
+| [005](005-session-draft-scoring-review.md) | Guard scoring in unsaved session drafts | P2 | S | Plan 004 DONE | DONE — independently verified; draft scoring guard and preview retry follow-up |
 
-PR #699 is not merge-ready. Plans 003 and 004 address the verified review findings and have passed independent checks. The migration waits for PR #691 and the #698/#695 migration dependencies to merge through their own authorized reviews. The migration prototype is disposable and will not be published.
+PR #699 is not merge-ready. Plans 003, 004 and 005 address the verified review findings and passed independent checks. Published CI and review output are evaluated separately. The migration waits for PR #691 and the #698/#695 migration dependencies to merge through their own authorized reviews. The migration prototype is disposable and will not be published.
 
 ## Decision record
 
