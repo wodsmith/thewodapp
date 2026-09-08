@@ -89,6 +89,8 @@ export interface TrainingResult {
 }
 
 export interface OwnTrainingResult extends TrainingResult {
+  logScoreId?: string
+  sourceLabel?: string
   notes: string
 }
 

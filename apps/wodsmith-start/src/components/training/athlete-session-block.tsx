@@ -1,5 +1,5 @@
 import { Check } from "lucide-react"
-import { useState } from "react"
+import { type ReactNode, useState } from "react"
 import { Button } from "@/components/ui/button"
 import type {
   OwnTrainingResult,
@@ -19,6 +19,7 @@ export function AthleteSessionBlock({
   trackName,
   gymName,
   result,
+  secondaryActions,
   readOnlyMessage,
   onSaved,
   privateOnly = false,
@@ -29,6 +30,7 @@ export function AthleteSessionBlock({
   index: number
   trackName: string
   gymName: string
+  secondaryActions?: ReactNode
   result?: OwnTrainingResult
   readOnlyMessage?: string
   privateOnly?: boolean
@@ -188,6 +190,7 @@ export function AthleteSessionBlock({
                     onSaved(savedResult)
                   }}
                 />
+                {secondaryActions}
               </div>
             )}
             {error ? (
@@ -196,6 +199,8 @@ export function AthleteSessionBlock({
               </p>
             ) : null}
           </div>
+        ) : secondaryActions ? (
+          <div className="flex flex-wrap gap-2">{secondaryActions}</div>
         ) : null}
       </div>
     </li>

@@ -46,6 +46,8 @@ function personal(trackId = "everyday", onInteractionBusy = vi.fn()) {
   return <AthletePersonalSession team={context.teams[0]} trackId={trackId} date="2026-09-07" sourceResults={[]} onSaved={vi.fn()} onInteractionBusy={onInteractionBusy} />
 }
 async function openImport() {
+  const customize = screen.queryByRole("button", {name: "Customize session"}) ?? await screen.findByRole("button", {name: "Customize session"}).catch(() => null)
+  if (customize) fireEvent.click(customize)
   const entry = await screen.findByRole("button", { name: "Import workout" })
   await waitFor(() => expect(entry).toBeEnabled())
   fireEvent.click(entry)
@@ -64,6 +66,7 @@ beforeEach(() => {
   api.week.mockResolvedValue({ sessions: [], myResults: [], teamResults: [] })
   api.blocker.mockReturnValue({ status: "idle" })
   api.saveDraft.mockRejectedValue(new Error("Keep the draft for review"))
+  api.savePersonal.mockImplementation(async ({data}) => ({id: "personal", teamId: data.teamId, trainingDate: data.trainingDate, revision: data.expectedRevision + 1, items: data.items.map((item: {kind: string}) => ({...item, workout}))}))
   api.panel = null
 })
 afterEach(() => { cleanup(); vi.useRealTimers() })
@@ -82,11 +85,13 @@ describe("session workout import", () => {
     await waitFor(() => expect(confirm).toBeEnabled())
     expect(api.detail).toHaveBeenCalledWith({ data: { teamId: "gym", workoutId: "imported" } })
     expect(api.savePersonal).not.toHaveBeenCalled()
-    expect(busy).toHaveBeenLastCalledWith(false)
+    expect(busy).toHaveBeenLastCalledWith(true)
     expect(screen.getByRole("button", { name: "Import workout" })).toBeDisabled()
     await act(async () => fireEvent.click(confirm))
+    expect(api.savePersonal).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", {name: "Save session"}))
     await waitFor(() => expect(api.savePersonal).toHaveBeenCalledWith({ data: {
-      teamId: "gym", trainingDate: "2026-09-07", expectedRevision: 0,
+      teamId: "gym", trainingDate: "2026-09-07", expectedRevision: 0, mode: "replace",
       items: [{ id: expect.any(String), kind: "library", workoutId: "imported" }],
     } }))
     expect(api.day).toHaveBeenCalledWith({ data: { teamId: "gym", trainingDate: "2026-09-07", trackId: "compete" } })
@@ -97,6 +102,7 @@ describe("session workout import", () => {
   it.each(["personal", "coach"])("keeps the %s session manual flow available when personal AI access is denied", async (kind) => {
     api.access.mockResolvedValue({ hasAccess: false })
     render(kind === "personal" ? personal() : <CoachPlanner context={context} />)
+    if (kind === "personal") fireEvent.click(await screen.findByRole("button", {name: "Customize session"}))
     const locked = await screen.findByRole("button", { name: "Workout import access required" })
     expect(locked).toBeDisabled()
     fireEvent.click(locked)
@@ -116,9 +122,10 @@ describe("session workout import", () => {
     const confirm = await screen.findByRole("button", { name: "Add to my session" })
     await waitFor(() => expect(confirm).toBeEnabled())
     await act(async () => fireEvent.click(confirm))
+    fireEvent.click(screen.getByRole("button", {name: "Save session"}))
     expect(await screen.findByRole("alert")).toHaveTextContent("CONFLICT")
-    expect(confirm).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(screen.getByText("Imported workout")).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole("button", { name: "Cancel" }).at(-1)!)
     expect(screen.queryByRole("button", { name: "Add to my session" })).not.toBeInTheDocument()
     expect(api.savePersonal).toHaveBeenCalledTimes(1)
     expect(api.result).not.toHaveBeenCalled()
@@ -143,9 +150,10 @@ describe("session workout import", () => {
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Personal manual session editor safety]]
   it("does not expose an import that could overwrite an open manual workout", async () => {
     render(personal())
-    fireEvent.click(await screen.findByRole("button", { name: "Create workout" }))
+    fireEvent.click(await screen.findByRole("button", {name: "Customize session"}))
+    fireEvent.click(screen.getByRole("button", { name: "Create workout" }))
     expect(screen.queryByRole("button", { name: "Import workout" })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Save to my session" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Apply to draft" })).toBeInTheDocument()
     expect(api.savePersonal).not.toHaveBeenCalled()
   })
 

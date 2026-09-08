@@ -440,6 +440,8 @@ export const getLogByIdFn = createServerFn({ method: "GET" })
         secondaryValue: scoresTable.secondaryValue,
         scheme: scoresTable.scheme,
         scoreType: scoresTable.scoreType,
+        tiebreakValue: scoresTable.tiebreakValue,
+        tiebreakScheme: scoresTable.tiebreakScheme,
         status: scoresTable.status,
         sortKey: scoresTable.sortKey,
         createdAt: scoresTable.createdAt,
@@ -476,6 +478,7 @@ export const getLogByIdFn = createServerFn({ method: "GET" })
     const [personalResult] = await db
       .select({
         itemId: personalTrainingResultsTable.itemId,
+        unit: personalTrainingResultsTable.unit,
         libraryItem: personalTrainingResultsTable.libraryItem,
         personalSessionId: personalTrainingSessionsTable.id,
         revision: personalTrainingSessionsTable.revision,
@@ -504,6 +507,7 @@ export const getLogByIdFn = createServerFn({ method: "GET" })
         personalSessionId: personalResult?.personalSessionId ?? null,
         personalItemId: personalResult?.itemId ?? null,
         personalRevision: personalResult?.revision ?? null,
+        personalUnit: personalResult?.unit ?? "lb",
         personalWorkout:
           personalItem?.kind === "library"
             ? (personalItem.workout ?? null)

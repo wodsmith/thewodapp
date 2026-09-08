@@ -8,7 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
-import { decodeScore } from "@/lib/scoring"
+import {
+  decodeScore,
+  decodeLoad,
+  parseScore as parseEncodedScore,
+} from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import {
   getLogByIdFn,
@@ -95,6 +99,16 @@ export const Route = createFileRoute("/_protected/log/$id/edit/")({
   },
 })
 
+function decodeEditableScore(
+  value: number,
+  scheme: WorkoutScheme,
+  unit: "lb" | "kg",
+) {
+  return scheme === "load"
+    ? decodeLoad(value, { unit: unit === "kg" ? "kg" : "lbs", decimals: 3 })
+    : decodeScore(value, scheme)
+}
+
 function LogEditPage() {
   const { score, workout, scalingLevels, existingRounds } =
     Route.useLoaderData()
@@ -110,6 +124,12 @@ function LogEditPage() {
   })
 
   const [notes, setNotes] = useState(score.notes ?? "")
+  const [unit, setUnit] = useState<"lb" | "kg">(score.personalUnit ?? "lb")
+  const [tiebreakScore, setTiebreakScore] = useState(
+    score.tiebreakValue != null && score.tiebreakScheme
+      ? decodeScore(score.tiebreakValue, score.tiebreakScheme as WorkoutScheme)
+      : "",
+  )
   const [selectedScalingLevelId, setSelectedScalingLevelId] = useState<
     string | undefined
   >(score.scalingLevelId ?? scalingLevels[0]?.id)
@@ -129,7 +149,11 @@ function LogEditPage() {
     score.personalSessionId && score.status === "cap"
       ? `CAP+${score.secondaryValue ?? 0}`
       : score.scoreValue !== null
-        ? decodeScore(score.scoreValue, scheme)
+        ? decodeEditableScore(
+            score.scoreValue,
+            scheme,
+            score.personalUnit ?? "lb",
+          )
         : ""
   const [singleScore, setSingleScore] = useState(decodedScore)
 
@@ -145,9 +169,37 @@ function LogEditPage() {
       if (!round) return ""
       return score.personalSessionId && round.status === "cap"
         ? `CAP+${round.secondaryValue ?? 0}`
-        : (decodeScore(round.value, scheme) ?? "")
+        : (decodeEditableScore(
+            round.value,
+            scheme,
+            score.personalUnit ?? "lb",
+          ) ?? "")
     })
   })
+
+  function changeWeightUnit(nextUnit: "lb" | "kg") {
+    const convert = (value: string) => {
+      if (!value.trim()) return value
+      const parsed = parseEncodedScore(value, "load", {
+        unit: unit === "kg" ? "kg" : "lbs",
+      })
+      if (!parsed.isValid || parsed.encoded == null)
+        throw new Error("Enter a valid weight before changing units")
+      return decodeEditableScore(parsed.encoded, "load", nextUnit)
+    }
+    try {
+      const nextSingle = convert(singleScore)
+      const nextRounds = roundScores.map(convert)
+      setSingleScore(nextSingle)
+      setRoundScores(nextRounds)
+      setUnit(nextUnit)
+      setError(null)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not convert weight",
+      )
+    }
+  }
 
   // Handle round score changes
   const handleRoundScoreChange = (roundIndex: number, value: string) => {
@@ -199,6 +251,8 @@ function LogEditPage() {
             itemId: score.personalItemId,
             expectedRevision: score.personalRevision,
             replaceExisting: true,
+            unit,
+            tiebreakScore,
             score: isMultiRound ? "" : singleScore,
             roundScores: isMultiRound
               ? roundScores.map((value) => ({ score: value }))
@@ -279,7 +333,12 @@ function LogEditPage() {
     <div className="container mx-auto max-w-4xl px-4 py-8">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
-        <Button variant="outline" size="icon" asChild>
+        <Button
+          className="min-h-11 min-w-11"
+          variant="outline"
+          size="icon"
+          asChild
+        >
           <a href={redirectUrl ?? `/workouts/${workout.id}`} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
           </a>
@@ -317,6 +376,7 @@ function LogEditPage() {
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
                 <Input
+                  className="min-h-11"
                   id="date"
                   type="date"
                   value={date}
@@ -333,6 +393,7 @@ function LogEditPage() {
                   <div className="flex flex-wrap gap-2">
                     {scalingLevels.map((level) => (
                       <Button
+                        className="min-h-11"
                         key={level.id}
                         type="button"
                         variant={
@@ -373,12 +434,13 @@ function LogEditPage() {
                           <Input
                             type="text"
                             placeholder={getScorePlaceholder(workout.scheme)}
+                            aria-label={`Round ${index + 1}`}
                             value={roundScore}
                             onChange={(e) =>
                               handleRoundScoreChange(index, e.target.value)
                             }
                             className={cn(
-                              "font-mono h-9 flex-1",
+                              "font-mono min-h-11 flex-1",
                               parseResult?.error &&
                                 !parseResult?.isValid &&
                                 "border-destructive focus:ring-destructive",
@@ -414,7 +476,7 @@ function LogEditPage() {
                       value={singleScore}
                       onChange={(e) => setSingleScore(e.target.value)}
                       required
-                      className="font-mono"
+                      className="min-h-11 font-mono"
                     />
                     <p className="text-xs text-muted-foreground">
                       {getScoreHint(workout.scheme)}
@@ -423,6 +485,35 @@ function LogEditPage() {
                 )}
               </div>
 
+              {score.personalSessionId && workout?.scheme === "load" && (
+                <div className="space-y-2">
+                  <Label htmlFor="score-unit">Weight unit</Label>
+                  <select
+                    id="score-unit"
+                    className="min-h-11 w-full rounded-xl border border-input bg-background px-3"
+                    value={unit}
+                    onChange={(event) =>
+                      changeWeightUnit(event.target.value as "lb" | "kg")
+                    }
+                  >
+                    <option value="lb">lb</option>
+                    <option value="kg">kg</option>
+                  </select>
+                </div>
+              )}
+              {score.personalSessionId && workout?.tiebreakScheme && (
+                <div className="space-y-2">
+                  <Label htmlFor="tiebreak-score">
+                    Tiebreak ({workout.tiebreakScheme})
+                  </Label>
+                  <Input
+                    id="tiebreak-score"
+                    className="min-h-11"
+                    value={tiebreakScore}
+                    onChange={(event) => setTiebreakScore(event.target.value)}
+                  />
+                </div>
+              )}
               {/* Notes */}
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (optional)</Label>
@@ -441,6 +532,7 @@ function LogEditPage() {
               {/* Submit */}
               <div className="flex gap-4 pt-4">
                 <Button
+                  className="min-h-11"
                   type="button"
                   variant="outline"
                   onClick={() => {
@@ -454,7 +546,11 @@ function LogEditPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button
+                  className="min-h-11"
+                  type="submit"
+                  disabled={isSubmitting}
+                >
                   {isSubmitting ? "Saving..." : "Save changes"}
                 </Button>
               </div>

@@ -1,0 +1,87 @@
+---
+lat:
+  require-code-mention: true
+---
+# Session navigation and addition intent tests
+
+These regressions preserve return navigation, distinguish addition identities and keep preview persistence faithful to the session API.
+
+## Personal log return context
+
+New and edited personal library scores retain the selected workspace, date, non-default track and personal surface without confusing return context with source provenance.
+
+## Imported workout return context is not provenance
+
+A track-origin import retains its return destination and recognized notes while the new workout remains independent of the previous workout's source track and date.
+
+## Addition cache scopes occurrence identity
+
+Add-all retries reuse identity within a destination and source occurrence; changing workspace, date or source track creates a different identity, and returning restores the original intent.
+
+## Preview append identity contract
+
+The preview rejects reused IDs with different payloads, deduplicates normal occurrences and recognizes explicit-repeat retries without deduplicating distinct repeat identities.
+
+## Preview state persists through reload
+
+Session contents, private block results and the default track survive native reload together, preventing a partially persisted training day.
+
+## Preview responses cannot mutate persisted state
+
+Returned session snapshots are detached from preview backing state on ordinary reads and duplicate appends, matching serialized server responses.
+
+## Real append context and retry contract
+
+The real server preserves distinct source dates and destination days, rejects conflicting reused IDs, and accepts identical ordinary and explicit-repeat retries without another insertion.
+
+## Personal score browser return journey
+
+Native My session new-score and edit-score links return to the browsed non-default track, workspace, date and personal surface after saving.
+
+## Preview private completion and default reload
+
+The browser retains a private completion borrowed from another date and loads the saved default when reopening Training without a track query.
+
+## Existing score redirect preserves return navigation
+
+When a personal new-log link resolves an existing result, its edit redirect preserves the selected return track, workspace, date and surface.
+
+## Draft library scoring requires explicit save
+
+New and existing library drafts hide new/edit score links until explicit Save, while Cancel writes nothing and saved links retain personal item identity and return context.
+
+## Preview personal retries use validated payloads
+
+The preview normalizes personal payloads with the production schema so reordered retries succeed, changed same-ID prescriptions conflict, and distinct personal IDs remain intentional separate items.
+
+## Provider draft save boundary in the browser
+
+Native desktop/mobile journeys prevent scoring unsaved provider drafts, preserve an empty composition on Cancel, and open the real personal score form only after explicit Save.
+
+## Provider preparation has one visible request batch
+
+Customize displays disabled preparation feedback and requests each provider workout once until that batch settles, without persisting a composition.
+
+## Failed provider preparation can retry
+
+A failed provider read restores Customize and clears its error when a new preparation begins, while composition writes still require Save.
+
+## Late provider preparation cannot replace a newer context
+
+Old success, failure and cleanup cannot replace or clear preparation for a newer workspace, date or track; each context becomes available independently.
+
+## Source membership labels use the published version
+
+An earlier saved publication leaves the current source Add enabled and correctly labeled; exact session/block/version membership displays disabled In My session.
+
+## Workout detail has one direct Add action
+
+Workout detail retains schedules and earlier scores while exposing only its shared header Add action, without legacy links to pending-add navigation.
+
+## Log form selects distinct personal and direct writers
+
+Real form submissions call the personal writer only with planned item identity, or the direct writer with destination and occurrence context; import handoffs call neither writer.
+
+## Preview rejects invalid personal retry payloads
+
+Invalid same-ID personal retry payloads fail validation instead of becoming another addition, matching the production input boundary.

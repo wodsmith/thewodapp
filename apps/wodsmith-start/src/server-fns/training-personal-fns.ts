@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start"
 import { getPersonalTrainingWorkoutOptions } from "@/server/training"
 import {
   getPersonalLibraryScalingLevels,
+  getDirectLibraryEntry,
+  saveDirectLibraryResult,
   getPersonalTrainingDay,
   getPersonalTrainingHistory,
   getTrainingLibraryWorkout,
@@ -14,6 +16,7 @@ import {
 } from "@/server/training-personal"
 import {
   personalLibraryResultSchema,
+  directLibraryResultSchema,
   personalTrainingDaySchema,
   personalTrainingResultSchema,
   personalTrainingSaveSchema,
@@ -73,3 +76,10 @@ export const getPersonalTrainingWorkoutOptionsFn = createServerFn({
     trainingLibraryListSchema.pick({ teamId: true }).parse(data),
   )
   .handler(({ data }) => getPersonalTrainingWorkoutOptions(data))
+
+export const saveDirectLibraryResultFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => directLibraryResultSchema.parse(data))
+  .handler(({ data }) => saveDirectLibraryResult(data))
+export const getDirectLibraryEntryFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => trainingLibraryWorkoutSchema.parse(data))
+  .handler(({ data }) => getDirectLibraryEntry(data))

@@ -1,0 +1,1 @@
+ALTER TABLE `personal_training_sessions` ADD `composition_state` varchar(16) DEFAULT 'customized' NOT NULL;

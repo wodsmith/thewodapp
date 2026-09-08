@@ -21,16 +21,28 @@ const personalBlock = trainingBlockSchema.refine(
     block.title.trim().length > 0 && block.prescription.trim().length > 0,
   "Give the workout a title and prescription",
 )
-export const personalTrainingItemSchema = z.discriminatedUnion("kind", [
-  trainingSourceSchema.extend({ id: itemId, kind: z.literal("source") }),
-  z.object({
-    id: itemId,
-    kind: z.literal("personal"),
-    block: personalBlock,
-    remixedFrom: trainingSourceSchema.optional(),
-  }),
-  z.object({ id: itemId, kind: z.literal("library"), workoutId: id }),
-])
+export const personalTrainingItemSchema = z
+  .discriminatedUnion("kind", [
+    trainingSourceSchema.extend({ id: itemId, kind: z.literal("source") }),
+    z.object({
+      id: itemId,
+      kind: z.literal("personal"),
+      block: personalBlock,
+      remixedFrom: trainingSourceSchema.optional(),
+    }),
+    z.object({
+      id: itemId,
+      kind: z.literal("library"),
+      workoutId: id,
+      sourceTrackId: id.optional(),
+      sourceDate: trainingDateSchema.optional(),
+    }),
+  ])
+  .refine(
+    (item) =>
+      item.kind !== "library" || !item.sourceDate || !!item.sourceTrackId,
+    "Choose a source track for the source date",
+  )
 export const personalTrainingDaySchema = z.object({
   teamId: id,
   trainingDate: trainingDateSchema,
@@ -44,6 +56,8 @@ export const personalTrainingSaveSchema = personalTrainingDaySchema
   .omit({ trackId: true })
   .extend({
     expectedRevision: z.number().int().nonnegative(),
+    allowDuplicate: z.boolean().optional(),
+    mode: z.enum(["replace", "append", "undo"]).default("replace"),
     items: z.array(personalTrainingItemSchema).max(40),
   })
   .refine(
@@ -62,10 +76,17 @@ export const personalTrainingResultSchema = z.object({
   unit: z.enum(["lb", "kg"]),
   completed: z.boolean(),
 })
-export const trainingLibraryWorkoutSchema = z.object({
-  teamId: id,
-  workoutId: id,
-})
+export const trainingLibraryWorkoutSchema = z
+  .object({
+    teamId: id,
+    workoutId: id,
+    sourceTrackId: id.optional(),
+    sourceDate: trainingDateSchema.optional(),
+  })
+  .refine(
+    (item) => !item.sourceDate || !!item.sourceTrackId,
+    "Choose a source track for the source date",
+  )
 export const trainingLibraryListSchema = z.object({
   teamId: id,
   search: z.string().max(160).optional(),
@@ -78,6 +99,8 @@ export const personalLibraryResultSchema = personalTrainingScoreLinkSchema
   .omit({ scoreId: true })
   .extend({
     score: z.string().max(100),
+    unit: z.enum(["lb", "kg"]).optional(),
+    tiebreakScore: z.string().max(100).optional(),
     notes: z.string().max(4000).optional(),
     asRx: z.boolean(),
     replaceExisting: z.boolean().optional(),
@@ -87,3 +110,17 @@ export const personalLibraryResultSchema = personalTrainingScoreLinkSchema
       .max(100)
       .optional(),
   })
+
+export const directLibraryResultSchema = personalLibraryResultSchema
+  .omit({ personalSessionId: true, expectedRevision: true })
+  .extend({
+    teamId: id,
+    trainingDate: trainingDateSchema,
+    workoutId: id,
+    sourceTrackId: id.optional(),
+    sourceDate: trainingDateSchema.optional(),
+  })
+  .refine(
+    (item) => !item.sourceDate || !!item.sourceTrackId,
+    "Choose a source track for the source date",
+  )

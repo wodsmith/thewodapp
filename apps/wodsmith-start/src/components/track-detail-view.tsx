@@ -90,6 +90,7 @@ export function TrackDetailView({
             />
           </label>
           <CrossFitTrackDays
+            trackId={track.id}
             days={selected}
             selectedDate={sourceDate}
             onAdd={
