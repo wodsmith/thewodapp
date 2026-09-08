@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 const mock = vi.hoisted(() => ({
   navigate: vi.fn().mockResolvedValue(undefined), invalidate: vi.fn(), submitLog: vi.fn(), getWorkouts: vi.fn(),
-  getPersonalDay: vi.fn(), savePersonalSession: vi.fn(), importFailed: vi.fn(),
+  getDirectEntry: vi.fn(), getContext: vi.fn(), getPersonalDay: vi.fn(), savePersonalSession: vi.fn(), importFailed: vi.fn(),
   data: {} as Record<string, unknown>, panelProps: {} as Record<string, unknown>,
 }))
 vi.mock("@tanstack/react-router", () => ({
@@ -15,10 +15,13 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/lib/posthog", () => ({ trackEvent: vi.fn() }))
 vi.mock("@/server-fns/training-personal-fns", () => ({
   getPersonalTrainingDayFn: mock.getPersonalDay,
+  getDirectLibraryEntryFn: mock.getDirectEntry,
+  saveDirectLibraryResultFn: mock.submitLog,
   getPersonalLibraryScalingLevelsFn: vi.fn(),
   savePersonalLibraryResultFn: mock.submitLog,
   savePersonalTrainingSessionFn: mock.savePersonalSession,
 }))
+vi.mock("@/server-fns/training-fns", () => ({getTrainingContextFn: mock.getContext}))
 vi.mock("@/server-fns/workout-fns", () => ({ getWorkoutByIdFn: vi.fn(), getWorkoutsFn: mock.getWorkouts }))
 vi.mock("@/server-fns/programming-fns", () => ({ getProgrammingTrackByIdFn: vi.fn(), getTrackWorkoutsFn: vi.fn(), addWorkoutToTrackFn: vi.fn() }))
 vi.mock("@/components/track-header", () => ({ TrackHeader: () => null }))
@@ -35,6 +38,8 @@ import { Route as SettingsRoute } from "@/routes/_protected/settings/programming
 import { Route as AdminRoute } from "@/routes/_protected/admin/teams/programming/$trackId/index"
 
 beforeEach(() => {
+  mock.getContext.mockResolvedValue({teams:[{id:"team-personal", name:"My training",timezone:"UTC",isPersonal:true}]})
+  mock.getDirectEntry.mockResolvedValue({workout:{id:"original", name:"Original workout", scheme:"time"},levels:[]})
   mock.navigate.mockResolvedValue(undefined)
   mock.getWorkouts.mockResolvedValue({ workouts: [] })
   mock.data = { workouts: [], selectedWorkout: { id: "original", name: "Original workout", description: "Prescription", scheme: "reps", roundsToScore: 1 }, scalingLevels: [], teamId: "team-personal", trainingDate: "2026-08-10", personalSessionId: "session-owned", personalItemId: "item-original", personalRevision: 3 }
@@ -105,9 +110,9 @@ describe("workout import route handoffs", () => {
   })
 
   // @lat: [[workout-import-ux-tests#Workout Import UX Tests#Legacy log handoff]]
-  it("redirects workout-only log links to Training without creating a session", async () => {
+  it("opens workout-only log links directly without creating a session", async () => {
     const loader = LogRoute.options.loader as (options: unknown) => Promise<unknown>
-    await expect(loader({ deps: { workoutId: "original" } })).rejects.toEqual({ href: "/training?workoutId=original" })
+    await expect(loader({ deps: { workoutId: "original" } })).resolves.toMatchObject({selectedWorkout:{id:"original"},teamId:"team-personal",personalSessionId:undefined})
     expect(mock.getPersonalDay).not.toHaveBeenCalled()
     expect(mock.savePersonalSession).not.toHaveBeenCalled()
     expect(mock.submitLog).not.toHaveBeenCalled()

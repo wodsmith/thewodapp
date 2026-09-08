@@ -435,4 +435,85 @@ describe.skipIf(!url)("provider projection and persistence", () => {
     })
     expect(selected.map((day) => day.date)).toEqual(["2026-09-06"])
   })
+  // @lat: [[training-personal#Verification#Repeated provider workout occurrences]]
+  it("keeps a reused workout on different programmed dates distinct and rejects unpublished provenance", async () => {
+    await db
+      .insert(imports)
+      .values({
+        id: "provider_repeat",
+        workflowId: "provider-workflow",
+        provider: "crossfit",
+        trackId: CROSSFIT_TRACK_ID,
+        sourceDate: "2026-09-07",
+        sourceUrl: "https://www.crossfit.com/260907",
+        status: "published",
+        kind: "workout",
+      })
+    await db
+      .insert(importItems)
+      .values({
+        id: "provider_repeat_item",
+        importId: "provider_repeat",
+        componentIndex: 0,
+        workoutId: "provider_cap",
+        trackWorkoutId: "provider_repeat_link",
+      })
+    try {
+      const destination = { ...day, trainingDate: "2026-09-10" }
+      const firstItem = {
+        id: "first-date",
+        kind: "library" as const,
+        workoutId: "provider_cap",
+        sourceTrackId: CROSSFIT_TRACK_ID,
+        sourceDate: "2026-09-04",
+      }
+      const first = await savePersonalTrainingSession({
+        ...destination,
+        expectedRevision: 0,
+        mode: "append",
+        items: [firstItem],
+      })
+      const retried = await savePersonalTrainingSession({
+        ...destination,
+        expectedRevision: 0,
+        mode: "append",
+        items: [{ ...firstItem, id: "different-tab" }],
+      })
+      expect(retried).toEqual(first)
+      const second = await savePersonalTrainingSession({
+        ...destination,
+        expectedRevision: first.revision,
+        mode: "append",
+        items: [{ ...firstItem, id: "second-date", sourceDate: "2026-09-07" }],
+      })
+      expect(second.items).toMatchObject([
+        {
+          id: "first-date",
+          occurrence: { sourceDate: "2026-09-04" },
+          provenance: { importId: "provider_import_work" },
+        },
+        {
+          id: "second-date",
+          occurrence: { sourceDate: "2026-09-07" },
+          provenance: { importId: "provider_repeat" },
+        },
+      ])
+      await expect(
+        savePersonalTrainingSession({
+          ...destination,
+          expectedRevision: second.revision,
+          mode: "append",
+          items: [{ ...firstItem, id: "draft-date", sourceDate: "2026-09-05" }],
+        }),
+      ).rejects.toThrow("FORBIDDEN")
+      expect(
+        (await getPersonalTrainingDay(destination)).personalSession?.revision,
+      ).toBe(second.revision)
+    } finally {
+      await db
+        .delete(importItems)
+        .where(eq(importItems.id, "provider_repeat_item"))
+      await db.delete(imports).where(eq(imports.id, "provider_repeat"))
+    }
+  })
 })

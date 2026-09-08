@@ -4,7 +4,7 @@ Athletes choose a durable default track and own a session only after composing t
 
 ## Default and Ownership
 
-A preference stores the selected default track per athlete and gym. Browsing a track, opening a day, and recording unchanged programming never create personal session rows.
+A preference stores the default track per athlete and gym. Browsing creates no rows; direct library scores may create a result-only day without a composition.
 
 Without a saved composition, the day projects the current publication from the explicitly browsed track or durable default. An unavailable default falls back to the first eligible track without rewriting the preference. Each personal session is unique to its athlete, gym, and date, independently of track selection.
 
@@ -141,6 +141,62 @@ The isolated track preview stores composed personal workouts and their private r
 
 The preview reuses production result normalization for supported personal blocks, preserving completion display and rejecting invalid scores without recording them.
 
+### Direct private attempts
+
+Public workouts from another owner log once under concurrent retry, preserve lazy composition, and remain editable without planned-item insertion.
+
+### Direct scoring preserves custom plans
+
+Direct scores preserve an unrelated custom plan and its revision, reject inaccessible or forged sources, and roll invalid transactions back.
+
+### Atomic section additions and undo
+
+Append recognizes repeated source selections, supports deliberate repeats, rejects stale revisions and prevents undoing scored source work.
+
+### Direct rich score units and tiebreaks
+
+Private direct scores persist kilogram round values, tiebreak values and capped zero reps without official competition entries.
+
+### Session action receipts
+
+An add receipt keeps the inserted item identity after parent state refresh so Undo removes that exact item.
+
+### Session retries preserve intent
+
+A lost add response keeps stable request identity and direct score navigation performs no composition writes.
+
+### Direct occurrence display
+
+A saved score appears only on its exact source date and track, with an edit link to the stored attempt.
+
+### Late additions preserve context
+
+A late add response cannot update another day or leave the newly selected destination busy.
+
+### Existing additions have no false undo
+
+A deduplicated addition from another tab shows the existing item without claiming a new insertion or offering Undo for an unrelated identity.
+
+### Session building browser journey
+
+Desktop and mobile browser tests combine warm-up, scored work and cooldown sections, then switch source and personal surfaces in place without horizontal overflow.
+
+### Keyboard builder cancellation
+
+Cancelling a draft with keyboard leaves the original source intact, writes no composition and restores focus to the Customize trigger.
+
+### Tiebreak input boundaries
+
+Tiebreak scores reject trailing text, fractional reps, negatives and values outside the database integer range while accepting explicit zero.
+
+### Destination loading clears stale revisions
+
+Changing the destination disables Add until the new day is loaded, preventing an old day revision from leaking into a new workspace or date.
+
+### Repeated provider workout occurrences
+
+Appending a reused workout from separate published dates preserves both attributed occurrences. Retrying the same occurrence deduplicates it, and draft provenance rejects the complete mutation.
+
 ## Provider Source Snapshots
 
 Confirmed provider additions use the existing rich library snapshot path and one composition revision for all selected components. Browsing and cancelling create no personal session.
@@ -148,3 +204,33 @@ Confirmed provider additions use the existing rich library snapshot path and one
 Optional provenance contains the published import ID, source track ID/name, source date, and URL. [[apps/wodsmith-start/src/server/training-personal.ts#getTrainingLibraryWorkout]] resolves it from published import membership, never client claims. The performed date belongs to the personal session; the programmed date stays with the snapshot. Existing snapshots survive source changes, removal, and unfollowing within live workspace access rules.
 
 Multiple components remain ordered, with independent full score metadata, caps, round counts, and aggregation. Capacity and optimistic revision checks reject the entire composition rather than adding a subset. Historical result snapshots retain the same provenance after removal from a session.
+
+## Track and Personal Surfaces
+
+Training opens the selected track in performance mode. My session is a separate optional composition; switching tracks never substitutes private items for another track's programming or saves a default.
+
+Customize starts a local draft from the displayed day. Start empty, section selection, private editing, repeats, removal and ordering stay local until Save session. Cancel discards the draft; saving returns to the performance surface. Warm-ups, cooldowns and instructions use the original check/note kinds and source snapshots.
+
+Source and personal surfaces retain track, date and workspace context in Training. Library and detail actions identify the destination, append selected work only, show a server-confirmed receipt, and offer Open session and revision-protected Undo. Undo rejects both personal results and exact published source results. Stable item identity protects retries; a separate repeat in the builder creates a new identity.
+
+## Independent Direct Scores
+
+A visible workout can record a private score without a remix, follow, or planned session item. The normal score form creates nothing until submission and preserves source date separately from performed date.
+
+Direct library writes reuse the existing score-and-round transaction, storing a server-resolved performed snapshot and exact optional source occurrence. The day has compositionState=result_only until an explicit composition save. Existing days default to customized, including intentionally empty plans. Direct scores leave an existing custom plan, order and revision unchanged.
+
+The additive generated migration `0007_material_champions.sql` adds composition_state to the canonical personal session table. Apply it before using the new APIs. Rich private scores retain entered weight units, rounds, capped zero reps and tiebreak values. Historical edit uses the saved snapshot without reinserting planned work. Progress includes the athlete's results across tracks and independent library attempts.
+
+## Session UX Verification
+
+Real disposable MySQL regressions cover direct result transactions and session mutations. Component regressions separately verify visible destinations, exact result identity, retries and navigation without claiming to prove database authorization.
+
+### Direct score forms in the browser
+
+The production new and edit forms preserve kg rounds, tiebreaks and notes, cancel without a write, and return to the source track. The isolated browser fixture records private attempts independently of custom composition.
+
+Run `pnpm exec playwright test --config test/preview/training/playwright.session.config.ts` from `apps/wodsmith-start`. The dedicated harness starts an isolated preview on port 8778 and exercises desktop and 390px mobile; fixture tests stay outside production E2E discovery.
+
+### Provider selection and attributed instructions
+
+The builder can select provider workouts from another programmed date and save a user-chosen excerpt as an attributed private note, keeping undivided source prose readable without fabricating sections.

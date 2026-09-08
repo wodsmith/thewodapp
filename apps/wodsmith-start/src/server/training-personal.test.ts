@@ -56,6 +56,7 @@ vi.mock("@/server/entitlements", () => ({
 import { saveTrainingResult } from "./training"
 import {
   getPersonalLibraryScalingLevels,
+  saveDirectLibraryResult,
   getPersonalTrainingDay,
   getPersonalTrainingHistory,
   getTrainingLibraryWorkout,
@@ -199,6 +200,23 @@ it("rejects numeric prefixes without changing supported time and load formats", 
     ),
   ).toMatchObject({ status: "scored", scoreValue: 180000 })
 })
+// @lat: [[training-personal#Verification#Tiebreak input boundaries]]
+it("rejects malformed and out-of-range tiebreaks before persistence", () => {
+  const workout = {
+    name: "Tiebreak",
+    description: "Work",
+    scheme: "reps",
+    tiebreakScheme: "reps",
+  }
+  for (const tiebreakScore of ["12abc", "1.5", "-1", "2147483648"])
+    expect(() =>
+      normalizePersonalLibraryScore(workout, { score: "10", tiebreakScore }),
+    ).toThrow()
+  expect(
+    normalizePersonalLibraryScore(workout, { score: "10", tiebreakScore: "0" })
+      .tiebreakValue,
+  ).toBe(0)
+})
 const databaseUrl = process.env.TRAINING_TEST_DATABASE_URL
 describe.skipIf(!databaseUrl)("personal training database invariants", () => {
   let pool: ReturnType<typeof mysql.createPool>
@@ -291,6 +309,10 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
   beforeEach(async () => {
     state.userId = "personal_athlete"
     state.feature = true
+    await db
+      .update(workouts)
+      .set({ scope: "private" })
+      .where(eq(workouts.id, "personal_secret"))
     await db.delete(personalTrainingResultsTable)
     await db.delete(personalTrainingSessionsTable)
     await db.delete(trainingPreferencesTable)
@@ -306,6 +328,7 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
         scalingGroupId: null,
         timeCap: null,
         scoreType: null,
+        tiebreakScheme: null,
       })
       .where(eq(workouts.id, "personal_library"))
     await db
@@ -362,6 +385,239 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     await db.delete(teamTable)
     await db.delete(userTable)
     await pool.promise().end()
+  })
+  // @lat: [[training-personal#Verification#Direct private attempts]]
+  it("logs a foreign public workout atomically without composing, retries and edits without reinsertion", async () => {
+    await db
+      .update(workouts)
+      .set({ scope: "public" })
+      .where(eq(workouts.id, "personal_secret"))
+    const input = {
+      ...day,
+      workoutId: "personal_secret",
+      itemId: "direct-attempt",
+      score: "1:23",
+      asRx: true,
+    }
+    const results = await Promise.all([
+      saveDirectLibraryResult(input),
+      saveDirectLibraryResult(input),
+    ])
+    expect(results[0].scoreId).toBe(results[1].scoreId)
+    const [stored] = await db.select().from(personalTrainingSessionsTable)
+    expect(stored).toMatchObject({
+      compositionState: "result_only",
+      items: [],
+      revision: 1,
+    })
+    expect((await getPersonalTrainingDay(day)).items).toHaveLength(1)
+    expect(await db.select().from(scoresTable)).toHaveLength(1)
+    expect(await db.select().from(personalTrainingResultsTable)).toHaveLength(1)
+    expect(await db.select().from(trainingPreferencesTable)).toHaveLength(0)
+    await savePersonalLibraryResult({
+      personalSessionId: stored.id,
+      itemId: input.itemId,
+      expectedRevision: 1,
+      score: "1:20",
+      asRx: true,
+      replaceExisting: true,
+    })
+    expect((await db.select().from(scoresTable))[0].scoreValue).toBe(80000)
+    expect(
+      (await db.select().from(personalTrainingSessionsTable))[0].items,
+    ).toEqual([])
+    const composed = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 1,
+      items: [],
+      mode: "replace",
+    })
+    expect(composed.compositionState).toBe("customized")
+    expect((await getPersonalTrainingDay(day)).items).toEqual([])
+    await db
+      .update(workouts)
+      .set({ scope: "private" })
+      .where(eq(workouts.id, "personal_secret"))
+  })
+  // @lat: [[training-personal#Verification#Direct scoring preserves custom plans]]
+  it("keeps an unrelated composition and revision untouched and rolls invalid direct scores back", async () => {
+    const composed = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [personalItem],
+    })
+    const [before] = await db.select().from(personalTrainingSessionsTable)
+    await saveDirectLibraryResult({
+      ...day,
+      workoutId: "personal_library",
+      itemId: "direct-rounds",
+      score: "",
+      roundScores: [{ score: "5" }, { score: "6" }, { score: "7" }],
+      asRx: true,
+    })
+    expect((await db.select().from(personalTrainingSessionsTable))[0]).toEqual(
+      before,
+    )
+    expect((await getPersonalTrainingDay(day)).personalSession?.items).toEqual(
+      composed.items,
+    )
+    await expect(
+      saveDirectLibraryResult({
+        ...day,
+        trainingDate: "2026-09-06",
+        workoutId: "personal_library",
+        itemId: "invalid",
+        score: "bad",
+        asRx: true,
+      }),
+    ).rejects.toThrow()
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(
+      1,
+    )
+    await expect(
+      saveDirectLibraryResult({
+        ...day,
+        workoutId: "personal_secret",
+        itemId: "private",
+        score: "1:23",
+        asRx: true,
+      }),
+    ).rejects.toThrow("FORBIDDEN")
+    await expect(
+      saveDirectLibraryResult({
+        ...day,
+        workoutId: "personal_library",
+        sourceTrackId: "personal_foreign_track",
+        itemId: "forged",
+        score: "1",
+        asRx: true,
+      }),
+    ).rejects.toThrow()
+  })
+  // @lat: [[training-personal#Verification#Atomic section additions and undo]]
+  it("appends exact sections once, permits deliberate repeats, rejects stale saves and scored undo", async () => {
+    const first = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [sourceItem],
+      mode: "append",
+    })
+    const retry = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [{ ...sourceItem, id: "retry" }],
+      mode: "append",
+    })
+    expect(retry).toEqual(first)
+    const repeated = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: first.revision,
+      items: [{ ...sourceItem, id: "attempt-two" }],
+      mode: "append",
+      allowDuplicate: true,
+    })
+    expect(repeated.items).toHaveLength(2)
+    await expect(
+      savePersonalTrainingSession({
+        ...day,
+        expectedRevision: 1,
+        items: [personalItem],
+        mode: "append",
+      }),
+    ).rejects.toThrow("CONFLICT")
+    const undone = await savePersonalTrainingSession({
+      ...day,
+      expectedRevision: repeated.revision,
+      items: [{ ...sourceItem, id: "attempt-two" }],
+      mode: "undo",
+    })
+    expect(undone.items).toHaveLength(1)
+    await saveTrainingResult({
+      sessionId: "personal_source",
+      blockId: "block",
+      publishedVersion: 1,
+      score: "30",
+      notes: "",
+      unit: "lb",
+      completed: true,
+      scaling: "rx",
+      modification: "",
+      audience: "private",
+    })
+    await expect(
+      savePersonalTrainingSession({
+        ...day,
+        expectedRevision: undone.revision,
+        items: [sourceItem],
+        mode: "undo",
+      }),
+    ).rejects.toThrow("cannot be undone")
+  })
+  // @lat: [[training-personal#Verification#Direct rich score units and tiebreaks]]
+  it("retains kilogram rounds, capped zero reps and tiebreak values on private attempts", async () => {
+    await db
+      .update(workouts)
+      .set({
+        scheme: "load",
+        scoreType: "max",
+        roundsToScore: 2,
+        tiebreakScheme: "time",
+      })
+      .where(eq(workouts.id, "personal_library"))
+    await saveDirectLibraryResult({
+      ...day,
+      workoutId: "personal_library",
+      itemId: "kg",
+      score: "",
+      unit: "kg",
+      tiebreakScore: "1:02",
+      roundScores: [{ score: "100" }, { score: "110" }],
+      asRx: true,
+      notes: "Solid technique",
+    })
+    expect((await db.select().from(scoresTable))[0]).toMatchObject({
+      scoreValue: 110000,
+      tiebreakValue: 62000,
+      competitionEventId: null,
+    })
+    expect(
+      (await db.select().from(personalTrainingResultsTable))[0],
+    ).toMatchObject({ unit: "kg", displayScore: "110 kg" })
+    expect(
+      (await getPersonalTrainingHistory({ teamId: day.teamId }))[0],
+    ).toMatchObject({
+      displayScore: "110 kg",
+      scaling: "rx",
+      notes: "Solid technique",
+      unit: "kg",
+      sourceLabel: "Workout library",
+    })
+    expect(
+      (await db.select().from(scoreRoundsTable))
+        .map((round) => round.value)
+        .sort((a, b) => a - b),
+    ).toEqual([100000, 110000])
+    await db
+      .update(workouts)
+      .set({
+        scheme: "time-with-cap",
+        timeCap: 180,
+        roundsToScore: 1,
+        tiebreakScheme: null,
+      })
+      .where(eq(workouts.id, "personal_library"))
+    await saveDirectLibraryResult({
+      ...day,
+      workoutId: "personal_library",
+      itemId: "cap",
+      score: "CAP+0",
+      asRx: true,
+    })
+    expect(
+      (await db.select().from(scoresTable)).find(
+        (score) => score.status === "cap",
+      )?.secondaryValue,
+    ).toBe(0)
   })
   // @lat: [[training-personal#Verification#Lazy session ownership]]
   it("reads and logs shared programming without creating athlete sessions", async () => {
@@ -630,13 +886,11 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
   })
   // @lat: [[review-backend#Private references survive composition edits]]
   it("preserves historical private references on reorder but validates new references", async () => {
-    await db
-      .insert(scalingGroupsTable)
-      .values({
-        id: "personal_deleted_group",
-        title: "Earlier group",
-        teamId: day.teamId,
-      })
+    await db.insert(scalingGroupsTable).values({
+      id: "personal_deleted_group",
+      title: "Earlier group",
+      teamId: day.teamId,
+    })
     const rich: TrainingBlock = {
       ...block,
       kind: "workout",
@@ -821,7 +1075,7 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     ).toBe(result.scoreId)
     expect(await db.select().from(scoresTable)).toHaveLength(1)
     expect(await db.select().from(scoreRoundsTable)).toHaveLength(3)
-    expect((await getPersonalTrainingDay(day)).libraryResults).toEqual([
+    expect((await getPersonalTrainingDay(day)).libraryResults).toMatchObject([
       { itemId: "library", scoreId: result.scoreId },
     ])
   })

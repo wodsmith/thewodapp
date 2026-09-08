@@ -4,11 +4,12 @@ This focused Improve and Impeccable pass specifies the track reader, personal fo
 
 ## Execution order and status
 
-Implement the single plan in its ordered slices, starting with reader/admin separation and finishing with daily integration and provenance.
+Plan 001 is complete. Plan 002 implements direct track logging, optional session composition, and UI consistency in an isolated worktree based on the verified access-control dependency.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 | --- | --- | --- | --- | --- | --- |
 | [001](001-track-experience.md) | Make tracks understandable from discovery through daily Training | P1 | L | None | DONE — implemented and independently verified; awaiting release |
+| [002](002-my-session-and-direct-scoring.md) | Direct track logging and an optional My session | P1 | L | Plan 001 DONE; PR #691 final verified head incorporated | IN PROGRESS |
 
 ## Decision record
 

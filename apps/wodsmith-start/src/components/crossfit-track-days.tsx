@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { useState } from "react"
+import { type ReactNode, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import { crossFitPrescription } from "@/lib/crossfit/conversion"
 import {
@@ -15,10 +15,14 @@ export function CrossFitTrackDays({
   days,
   selectedDate,
   onAdd,
+  renderActions,
+  trackId = "ptrk_crossfit_dotcom",
 }: {
   days: ProviderDay[]
+  trackId?: string
   selectedDate?: string
   onAdd?: (workoutIds: string[]) => void
+  renderActions?: (workout: ProviderDay["workouts"][number]) => ReactNode
 }) {
   const [sourceOpen, setSourceOpen] = useState(false)
   const selected =
@@ -60,24 +64,35 @@ export function CrossFitTrackDays({
                       {workoutScoring(workout)}
                     </p>
 
-                    <div className="flex flex-wrap gap-4">
-                      <Link
-                        className="inline-flex min-h-11 items-center underline underline-offset-4"
-                        to="/workouts/$workoutId"
-                        params={{ workoutId: workout.workoutId }}
-                      >
-                        View workout
-                      </Link>
-                      {onAdd && (
-                        <button
-                          type="button"
-                          className="min-h-11 underline underline-offset-4"
-                          onClick={() => onAdd([workout.workoutId])}
+                    {renderActions ? (
+                      renderActions(workout)
+                    ) : (
+                      <div className="flex flex-wrap gap-4">
+                        <Link
+                          className="inline-flex min-h-11 items-center underline underline-offset-4"
+                          to="/workouts/$workoutId"
+                          params={{ workoutId: workout.workoutId }}
+                          search={{ trackId, sourceDate: day.date }}
                         >
-                          Add to my day
-                        </button>
-                      )}
-                    </div>
+                          View workout
+                        </Link>
+                        <a
+                          className="inline-flex min-h-11 items-center underline underline-offset-4"
+                          href={`/log/new?workoutId=${encodeURIComponent(workout.workoutId)}&trackId=${encodeURIComponent(trackId)}&sourceDate=${day.date}`}
+                        >
+                          Log score
+                        </a>
+                        {onAdd && (
+                          <button
+                            type="button"
+                            className="min-h-11 underline underline-offset-4"
+                            onClick={() => onAdd([workout.workoutId])}
+                          >
+                            Add to my day
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

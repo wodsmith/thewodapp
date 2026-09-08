@@ -1,3 +1,4 @@
+import type { SavePersonalTrainingSessionInput } from "@/lib/training/personal-types"
 vi.mock("@/components/workout-import/workout-import-entry", () => ({ WorkoutImportEntry: () => null }))
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -42,6 +43,7 @@ beforeEach(() => {
   vi.mocked(getTrainingLibraryWorkoutFn).mockResolvedValue({ id: "fran", name: "Fran", description: "21-15-9 thrusters and pull-ups", scheme: "time", scoreType: "min", roundsToScore: 1, timeCap: null, repsPerRound: null, tiebreakScheme: null, scalingGroupId: null, movementIds: [] })
   vi.mocked(getTrainingWeekFn).mockResolvedValue({ sessions: [session], myResults: [], teamResults: [] })
   vi.mocked(getTrainingHistoryFn).mockResolvedValue([])
+  vi.mocked(savePersonalTrainingSessionFn).mockImplementation(async (options) => { const data = options?.data as SavePersonalTrainingSessionInput | undefined; if (!data) throw new Error("Missing test data"); return ({id: "personal", teamId: data.teamId, trainingDate: data.trainingDate, revision: data.expectedRevision + 1, items: data.items.map(item => item.kind === "library" ? {...item, workout: {name: "Fran", description: "21-15-9", scheme: "time"}} : item.kind === "source" ? {...item, block, trackId: "everyday", trackName: "Everyday", sourceTrainingDate: session.trainingDate} : item)})})
   vi.mocked(saveTrainingResultFn).mockResolvedValue(result)
   vi.mocked(setTrainingCheerFn).mockResolvedValue({ success: true })
 })
@@ -53,7 +55,7 @@ describe("athlete training", () => {
     vi.mocked(saveTrainingResultFn).mockRejectedValueOnce(new Error("Connection interrupted. Try again."))
     const onSaved = vi.fn()
     render(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" onSaved={onSaved} />)
-    const trigger = screen.getByRole("button", { name: "Log result" })
+    const trigger = screen.getByRole("button", { name: "Log score" })
     fireEvent.click(trigger)
     expect(screen.getByText("Test gym · Everyday · 2026-09-07 · America/Boise · Version 2")).toBeVisible()
     fireEvent.change(screen.getByLabelText("Load"), { target: { value: "225" } })
@@ -107,27 +109,27 @@ describe("athlete training", () => {
   // @lat: [[training#Athlete Interface Tests#Dismissed result edits are discarded]]
   it("discards dismissed edits and reopens from the latest saved result", async () => {
     const { rerender } = render(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" result={result} onSaved={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
     fireEvent.change(screen.getByLabelText("Load"), { target: { value: "300" } })
     fireEvent.change(screen.getByLabelText("Private notes"), { target: { value: "Unsaved note" } })
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }))
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     expect(saveTrainingResultFn).not.toHaveBeenCalled()
     rerender(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" result={{ ...result, displayScore: "245", notes: "Latest saved note" }} onSaved={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
     expect(screen.getByLabelText("Load")).toHaveValue(245)
     expect(screen.getByLabelText("Private notes")).toHaveValue("Latest saved note")
     fireEvent.change(screen.getByLabelText("Load"), { target: { value: "275" } })
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
     expect(screen.getByLabelText("Load")).toHaveValue(245)
   })
 
   // @lat: [[training#Athlete Interface Tests#Encoded scores edit in display units]]
   it("edits load and time using display units instead of stored grams or milliseconds", async () => {
     const { unmount } = render(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" result={result} onSaved={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
     expect(screen.getByLabelText("Load")).toHaveValue(225)
     expect(screen.getByLabelText("Load unit")).toHaveValue("lb")
     unmount()
@@ -140,7 +142,7 @@ describe("athlete training", () => {
       { displayScore: "1:00:59.999", scoreValue: 3659999, minutes: 60, seconds: 59.999, submittedScore: "60:59.999" },
     ]) {
       const { unmount: unmountTime } = render(<TrainingResultDialog session={session} block={timeBlock} trackName="Everyday" gymName="Test gym" result={{ ...result, block: timeBlock, displayScore: duration.displayScore, scoreValue: duration.scoreValue }} onSaved={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+      fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
       expect(screen.getByLabelText("Minutes")).toHaveValue(duration.minutes)
       expect(screen.getByLabelText("Seconds")).toHaveValue(duration.seconds)
       expect(screen.getByLabelText("Seconds")).toBeValid()
@@ -237,7 +239,10 @@ it("creates a personal composition only when a workout is removed", async () => 
   fireEvent.click(screen.getByRole("button", { name: "Customize session" }))
   expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole("button", { name: "Remove" }))
-  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: { teamId: "gym", trainingDate: session.trainingDate, expectedRevision: 0, items: [] } }))
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled())
+  fireEvent.click(screen.getByRole("button", { name: "Save session" }))
+  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: { teamId: "gym", trainingDate: session.trainingDate, expectedRevision: 0, mode: "replace", items: [] } }))
 })
 
 // @lat: [[training#Athlete Interface Tests#Remixes preserve references until saved]]
@@ -249,9 +254,11 @@ it("keeps source ownership until an explicit remix is saved and retains failed e
   fireEvent.click(screen.getByRole("button", { name: "Remix to edit" }))
   expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
   fireEvent.change(screen.getByLabelText("Workout"), { target: { value: "Three easy sets" } })
-  fireEvent.click(screen.getByRole("button", { name: "Save to my session" }))
+  fireEvent.click(screen.getByRole("button", { name: "Apply to draft" }))
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled())
+  fireEvent.click(screen.getByRole("button", { name: "Save session" }))
   await screen.findByText("Save interrupted. Try again.")
-  expect(screen.getByLabelText("Workout")).toHaveValue("Three easy sets")
+  expect(screen.getByText("Three easy sets")).toBeInTheDocument()
   expect(savePersonalTrainingSessionFn).toHaveBeenLastCalledWith({ data: expect.objectContaining({ items: [expect.objectContaining({ kind: "personal", block: expect.objectContaining({ prescription: "Three easy sets" }), remixedFrom: { sourceSessionId: session.id, sourceBlockId: block.id, sourcePublishedVersion: 2 } })] }) })
 })
 
@@ -261,7 +268,7 @@ it("previews a library link without creating a session until confirmed", async (
   await screen.findByRole("heading", { name: "Add Fran?" })
   expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole("button", { name: "Add to my session" }))
-  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: expect.objectContaining({ items: [expect.objectContaining({ kind: "source" }), expect.objectContaining({ kind: "library", workoutId: "fran" })] }) }))
+  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: expect.objectContaining({ items: [expect.objectContaining({ kind: "library", workoutId: "fran" })] }) }))
 })
 
 // @lat: [[training#Athlete Interface Tests#Moved workouts log on the performed date]]
@@ -270,9 +277,9 @@ it("logs a workout borrowed from another date privately without updating its ori
  const item = { id: "moved-squat", kind: "source" as const, block, trackId: session.trackId, trackName: "Everyday", sourceTrainingDate: session.trainingDate, sourceSessionId: session.id, sourceBlockId: block.id, sourcePublishedVersion: session.publishedVersion, sourceIsCurrent: true }
  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({ defaultTrackId: "everyday", selectedTrackId: "everyday", sourceSession: null, personalSession: { id: "personal-tuesday", teamId: "gym", trainingDate: targetDate, revision: 1, items: [item] }, items: [item], results: [], libraryResults: [] })
  vi.mocked(savePersonalTrainingResultFn).mockResolvedValue({ ...result, id: "moved-result", sessionId: "personal-tuesday", blockId: item.id, trainingDate: targetDate, audience: "private" })
- render(<AthletePersonalSession team={context.teams[0]!} trackId="everyday" date={targetDate} sourceResults={[result]} onSaved={vi.fn()} />)
+ render(<AthletePersonalSession surface="session" team={context.teams[0]!} trackId="everyday" date={targetDate} sourceResults={[result]} onSaved={vi.fn()} />)
  await screen.findByRole("heading", { name: "Back squat" })
- fireEvent.click(screen.getByRole("button", { name: "Log result" }))
+ fireEvent.click(screen.getByRole("button", { name: "Log score" }))
  expect(screen.queryByLabelText("Who can see this result?")).not.toBeInTheDocument()
  fireEvent.change(screen.getByLabelText("Load"), { target: { value: "185" } })
  fireEvent.click(screen.getByRole("button", { name: "Save result" }))
@@ -284,13 +291,13 @@ it("logs a workout borrowed from another date privately without updating its ori
 it("keeps the exact saved source score visible and read-only after a coach republishes", async () => {
   const item = { id: "saved-source", kind: "source" as const, block, trackId: session.trackId, trackName: "Everyday", sourceTrainingDate: session.trainingDate, sourceSessionId: session.id, sourceBlockId: block.id, sourcePublishedVersion: session.publishedVersion, sourceIsCurrent: false }
   vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({ defaultTrackId: "everyday", selectedTrackId: "everyday", sourceSession: { ...session, publishedVersion: 3 }, personalSession: { id: "my-composition", teamId: "gym", trainingDate: session.trainingDate, revision: 1, items: [item] }, items: [item], results: [result], libraryResults: [] })
-  render(<AthletePersonalSession team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[{ ...result, id: "new-version", publishedVersion: 3, displayScore: "300" }]} onSaved={vi.fn()} />)
+  render(<AthletePersonalSession surface="session" team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[{ ...result, id: "new-version", publishedVersion: 3, displayScore: "300" }]} onSaved={vi.fn()} />)
   await screen.findByRole("heading", { name: "Back squat" })
   expect(screen.getByText("225 lb", { exact: false })).toBeVisible()
   expect(screen.queryByText("300 lb", { exact: false })).not.toBeInTheDocument()
   expect(screen.getByText(/Saved against an earlier published version/)).toBeVisible()
-  expect(screen.queryByRole("button", { name: "Log result" })).not.toBeInTheDocument()
-  expect(screen.queryByRole("button", { name: "Edit result" })).not.toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Log score" })).not.toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Edit score" })).not.toBeInTheDocument()
   fireEvent.click(screen.getByText("Private notes"))
   expect(screen.getByText("Private memory")).toBeVisible()
   expect(saveTrainingResultFn).not.toHaveBeenCalled()
@@ -412,7 +419,7 @@ it("keeps gym coaching tools out of an owned personal workspace", async () => {
   expect(
     screen.queryByRole("button", { name: /^Team$/ }),
   ).not.toBeInTheDocument()
-  expect(screen.getByRole("button", { name: "My session" })).toHaveAttribute(
+  expect(screen.getByRole("button", { name: "Training" })).toHaveAttribute(
     "aria-pressed",
     "true",
   )

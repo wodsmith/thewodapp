@@ -17,7 +17,7 @@ export default defineConfig({
             request.headers.accept?.includes("text/html") &&
             (request.url?.startsWith("/training") ||
               request.url?.startsWith("/programming") ||
-              request.url?.startsWith("/admin"))
+              request.url?.startsWith("/admin") || request.url?.startsWith("/log"))
           )
             request.url = "/track-preview.html"
           next()
@@ -27,6 +27,8 @@ export default defineConfig({
   ],
   resolve: {
     alias: [
+      {find:"@/lib/posthog",replacement:local("./posthog-fixture.ts")},
+      {find:"@/server-fns/workout-fns",replacement:local("./log-fixtures.ts")},
       { find: "@/components/workout-import/workout-import-entry", replacement: local("./import-entry-fixture.tsx") },
       {
         find: "@tanstack/react-start",
@@ -42,7 +44,7 @@ export default defineConfig({
       },
       {
         find: "@/server-fns/log-fns",
-        replacement: local("./personal-fixtures.ts"),
+        replacement: local("./log-fixtures.ts"),
       },
       {
         find: "@/server-fns/track-follow-fns",

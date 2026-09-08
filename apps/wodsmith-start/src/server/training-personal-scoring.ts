@@ -5,6 +5,7 @@ import {
   parseScore,
   sortKeyToString,
   type WorkoutScheme,
+  type TiebreakScheme,
 } from "@/lib/scoring"
 import {
   buildWorkoutResultScoring,
@@ -14,7 +15,12 @@ import type { PersonalLibraryItem } from "@/lib/training/personal-types"
 
 export function normalizePersonalLibraryScore(
   workout: PersonalLibraryItem["workout"],
-  input: { score: string; roundScores?: { score: string }[] },
+  input: {
+    score: string
+    roundScores?: { score: string }[]
+    unit?: "lb" | "kg"
+    tiebreakScore?: string
+  },
 ) {
   const scheme = workout.scheme as WorkoutScheme
   const scoreType = resolveWorkoutResultScoreType(scheme, workout.scoreType)
@@ -50,7 +56,9 @@ export function normalizePersonalLibraryScore(
         )
       if (scheme === "rounds-reps" && !/^\d+(?:\s*[+.]\s*\d+)?$/.test(raw))
         throw new Error("Enter complete rounds or rounds+reps, such as 5+12")
-      const parsed = parseScore(raw, scheme)
+      const parsed = parseScore(raw, scheme, {
+        unit: input.unit === "kg" ? "kg" : "lbs",
+      })
       if (
         !parsed.isValid ||
         parsed.encoded == null ||
@@ -91,7 +99,31 @@ export function normalizePersonalLibraryScore(
     : null
   if (secondaryValue !== null && secondaryValue > 2147483647)
     throw new Error("Capped rep total exceeds the supported range")
+  const tiebreakScheme = workout.tiebreakScheme as
+    | TiebreakScheme
+    | null
+    | undefined
+  const rawTiebreak = input.tiebreakScore?.trim()
+  if (rawTiebreak && tiebreakScheme === "reps" && !/^\d+$/.test(rawTiebreak))
+    throw new Error("Enter a whole-number tiebreak without trailing text")
+  const tiebreak =
+    input.tiebreakScore?.trim() && tiebreakScheme
+      ? parseScore(input.tiebreakScore, tiebreakScheme)
+      : null
+  if (
+    tiebreak &&
+    (!tiebreak.isValid ||
+      tiebreak.encoded == null ||
+      !Number.isSafeInteger(tiebreak.encoded) ||
+      tiebreak.encoded < 0 ||
+      tiebreak.encoded > 2147483647)
+  )
+    throw new Error("Enter a valid tiebreak score")
   const scoring = buildWorkoutResultScoring({
+    tiebreak:
+      tiebreak?.encoded != null && tiebreakScheme
+        ? { scheme: tiebreakScheme, value: tiebreak.encoded }
+        : undefined,
     value: scoreValue,
     status,
     scheme,
@@ -111,10 +143,14 @@ export function normalizePersonalLibraryScore(
     sortKey: scoring.sortKey ? sortKeyToString(scoring.sortKey) : null,
     timeCapMs,
     secondaryValue,
+    tiebreakScheme: tiebreakScheme ?? null,
+    tiebreakValue: tiebreak?.encoded ?? null,
     rounds: roundInputs ? values : [],
     formatted:
       status === "cap"
         ? `CAP+${secondaryValue}`
-        : decodeScore(scoreValue, scheme),
+        : decodeScore(scoreValue, scheme, {
+            weightUnit: input.unit === "kg" ? "kg" : "lbs",
+          }),
   }
 }

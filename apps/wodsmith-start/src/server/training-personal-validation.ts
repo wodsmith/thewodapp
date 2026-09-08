@@ -29,7 +29,13 @@ export const personalTrainingItemSchema = z.discriminatedUnion("kind", [
     block: personalBlock,
     remixedFrom: trainingSourceSchema.optional(),
   }),
-  z.object({ id: itemId, kind: z.literal("library"), workoutId: id }),
+  z.object({
+    id: itemId,
+    kind: z.literal("library"),
+    workoutId: id,
+    sourceTrackId: id.optional(),
+    sourceDate: trainingDateSchema.optional(),
+  }),
 ])
 export const personalTrainingDaySchema = z.object({
   teamId: id,
@@ -44,6 +50,8 @@ export const personalTrainingSaveSchema = personalTrainingDaySchema
   .omit({ trackId: true })
   .extend({
     expectedRevision: z.number().int().nonnegative(),
+    allowDuplicate: z.boolean().optional(),
+    mode: z.enum(["replace", "append", "undo"]).default("replace"),
     items: z.array(personalTrainingItemSchema).max(40),
   })
   .refine(
@@ -65,6 +73,8 @@ export const personalTrainingResultSchema = z.object({
 export const trainingLibraryWorkoutSchema = z.object({
   teamId: id,
   workoutId: id,
+  sourceTrackId: id.optional(),
+  sourceDate: trainingDateSchema.optional(),
 })
 export const trainingLibraryListSchema = z.object({
   teamId: id,
@@ -78,6 +88,8 @@ export const personalLibraryResultSchema = personalTrainingScoreLinkSchema
   .omit({ scoreId: true })
   .extend({
     score: z.string().max(100),
+    unit: z.enum(["lb", "kg"]).optional(),
+    tiebreakScore: z.string().max(100).optional(),
     notes: z.string().max(4000).optional(),
     asRx: z.boolean(),
     replaceExisting: z.boolean().optional(),
@@ -86,4 +98,14 @@ export const personalLibraryResultSchema = personalTrainingScoreLinkSchema
       .array(z.object({ score: z.string().max(100) }))
       .max(100)
       .optional(),
+  })
+
+export const directLibraryResultSchema = personalLibraryResultSchema
+  .omit({ personalSessionId: true, expectedRevision: true })
+  .extend({
+    teamId: id,
+    trainingDate: trainingDateSchema,
+    workoutId: id,
+    sourceTrackId: id.optional(),
+    sourceDate: trainingDateSchema.optional(),
   })

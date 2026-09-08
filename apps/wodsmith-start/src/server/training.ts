@@ -650,7 +650,7 @@ export async function setTrainingCheer(input: {
 
 export async function getTrainingHistory(input: {
   teamId: string
-  trackId: string
+  trackId?: string
 }): Promise<OwnTrainingResult[]> {
   const { userId } = await requireTrainingAccess(input.teamId, input.trackId)
   const rows = await getDb()
@@ -669,7 +669,9 @@ export async function getTrainingHistory(input: {
     .where(
       and(
         eq(trainingSessionsTable.teamId, input.teamId),
-        eq(trainingSessionsTable.trackId, input.trackId),
+        input.trackId
+          ? eq(trainingSessionsTable.trackId, input.trackId)
+          : undefined,
         eq(trainingResultsTable.userId, userId),
       ),
     )

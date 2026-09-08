@@ -50,6 +50,13 @@
       "when": 1788745682632,
       "tag": "0006_training_workout_results",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1788823944587,
+      "tag": "0007_material_champions",
+      "breakpoints": true
     }
   ]
 }

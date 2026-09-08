@@ -16,6 +16,8 @@ export async function saveTrainingPreferenceFn({data}:{data:{defaultTrackId:stri
 export async function savePersonalTrainingSessionFn({data}:{data:SavePersonalTrainingSessionInput}) {
  let session=state.sessions.find(item=>item.teamId===data.teamId&&item.trainingDate===data.trainingDate)
  if((session?.revision??0)!==data.expectedRevision)throw new Error("This session changed. Reload before saving.")
+ if(data.mode==="append") data={...data,items:[...(session?.items??[]),...data.items]}
+ if(data.mode==="undo") data={...data,items:(session?.items??[]).filter(item=>!data.items.some(removed=>removed.id===item.id))}
  const items:PersonalTrainingItem[]=[]
  for(const item of data.items) {
   if(item.kind==="personal")items.push(item)

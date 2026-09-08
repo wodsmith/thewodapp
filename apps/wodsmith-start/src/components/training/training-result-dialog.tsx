@@ -179,10 +179,10 @@ export function TrainingResultDialog({
           disabled={disabled || saving}
         >
           {result
-            ? "Edit result"
+            ? "Edit score"
             : block.kind === "check"
               ? "Add notes"
-              : "Log result"}
+              : "Log score"}
         </Button>
       </DialogTrigger>
       <DialogContent

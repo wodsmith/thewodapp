@@ -366,3 +366,9 @@ An omitted configured time or reps tiebreak ranks after a provided value when th
 ### Large capped totals retain order
 
 Large valid round totals compare their full numeric values without wrapping the bit-packed sort key's capped-time segment.
+
+## Performing and Customizing
+
+Training keeps subscribed tracks in place and prioritizes recording the displayed workout. My session is an optional distinct performance surface; Customize or Edit explicitly opens the draft builder.
+
+The builder can combine complete source blocks across tracks and dates, including instructions and completion sections. Its changes persist only on Save session. Buttons and inputs in the affected flows use consistent 44px touch targets. Library and workout details offer direct personal score entry independently of source editing.

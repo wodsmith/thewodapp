@@ -10,6 +10,9 @@ import { z } from "zod"
 import { Pagination } from "@/components/pagination"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SessionWorkoutActions } from "@/components/training/session-workout-actions"
+import { getPersonalTrainingDayFn } from "@/server-fns/training-personal-fns"
+import type { PersonalTrainingDay } from "@/lib/training/personal-types"
 import { WorkoutCard } from "@/components/workout-card"
 import {
   type FilterOptions,
@@ -81,7 +84,7 @@ export const Route = createFileRoute("/_protected/workouts/")({
     const training = await getTrainingContextFn()
     const team =
       training.teams.find((item) => item.id === deps.teamId) ??
-      training.teams.find((item) => item.id === training.activeTeamId) ??
+      training.teams.find((item) => item.isPersonal) ??
       training.teams[0]
     const teamId = team?.id
     const date =
@@ -178,6 +181,28 @@ function WorkoutsPage() {
   const view = search.view ?? "row"
   const q = search.q ?? ""
   const { tagIds, movementIds, workoutType, trackId, type } = search
+  const [personalDay, setPersonalDay] = useState<PersonalTrainingDay>()
+  const [sessionError, setSessionError] = useState("")
+  const [sessionRetry, setSessionRetry] = useState(0)
+  useEffect(() => {
+    let current = true
+    if (!sessionRetry) setPersonalDay(undefined)
+    setSessionError("")
+    if (teamId)
+      void getPersonalTrainingDayFn({ data: { teamId, trainingDate: date } })
+        .then((day) => {
+          if (current) setPersonalDay(day)
+        })
+        .catch(() => {
+          if (current)
+            setSessionError(
+              "Could not load My session. You can still log a score.",
+            )
+        })
+    return () => {
+      current = false
+    }
+  }, [teamId, date, sessionRetry])
   const [searchQuery, setSearchQuery] = useState(q)
   useEffect(() => setSearchQuery(q), [q])
 
@@ -270,7 +295,7 @@ function WorkoutsPage() {
               })
             }
           />
-          <Button asChild>
+          <Button className="min-h-11" asChild>
             <Link
               to="/workouts/new"
               search={{ remixFrom: undefined, teamId: teamId ?? undefined }}
@@ -283,8 +308,20 @@ function WorkoutsPage() {
       </div>
 
       <p className="mb-6 max-w-2xl text-muted-foreground">
-        Find a workout, make it your own, and add it to your training session.
+        Find a workout and log a score, or add it to My session.
       </p>
+      {sessionError && (
+        <div role="alert" className="mb-4 text-sm">
+          <p>{sessionError}</p>
+          <Button
+            variant="outline"
+            className="min-h-11"
+            onClick={() => setSessionRetry((value) => value + 1)}
+          >
+            Retry My session
+          </Button>
+        </div>
+      )}
       {teams.length > 1 && (
         <div className="mb-6 max-w-sm space-y-2">
           <label htmlFor="library-gym" className="text-sm font-medium">
@@ -318,9 +355,10 @@ function WorkoutsPage() {
       )}
       <div className="mb-6 max-w-sm space-y-2">
         <label htmlFor="library-date" className="text-sm font-medium">
-          Add to session on
+          Training date
         </label>
         <Input
+          className="min-h-11"
           id="library-date"
           type="date"
           value={date}
@@ -354,12 +392,13 @@ function WorkoutsPage() {
               onChange={handleSearchChange}
             />
           </div>
-          <Button type="submit" variant="outline">
+          <Button className="min-h-11" type="submit" variant="outline">
             Search
           </Button>
         </form>
         <div className="flex border rounded-md">
           <Button
+            className="min-h-11 min-w-11"
             variant={view === "row" ? "default" : "ghost"}
             size="icon"
             aria-label="List view"
@@ -368,6 +407,7 @@ function WorkoutsPage() {
             <LayoutList className="h-4 w-4" />
           </Button>
           <Button
+            className="min-h-11 min-w-11"
             variant={view === "card" ? "default" : "ghost"}
             size="icon"
             aria-label="Card view"
@@ -418,12 +458,13 @@ function WorkoutsPage() {
                 </div>
               </div>
               {teamId && (
-                <a
-                  className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
-                  href={`/training?${new URLSearchParams({ teamId, date, workoutId: workout.id })}`}
-                >
-                  Add to my session
-                </a>
+                <SessionWorkoutActions
+                  teamId={teamId}
+                  date={date}
+                  workoutId={workout.id}
+                  day={personalDay}
+                  onChanged={setPersonalDay}
+                />
               )}
             </li>
           ))}
@@ -452,12 +493,13 @@ function WorkoutsPage() {
                 />
               </Link>
               {teamId && (
-                <a
-                  className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
-                  href={`/training?${new URLSearchParams({ teamId, date, workoutId: workout.id })}`}
-                >
-                  Add to my session
-                </a>
+                <SessionWorkoutActions
+                  teamId={teamId}
+                  date={date}
+                  workoutId={workout.id}
+                  day={personalDay}
+                  onChanged={setPersonalDay}
+                />
               )}
             </div>
           ))}

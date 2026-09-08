@@ -3,11 +3,11 @@ import {
   externalWorkoutImportItemsTable,
   externalWorkoutImportsTable,
   programmingTracksTable,
+  trackWorkoutsTable,
   scalingGroupsTable,
   scalingLevelsTable,
   scoreRoundsTable,
   scoresTable,
-  teamMembershipTable,
   workoutMovements,
   workouts,
 } from "@repo/wodsmith-db/schema"
@@ -20,7 +20,8 @@ import {
   personalTrainingSessionsTable,
   trainingPreferencesTable,
 } from "@repo/wodsmith-db/schemas/training-personal"
-import { and, asc, desc, eq, gt, inArray, isNull, like, or } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNull, like } from "drizzle-orm"
+import type { z } from "zod"
 import { ulid } from "ulid"
 import { getDb } from "@/db"
 import type {
@@ -33,12 +34,14 @@ import type {
   TrainingSourceReference,
 } from "@/lib/training/personal-types"
 import type { OwnTrainingResult, TrainingSession } from "@/lib/training/types"
+import { requireTrackRead, workoutVisibilityCondition } from "./training-access"
 import { getPublishedCrossFitDays } from "./crossfit-import"
 import { getTrainingContext, requireTrainingAccess } from "./training"
 import { writeWorkoutResultRounds } from "./training-logs/rounds"
 import { normalizePersonalLibraryScore } from "./training-personal-scoring"
 import {
   personalLibraryResultSchema,
+  directLibraryResultSchema,
   personalTrainingDaySchema,
   personalTrainingResultSchema,
   personalTrainingSaveSchema,
@@ -64,6 +67,7 @@ function personalSession(row: PersonalRow): PersonalTrainingSession {
     teamId: row.teamId,
     trainingDate: row.trainingDate,
     revision: row.revision,
+    compositionState: row.compositionState,
     items: row.items as PersonalTrainingItem[],
   }
 }
@@ -201,17 +205,18 @@ export async function getPersonalTrainingDay(input: {
           ),
         )
     : []
-  const items: PersonalTrainingItem[] = personal
-    ? (personal.items as PersonalTrainingItem[])
-    : (sourceSession?.published?.blocks.map((b) =>
-        sourceItem(
-          sourceSession,
-          b.id,
-          team.tracks.find((t) => t.id === selectedTrackId)?.name ??
-            "Programming",
-          ulid(),
-        ),
-      ) ?? [])
+  const items: PersonalTrainingItem[] =
+    personal && personal.compositionState !== "result_only"
+      ? (personal.items as PersonalTrainingItem[])
+      : (sourceSession?.published?.blocks.map((b) =>
+          sourceItem(
+            sourceSession,
+            b.id,
+            team.tracks.find((t) => t.id === selectedTrackId)?.name ??
+              "Programming",
+            ulid(),
+          ),
+        ) ?? [])
   const sourceIds = [
     ...new Set(
       items.flatMap((item) =>
@@ -292,27 +297,22 @@ export async function getPersonalTrainingDay(input: {
         : []),
     ],
     libraryResults: resultRows.flatMap((r) =>
-      r.legacyScoreId ? [{ itemId: r.itemId, scoreId: r.legacyScoreId }] : [],
+      r.legacyScoreId
+        ? [
+            {
+              itemId: r.itemId,
+              scoreId: r.legacyScoreId,
+              displayScore: r.displayScore,
+              occurrence: r.libraryItem?.occurrence,
+              workoutId: r.libraryItem?.workoutId,
+              provenance: r.libraryItem?.provenance,
+            },
+          ]
+        : [],
     ),
   }
 }
 
-async function accessibleLibraryTeams(userId: string): Promise<string[]> {
-  const rows = await getDb()
-    .select({ teamId: teamMembershipTable.teamId })
-    .from(teamMembershipTable)
-    .where(
-      and(
-        eq(teamMembershipTable.userId, userId),
-        eq(teamMembershipTable.isActive, true),
-        or(
-          isNull(teamMembershipTable.expiresAt),
-          gt(teamMembershipTable.expiresAt, new Date()),
-        ),
-      ),
-    )
-  return rows.map((r) => r.teamId)
-}
 const libraryFields = {
   id: workouts.id,
   name: workouts.name,
@@ -330,14 +330,14 @@ export async function listTrainingLibraryWorkouts(input: {
   search?: string
 }) {
   const data = trainingLibraryListSchema.parse(input)
-  const { userId } = await requireTrainingAccess(data.teamId)
-  const teams = await accessibleLibraryTeams(userId)
+  await requireTrainingAccess(data.teamId)
+  const visibility = await workoutVisibilityCondition()
   return getDb()
     .select(libraryFields)
     .from(workouts)
     .where(
       and(
-        or(eq(workouts.scope, "public"), inArray(workouts.teamId, teams)),
+        visibility,
         data.search ? like(workouts.name, `%${data.search}%`) : undefined,
       ),
     )
@@ -347,6 +347,8 @@ export async function listTrainingLibraryWorkouts(input: {
 export async function getTrainingLibraryWorkout(input: {
   teamId: string
   workoutId: string
+  sourceTrackId?: string
+  sourceDate?: string
 }): Promise<
   Pick<typeof workouts.$inferSelect, keyof typeof libraryFields> & {
     provenance?: import("@/lib/training/personal-types").ProviderProvenance
@@ -354,18 +356,16 @@ export async function getTrainingLibraryWorkout(input: {
   }
 > {
   const data = trainingLibraryWorkoutSchema.parse(input)
-  const { userId } = await requireTrainingAccess(data.teamId)
-  const teams = await accessibleLibraryTeams(userId)
+  if (data.sourceDate && !data.sourceTrackId)
+    throw new Error("Choose a source track with the programmed date")
+  await requireTrainingAccess(data.teamId)
+  const visibility = await workoutVisibilityCondition()
   const [workout] = await getDb()
     .select(libraryFields)
     .from(workouts)
-    .where(
-      and(
-        eq(workouts.id, data.workoutId),
-        or(eq(workouts.scope, "public"), inArray(workouts.teamId, teams)),
-      ),
-    )
+    .where(and(eq(workouts.id, data.workoutId), visibility))
   if (!workout) throw new Error("FORBIDDEN: Workout is not available to you")
+  if (data.sourceTrackId) await requireTrackRead(data.sourceTrackId)
   const [provenance] = await getDb()
     .select({
       importId: externalWorkoutImportsTable.id,
@@ -390,12 +390,39 @@ export async function getTrainingLibraryWorkout(input: {
       and(
         eq(externalWorkoutImportItemsTable.workoutId, workout.id),
         eq(externalWorkoutImportsTable.status, "published"),
+        data.sourceTrackId
+          ? eq(externalWorkoutImportsTable.trackId, data.sourceTrackId)
+          : undefined,
+        data.sourceDate
+          ? eq(externalWorkoutImportsTable.sourceDate, data.sourceDate)
+          : undefined,
       ),
     )
     .limit(1)
-  const sourceProvenance:
+  if (data.sourceTrackId && !provenance) {
+    const [association] = await getDb()
+      .select({ id: trackWorkoutsTable.id })
+      .from(trackWorkoutsTable)
+      .where(
+        and(
+          eq(trackWorkoutsTable.trackId, data.sourceTrackId),
+          eq(trackWorkoutsTable.workoutId, workout.id),
+        ),
+      )
+      .limit(1)
+    if (!association || data.sourceDate)
+      throw new Error("FORBIDDEN: Published source occurrence is not available")
+  }
+  let sourceProvenance:
     | import("@/lib/training/personal-types").ProviderProvenance
     | undefined = provenance ?? undefined
+  if (sourceProvenance && !data.sourceTrackId) {
+    try {
+      await requireTrackRead(sourceProvenance.trackId)
+    } catch {
+      sourceProvenance = undefined
+    }
+  }
   const movementRows = await getDb()
     .select({ id: workoutMovements.movementId })
     .from(workoutMovements)
@@ -452,10 +479,12 @@ export async function savePersonalTrainingSession(
       )
     )
       library.set(
-        item.workoutId,
+        item.id,
         await getTrainingLibraryWorkout({
           teamId: data.teamId,
           workoutId: item.workoutId,
+          sourceTrackId: item.sourceTrackId,
+          sourceDate: item.sourceDate,
         }),
       )
   try {
@@ -471,8 +500,106 @@ export async function savePersonalTrainingSession(
           ),
         )
         .for("update")
-      assertTrainingRevision(existing?.revision ?? 0, data.expectedRevision)
       const previous = (existing?.items ?? []) as PersonalTrainingItem[]
+      const sameInput = (
+        left: PersonalTrainingItem,
+        right: PersonalTrainingItemInput,
+      ) =>
+        left.id === right.id &&
+        left.kind === right.kind &&
+        (left.kind === "library" && right.kind === "library"
+          ? left.workoutId === right.workoutId &&
+            left.occurrence?.trackId === right.sourceTrackId &&
+            left.occurrence?.sourceDate === right.sourceDate
+          : left.kind === "source" && right.kind === "source"
+            ? sourceMatches(left, right)
+            : JSON.stringify(left) === JSON.stringify(right))
+      const sameOccurrence = (
+        left: PersonalTrainingItem,
+        right: PersonalTrainingItemInput,
+      ) =>
+        data.allowDuplicate
+          ? sameInput(left, right)
+          : left.kind === "library" && right.kind === "library"
+            ? left.workoutId === right.workoutId &&
+              left.occurrence?.trackId === right.sourceTrackId &&
+              left.occurrence?.sourceDate === right.sourceDate
+            : left.kind === "source" && right.kind === "source"
+              ? sourceMatches(left, right)
+              : sameInput(left, right)
+      if (
+        data.mode === "append" &&
+        existing &&
+        data.items.every((item) =>
+          previous.some((old) => sameOccurrence(old, item)),
+        )
+      )
+        return personalSession(existing)
+      assertTrainingRevision(existing?.revision ?? 0, data.expectedRevision)
+      if (data.mode === "append") {
+        if (
+          data.items.some((item) =>
+            previous.some((old) => old.id === item.id && !sameInput(old, item)),
+          )
+        )
+          throw new Error(
+            "CONFLICT: This addition belongs to a different workout",
+          )
+        data.items = [
+          ...previous,
+          ...data.items.filter(
+            (item) => !previous.some((old) => sameOccurrence(old, item)),
+          ),
+        ]
+      } else if (data.mode === "undo") {
+        const ids = new Set(data.items.map((item) => item.id))
+        const scored = existing
+          ? await tx
+              .select()
+              .from(personalTrainingResultsTable)
+              .where(
+                eq(personalTrainingResultsTable.personalSessionId, existing.id),
+              )
+          : []
+        const sourceItems = previous.filter(
+          (item) => ids.has(item.id) && item.kind === "source",
+        )
+        const sourceScores = sourceItems.length
+          ? await tx
+              .select()
+              .from(trainingResultsTable)
+              .where(
+                and(
+                  eq(trainingResultsTable.userId, userId),
+                  inArray(
+                    trainingResultsTable.sessionId,
+                    sourceItems.flatMap((item) =>
+                      item.kind === "source" ? [item.sourceSessionId] : [],
+                    ),
+                  ),
+                ),
+              )
+          : []
+        if (
+          scored.some((result) => ids.has(result.itemId)) ||
+          sourceItems.some(
+            (item) =>
+              item.kind === "source" &&
+              sourceScores.some(
+                (result) =>
+                  result.sessionId === item.sourceSessionId &&
+                  result.blockId === item.sourceBlockId &&
+                  result.publishedVersion === item.sourcePublishedVersion,
+              ),
+          )
+        )
+          throw new Error(
+            "CONFLICT: This item has a score and cannot be undone",
+          )
+        data.items = previous.filter((item) => !ids.has(item.id))
+      }
+      if (data.items.length > 40)
+        throw new Error("Your session can contain up to 40 sections")
       const previousResults = existing
         ? await tx
             .select()
@@ -553,10 +680,17 @@ export async function savePersonalTrainingSession(
                 old.workoutId === item.workoutId,
             )
             if (preserved) return preserved
-            const workout = library.get(item.workoutId)
+            const workout = library.get(item.id)
             if (!workout)
               throw new Error("NOT_FOUND: Library workout not found")
-            return { ...item, workout, provenance: workout.provenance }
+            return {
+              ...item,
+              workout,
+              provenance: workout.provenance,
+              occurrence: item.sourceTrackId
+                ? { trackId: item.sourceTrackId, sourceDate: item.sourceDate }
+                : undefined,
+            }
           }
           if (item.remixedFrom) {
             const remixedFrom = item.remixedFrom
@@ -596,12 +730,17 @@ export async function savePersonalTrainingSession(
         teamId: data.teamId,
         trainingDate: data.trainingDate,
         revision: (existing?.revision ?? 0) + 1,
+        compositionState: "customized" as const,
         items,
       }
       if (existing)
         await tx
           .update(personalTrainingSessionsTable)
-          .set({ items, revision: value.revision })
+          .set({
+            items,
+            revision: value.revision,
+            compositionState: "customized",
+          })
           .where(eq(personalTrainingSessionsTable.id, existing.id))
       else await tx.insert(personalTrainingSessionsTable).values(value)
       return personalSession(value as PersonalRow)
@@ -648,6 +787,7 @@ async function storedLibraryResultItem(
         eq(personalTrainingResultsTable.itemId, itemId),
       ),
     )
+    .for("update")
   return result?.libraryItem ?? null
 }
 
@@ -810,6 +950,8 @@ export async function savePersonalLibraryResult(input: {
   scalingLevelId?: string
   roundScores?: { score: string }[]
   replaceExisting?: boolean
+  unit?: "lb" | "kg"
+  tiebreakScore?: string
 }) {
   const data = personalLibraryResultSchema.parse(input)
   const { userId } = await ownedSession(data.personalSessionId)
@@ -822,130 +964,255 @@ export async function savePersonalLibraryResult(input: {
       data.expectedRevision,
       true,
     )
-    if (item.kind !== "library")
-      throw new Error("Use the session score entry for this workout")
-    const [existing] = await tx
-      .select()
-      .from(personalTrainingResultsTable)
-      .where(
-        and(
-          eq(personalTrainingResultsTable.personalSessionId, session.id),
-          eq(personalTrainingResultsTable.itemId, item.id),
-        ),
-      )
-    if (existing?.legacyScoreId && !data.replaceExisting)
-      return {
-        success: true as const,
-        scoreId: existing.legacyScoreId,
-        formatted: existing.displayScore,
-      }
-    const workout = {
-      ...item.workout,
-      scoreType: item.workout.scoreType ?? null,
-      timeCap: item.workout.timeCap ?? null,
+    return writePersonalLibraryResult(tx, session, item, userId, data)
+  })
+}
+
+async function writePersonalLibraryResult(
+  tx: Tx,
+  session: PersonalRow,
+  item: PersonalTrainingItem,
+  userId: string,
+  data: Omit<
+    z.infer<typeof personalLibraryResultSchema>,
+    "personalSessionId" | "expectedRevision"
+  >,
+) {
+  if (item.kind !== "library")
+    throw new Error("Use the session score entry for this workout")
+  const [existing] = await tx
+    .select()
+    .from(personalTrainingResultsTable)
+    .where(
+      and(
+        eq(personalTrainingResultsTable.personalSessionId, session.id),
+        eq(personalTrainingResultsTable.itemId, item.id),
+      ),
+    )
+    .for("update")
+  if (existing?.legacyScoreId && !data.replaceExisting)
+    return {
+      success: true as const,
+      scoreId: existing.legacyScoreId,
+      formatted: existing.displayScore,
     }
-    const result = normalizePersonalLibraryScore(workout, data)
-    let groupId = workout.scalingGroupId ?? null
-    if (!groupId) {
-      const [group] = await tx
-        .select()
-        .from(scalingGroupsTable)
-        .where(eq(scalingGroupsTable.isSystem, true))
-        .limit(1)
-      groupId = group?.id ?? null
-    }
-    if (!groupId) throw new Error("No scaling group available")
-    const [level] = await tx
+  const workout = {
+    ...item.workout,
+    scoreType: item.workout.scoreType ?? null,
+    timeCap: item.workout.timeCap ?? null,
+  }
+  const result = normalizePersonalLibraryScore(workout, data)
+  const displayScore =
+    `${result.formatted}${result.scheme === "load" ? ` ${data.unit ?? "lb"}` : ""}`.slice(
+      0,
+      100,
+    )
+  let groupId = workout.scalingGroupId ?? null
+  if (!groupId) {
+    const [group] = await tx
       .select()
-      .from(scalingLevelsTable)
-      .where(
-        and(
-          eq(scalingLevelsTable.scalingGroupId, groupId),
-          data.scalingLevelId
-            ? eq(scalingLevelsTable.id, data.scalingLevelId)
-            : undefined,
-        ),
-      )
-      .orderBy(asc(scalingLevelsTable.position))
+      .from(scalingGroupsTable)
+      .where(eq(scalingGroupsTable.isSystem, true))
       .limit(1)
-    if (!level) throw new Error("Choose a scaling level for this workout")
-    const scoreId = existing?.legacyScoreId ?? createScoreId()
-    const scoreValues = {
-      userId,
-      teamId: session.teamId,
-      workoutId: item.workoutId,
-      scheme: result.scheme,
-      scoreType: result.scoreType,
-      scoreValue: result.scoreValue,
-      status: result.status,
-      statusOrder: result.statusOrder,
-      sortKey: result.sortKey,
-      scalingLevelId: level.id,
-      asRx: data.asRx,
-      notes: data.notes ?? null,
-      recordedAt: new Date(`${session.trainingDate}T00:00:00Z`),
-      timeCapMs: result.timeCapMs,
-      secondaryValue: result.secondaryValue,
-    }
-    if (existing?.legacyScoreId) {
-      const [linked] = await tx
-        .select({ id: scoresTable.id })
-        .from(scoresTable)
+    groupId = group?.id ?? null
+  }
+  if (!groupId) throw new Error("No scaling group available")
+  const [level] = await tx
+    .select()
+    .from(scalingLevelsTable)
+    .where(
+      and(
+        eq(scalingLevelsTable.scalingGroupId, groupId),
+        data.scalingLevelId
+          ? eq(scalingLevelsTable.id, data.scalingLevelId)
+          : undefined,
+      ),
+    )
+    .orderBy(asc(scalingLevelsTable.position))
+    .limit(1)
+  if (!level) throw new Error("Choose a scaling level for this workout")
+  const scoreId = existing?.legacyScoreId ?? createScoreId()
+  const scoreValues = {
+    userId,
+    teamId: session.teamId,
+    workoutId: item.workoutId,
+    scheme: result.scheme,
+    scoreType: result.scoreType,
+    scoreValue: result.scoreValue,
+    status: result.status,
+    statusOrder: result.statusOrder,
+    sortKey: result.sortKey,
+    scalingLevelId: level.id,
+    asRx: data.asRx,
+    notes: data.notes ?? null,
+    recordedAt: new Date(`${session.trainingDate}T00:00:00Z`),
+    timeCapMs: result.timeCapMs,
+    secondaryValue: result.secondaryValue,
+    tiebreakScheme: result.tiebreakScheme,
+    tiebreakValue: result.tiebreakValue,
+  }
+  if (existing?.legacyScoreId) {
+    const [linked] = await tx
+      .select({ id: scoresTable.id })
+      .from(scoresTable)
+      .where(
+        and(
+          eq(scoresTable.id, scoreId),
+          eq(scoresTable.userId, userId),
+          eq(scoresTable.workoutId, item.workoutId),
+          isNull(scoresTable.competitionEventId),
+        ),
+      )
+      .for("update")
+    if (!linked) throw new Error("NOT_FOUND: Linked personal score not found")
+    await tx
+      .update(scoresTable)
+      .set(scoreValues)
+      .where(eq(scoresTable.id, scoreId))
+  } else await tx.insert(scoresTable).values({ id: scoreId, ...scoreValues })
+  await writeWorkoutResultRounds(tx, scoreId, result.rounds, {
+    replaceExisting: !!existing?.legacyScoreId,
+  })
+  for (const round of result.rounds)
+    if (round.secondaryValue !== null)
+      await tx
+        .update(scoreRoundsTable)
+        .set({ secondaryValue: round.secondaryValue })
         .where(
           and(
-            eq(scoresTable.id, scoreId),
-            eq(scoresTable.userId, userId),
-            eq(scoresTable.workoutId, item.workoutId),
-            isNull(scoresTable.competitionEventId),
+            eq(scoreRoundsTable.scoreId, scoreId),
+            eq(scoreRoundsTable.roundNumber, round.roundNumber),
           ),
         )
-        .for("update")
-      if (!linked) throw new Error("NOT_FOUND: Linked personal score not found")
-      await tx
-        .update(scoresTable)
-        .set(scoreValues)
-        .where(eq(scoresTable.id, scoreId))
-    } else await tx.insert(scoresTable).values({ id: scoreId, ...scoreValues })
-    await writeWorkoutResultRounds(tx, scoreId, result.rounds, {
-      replaceExisting: !!existing?.legacyScoreId,
-    })
-    for (const round of result.rounds)
-      if (round.secondaryValue !== null)
-        await tx
-          .update(scoreRoundsTable)
-          .set({ secondaryValue: round.secondaryValue })
-          .where(
-            and(
-              eq(scoreRoundsTable.scoreId, scoreId),
-              eq(scoreRoundsTable.roundNumber, round.roundNumber),
-            ),
-          )
-    if (existing)
-      await tx
-        .update(personalTrainingResultsTable)
-        .set({
-          displayScore: result.formatted.slice(0, 100),
-          legacyScoreId: scoreId,
-          libraryItem: existing.libraryItem ?? item,
-        })
-        .where(eq(personalTrainingResultsTable.id, existing.id))
-    else
-      await tx.insert(personalTrainingResultsTable).values({
-        id: ulid(),
-        personalSessionId: session.id,
-        itemId: item.id,
-        userId,
-        block: null,
-        libraryItem: item,
-        scoreValue: null,
-        displayScore: result.formatted.slice(0, 100),
-        notes: "",
-        unit: "lb",
-        completed: true,
+  if (existing)
+    await tx
+      .update(personalTrainingResultsTable)
+      .set({
+        displayScore,
         legacyScoreId: scoreId,
+        libraryItem: existing.libraryItem ?? item,
+        notes: data.notes ?? "",
+        unit: data.unit ?? "lb",
       })
-    return { success: true as const, scoreId, formatted: result.formatted }
+      .where(eq(personalTrainingResultsTable.id, existing.id))
+  else
+    await tx.insert(personalTrainingResultsTable).values({
+      id: ulid(),
+      personalSessionId: session.id,
+      itemId: item.id,
+      userId,
+      block: null,
+      libraryItem: item,
+      scoreValue: null,
+      displayScore,
+      notes: data.notes ?? "",
+      unit: data.unit ?? "lb",
+      completed: true,
+      legacyScoreId: scoreId,
+    })
+  return { success: true as const, scoreId, formatted: result.formatted }
+}
+
+export async function saveDirectLibraryResult(
+  input: z.infer<typeof directLibraryResultSchema>,
+) {
+  const data = directLibraryResultSchema.parse(input)
+  const { userId } = await requireTrainingAccess(data.teamId)
+  const workout = await getTrainingLibraryWorkout(data)
+  return getDb().transaction(async (tx) => {
+    // The unique day key serializes concurrent first attempts without changing a custom plan.
+    const [present] = await tx
+      .select()
+      .from(personalTrainingSessionsTable)
+      .where(
+        and(
+          eq(personalTrainingSessionsTable.userId, userId),
+          eq(personalTrainingSessionsTable.teamId, data.teamId),
+          eq(personalTrainingSessionsTable.trainingDate, data.trainingDate),
+        ),
+      )
+    if (!present)
+      await tx
+        .insert(personalTrainingSessionsTable)
+        .values({
+          id: ulid(),
+          userId,
+          teamId: data.teamId,
+          trainingDate: data.trainingDate,
+          revision: 1,
+          compositionState: "result_only",
+          items: [],
+        })
+        .onDuplicateKeyUpdate({ set: { userId } })
+    const [session] = await tx
+      .select()
+      .from(personalTrainingSessionsTable)
+      .where(
+        and(
+          eq(personalTrainingSessionsTable.userId, userId),
+          eq(personalTrainingSessionsTable.teamId, data.teamId),
+          eq(personalTrainingSessionsTable.trainingDate, data.trainingDate),
+        ),
+      )
+      .for("update")
+    if (!session)
+      throw new Error("Your result destination is no longer available")
+    const historical = await storedLibraryResultItem(
+      tx,
+      session.id,
+      userId,
+      data.itemId,
+    )
+    const planned = (session.items as PersonalTrainingItem[]).find(
+      (item) => item.id === data.itemId,
+    )
+    if (
+      planned ||
+      (historical &&
+        (historical.workoutId !== workout.id ||
+          historical.occurrence?.trackId !== data.sourceTrackId ||
+          historical.occurrence?.sourceDate !== data.sourceDate))
+    )
+      throw new Error("CONFLICT: This attempt belongs to a different workout")
+    return writePersonalLibraryResult(
+      tx,
+      session,
+      historical ?? {
+        id: data.itemId,
+        kind: "library",
+        workoutId: workout.id,
+        workout,
+        provenance: workout.provenance,
+        occurrence: {
+          trackId: data.sourceTrackId,
+          sourceDate: data.sourceDate,
+        },
+      },
+      userId,
+      data,
+    )
   })
+}
+
+export async function getDirectLibraryEntry(input: {
+  teamId: string
+  workoutId: string
+  sourceTrackId?: string
+  sourceDate?: string
+}) {
+  const workout = await getTrainingLibraryWorkout(input)
+  const levels = workout.scalingGroupId
+    ? await getDb()
+        .select({
+          id: scalingLevelsTable.id,
+          label: scalingLevelsTable.label,
+          position: scalingLevelsTable.position,
+        })
+        .from(scalingLevelsTable)
+        .where(eq(scalingLevelsTable.scalingGroupId, workout.scalingGroupId))
+        .orderBy(asc(scalingLevelsTable.position))
+    : []
+  return { workout, levels }
 }
 
 export async function getPersonalTrainingHistory(input: {
@@ -959,6 +1226,7 @@ export async function getPersonalTrainingHistory(input: {
     .select({
       result: personalTrainingResultsTable,
       session: personalTrainingSessionsTable,
+      score: scoresTable,
     })
     .from(personalTrainingResultsTable)
     .innerJoin(
@@ -967,6 +1235,10 @@ export async function getPersonalTrainingHistory(input: {
         personalTrainingResultsTable.personalSessionId,
         personalTrainingSessionsTable.id,
       ),
+    )
+    .leftJoin(
+      scoresTable,
+      eq(personalTrainingResultsTable.legacyScoreId, scoresTable.id),
     )
     .where(
       and(
@@ -979,9 +1251,45 @@ export async function getPersonalTrainingHistory(input: {
       desc(personalTrainingResultsTable.updatedAt),
     )
     .limit(100)
-  return rows
-    .filter((row) => row.result.block)
-    .map((row) => ownPersonalResult(row.result, row.session))
+  return rows.flatMap(({ result, session, score }): OwnTrainingResult[] => {
+    if (result.block) return [ownPersonalResult(result, session)]
+    const item = result.libraryItem
+    if (!item || !result.legacyScoreId) return []
+    return [
+      {
+        id: result.id,
+        sessionId: session.id,
+        blockId: result.itemId,
+        publishedVersion: 1,
+        userId,
+        userName: "You",
+        trainingDate: session.trainingDate,
+        trackId: item.provenance?.trackId ?? "",
+        block: {
+          id: result.itemId,
+          kind: "note",
+          title: item.workout.name,
+          prescription: item.workout.description,
+          coachGuidance: "",
+          scalingGuidance: "",
+        },
+        scoreValue: result.scoreValue,
+        displayScore: result.displayScore,
+        scaling: score?.asRx ? "rx" : "scaled",
+        modification: "",
+        audience: "private",
+        unit: result.unit,
+        completed: true,
+        cheerCount: 0,
+        hasCheered: false,
+        notes: score?.notes ?? result.notes,
+        logScoreId: result.legacyScoreId,
+        sourceLabel: item.provenance
+          ? `${item.provenance.trackName} · Programmed ${item.provenance.sourceDate}`
+          : "Workout library",
+      },
+    ]
+  })
 }
 
 export async function getPersonalLibraryScalingLevels(input: {

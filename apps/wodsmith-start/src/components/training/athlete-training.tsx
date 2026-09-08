@@ -62,6 +62,7 @@ function dateLabel(
 export function AthleteTraining({
   context,
   initialView = "training",
+  initialSurface = "track",
   initialTeamId,
   initialDate,
   initialTrackId,
@@ -70,6 +71,7 @@ export function AthleteTraining({
   onLibraryWorkoutHandled,
 }: {
   context: TrainingContext
+  initialSurface?: "track" | "session"
   initialView?: TrainingView
   initialTeamId?: string
   initialDate?: string
@@ -117,6 +119,7 @@ export function AthleteTraining({
       team={team}
       context={context}
       initialView={initialView}
+      initialSurface={initialSurface}
       initialDate={initialDate}
       initialTrackId={
         selectedTeamId ===
@@ -146,6 +149,7 @@ function AthleteTrainingGym({
   team,
   context,
   initialView,
+  initialSurface,
   onTeamChange,
   initialDate,
   initialTrackId,
@@ -156,6 +160,7 @@ function AthleteTrainingGym({
   team: TrainingTeam
   context: TrainingContext
   initialView: TrainingView
+  initialSurface: "track" | "session"
   initialDate?: string
   initialTrackId?: string
   libraryWorkoutIds?: string[]
@@ -163,6 +168,7 @@ function AthleteTrainingGym({
   onLibraryWorkoutHandled: () => void
   onTeamChange: (id: string) => void
 }) {
+  const [surface, setSurface] = useState(initialSurface)
   const [trackId, setTrackId] = useState(
     initialTrackId ?? team.tracks[0]?.id ?? "",
   )
@@ -193,6 +199,23 @@ function AthleteTrainingGym({
   const [preferenceReady, setPreferenceReady] = useState(false)
   const [preferenceSaving, setPreferenceSaving] = useState(false)
   const [preferenceError, setPreferenceError] = useState("")
+  useEffect(() => {
+    const restore = () => {
+      const query = new URLSearchParams(window.location.search)
+      setSurface(query.get("surface") === "session" ? "session" : "track")
+      const previousTrack = query.get("trackId")
+      if (
+        previousTrack &&
+        team.tracks.some((track) => track.id === previousTrack)
+      )
+        setTrackId(previousTrack)
+      const previousDate = query.get("date")
+      if (previousDate && /^\d{4}-\d{2}-\d{2}$/.test(previousDate))
+        setSelectedDate(previousDate)
+    }
+    window.addEventListener("popstate", restore)
+    return () => window.removeEventListener("popstate", restore)
+  }, [team.tracks])
 
   useEffect(() => {
     let cancelled = false
@@ -279,6 +302,13 @@ function AthleteTrainingGym({
 
   function chooseTrack(id: string) {
     setTrackId(id)
+    setSurface("track")
+    const url = new URL(window.location.href)
+    url.searchParams.set("trackId", id)
+    url.searchParams.set("surface", "track")
+    url.searchParams.set("date", selectedDate)
+    url.searchParams.set("teamId", team.id)
+    window.history.pushState(window.history.state, "", url)
   }
 
   async function makeDefaultTrack() {
@@ -350,7 +380,7 @@ function AthleteTrainingGym({
 
   return (
     <main className="training-shell mx-auto w-full max-w-4xl px-4 py-6 sm:px-8 sm:py-10">
-      <header className="space-y-6">
+      <header className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="break-words text-3xl font-semibold sm:text-4xl">
@@ -412,7 +442,9 @@ function AthleteTrainingGym({
                   <Button
                     variant="ghost"
                     className="min-h-11 px-0"
-                    disabled={preferenceSaving || !preferenceReady}
+                    disabled={
+                      preferenceSaving || !preferenceReady || interactionBusy
+                    }
                     onClick={makeDefaultTrack}
                   >
                     {preferenceSaving ? "Saving…" : "Make default track"}
@@ -422,6 +454,7 @@ function AthleteTrainingGym({
                   <Button
                     variant="ghost"
                     className="min-h-11"
+                    disabled={interactionBusy}
                     onClick={() => chooseTrack(defaultTrackId)}
                   >
                     Back to default
@@ -434,7 +467,7 @@ function AthleteTrainingGym({
                 </p>
               ) : null}
               {activeTrack?.description ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="hidden text-sm text-muted-foreground sm:block">
                   {activeTrack.description}
                 </p>
               ) : null}
@@ -457,7 +490,7 @@ function AthleteTrainingGym({
                 className={`min-h-12 flex-1 border-b-2 px-2 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:flex-none sm:px-6 ${view === item ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
               >
                 {item === "training"
-                  ? "My session"
+                  ? "Training"
                   : item === "team"
                     ? "Team"
                     : "My progress"}
@@ -485,7 +518,7 @@ function AthleteTrainingGym({
         />
       ) : (
         <>
-          <section aria-label="Training calendar" className="space-y-4 py-6">
+          <section aria-label="Training calendar" className="space-y-3 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
                 <Button
@@ -588,6 +621,7 @@ function AthleteTrainingGym({
             <div role="alert" className="space-y-4 border-t border-border py-8">
               <p>{error}</p>
               <Button
+                className="min-h-11"
                 variant="outline"
                 onClick={() => setReload((value) => value + 1)}
               >
@@ -598,6 +632,16 @@ function AthleteTrainingGym({
             <AthletePersonalSession
               key={`${team.id}:${selectedDate}`}
               team={team}
+              surface={surface}
+              onSurfaceChange={(next) => {
+                setSurface(next)
+                const url = new URL(window.location.href)
+                url.searchParams.set("surface", next)
+                url.searchParams.set("trackId", trackId)
+                url.searchParams.set("date", selectedDate)
+                url.searchParams.set("teamId", team.id)
+                window.history.pushState(window.history.state, "", url)
+              }}
               trackId={trackId}
               date={selectedDate}
               sourceResults={data?.myResults ?? []}
@@ -695,9 +739,7 @@ function AthleteHistory({
     setLoading(true)
     setError(null)
     Promise.all([
-      trackId
-        ? getTrainingHistoryFn({ data: { teamId, trackId } })
-        : Promise.resolve([]),
+      getTrainingHistoryFn({ data: { teamId } }),
       getPersonalTrainingHistoryFn({ data: { teamId } }),
     ])
       .then(([source, personal]) => {
@@ -725,7 +767,7 @@ function AthleteHistory({
         Your work, remembered.
       </h2>
       <p className="mt-2 text-muted-foreground">
-        Your results on this track and your personal workouts, with the
+        Your results across tracks and your personal workouts, with the
         prescription you performed.
       </p>
       {loading ? (
@@ -734,6 +776,7 @@ function AthleteHistory({
         <div role="alert" className="space-y-4 py-8">
           <p>{error}</p>
           <Button
+            className="min-h-11"
             variant="outline"
             onClick={() => setRetry((value) => value + 1)}
           >
@@ -761,6 +804,14 @@ function AthleteHistory({
                   </h3>
                   <p className="font-semibold tabular-nums">
                     {result.displayScore}
+                    {result.logScoreId && (
+                      <a
+                        className="ml-3 inline-flex min-h-11 items-center text-sm underline"
+                        href={`/log/${result.logScoreId}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${teamId}&view=progress`)}`}
+                      >
+                        Edit score
+                      </a>
+                    )}
                     {result.block.kind === "load" ? ` ${result.unit}` : ""}
                   </p>
                 </div>
@@ -781,6 +832,11 @@ function AthleteHistory({
                     ? "Only you"
                     : "Shared with gym"}
                 </p>
+                {result.sourceLabel && (
+                  <p className="text-sm text-muted-foreground">
+                    {result.sourceLabel}
+                  </p>
+                )}
                 <TrainingWorkoutResultDetails details={result.details} />
                 <details className="mt-2">
                   <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
