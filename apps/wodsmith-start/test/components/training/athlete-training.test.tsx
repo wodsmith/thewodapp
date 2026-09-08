@@ -542,3 +542,141 @@ it("opens the exact reused score from My session performance mode",async()=>{
  expect(decodeURIComponent(edit.getAttribute("href")!)).toContain("surface=session")
  expect(screen.queryByRole("link",{name:"Log score"})).not.toBeInTheDocument()
 })
+
+// @lat: [[session-navigation-tests#Personal log return context]]
+it.each([false, true])(
+  "preserves the browsed non-default track for personal log links (scored=%s)",
+  async (scored) => {
+    const item = {
+      id: "performed",
+      kind: "library" as const,
+      workoutId: "saved-workout",
+      workout: { name: "Saved work", description: "Original", scheme: "time" },
+      occurrence: { trackId: "everyday", sourceDate: "2026-09-04" },
+    }
+    vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({
+      defaultTrackId: "everyday",
+      selectedTrackId: "compete",
+      sourceSession: null,
+      personalSession: {
+        id: "personal",
+        teamId: "gym",
+        trainingDate: session.trainingDate,
+        revision: 2,
+        items: [item],
+      },
+      items: [item],
+      results: [],
+      libraryResults: scored
+        ? [
+            {
+              itemId: "performed",
+              scoreId: "existing-score",
+              displayScore: "1:23",
+            },
+          ]
+        : [],
+    })
+    render(
+      <AthletePersonalSession
+        surface="session"
+        team={context.teams[0]!}
+        trackId="compete"
+        date={session.trainingDate}
+        sourceResults={[]}
+        onSaved={vi.fn()}
+      />,
+    )
+    const link = await screen.findByRole("link", {
+      name: scored ? "Edit score · 1:23" : "Log score",
+    })
+    const url = new URL(link.getAttribute("href")!, "https://example.com")
+    if (scored) {
+      const target = new URL(url.searchParams.get("redirectUrl")!, url)
+      expect(Object.fromEntries(target.searchParams)).toMatchObject({
+        teamId: "gym",
+        date: session.trainingDate,
+        trackId: "compete",
+        surface: "session",
+      })
+    } else {
+      expect(Object.fromEntries(url.searchParams)).toMatchObject({
+        teamId: "gym",
+        date: session.trainingDate,
+        returnTrackId: "compete",
+        returnSurface: "session",
+      })
+      expect(url.searchParams.has("trackId")).toBe(false)
+    }
+  },
+)
+
+// @lat: [[session-navigation-tests#Addition cache scopes occurrence identity]]
+it("emits independent Add-all identities across destinations and sources but reuses them when returning", async () => {
+  vi.mocked(getPersonalTrainingDayFn).mockImplementation(async (options) => {
+    const data = options?.data as
+      | { trackId?: string; trainingDate: string }
+      | undefined
+    if (!data) throw new Error("Missing test day data")
+    return {
+      defaultTrackId: "everyday",
+      selectedTrackId: data.trackId ?? null,
+      sourceSession: null,
+      personalSession: null,
+      items: [],
+      results: [],
+      libraryResults: [],
+      source: {
+        kind: "provider-day",
+        day: {
+          id: "published",
+          date: data.trainingDate,
+          url: "https://example.com/work",
+          kind: "workout",
+          markdown: "Work",
+          workouts: [
+            { workoutId: "same", name: "Same workout", scheme: "time" },
+            { workoutId: "second", name: "Second workout", scheme: "reps" },
+          ],
+        },
+      },
+    }
+  })
+  vi.mocked(savePersonalTrainingSessionFn).mockRejectedValue(
+    new Error("Response lost. Retry."),
+  )
+  const props = {
+    team: context.teams[0]!,
+    trackId: "everyday",
+    date: "2026-09-07",
+    sourceResults: [],
+    onSaved: vi.fn(),
+  }
+  const view = render(<AthletePersonalSession {...props} />)
+  async function add() {
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Add all to my day" }),
+    )
+    await screen.findByText("Response lost. Retry.")
+  }
+  await add()
+  await add()
+  view.rerender(<AthletePersonalSession {...props} trackId="compete" />)
+  await add()
+  view.rerender(<AthletePersonalSession {...props} date="2026-09-08" />)
+  await add()
+  view.rerender(<AthletePersonalSession {...props} team={context.teams[1]!} />)
+  await add()
+  view.rerender(<AthletePersonalSession {...props} />)
+  await add()
+  const ids = vi
+    .mocked(savePersonalTrainingSessionFn)
+    .mock.calls.map(([input]) => {
+      const data = input?.data as SavePersonalTrainingSessionInput | undefined
+      if (!data) throw new Error("Missing test addition data")
+      return data.items[0].id
+    })
+  expect(ids[0]).toBe(ids[1])
+  expect(ids[0]).toBe(ids[5])
+  expect(new Set([ids[0], ids[2], ids[3], ids[4]]).size).toBe(4)
+})

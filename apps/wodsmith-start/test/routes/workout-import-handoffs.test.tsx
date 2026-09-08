@@ -4,10 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const mock = vi.hoisted(() => ({
   navigate: vi.fn().mockResolvedValue(undefined), invalidate: vi.fn(), submitLog: vi.fn(), getWorkouts: vi.fn(),
   getDirectEntry: vi.fn(), getContext: vi.fn(), getPersonalDay: vi.fn(), savePersonalSession: vi.fn(), importFailed: vi.fn(),
-  data: {} as Record<string, unknown>, panelProps: {} as Record<string, unknown>,
+  search: {} as Record<string, unknown>, data: {} as Record<string, unknown>, panelProps: {} as Record<string, unknown>,
 }))
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => (options: Record<string, unknown>) => ({ options, useLoaderData: () => mock.data, useSearch: () => ({ workoutId: "original" }) }),
+  createFileRoute: () => (options: Record<string, unknown>) => ({ options, useLoaderData: () => mock.data, useSearch: () => ({ workoutId: "original", ...mock.search }) }),
   redirect: (options: unknown) => options,
   useNavigate: () => mock.navigate, useRouter: () => ({ invalidate: mock.invalidate }),
   Link: ({ children }: { children: ReactNode }) => <span>{children}</span>,
@@ -38,6 +38,7 @@ import { Route as SettingsRoute } from "@/routes/_protected/settings/programming
 import { Route as AdminRoute } from "@/routes/_protected/admin/teams/programming/$trackId/index"
 
 beforeEach(() => {
+  mock.search = {}
   mock.getContext.mockResolvedValue({teams:[{id:"team-personal", name:"My training",timezone:"UTC",isPersonal:true}]})
   mock.getDirectEntry.mockResolvedValue({workout:{id:"original", name:"Original workout", scheme:"time"},levels:[]})
   mock.navigate.mockResolvedValue(undefined)
@@ -66,7 +67,7 @@ describe("workout import route handoffs", () => {
       items: [{ id: "item-original", kind: "library", workoutId: "original" }, { id: "concurrent-item", kind: "library", workoutId: "concurrent" }, { id: itemId, kind: "library", workoutId: "imported" }],
     } })
     expect(mock.navigate).toHaveBeenCalledWith({ to: "/log/new", search: {
-      workoutId: "imported", teamId: "team-personal", date: "2026-08-10", personalSessionId: "session-owned", personalItemId: itemId, personalRevision: 5,
+      workoutId: "imported", teamId: "team-personal", date: "2026-08-10", personalSessionId: "session-owned", personalItemId: itemId, personalRevision: 5, returnSurface:"session", returnTrackId:undefined,
     } })
     mock.data = { ...mock.data, personalItemId: itemId, personalRevision: 5, selectedWorkout: { id: "imported", name: "New workout", description: "New prescription", scheme: "reps", roundsToScore: 1 } }
     rerender(<Page />)
@@ -159,4 +160,98 @@ it("resets the unit, tiebreak and score when a different direct workout has the 
  expect(screen.getByLabelText("Tiebreak (time)")).toHaveValue("")
  expect(screen.getByLabelText("Score")).toHaveValue("")
  expect(screen.getByLabelText(/Notes/)).toHaveValue("")
+})
+
+// @lat: [[session-navigation-tests#Imported workout return context is not provenance]]
+it("keeps track-origin return context on import without assigning the previous source to the imported workout", async () => {
+  mock.search = {
+    trackId: "source-track",
+    sourceDate: "2026-08-01",
+    returnSurface: "track",
+  }
+  const Page = LogRoute.options.component as ComponentType
+  const view = render(<Page />)
+  fireEvent.change(screen.getByLabelText(/Notes/), {
+    target: { value: "Keep imported notes" },
+  })
+  fireEvent.click(screen.getByText("Finish entitled import"))
+  await waitFor(() => expect(mock.navigate).toHaveBeenCalled())
+  const search = mock.navigate.mock.calls[0][0].search
+  expect(search).toMatchObject({
+    returnTrackId: "source-track",
+    returnSurface: "track",
+    teamId: "team-personal",
+    date: "2026-08-10",
+  })
+  expect(search.trackId).toBeUndefined()
+  expect(search.sourceDate).toBeUndefined()
+  const imported = mock.savePersonalSession.mock.calls[0][0].data.items.at(-1)
+  expect(imported.sourceTrackId).toBeUndefined()
+  expect(imported.sourceDate).toBeUndefined()
+  mock.search = search
+  mock.data = {
+    ...mock.data,
+    selectedWorkout: { id: "imported", name: "Imported", scheme: "reps" },
+    personalItemId: search.personalItemId,
+  }
+  view.rerender(<Page />)
+  const back = screen.getByRole("link", { name: "Back to training" })
+  expect(
+    Object.fromEntries(
+      new URL(back.getAttribute("href")!, "https://example.com").searchParams,
+    ),
+  ).toMatchObject({
+    teamId: "team-personal",
+    date: "2026-08-10",
+    trackId: "source-track",
+    surface: "track",
+  })
+  expect(screen.getByLabelText(/Notes/)).toHaveValue("Keep imported notes")
+})
+
+// @lat: [[session-navigation-tests#Existing score redirect preserves return navigation]]
+it("keeps return navigation when a new-log link finds an existing personal score", async () => {
+  mock.getPersonalDay.mockResolvedValue({
+    personalSession: {
+      id: "session-owned",
+      teamId: "team-personal",
+      trainingDate: "2026-08-10",
+      revision: 3,
+      items: [{ id: "item-original", kind: "library", workoutId: "original" }],
+    },
+    libraryResults: [{ itemId: "item-original", scoreId: "saved-score" }],
+  })
+  const loader = LogRoute.options.loader as (
+    options: unknown,
+  ) => Promise<unknown>
+  let redirected: unknown
+  try {
+    await loader({
+      deps: {
+        personalSessionId: "session-owned",
+        personalItemId: "item-original",
+        teamId: "team-personal",
+        date: "2026-08-10",
+        returnSurface: "session",
+        returnTrackId: "browsed-track",
+      },
+    })
+  } catch (cause) {
+    redirected = cause
+  }
+  const href = (redirected as { href: string }).href
+  expect(href).toContain("/log/saved-score/edit")
+  expect(
+    Object.fromEntries(
+      new URL(
+        new URL(href, "https://example.com").searchParams.get("redirectUrl")!,
+        "https://example.com",
+      ).searchParams,
+    ),
+  ).toEqual({
+    teamId: "team-personal",
+    date: "2026-08-10",
+    surface: "session",
+    trackId: "browsed-track",
+  })
 })

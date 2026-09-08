@@ -244,3 +244,9 @@ Normal Add or Customize reuses an owned performed item and its frozen snapshot; 
 Personal score normalization rejects incomplete time prefixes before persistence while retaining raw seconds, colon and period formats. Existing load forms decode to three decimal places and convert units through stored grams, preserving notes-only and unit-only edits. New source/workspace/date occurrences reset fields and attempt identity; recognized import handoffs retain notes. Source-origin planned logs return to their track, while My session logs return to performance mode.
 
 See [[session-review-tests]] for focused reproduction and regression coverage. The migration lineage remains held as recorded in Plan 003; this review changes no canonical schema or migration artifacts.
+
+## Return navigation and addition intent
+
+Return navigation identifies where training continues; source occurrence identifies the workout's actual programming. They remain separate throughout logging and import handoffs.
+
+My session new/edit links preserve workspace, date, selected track and personal surface. An imported workout retains the originating return surface and return track but does not inherit the previous workout's source date or source track. Add-all identity includes destination workspace/date and exact source track/date/workout; retries retain identity, while source or destination changes receive independent identities. Explicit repeat IDs remain independently retryable. See [[session-navigation-tests]].

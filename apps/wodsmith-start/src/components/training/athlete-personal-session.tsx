@@ -111,11 +111,21 @@ export function AthletePersonalSession({
       window.scrollTo({ top: surfaceScroll.current[next] }),
     )
   }
-  function additionId(key: string) {
-    let value = additionIds.current.get(key)
+  function additionId(
+    key: string,
+    source?: { trackId: string; sourceDate: string },
+  ) {
+    const identity = JSON.stringify([
+      team.id,
+      date,
+      source?.trackId,
+      source?.sourceDate,
+      key,
+    ])
+    let value = additionIds.current.get(identity)
     if (!value) {
       value = crypto.randomUUID()
-      additionIds.current.set(key, value)
+      additionIds.current.set(identity, value)
     }
     return value
   }
@@ -364,7 +374,10 @@ export function AthletePersonalSession({
               },
             })
             return {
-              id: additionId(`library-${entry.workoutId}`),
+              id: additionId(`library-${entry.workoutId}`, {
+                trackId,
+                sourceDate: date,
+              }),
               kind: "library" as const,
               workoutId: entry.workoutId,
               occurrence: { trackId, sourceDate: date },
@@ -836,8 +849,8 @@ ${workout.provenance ? "" : workout.description}`,
                     day.libraryResults.find(
                       (result) => result.itemId === item.id,
                     )
-                      ? `/log/${encodeURIComponent(day.libraryResults.find((result) => result.itemId === item.id)?.scoreId ?? "")}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${team.id}&date=${date}&surface=session`)}`
-                      : `/log/new?workoutId=${encodeURIComponent(item.workoutId)}&date=${date}&teamId=${encodeURIComponent(team.id)}&personalSessionId=${encodeURIComponent(personal?.id ?? "")}&personalItemId=${encodeURIComponent(item.id)}&personalRevision=${personal?.revision ?? 0}`
+                      ? `/log/${encodeURIComponent(day.libraryResults.find((result) => result.itemId === item.id)?.scoreId ?? "")}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${encodeURIComponent(team.id)}&date=${date}&trackId=${encodeURIComponent(trackId)}&surface=session`)}`
+                      : `/log/new?workoutId=${encodeURIComponent(item.workoutId)}&date=${date}&teamId=${encodeURIComponent(team.id)}&personalSessionId=${encodeURIComponent(personal?.id ?? "")}&personalItemId=${encodeURIComponent(item.id)}&personalRevision=${personal?.revision ?? 0}&returnSurface=session&returnTrackId=${encodeURIComponent(trackId)}`
                   }
                 >
                   {day.libraryResults.some(
@@ -871,7 +884,14 @@ ${workout.provenance ? "" : workout.description}`,
                           }
                           onClick={() =>
                             void append([
-                              { ...itemInput(item), id: additionId(item.id) },
+                              {
+                                ...itemInput(item),
+                                id: additionId(
+                                  item.kind === "source"
+                                    ? `${item.sourceSessionId}:${item.sourcePublishedVersion}:${item.sourceBlockId}`
+                                    : item.id,
+                                ),
+                              },
                             ])
                           }
                         >
@@ -964,7 +984,10 @@ ${workout.provenance ? "" : workout.description}`,
               onAdd={(ids) =>
                 void append(
                   ids.map((workoutId) => ({
-                    id: additionId(`library-${workoutId}`),
+                    id: additionId(`library-${workoutId}`, {
+                      trackId,
+                      sourceDate: date,
+                    }),
                     kind: "library",
                     workoutId,
                     sourceTrackId: trackId,

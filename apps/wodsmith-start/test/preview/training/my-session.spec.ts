@@ -130,6 +130,8 @@ test("saves a first planned provider score and edits it from the source",async({
  for(const [index,value] of ['100','110','105'].entries()) await page.getByLabel(`Round ${index+1}`,{exact:true}).fill(value)
  await page.getByRole('button',{name:'Save result',exact:true}).click()
  await expect(page).toHaveURL(/\/training\?/)
+ await page.getByLabel('Training track',{exact:true}).selectOption('everyday')
+ await expect(page.getByRole('heading',{name:'Everyday training',exact:true})).toBeVisible()
  await page.getByLabel('Training track',{exact:true}).selectOption('ptrk_crossfit_dotcom')
  await expect(row.getByRole('link',{name:/Edit score/})).toBeVisible()
 })
@@ -155,4 +157,85 @@ test("preserves fractional grams on notes-only edit and a unit-only round conver
  await page.getByRole('button',{name:'Save changes',exact:true}).click()
  await expect(page).toHaveURL(/\/training\?/)
  expect(await stored()).toEqual(before)
+})
+
+// @lat: [[session-navigation-tests#Personal score browser return journey]]
+test("returns to the browsed non-default track after My session new and edited scores", async ({
+  page,
+}) => {
+  await page.goto("/training?date=2026-09-04&trackId=ptrk_crossfit_dotcom")
+  await page
+    .getByRole("button", { name: "Add all to my day", exact: true })
+    .click()
+  await expect(
+    page.getByRole("button", { name: "My session · 2", exact: true }),
+  ).toBeVisible()
+  await page
+    .getByLabel("Training track", { exact: true })
+    .selectOption("recovery")
+  await page
+    .getByRole("button", { name: "My session · 2", exact: true })
+    .click()
+  const item = page.locator('[id^="session-item-"]').filter({
+    has: page.getByRole("heading", { name: "Back squat", exact: true }),
+  })
+  await item.getByRole("link", { name: "Log score", exact: true }).click()
+  for (const [index, value] of ["100", "110", "105"].entries())
+    await page.getByLabel(`Round ${index + 1}`, { exact: true }).fill(value)
+  await page.getByRole("button", { name: "Save result", exact: true }).click()
+  await expect(
+    page.getByRole("heading", { name: "My session", exact: true }),
+  ).toBeVisible()
+  expect(Object.fromEntries(new URL(page.url()).searchParams)).toMatchObject({
+    teamId: "preview-personal",
+    date: "2026-09-04",
+    trackId: "recovery",
+    surface: "session",
+  })
+  await item.getByRole("link", { name: /Edit score/ }).click()
+  await page.getByLabel("Notes (optional)").fill("Return to Recovery")
+  await page.getByRole("button", { name: "Save changes", exact: true }).click()
+  await expect(
+    page.getByRole("heading", { name: "My session", exact: true }),
+  ).toBeVisible()
+  expect(Object.fromEntries(new URL(page.url()).searchParams)).toMatchObject({
+    teamId: "preview-personal",
+    date: "2026-09-04",
+    trackId: "recovery",
+    surface: "session",
+  })
+})
+
+// @lat: [[session-navigation-tests#Preview private completion and default reload]]
+test("retains private borrowed completion and the default track across native reload", async ({
+  page,
+}) => {
+  await page.goto("/training?date=2026-09-04&trackId=recovery")
+  await page
+    .getByRole("button", { name: "Make default track", exact: true })
+    .click()
+  await expect(page.getByText("Default track", { exact: true })).toBeVisible()
+  await page
+    .getByRole("button", { name: "Customize session", exact: true })
+    .click()
+  await page.getByRole("button", { name: "Start empty", exact: true }).click()
+  await page
+    .getByRole("button", { name: "Add from another session", exact: true })
+    .click()
+  await page.getByLabel("Track", { exact: true }).selectOption("recovery")
+  await page.getByLabel("Programmed date", { exact: true }).fill("2026-09-03")
+  await page.getByLabel("Recovery cooldown").check()
+  await page.getByRole("button", { name: "Add 1 workout", exact: true }).click()
+  await page.getByRole("button", { name: "Save session", exact: true }).click()
+  await page.getByRole("button", { name: "Mark complete", exact: true }).click()
+  await expect(
+    page.getByRole("button", { name: "Undo completion", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true")
+  await page.goto("/training?date=2026-09-04&surface=session")
+  await expect(page.getByLabel("Training track", { exact: true })).toHaveValue(
+    "recovery",
+  )
+  await expect(
+    page.getByRole("button", { name: "Undo completion", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true")
 })

@@ -83,7 +83,7 @@ const training = createRoute({
       <AthleteTraining
         context={previewContext}
         initialDate={search.get("date") ?? "2026-09-04"}
-        initialTrackId={search.get("trackId") ?? "ptrk_crossfit_dotcom"}
+        initialTrackId={search.get("trackId") ?? undefined}
         initialSurface={search.get("surface") === "session" ? "session" : "track"}
         libraryWorkoutIds={search.get("workoutIds")?.split(",")}
       />

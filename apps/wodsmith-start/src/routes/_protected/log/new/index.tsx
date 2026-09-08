@@ -27,6 +27,7 @@ export const Route = createFileRoute("/_protected/log/new/")({
   validateSearch: (
     search: Record<string, unknown>,
   ): {
+    returnTrackId?: string
     returnSurface?: "track" | "session"
     workoutId?: string
     trackId?: string
@@ -37,6 +38,10 @@ export const Route = createFileRoute("/_protected/log/new/")({
     personalItemId?: string
     personalRevision?: number
   } => ({
+    returnTrackId:
+      typeof search.returnTrackId === "string"
+        ? search.returnTrackId
+        : undefined,
     returnSurface:
       search.returnSurface === "track" || search.returnSurface === "session"
         ? search.returnSurface
@@ -121,7 +126,7 @@ export const Route = createFileRoute("/_protected/log/new/")({
     )
     if (previous)
       throw redirect({
-        href: `/log/${encodeURIComponent(previous.scoreId)}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${encodeURIComponent(personal.teamId)}&date=${personal.trainingDate}&surface=${deps.returnSurface ?? "session"}${deps.trackId ? `&trackId=${encodeURIComponent(deps.trackId)}` : ""}`)}`,
+        href: `/log/${encodeURIComponent(previous.scoreId)}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${encodeURIComponent(personal.teamId)}&date=${personal.trainingDate}&surface=${deps.returnSurface ?? "session"}${(deps.returnTrackId ?? deps.trackId) ? `&trackId=${encodeURIComponent(deps.returnTrackId ?? deps.trackId ?? "")}` : ""}`)}`,
       })
     const levelsResult = await getPersonalLibraryScalingLevelsFn({
       data: { personalSessionId: personal.id, itemId: item.id },
@@ -157,7 +162,10 @@ function LogNewPage() {
   const attemptId = useRef(crypto.randomUUID())
   const search = Route.useSearch()
   const workoutId = selectedWorkout?.id
-  const returnTo = `/training?teamId=${encodeURIComponent(teamId)}&date=${trainingDate}&surface=${search.returnSurface ?? (personalSessionId ? "session" : "track")}${search.trackId ? `&trackId=${encodeURIComponent(search.trackId)}` : ""}`
+  const returnSurface =
+    search.returnSurface ?? (personalSessionId ? "session" : "track")
+  const returnTrackId = search.returnTrackId ?? search.trackId
+  const returnTo = `/training?teamId=${encodeURIComponent(teamId)}&date=${trainingDate}&surface=${returnSurface}${returnTrackId ? `&trackId=${encodeURIComponent(returnTrackId)}` : ""}`
 
   const [score, setScore] = useState("")
   const [notes, setNotes] = useState("")
@@ -303,7 +311,14 @@ function LogNewPage() {
           className="min-h-11 min-w-11"
           asChild
         >
-          <a href={returnTo} aria-label="Back to my session">
+          <a
+            href={returnTo}
+            aria-label={
+              returnSurface === "session"
+                ? "Back to my session"
+                : "Back to training"
+            }
+          >
             <ArrowLeft className="h-5 w-5" />
           </a>
         </Button>
@@ -361,6 +376,8 @@ function LogNewPage() {
                 to: "/log/new",
                 search: {
                   workoutId: result.workoutId,
+                  returnSurface,
+                  returnTrackId,
                   teamId: saved.teamId,
                   date: saved.trainingDate,
                   personalSessionId: saved.id,
