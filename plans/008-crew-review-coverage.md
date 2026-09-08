@@ -18,7 +18,7 @@ The real-database test is currently skipped in ordinary unit CI without CREW_TES
 
 ## Scope
 
-Only modify .github/workflows/e2e.yaml, apps/crew/test/integration/crew-prepared-database.test.ts, a clarifying JSDoc comment in apps/crew/e2e/fixtures/prepared-database.ts, lat.md/crew.md, and plans/007-crew-ci-preparation.md/verification.md to clarify the durable contract. Create plans/008-crew-review-verification.md. Parent owns this plan's status and plans/README.md.
+Only modify .github/workflows/e2e.yaml, apps/crew/test/integration/crew-prepared-database.test.ts, a clarifying JSDoc comment in apps/crew/e2e/fixtures/prepared-database.ts, lat.md/crew.md, and `plans/007-crew-ci-preparation.md` and `plans/007-crew-ci-preparation-verification.md` to clarify the durable contract. Create plans/008-crew-review-verification.md. Parent owns this plan's status and plans/README.md.
 
 Do not change helper behavior, globalSetup, setup-e2e-db.ts, application/server code, canonical schema, migrations/snapshots/journal, package/lockfiles, public base or other owners' branches. Use existing Vitest assertions and repository formatting. Keep normalization local to digest; do not create a production utility for test-only hashing.
 
