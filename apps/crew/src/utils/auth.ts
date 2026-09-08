@@ -431,7 +431,7 @@ export async function setSessionTokenCookie({
     httpOnly: true,
     // Use "lax" instead of "strict" to allow cookies on cross-site redirects (OAuth flows)
     // Lax still provides CSRF protection (blocks embedded form submissions from other sites)
-    // but allows cookies on top-level navigations like OAuth callbacks from Stripe/Google
+    // but allows cookies on top-level navigations like OAuth callbacks from Stripe
     sameSite: "lax",
     secure: isProd,
     expires: expiresAt,

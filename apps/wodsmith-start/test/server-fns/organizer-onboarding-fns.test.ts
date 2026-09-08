@@ -96,7 +96,7 @@ beforeEach(async () => {
   const {getSessionFromCookie} = await import('@/utils/auth')
   const {validateTurnstileToken} = await import('@/utils/validate-captcha')
 
-  vi.mocked(getSessionFromCookie).mockResolvedValue(mockSession)
+  vi.mocked(getSessionFromCookie).mockResolvedValue({...mockSession, authenticationType: "password"})
   vi.mocked(validateTurnstileToken).mockResolvedValue(true)
 
   // Setup default DB mock
@@ -208,7 +208,7 @@ describe('organizer-onboarding-fns', () => {
         permissions: [TEAM_PERMISSIONS.ACCESS_DASHBOARD],
       })
       vi.mocked(getSessionFromCookie).mockResolvedValue(
-        sessionWithoutPermission,
+        {...sessionWithoutPermission, authenticationType: "password"},
       )
 
       const {getDb} = await import('@/db')
@@ -291,7 +291,7 @@ describe('organizer-onboarding-fns', () => {
         permissions: [],
       })
       vi.mocked(getSessionFromCookie).mockResolvedValue(
-        sessionWithoutPermission,
+        {...sessionWithoutPermission, authenticationType: "password"},
       )
 
       const mockInsert = vi.fn()
@@ -403,7 +403,7 @@ describe('organizer-onboarding-fns', () => {
         permissions: [],
       })
       vi.mocked(getSessionFromCookie).mockResolvedValue(
-        sessionWithoutPermission,
+        {...sessionWithoutPermission, authenticationType: "password"},
       )
 
       await expect(

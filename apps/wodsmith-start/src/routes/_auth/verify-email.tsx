@@ -59,14 +59,6 @@ function VerifyEmailPage() {
         await verifyEmail({ data: { token } })
 
         setStatus("success")
-
-        // Redirect to sign-in after a short delay
-        setTimeout(() => {
-          router.navigate({
-            to: "/sign-in",
-            search: { redirect: REDIRECT_AFTER_SIGN_IN },
-          })
-        }, 2000)
       } catch (err) {
         setStatus("error")
         setErrorMessage(
@@ -76,7 +68,20 @@ function VerifyEmailPage() {
     }
 
     doVerifyEmail()
-  }, [token, router, verifyEmail])
+  }, [token, verifyEmail])
+
+  useEffect(() => {
+    if (status !== "success") return
+
+    const timeout = setTimeout(() => {
+      router.navigate({
+        to: "/sign-in",
+        search: { redirect: REDIRECT_AFTER_SIGN_IN },
+      })
+    }, 2000)
+
+    return () => clearTimeout(timeout)
+  }, [status, router])
 
   if (status === "loading") {
     return (

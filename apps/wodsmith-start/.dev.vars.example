@@ -30,8 +30,6 @@ VITE_APP_URL=http://localhost:5173
 ### Other Cloudflare-specific secrets can be added here
 # TURNSTILE_SECRET_KEY=
 # RESEND_API_KEY=
-# GOOGLE_CLIENT_ID=
-# GOOGLE_CLIENT_SECRET=
 
 ### Alchemy IaC
 # Password for encrypting Alchemy state files

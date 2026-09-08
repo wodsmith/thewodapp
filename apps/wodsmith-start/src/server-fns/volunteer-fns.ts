@@ -36,6 +36,7 @@ import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
 import { competitionCan } from "@/lib/competitions/capabilities"
+import { accountNameFields } from "@/schemas/profile.schema"
 import { createEntitlement } from "@/server/entitlements"
 import { inviteUserToTeam } from "@/server/team-members"
 import { signRequiredVolunteerWaivers } from "@/server/volunteer-waivers"
@@ -646,8 +647,7 @@ export const createAccountAndApplyAsVolunteerFn = createServerFn({
     z
       .object({
         // Account fields
-        firstName: z.string().min(1, "First name is required"),
-        lastName: z.string().min(1, "Last name is required"),
+        ...accountNameFields,
         password: z
           .string()
           .min(8, "Password must be at least 8 characters")

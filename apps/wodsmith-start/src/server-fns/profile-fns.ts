@@ -5,9 +5,10 @@
 
 import { createServerFn } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
-import { z } from "zod"
+import type { z } from "zod"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
+import { userProfileSchema } from "@/schemas/profile.schema"
 import { getSessionFromCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
@@ -15,22 +16,7 @@ import { updateAllSessionsOfUser } from "@/utils/kv-session"
 // Input Schemas
 // ============================================================================
 
-const updateUserProfileInputSchema = z.object({
-  firstName: z
-    .string()
-    .min(2, "First name must be at least 2 characters")
-    .max(255, "First name is too long"),
-  lastName: z
-    .string()
-    .min(2, "Last name must be at least 2 characters")
-    .max(255, "Last name is too long"),
-  avatar: z
-    .string()
-    .url("Invalid avatar URL")
-    .max(600, "URL is too long")
-    .optional()
-    .or(z.literal("")),
-})
+const updateUserProfileInputSchema = userProfileSchema
 
 export type UpdateUserProfileInput = z.infer<
   typeof updateUserProfileInputSchema
