@@ -30,7 +30,8 @@ final class GameDayStore {
 
     var isSignedIn: Bool { token != nil || (isDemo && home.profile != nil) }
     var spectatedCompetitions: [Competition] {
-        home.competitions.filter { spectator.competitionIDs.contains($0.id) }.sorted { left, right in
+        let available = Dictionary(home.competitions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return spectator.competitionIDs.compactMap { available[$0] ?? details[$0]?.competition }.sorted { left, right in
             if left.hasEnded() != right.hasEnded() { return !left.hasEnded() }
             let next: (Competition) -> Date = { competition in
                 self.details[competition.id]?.spectatorHeats(followedIDs: self.spectator.followedIDs(competition.id))
@@ -116,8 +117,13 @@ final class GameDayStore {
             await activities.reconcile(details: Array(details.values))
             // Past competitions remain browsable; upcoming registered and spectated events refresh proactively.
             let today = String(ISO8601DateFormatter().string(from: .now.addingTimeInterval(-86400)).prefix(10))
-            for competition in result.competitions where (registeredIDs.contains(competition.id) || spectator.competitionIDs.contains(competition.id)) && competition.endDate >= today {
-                await loadCompetition(competition.id)
+            let upcomingRegisteredIDs = Set(result.competitions.filter {
+                registeredIDs.contains($0.id) && $0.endDate >= today
+            }.map(\.id))
+            // Saved unlisted events are intentionally absent from public discovery.
+            // Fetch saved IDs even without a cache, including after a session change.
+            for id in upcomingRegisteredIDs.union(spectator.competitionIDs).sorted() {
+                await loadCompetition(id)
                 guard current == generation else { return }
             }
             saveCache()

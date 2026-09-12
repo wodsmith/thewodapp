@@ -111,13 +111,19 @@ struct ParticipantsView: View {
                 }
             }
             SyncStatus(resource: .competition(competitionID))
+            if detail?.participants == nil {
+                SyncStatus(resource: .leaderboard(competitionID))
+            }
         }.listStyle(.plain).navigationTitle("Athletes & teams").navigationBarTitleDisplayMode(.inline)
             .searchable(text: $search, prompt: "Athlete or team")
             .task {
                 if detail == nil { await store.loadCompetition(competitionID) }
                 if detail?.participants == nil { await store.loadLeaderboard(competitionID) }
             }
-            .refreshable { await store.loadCompetition(competitionID) }
+            .refreshable {
+                await store.loadCompetition(competitionID)
+                if detail?.participants == nil { await store.loadLeaderboard(competitionID) }
+            }
     }
 }
 

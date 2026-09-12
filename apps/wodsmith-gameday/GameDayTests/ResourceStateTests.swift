@@ -64,4 +64,35 @@ final class ResourceStateTests: XCTestCase {
         XCTAssertNotNil(store.status(resource).updatedAt)
         XCTAssertFalse(store.status(resource).isLoading)
     }
+    // @lat: [[gameday#Tests#Saved unlisted competitions]]
+    func testSavedUnlistedCompetitionLoadsWithoutDiscoveryAndSurvivesCachedRelaunch() async throws {
+        let suite = "unlisted-tests-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = SpectatorPreferences(defaults: defaults)
+        preferences.setSpectating(DemoData.competition.id, enabled: true)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ResourceURLProtocol.self]
+        let api = GameDayAPI(baseURL: URL(string: "https://fixture.invalid")!, session: URLSession(configuration: configuration))
+        let store = GameDayStore(api: api, spectator: preferences)
+        store.home = .empty
+        store.details = [:]
+        ResourceURLProtocol.handler = { request in
+            if request.url!.path.hasSuffix("/home") {
+                return (200, try GameDayJSON.encoder().encode(HomeResponse.empty))
+            }
+            XCTAssertTrue(request.url!.path.hasSuffix("/competitions/demo-summit"))
+            return (200, try GameDayJSON.encoder().encode(DemoData.spectatorDetail))
+        }
+        await store.refresh()
+        XCTAssertTrue(store.home.competitions.isEmpty)
+        XCTAssertEqual(store.spectatedCompetitions.map(\.id), [DemoData.competition.id])
+        let restored = GameDayStore(api: api, spectator: SpectatorPreferences(defaults: defaults))
+        XCTAssertEqual(restored.spectatedCompetitions.map(\.id), [DemoData.competition.id])
+        restored.home = DemoData.home
+        XCTAssertEqual(restored.spectatedCompetitions.count, 1, "Discovery and cache must not duplicate saved events")
+        restored.spectator.setSpectating(DemoData.competition.id, enabled: false)
+        XCTAssertTrue(restored.spectatedCompetitions.isEmpty)
+    }
+
 }
