@@ -42,3 +42,4 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[transfer-integrity-tests]] — Transfer score scope, division guards, waiver signatures, and invite recovery regression tests.
 - [[training-access]] — Training resource visibility and owner-team mutation boundaries.
 - [[training-access-tests]] — Real MySQL regressions for training visibility, permissions and remix access.
+- [[training-seed]] — Additive default-track demo programming with dry-run and preservation checks.
