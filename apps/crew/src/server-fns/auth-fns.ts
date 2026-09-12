@@ -24,7 +24,7 @@ import {
 } from "@/constants"
 import { getDb } from "@/db"
 import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
-import { createUserId, createTeamId } from "@/db/schemas/common"
+import { createTeamId, createUserId } from "@/db/schemas/common"
 import {
   addRequestContextAttribute,
   logEntityCreated,
@@ -107,15 +107,6 @@ export const signInFn = createServerFn({ method: "POST" })
         attributes: { email: data.email.toLowerCase() },
       })
       throw new Error("Invalid email or password")
-    }
-
-    // Check if user has only Google SSO
-    if (!user.passwordHash && user.googleAccountId) {
-      logWarning({
-        message: "[Auth] Sign-in failed - Google SSO account",
-        attributes: { userId: user.id },
-      })
-      throw new Error("Please sign in with your Google account instead.")
     }
 
     if (!user.passwordHash) {

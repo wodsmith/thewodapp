@@ -5,7 +5,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { z } from "zod"
+import type { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -25,26 +25,12 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { userProfileSchema } from "@/schemas/profile.schema"
 import { getUserProfileFn, updateUserProfileFn } from "@/server-fns/profile-fns"
 
 // ============================================================================
 // Schema
 // ============================================================================
-
-const userProfileSchema = z.object({
-  firstName: z.string().min(2, {
-    message: "First name must be at least 2 characters.",
-  }),
-  lastName: z.string().min(2, {
-    message: "Last name must be at least 2 characters.",
-  }),
-  avatar: z
-    .string()
-    .url("Invalid avatar URL")
-    .max(600, "URL is too long")
-    .optional()
-    .or(z.literal("")),
-})
 
 type UserProfileFormValues = z.infer<typeof userProfileSchema>
 

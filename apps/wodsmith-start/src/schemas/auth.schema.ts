@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod"
+import { accountNameFields } from "@/schemas/profile.schema"
 
 export const signInSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -15,8 +16,7 @@ export type SignInInput = z.infer<typeof signInSchema>
 
 export const signUpSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
+  ...accountNameFields,
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
