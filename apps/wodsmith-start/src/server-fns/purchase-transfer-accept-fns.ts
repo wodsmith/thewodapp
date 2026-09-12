@@ -89,6 +89,12 @@ const acceptPurchaseTransferInputSchema = z.object({
     .array(
       z.object({
         waiverId: z.string(),
+        signatureName: z
+          .string()
+          .max(255)
+          .refine((name) => name.trim().length > 0, {
+            message: "Signature name is required",
+          }),
       }),
     )
     .optional(),

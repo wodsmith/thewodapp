@@ -1,0 +1,1 @@
+ALTER TABLE `waiver_signatures` ADD `signature_name` varchar(255);

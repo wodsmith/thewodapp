@@ -501,7 +501,10 @@ function AcceptTransferForm({
       // Only include waivers that have been agreed to with a signature
       const signaturesArray = Object.entries(waiverState)
         .filter(([_, s]) => s.agreed && s.signatureName.trim() !== "")
-        .map(([waiverId]) => ({ waiverId }))
+        .map(([waiverId, signature]) => ({
+          waiverId,
+          signatureName: signature.signatureName,
+        }))
 
       await acceptTransfer({
         data: {
