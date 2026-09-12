@@ -74,6 +74,10 @@ A canonical result command uses its explicit competition context when a workout 
 
 An unbound workout linked to multiple competitions rejects instead of choosing an arbitrary registration, without any database mutation.
 
+## Track-backed manual scoring
+
+Manual scoring resolves competition ownership through a workout's programming track when no event configuration exists, while rejecting foreign competitions, stale divisions, and shared score ownership without writes.
+
 ## Ambiguous shared score ownership
 
 Writes and acceptance reject a shared athlete/workout/division tuple, including null, when another active, removed, historical team or transferred participation may own it. All registrations, scores, rounds and evidence remain unchanged.

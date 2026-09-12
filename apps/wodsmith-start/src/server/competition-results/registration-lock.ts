@@ -1,10 +1,14 @@
-import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
+import { and, eq, inArray, isNull, or } from "drizzle-orm"
 import { purchaseTransfersTable } from "@/db/schemas/commerce"
 import {
   competitionEventsTable,
   competitionRegistrationsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
+import {
+  programmingTracksTable,
+  trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import type { ResultTransaction } from "./repository"
 
@@ -15,6 +19,35 @@ export class RegistrationChangedError extends Error {
     super(message)
     this.name = "RegistrationChangedError"
   }
+}
+
+// Event configuration is optional for manual/sub-event scoring. Include both
+// ownership paths so a track-backed competition cannot evade shared-tuple checks.
+async function resultCompetitionIds(
+  db: ResultTransaction,
+  trackWorkoutId: string,
+) {
+  const events = await db
+    .select({ competitionId: competitionEventsTable.competitionId })
+    .from(competitionEventsTable)
+    .where(eq(competitionEventsTable.trackWorkoutId, trackWorkoutId))
+    .for("share")
+  const tracks = await db
+    .select({ competitionId: programmingTracksTable.competitionId })
+    .from(trackWorkoutsTable)
+    .innerJoin(
+      programmingTracksTable,
+      eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+    )
+    .where(eq(trackWorkoutsTable.id, trackWorkoutId))
+    .for("share")
+  return [
+    ...new Set(
+      [...events, ...tracks].flatMap((row) =>
+        row.competitionId ? [row.competitionId] : [],
+      ),
+    ),
+  ]
 }
 
 // @lat: [[registration#Registration#Division Transfer#Concurrent submissions]]
@@ -28,16 +61,10 @@ export async function lockRegistrationForResult(
     competitionId?: string
   },
 ): Promise<void> {
-  const events = await db.query.competitionEventsTable.findMany({
-    columns: { competitionId: true },
-    where: and(
-      eq(competitionEventsTable.trackWorkoutId, target.trackWorkoutId),
-      target.competitionId
-        ? eq(competitionEventsTable.competitionId, target.competitionId)
-        : undefined,
-    ),
-    limit: 2,
-  })
+  const competitionIds = await resultCompetitionIds(db, target.trackWorkoutId)
+  const events = competitionIds
+    .filter((id) => !target.competitionId || id === target.competitionId)
+    .map((competitionId) => ({ competitionId }))
   // Only standalone programmed-workout persistence may omit competition scope.
   // Never choose an arbitrary competition when a workout is reused.
   if (events.length === 0 && !target.competitionId && !target.registrationId)
@@ -134,16 +161,9 @@ export async function assertUnambiguousResultOwnership(
     divisionId: string | null
   },
 ): Promise<void> {
-  const otherEvents = await db
-    .select({ competitionId: competitionEventsTable.competitionId })
-    .from(competitionEventsTable)
-    .where(
-      and(
-        eq(competitionEventsTable.trackWorkoutId, target.trackWorkoutId),
-        ne(competitionEventsTable.competitionId, target.competitionId),
-      ),
-    )
-    .for("share")
+  const otherEvents = (
+    await resultCompetitionIds(db, target.trackWorkoutId)
+  ).filter((id) => id !== target.competitionId)
   if (otherEvents.length === 0) return
 
   const [otherParticipation] = await db
@@ -175,10 +195,7 @@ export async function assertUnambiguousResultOwnership(
     )
     .where(
       and(
-        inArray(
-          competitionRegistrationsTable.eventId,
-          otherEvents.map((event) => event.competitionId),
-        ),
+        inArray(competitionRegistrationsTable.eventId, otherEvents),
         target.divisionId === null
           ? isNull(competitionRegistrationsTable.divisionId)
           : eq(competitionRegistrationsTable.divisionId, target.divisionId),

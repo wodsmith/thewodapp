@@ -1116,6 +1116,80 @@ describe.skipIf(!mysqlTestConfig)(
       },
     )
 
+    // @lat: [[transfer-integrity-tests#Transfer integrity#Track-backed manual scoring]]
+    it.each(["valid", "wrong-competition", "stale-division", "shared-tuple"])(
+      "validates %s manual scoring without an event configuration row",
+      async (scenario) => {
+        await pool.promise().query("DELETE FROM scores")
+        await pool.promise().query("DELETE FROM competition_events")
+        await insert(programmingTracksTable, {
+          id: "track",
+          ownerTeamId: "organizer",
+          competitionId: "competition",
+        })
+        await insert(workouts, {
+          id: "workout",
+          scheme: "reps",
+          scoreType: "max",
+          roundsToScore: 1,
+        })
+        await insert(trackWorkoutsTable, {
+          id: "track-workout",
+          trackId: "track",
+          workoutId: "workout",
+        })
+        if (scenario === "shared-tuple") {
+          await insert(competitionEventsTable, {
+            id: "other-event",
+            trackWorkoutId: "track-workout",
+            competitionId: "other-competition",
+          })
+          await insert(competitionRegistrationsTable, {
+            id: "other-registration",
+            userId: "source",
+            eventId: "other-competition",
+            divisionId: "division",
+            status: "active",
+          })
+        }
+        const before = await snapshot()
+        const writing = fixture.db!.transaction((tx) =>
+          insertManualSubmissionWorkoutResult({
+            db: tx,
+            target: {
+              competitionId: scenario === "wrong-competition" ? "foreign" : "competition",
+              userId: "source",
+              teamId: "organizer",
+              workoutId: "workout",
+              trackWorkoutId: "track-workout",
+              divisionId: scenario === "stale-division" ? "next" : "division",
+            },
+            result: normalizeManualSubmissionWorkoutResult({
+              score: "42",
+              workout: {
+                scheme: "reps",
+                scoreType: "max",
+                timeCapMs: null,
+                tiebreakScheme: null,
+                roundsToScore: 1,
+              },
+            }),
+            recordedAt: new Date(),
+            context: {},
+          }),
+        )
+        if (scenario === "valid") {
+          await expect(writing).resolves.toEqual(expect.any(String))
+          expect(await rows(scoresTable)).toMatchObject([
+            { user_id: "source", competition_event_id: "track-workout", score_value: 42 },
+          ])
+        } else {
+          await expect(writing).rejects.toThrow(/Registration changed|multiple competitions/)
+          expect(await snapshot()).toEqual(before)
+        }
+      },
+    )
+
     // @lat: [[transfer-integrity-tests#Transfer integrity#Ambiguous workout registration lock]]
     it("rejects ambiguous unbound workout participation without writes", async () => {
       await insert(competitionEventsTable, {
@@ -1456,7 +1530,7 @@ describe.skipIf(!mysqlTestConfig)(
             "UPDATE competition_events SET submission_opens_at = ?, submission_closes_at = ?",
             [
               new Date(Date.now() - 60_000).toISOString(),
-              new Date(Date.now() + 60_000),
+              new Date(Date.now() + 60_000).toISOString(),
             ],
           )
         await insert(programmingTracksTable, {
