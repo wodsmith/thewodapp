@@ -126,6 +126,10 @@ At the largest accessibility text size, an athlete can scroll to the next heat�
 
 Starting a real simulator Live Activity exposes the end action. Ending it completes and restores the start action, exercising the asynchronous ActivityKit update queue through the athlete screen.
 
+### Discovery label growth
+
+Discovery titles, dates, and locations grow from standard text to AX5 and remain reachable by scrolling. This checks the native audit’s claim that these labels do not scale.
+
 ### Discovery accessibility audit
 
 Apple's automated accessibility audit checks discovery descriptions, contrast, clipping, Dynamic Type, traits, and hit regions. Reviewed iOS 26.2 exceptions are recorded with native screenshots in the App Store design review.
@@ -286,3 +290,7 @@ Saved spectator IDs refresh independently of discovery, including after a cache 
 Slug links cache a canonical ID alongside aliases; reminder reconciliation deduplicates those details. A confirmed 404 evicts cached competition details and aliases. Saved events still refresh after ending to detect publication changes and final results.
 
 My heats shows only the athlete’s own lane; followed lane labels appear in Following or All heats. Registered competitions appear once above the Spectating section. UI tests wait for menu and navigation presentation and restore orientation even on failure.
+
+Competition list titles, dates, and locations preserve their vertical intrinsic size at large Dynamic Type sizes, avoiding compressed text while keeping compact spacing at standard sizes.
+
+The iOS26.2 audit accepts the three exact discovery fixture labels only after the separate growth test proves scaling and reachability. All other Dynamic Type flags remain failures.

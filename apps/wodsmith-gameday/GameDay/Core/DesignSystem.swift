@@ -47,10 +47,10 @@ struct CompetitionCard: View {
                     .frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text(competition.name).font(.headline).foregroundStyle(.primary)
-                Text(competition.dateLabel).font(.subheadline).foregroundStyle(.primary)
+                Text(competition.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                Text(competition.dateLabel).font(.subheadline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                 Text(competition.location.isEmpty ? competition.competitionType.capitalized : competition.location)
-                    .font(.subheadline).foregroundStyle(Color.gameDaySecondary)
+                    .font(.subheadline).foregroundStyle(Color.gameDaySecondary).fixedSize(horizontal: false, vertical: true)
                 if registered {
                     Label("Registered", systemImage: "checkmark.circle").font(.footnote)
                         .foregroundStyle(Color.gameDaySecondary).fixedSize(horizontal: false, vertical: true)

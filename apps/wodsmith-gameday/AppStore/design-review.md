@@ -67,3 +67,9 @@ Four reproducible flags remained after those corrections. Each was inspected in 
 The three audits pass with those four reviewed exceptions; this is not an unfiltered clean result or a VoiceOver certification. Other labels, issue types, and OS versions still fail normally. Results are in `/tmp/GameDayReviewedAccessibility.xcresult`; the unfiltered four-issue result and largest-text reachability checks are in `/tmp/GameDayFinalAccessibility.xcresult`.
 
 Ten native domain/resource tests pass after serializing reminder updates. The Live Activity start/end UI test also passes against real simulator ActivityKit after applying the same queue discipline. Its result is `/tmp/GameDayActivityControls.xcresult`.
+
+## Compact discovery audit follow-through
+
+The iOS26.2 audit also flags the Fall Classic title, date, and location as unable to scale. The explicit discovery label growth test measures each label at standard size and AX5, verifies a greater height, and scrolls it into reach. All three assertions pass. The audit handler accepts only these exact fixture labels for this issue type on iOS26.2; other labels and OS versions still fail normally. This is a measured audit exception, not an unfiltered certification.
+
+The workout workflow waits for competition navigation before scrolling and targets the native list in landscape. The initial full run found a test transition race and an invalid application-wide landscape swipe; corrected targeted reruns validate the actual standards screen.
