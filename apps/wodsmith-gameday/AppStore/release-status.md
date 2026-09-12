@@ -73,3 +73,7 @@ Next: wait for PR checks, review any findings, merge and deploy the compatible p
 Builds 2 and 3 are superseded and must not be submitted. Build 4 adds saved unlisted discovery recovery, canonical slug caching, 404 cache eviction, and participant fallback status/retry. Archive and upload build 4 from the final reviewed code, select it, then submit only after PR #700 is merged and the production API is verified.
 
 The earlier 193 type diagnostics came from the spectator task's shared dependency setup. A fresh frozen-lockfile install with Node 24 resolved that environment mismatch; full pre-push lint/type checks and PR CI type checks passed on 62df9d921.
+
+## Version 1.1 build 5 — final athlete polish
+
+Build 5 supersedes builds 2–4 and adds personal-only lane labels and deduplicated registered/spectating discovery. This is the final submission candidate; earlier uploaded builds must not be submitted.

@@ -14,8 +14,8 @@ final class SpectatorFlowTests: XCTestCase {
         if app.buttons["spectateCompetition"].label == "Spectate" { app.buttons["spectateCompetition"].tap() }
         app.staticTexts["Manage"].tap()
         for name in ["Jordan Lee", "Summit Crew"] {
-            if app.buttons["Follow \(name)"].exists { app.buttons["Follow \(name)"].tap() }
-            XCTAssertTrue(app.buttons["Unfollow \(name)"].exists)
+            if app.buttons["Follow \(name)"].waitForExistence(timeout: 5) { app.buttons["Follow \(name)"].tap() }
+            XCTAssertTrue(app.buttons["Unfollow \(name)"].waitForExistence(timeout: 5))
         }
         let follows = XCTAttachment(screenshot: app.screenshot()); follows.name = "spectator-follows"; follows.lifetime = .keepAlways; add(follows)
         app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -59,6 +59,7 @@ final class SpectatorFlowTests: XCTestCase {
     // @lat: [[gameday#Tests#Accessible spectator controls]]
     @MainActor
     func testLargeTextAndLandscapeFollowControls() {
+        defer { XCUIDevice.shared.orientation = .portrait }
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "--spectator-demo", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
@@ -78,7 +79,6 @@ final class SpectatorFlowTests: XCTestCase {
         app.swipeUp()
         XCTAssertTrue(app.buttons["Unfollow Jordan Lee"].exists)
         let landscape = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); landscape.name = "spectator-landscape"; landscape.lifetime = .keepAlways; add(landscape)
-        XCUIDevice.shared.orientation = .portrait
     }
 
 }

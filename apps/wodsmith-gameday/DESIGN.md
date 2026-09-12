@@ -16,7 +16,7 @@ The countdown is genuine measurement, so tabular numerals are appropriate. All t
 
 ## Color and state
 
-Plain system backgrounds for competition and schedule content, grouped backgrounds for settings, and semantic primary/secondary text support light and dark appearances. A darker orange serves light-mode interactive text; a brighter orange serves dark mode. The white-on-ink next-heat surface has a known high-contrast pairing.
+Plain system backgrounds for competition overview and schedule content; announcements and settings retain grouped backgrounds, and semantic primary/secondary text support light and dark appearances. A darker orange serves light-mode interactive text; a brighter orange serves dark mode. The white-on-ink next-heat surface has a known high-contrast pairing.
 
 Freshness, loading, errors, and retry belong to the exact resource being displayed. A successful directory request must never make a stale heat schedule look current. Missing results, failed requests, and empty filters have distinct explanations.
 

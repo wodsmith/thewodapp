@@ -18,7 +18,9 @@ Sign-out immediately clears device credentials and private downloads, then attem
 
 ## Athlete competition defaults
 
-Leaderboard browsing opens one division: the athlete’s earliest active registration, including team registrations, then a stable alphabetic division fallback for spectators. Division IDs keep identically named divisions separate.
+Leaderboard browsing opens one division: the athlete’s earliest active registration, including team registrations, then a followed division with published results for spectators, falling back to alphabetic order.
+
+Division IDs keep identically named divisions separate.
 
 Registration time and registration ID provide deterministic ordering across refreshes. Registered divisions remain selectable before results exist. A valid explicit division choice survives refresh; clearing filters restores the athlete default. No leaderboard option combines divisions.
 
@@ -204,7 +206,7 @@ Spectators save competitions and follow athlete or team registrations locally wi
 
 Preferences store only competition and registration IDs in UserDefaults, separately from private download caches. Sign-out clears private data but preserves these device choices. Following a participant also marks the competition as spectating; stopping spectating retains its follows.
 
-The participant list supports search, multiple divisions, and All participants/Following controls. Leaderboards retain exactly one division, prefer active athlete registrations, then followed divisions for spectators. Schedule controls offer My heats for athletes, Following, and All heats, with multiple public division filters and earlier heats collapsed.
+The participant list supports search, multiple divisions, and All participants/Following controls. Leaderboards retain exactly one division, prefer active athlete registrations, then followed divisions with published results for spectators. Schedule controls offer My heats for athletes, Following, and All heats, with multiple public division filters and earlier heats collapsed.
 
 Public details add optional `participants` and `publicAssignments` projections. Participants include active registration IDs, display names, division IDs/labels, and a team flag. Public assignments select only those registrations and already-published heat IDs; they never populate athlete-owned assignments or reminders.
 
@@ -275,10 +277,12 @@ The iPhone app icon uses the anvil on an opaque white square without the former 
 
 ## Version 1.1 release integration
 
-Version 1.1 build 4 combines the compact athlete UI, division defaults, account-free spectator follows, explicit public heat assignments, and borderless app icon. App and extension versions are generated consistently from the native project script.
+Version 1.1 build 5 combines the compact athlete UI, division defaults, account-free spectator follows, explicit public heat assignments, and borderless app icon. App and extension versions are generated consistently from the native project script.
 
 The public participant/assignment API must be deployed before App Store submission. Existing 1.0 clients ignore the optional fields; no database migration is needed.
 
 Saved spectator IDs refresh independently of discovery, including after a cache or session reset. Participant fallback results show their own freshness, error, and retry state; pull to refresh reloads the fallback only when the full participant list is absent.
 
 Slug links cache a canonical ID alongside aliases; reminder reconciliation deduplicates those details. A confirmed 404 evicts cached competition details and aliases. Saved events still refresh after ending to detect publication changes and final results.
+
+My heats shows only the athlete’s own lane; followed lane labels appear in Following or All heats. Registered competitions appear once above the Spectating section. UI tests wait for menu and navigation presentation and restore orientation even on failure.

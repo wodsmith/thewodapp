@@ -77,9 +77,12 @@ struct CompetitionHome: View {
                     }
                 } header: { Text("Your competitions").foregroundStyle(Color.gameDaySecondary) }
             }
-            if search.isEmpty && !store.spectator.competitionIDs.isEmpty {
+            let spectating = store.spectatedCompetitions.filter { competition in
+                !store.home.myCompetitions.contains { $0.id == competition.id }
+            }
+            if search.isEmpty && !spectating.isEmpty {
                 Section("Spectating") {
-                    ForEach(store.spectatedCompetitions) { competition in
+                    ForEach(spectating) { competition in
                         NavigationLink { CompetitionView(competitionID: competition.id) } label: {
                             CompetitionCard(competition: competition)
                         }

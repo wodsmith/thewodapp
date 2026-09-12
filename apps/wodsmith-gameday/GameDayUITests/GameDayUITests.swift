@@ -35,6 +35,7 @@ final class GameDayUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Alex Morgan"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["All divisions"].exists)
         app.buttons["Division, Individual RX"].tap()
+        XCTAssertTrue(app.buttons["Individual RX"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["All divisions"].exists)
         app.buttons["Individual RX"].tap()
         app.navigationBars["Leaderboard"].buttons.element(boundBy: 0).tap()

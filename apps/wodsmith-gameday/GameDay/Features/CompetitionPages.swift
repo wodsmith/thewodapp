@@ -40,10 +40,16 @@ struct FullScheduleView: View {
                 TimelineView(.periodic(from: .now, by: 30)) { timeline in
                     let upcoming = filtered.filter { ($0.endsAt ?? .distantFuture) > timeline.date }
                     let earlier = filtered.filter { ($0.endsAt ?? .distantFuture) <= timeline.date }
-                    ForEach(upcoming) { heat in SpectatorHeatRow(heat: heat, detail: detail) }
+                    ForEach(upcoming) { heat in
+                        if selectedScope == "mine" { HeatRow(heat: heat, competition: detail.competition, lane: detail.lane(for: heat)) }
+                        else { SpectatorHeatRow(heat: heat, detail: detail) }
+                    }
                     if !earlier.isEmpty {
                         DisclosureGroup("Earlier heats") {
-                            ForEach(earlier) { heat in SpectatorHeatRow(heat: heat, detail: detail) }
+                            ForEach(earlier) { heat in
+                                if selectedScope == "mine" { HeatRow(heat: heat, competition: detail.competition, lane: detail.lane(for: heat)) }
+                                else { SpectatorHeatRow(heat: heat, detail: detail) }
+                            }
                         }
                     }
                 }

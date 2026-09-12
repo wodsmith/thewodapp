@@ -248,6 +248,7 @@ describe("Game Day API", () => {
     expect(statements[4].params).toEqual(["competition-1", "active"])
     expect(statements[5].params).toEqual(["heat-1", "athlete-1", "team-1"])
     expect(statements[1].sql).toContain("schedulePublishedAt")
+    expect(statements[1].sql).toContain("is not null")
     expect(statements[1].params).toContain("published")
     expect(JSON.stringify(detail)).not.toMatch(/Private|Captain|email|userId|password|payment|checkedIn/)
   })
