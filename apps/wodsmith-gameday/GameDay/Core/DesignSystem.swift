@@ -44,9 +44,9 @@ struct CompetitionCard: View {
         HStack(alignment: .top, spacing: 14) {
             if let source = competition.profileImageUrl, let url = URL(string: source) {
                 AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: { Color(uiColor: .tertiarySystemFill) }
-                    .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
+                    .frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
             }
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(competition.name).font(.headline).foregroundStyle(.primary)
                 Text(competition.dateLabel).font(.subheadline).foregroundStyle(.primary)
                 Text(competition.location.isEmpty ? competition.competitionType.capitalized : competition.location)
@@ -56,6 +56,6 @@ struct CompetitionCard: View {
                         .foregroundStyle(Color.gameDaySecondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
-        }.padding(.vertical, 8).accessibilityElement(children: .combine)
+        }.padding(.vertical, 4).accessibilityElement(children: .combine)
     }
 }

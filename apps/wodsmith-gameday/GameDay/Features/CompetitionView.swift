@@ -5,58 +5,70 @@ struct CompetitionView: View {
     let competitionID: String
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
-                SyncStatus(resource: .competition(competitionID))
+            LazyVStack(alignment: .leading, spacing: 16) {
+                if store.status(.competition(competitionID)).error != nil {
+                    SyncStatus(resource: .competition(competitionID))
+                }
                 if let detail = store.details[competitionID] {
                     if !detail.registrations.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(detail.competition.name).font(.title.bold())
+                            Text(detail.competition.name).font(.title3.bold())
                             Text(detail.competition.dateLabel + " · " + detail.competition.location).font(.subheadline).foregroundStyle(.secondary)
                         }
                         AthleteSchedule(detail: detail)
                     } else {
                         CompetitionCard(competition: detail.competition)
                     }
-                    SectionEyebrow(title: "Competition hub")
                     VStack(spacing: 0) {
-                        hubLink("Full schedule", subtitle: "Every event and heat", icon: "calendar.badge.clock") { FullScheduleView(detail: detail) }
-                        Divider().padding(.leading, 56)
-                        hubLink("Workouts", subtitle: "The tests ahead", icon: "dumbbell") { WorkoutsView(detail: detail) }
-                        Divider().padding(.leading, 56)
-                        hubLink("Leaderboard", subtitle: "Standings by division", icon: "list.number") { LeaderboardView(competitionID: competitionID) }
-                        Divider().padding(.leading, 56)
-                        hubLink("Announcements", subtitle: "Updates from your organizer", icon: "megaphone") { AnnouncementsView(detail: detail) }
+                        hubLink("Full schedule", icon: "calendar.badge.clock") { FullScheduleView(detail: detail) }
+                        Divider().padding(.leading, 34)
+                        hubLink("Workouts", icon: "dumbbell") { WorkoutsView(detail: detail) }
+                        Divider().padding(.leading, 34)
+                        hubLink("Leaderboard", icon: "list.number") { LeaderboardView(competitionID: competitionID) }
+                        Divider().padding(.leading, 34)
+                        hubLink("Announcements", icon: "megaphone") { AnnouncementsView(detail: detail) }
                         if !detail.registrations.isEmpty {
-                            Divider().padding(.leading, 56)
-                            hubLink("My registration", subtitle: "Division, team, and check-in", icon: "ticket") { RegistrationView(detail: detail) }
+                            Divider().padding(.leading, 34)
+                            hubLink("My registration", icon: "ticket") { RegistrationView(detail: detail) }
                         }
-                    }.background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("About the competition").font(.headline)
-                        if let description = detail.competition.description { MarkdownText(text: description) }
-                        if !detail.competition.location.isEmpty {
-                            Label(detail.competition.location, systemImage: "mappin.and.ellipse").font(.subheadline)
-                        }
-                        if let address = detail.competition.address { Text(address).font(.subheadline).foregroundStyle(.secondary) }
-                        Label(detail.competition.timezone ?? "America/Denver", systemImage: "globe").font(.caption).foregroundStyle(.secondary)
-                        Link("Open on WODsmith", destination: detail.competition.webURL).font(.subheadline.bold())
-                    }.gameDayCard()
+                    }
+                    DisclosureGroup("About the competition") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if let description = detail.competition.description { MarkdownText(text: description) }
+                            if !detail.competition.location.isEmpty {
+                                Label(detail.competition.location, systemImage: "mappin.and.ellipse").font(.subheadline)
+                            }
+                            if let address = detail.competition.address { Text(address).font(.subheadline).foregroundStyle(.secondary) }
+                            Label(detail.competition.timezone ?? "America/Denver", systemImage: "globe").font(.caption).foregroundStyle(.secondary)
+                            Link("Open on WODsmith", destination: detail.competition.webURL).font(.subheadline.bold())
+                        }.padding(.top, 8)
+                    }.font(.subheadline).frame(minHeight: 44)
+                    if store.status(.competition(competitionID)).error == nil {
+                        SyncStatus(resource: .competition(competitionID))
+                    }
                 } else if store.status(.competition(competitionID)).error == nil { ProgressView("Loading competition…").frame(maxWidth: .infinity).padding(40) }
                 else { EmptyState(title: "Competition unavailable", message: "Reconnect and try again. The organizer may also have unpublished this competition.") }
-            }.padding(20)
-        }.background(Color.gameDayPaper)
+            }.padding(.horizontal, 16).padding(.vertical, 12)
+        }.background(Color(uiColor: .systemBackground))
             .navigationTitle("Competition").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink { ReminderSettingsView() } label: {
+                        Image(systemName: "bell").frame(minWidth: 44, minHeight: 44)
+                    }.accessibilityLabel("Heat reminders")
+                }
+            }
             .task { await store.loadCompetition(competitionID) }
             .refreshable { await store.loadCompetition(competitionID) }
     }
-    private func hubLink<Destination: View>(_ title: String, subtitle: String, icon: String, @ViewBuilder destination: () -> Destination) -> some View {
+    private func hubLink<Destination: View>(_ title: String, icon: String, @ViewBuilder destination: () -> Destination) -> some View {
         NavigationLink(destination: destination) {
-            HStack(spacing: 14) {
-                Image(systemName: icon).font(.title3).foregroundStyle(Color.gameDayOrange).frame(width: 28)
-                VStack(alignment: .leading, spacing: 4) { Text(title).font(.headline); Text(subtitle).font(.caption).foregroundStyle(.secondary) }
+            HStack(spacing: 12) {
+                Image(systemName: icon).font(.body).foregroundStyle(.secondary).frame(width: 22)
+                Text(title).font(.body)
                 Spacer()
                 Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.tertiary)
-            }.padding(18)
+            }.frame(minHeight: 48).contentShape(Rectangle())
         }.buttonStyle(.plain)
     }
 }
@@ -68,16 +80,16 @@ struct AthleteSchedule: View {
             let next = detail.nextHeat(at: timeline.date)
             let later = detail.myHeats.filter { $0.id != next?.id && ($0.endsAt ?? .distantFuture) > timeline.date }
             let earlier = detail.myHeats.filter { ($0.endsAt ?? .distantFuture) <= timeline.date }
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
                 if let next { NextHeatCard(heat: next, detail: detail) }
                 else if detail.myHeats.isEmpty {
                     Text("Your schedule will appear when the organizer publishes your heat assignments.")
                         .foregroundStyle(.secondary).padding(.vertical, 12)
                 } else {
-                    Label("All scheduled heats have ended", systemImage: "flag.checkered").font(.headline).padding(.vertical, 12)
+                    Label("All scheduled heats have ended", systemImage: "flag.checkered").font(.subheadline).padding(.vertical, 4)
                 }
                 if !later.isEmpty {
-                    Text("After this").font(.headline).accessibilityAddTraits(.isHeader)
+                    Text("After this").font(.subheadline.weight(.semibold)).padding(.top, 8).accessibilityAddTraits(.isHeader)
                     ForEach(later) { heat in
                         HeatRow(heat: heat, competition: detail.competition, lane: detail.lane(for: heat))
                         Divider()
@@ -86,11 +98,7 @@ struct AthleteSchedule: View {
                 if !earlier.isEmpty {
                     DisclosureGroup("Earlier heats") {
                         ForEach(earlier) { heat in HeatRow(heat: heat, competition: detail.competition, lane: detail.lane(for: heat)) }
-                    }.font(.subheadline)
-                }
-                NavigationLink { ReminderSettingsView() } label: {
-                    Label("Heat reminders", systemImage: "bell").font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.primary).frame(minHeight: 44)
+                    }.font(.subheadline).frame(minHeight: 44)
                 }
             }
         }
@@ -106,20 +114,20 @@ struct NextHeatCard: View {
     @State private var starting = false
     private var isActive: Bool { store.activities.activeHeatID == heat.id }
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(heat.eventName).font(.title2.bold()).accessibilityAddTraits(.isHeader)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(heat.eventName).font(.headline).accessibilityAddTraits(.isHeader)
             Text("Heat \(heat.heatNumber) · \(heat.venue ?? "Venue to be announced")")
                 .font(.subheadline).foregroundStyle(.white.opacity(0.85))
             let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(alignment: .top, spacing: 24))
             layout {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(heat.timeLabel(in: detail.competition.timeZone)).font(.title.bold()).monospacedDigit()
+                    Text(heat.timeLabel(in: detail.competition.timeZone)).font(.title2.bold()).monospacedDigit()
                     Text(heat.dayLabel(in: detail.competition.timeZone)).font(.subheadline)
                 }
                 Spacer(minLength: 0)
                 if let lane = detail.lane(for: heat) {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Lane \(lane)").font(.title.bold())
+                        Text("Lane \(lane)").font(.title2.bold())
                         Text(detail.competition.timeZone.abbreviation() ?? "Venue time").font(.subheadline)
                     }
                 }
@@ -148,7 +156,7 @@ struct NextHeatCard: View {
                       systemImage: isActive ? "stop.circle" : "platter.filled.bottom.iphone")
                     .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 32)
             }.buttonStyle(.bordered).tint(.white).controlSize(.regular).disabled(starting)
-        }.padding(20).foregroundStyle(.white).background(Color.gameDayInk, in: RoundedRectangle(cornerRadius: 16))
+        }.padding(14).foregroundStyle(.white).background(Color.gameDayInk, in: RoundedRectangle(cornerRadius: 16))
             .alert("Lock Screen countdown", isPresented: Binding(get: { activityError != nil }, set: { if !$0 { activityError = nil } })) {
                 Button("OK") { activityError = nil }
             } message: { Text(activityError ?? "") }
@@ -167,13 +175,13 @@ struct HeatRow: View {
                 Text(heat.timeLabel(in: competition.timeZone)).font(.headline).monospacedDigit()
                 Text(heat.dayLabel(in: competition.timeZone)).font(.caption).foregroundStyle(Color.gameDaySecondary)
             }.frame(minWidth: dynamicTypeSize.isAccessibilitySize ? nil : 80, alignment: .leading)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(heat.eventName).font(.headline)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(heat.eventName).font(.subheadline.weight(.semibold))
                 Text(["Heat \(heat.heatNumber)", lane.map { "Lane \($0)" }, heat.venue].compactMap { $0 }.joined(separator: " · "))
                     .font(.subheadline).foregroundStyle(Color.gameDaySecondary)
                 if let division = heat.division { Text(division).font(.caption).foregroundStyle(Color.gameDaySecondary) }
             }.frame(maxWidth: .infinity, alignment: .leading)
-        }.padding(.vertical, 10).accessibilityElement(children: .combine)
+        }.padding(.vertical, 6).accessibilityElement(children: .combine)
     }
 }
 

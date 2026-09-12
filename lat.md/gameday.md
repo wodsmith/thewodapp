@@ -16,6 +16,16 @@ The server derives identity from the validated session. Public discovery exclude
 
 Sign-out immediately clears device credentials and private downloads, then attempts to revoke only that bearer session in WODsmith. Offline sign-out still removes device access; server revocation needs a working connection.
 
+## Athlete competition defaults
+
+Leaderboard browsing opens one division: the athlete’s earliest active registration, including team registrations, then a stable alphabetic division fallback for spectators. Division IDs keep identically named divisions separate.
+
+Registration time and registration ID provide deterministic ordering across refreshes. Registered divisions remain selectable before results exist. A valid explicit division choice survives refresh; clearing filters restores the athlete default. No leaderboard option combines divisions.
+
+The schedule opens on assigned heats across all active registrations, including teams and multiple divisions. Athletes can switch to the full schedule and filter by division or event. Unassigned athletes see an empty personal schedule; spectators see all published heats.
+
+Competition entry retains discovery as the initial tab and assigned heats at the top of the competition page. Registered competition lists place current/upcoming events first and past events most-recent-first, using each competition’s local day boundary.
+
 ## Schedules and reminders
 
 Only published heats and workouts reach Game Day. An athlete’s heat belongs to their registration through an explicit lane assignment, never merely through a matching division.
@@ -43,6 +53,14 @@ Privacy disclosures include linked name, email, and account identifiers for auth
 ## Tests
 
 Native tests verify the athlete’s schedule and reminder invariants and exercise the primary navigation with fictional competition data. These fixtures never replace live API failures.
+
+### Athlete competition defaults
+
+Native regressions cover earliest active team/individual registrations, multiple divisions, duplicate labels, missing results, spectator fallback, refresh selection, and personal schedule ownership across registrations.
+
+### Registered competition relevance
+
+Registered current/upcoming competitions precede historical events so discovery and My day prioritize immediately relevant athlete content.
 
 ### Competition local day boundary
 
@@ -158,9 +176,15 @@ Retrying a failed public competition requests that competition directly, replace
 
 The iOS interface uses native competition rows, a compact next-heat surface, adaptive text, and explicit dates. Independent Impeccable assessments guide the removal of marketing filler and duplicated schedule content.
 
+Competition discovery uses flat rows with compact imagery. Competition details use a smaller title, single-line hub links, and a collapsed About section. Heat reminders are available in the Competition and My day toolbars.
+
+Schedule rows and the next-heat surface use tighter spacing and system text styles, retaining accessibility-size stacking. Routine competition freshness appears below content; download failures stay above the schedule with their retry action.
+
 The registered-first home order follows the user’s brief. Subsequent heats do not repeat the current heat; previous heats remain accessible. Native forms, grouped lists, system navigation, and SF Symbols preserve iPhone conventions. Design evidence lives in `apps/wodsmith-gameday/AppStore/design-review.md`.
 
 The confirmation pass covers light/dark athlete schedules and largest-text scrolling to actions and later workouts. Durable simulator evidence is stored in `apps/wodsmith-gameday/AppStore/design-evidence/`. Portrait/landscape standards and live production athlete behavior are verified. Full VoiceOver traversal, RTL, and unusually long organizer content remain bounded validation gaps.
+
+The compact UI and athlete defaults are captured together on an iPhone 16e simulator using fictional demo data in `apps/wodsmith-gameday/AppStore/design-evidence/compact-athlete/`: competition, division leaderboard, and personal schedule.
 
 ## Release preparation
 
@@ -199,3 +223,13 @@ The ordinary Apple test athlete is registered in one unlisted fictional event wi
 Production checks verify ownership boundaries, division standards, announcements, offline schedule encoding, and reminder timing. The simulator displayed the live athlete schedule, started its Live Activity, and received its actual 30-minute local notification.
 
 Reviewer notes list the fixed September 5, 6, and 12, 2026 practice heat times in America/Denver. Contact can adjust the schedule if needed; there is no repeating fixture or automatic rescheduling. Credentials remain outside source control.
+
+## Lock Screen listing feature
+
+The saved App Store 1.1 draft leads with a native Lock Screen countdown screenshot and promotional copy about the workout, lane, venue, and remaining time. The public 1.0 screenshot set remains unchanged until a new version is approved and released.
+
+App Store Connect showed 1.0 Ready for Distribution on September 12, 2026. The 1.1 English (U.S.) 6.5-inch screenshot set contains the new Live Activity capture followed by the original five images. This metadata preparation does not submit a binary or release the pending native changes.
+
+## Native app icon
+
+The iPhone app icon uses the anvil on an opaque white square without the former circular outline. iOS applies its own rounded-square mask. The asset remains a 1024 × 1024 RGB PNG; changing the public App Store icon requires a new app build.

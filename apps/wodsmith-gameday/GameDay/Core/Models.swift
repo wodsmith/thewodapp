@@ -124,8 +124,17 @@ struct HomeResponse: Codable {
     let profile: AthleteProfile?
     static let empty = Self(competitions: [], registrations: [], profile: nil)
     var myCompetitions: [Competition] {
+        orderedMyCompetitions(at: .now)
+    }
+    func orderedMyCompetitions(at now: Date) -> [Competition] {
         let ids = Set(registrations.filter { $0.status == "active" }.map(\.competitionId))
-        return competitions.filter { ids.contains($0.id) }.sorted { $0.startDate < $1.startDate }
+        return competitions.filter { ids.contains($0.id) }.sorted {
+            let past = $0.hasEnded(at: now)
+            let otherPast = $1.hasEnded(at: now)
+            if past != otherPast { return !past }
+            if $0.startDate != $1.startDate { return past ? $0.startDate > $1.startDate : $0.startDate < $1.startDate }
+            return $0.id < $1.id
+        }
     }
 }
 
@@ -192,5 +201,42 @@ enum GameDayJSON {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         return encoder
+    }
+}
+
+// @lat: [[gameday#Athlete competition defaults]]
+enum AthleteCompetitionDefaults {
+    struct Division: Identifiable, Equatable {
+        let id: String
+        let label: String
+    }
+
+    static func registrations(_ registrations: [Registration], competitionID: String) -> [Registration] {
+        registrations.filter { $0.competitionId == competitionID && $0.status == "active" }
+            .sorted { $0.registeredAt == $1.registeredAt ? $0.id < $1.id : $0.registeredAt < $1.registeredAt }
+    }
+
+    static func leaderboardDivisions(entries: [LeaderboardEntry], registrations: [Registration], competitionID: String) -> [Division] {
+        var result: [Division] = []
+        for registration in self.registrations(registrations, competitionID: competitionID) {
+            guard let id = registration.divisionId, !result.contains(where: { $0.id == id }) else { continue }
+            let label = registration.division ?? entries.first { $0.divisionId == id }?.divisionLabel ?? "Registered division"
+            result.append(Division(id: id, label: label))
+        }
+        for entry in entries.sorted(by: { $0.divisionLabel == $1.divisionLabel ? $0.divisionId < $1.divisionId : $0.divisionLabel < $1.divisionLabel }) {
+            if !result.contains(where: { $0.id == entry.divisionId }) {
+                result.append(Division(id: entry.divisionId, label: entry.divisionLabel))
+            }
+        }
+        return result
+    }
+
+    static func selectedDivisionID(_ selection: String?, divisions: [Division]) -> String? {
+        selection.flatMap { id in divisions.first { $0.id == id }?.id } ?? divisions.first?.id
+    }
+
+    static func scheduleHeats(detail: CompetitionDetail, onlyMine: Bool?) -> [Heat] {
+        let registered = !registrations(detail.registrations, competitionID: detail.competition.id).isEmpty
+        return (onlyMine ?? registered) && registered ? detail.myHeats : detail.heats
     }
 }

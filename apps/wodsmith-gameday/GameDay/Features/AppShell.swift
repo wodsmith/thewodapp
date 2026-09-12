@@ -99,6 +99,7 @@ struct CompetitionHome: View {
             } header: { Text(store.isSignedIn ? "More competitions" : "Upcoming competitions").foregroundStyle(Color.gameDaySecondary) }
             if store.status(.home).error == nil { Section { SyncStatus() }.listRowBackground(Color.clear) }
         }
+        .listStyle(.plain)
         .navigationTitle("Competitions")
         .accessibilityIdentifier("homeHeading")
         .searchable(text: $search, prompt: "Search")
@@ -117,7 +118,7 @@ struct MyDayView: View {
     @Environment(GameDayStore.self) private var store
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
+            LazyVStack(alignment: .leading, spacing: 16) {
                 if !store.isSignedIn {
                     EmptyState(title: "Your heat schedule", message: "Sign in to see your assigned heats, lanes, and reminders.", symbol: "timer")
                     Button("Sign in to WODsmith") { store.showSignIn = true }.buttonStyle(.borderedProminent).controlSize(.large).frame(maxWidth: .infinity)
@@ -128,7 +129,7 @@ struct MyDayView: View {
                     ForEach(store.home.myCompetitions) { competition in
                         VStack(alignment: .leading, spacing: 12) {
                             NavigationLink { CompetitionView(competitionID: competition.id) } label: {
-                                HStack { Text(competition.name).font(.title2.bold()); Spacer(); Image(systemName: "chevron.right").font(.subheadline).foregroundStyle(.secondary) }.frame(minHeight: 44)
+                                HStack { Text(competition.name).font(.headline); Spacer(); Image(systemName: "chevron.right").font(.subheadline).foregroundStyle(.secondary) }.frame(minHeight: 44)
                             }.buttonStyle(.plain)
                             SyncStatus(resource: .competition(competition.id))
                             if let detail = store.details[competition.id] { AthleteSchedule(detail: detail) }
@@ -138,8 +139,15 @@ struct MyDayView: View {
                         }
                     }
                 }
-            }.padding(20)
-        }.background(Color.gameDayPaper).navigationTitle("My day")
+            }.padding(16)
+        }.background(Color(uiColor: .systemBackground)).navigationTitle("My day")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink { ReminderSettingsView() } label: {
+                        Image(systemName: "bell").frame(minWidth: 44, minHeight: 44)
+                    }.accessibilityLabel("Heat reminders")
+                }
+            }
             .refreshable { await store.refresh() }
     }
 }

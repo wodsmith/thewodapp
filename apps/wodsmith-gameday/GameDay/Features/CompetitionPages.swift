@@ -4,12 +4,20 @@ struct FullScheduleView: View {
     let detail: CompetitionDetail
     @State private var division = "All divisions"
     @State private var event = "All events"
+    @State private var onlyMine: Bool?
+    private var isAthlete: Bool { !AthleteCompetitionDefaults.registrations(detail.registrations, competitionID: detail.competition.id).isEmpty }
+    private var showingMine: Bool { onlyMine ?? isAthlete }
     var divisions: [String] { Array(Set(detail.heats.compactMap(\.division))).sorted() }
-    var filtered: [Heat] { detail.heats.filter { (division == "All divisions" || $0.division == division) && (event == "All events" || $0.eventName == event) } }
+    var filtered: [Heat] { AthleteCompetitionDefaults.scheduleHeats(detail: detail, onlyMine: onlyMine).filter { (showingMine || division == "All divisions" || $0.division == division) && (event == "All events" || $0.eventName == event) } }
     var body: some View {
         List {
             Section {
-                Picker("Division", selection: $division) { Text("All divisions").tag("All divisions"); ForEach(divisions, id: \.self) { Text($0).tag($0) } }
+                if isAthlete {
+                    Toggle("My heats only", isOn: Binding(get: { showingMine }, set: { onlyMine = $0 }))
+                }
+                if !showingMine {
+                    Picker("Division", selection: $division) { Text("All divisions").tag("All divisions"); ForEach(divisions, id: \.self) { Text($0).tag($0) } }
+                }
                 Picker("Event", selection: $event) { Text("All events").tag("All events"); ForEach(detail.workouts) { Text($0.name).tag($0.name) } }
             }
             Section {
@@ -80,18 +88,26 @@ struct RegistrationView: View {
 struct LeaderboardView: View {
     @Environment(GameDayStore.self) private var store
     let competitionID: String
-    @State private var division = ""
+    @State private var division: String?
     @State private var search = ""
     private var entries: [LeaderboardEntry] { store.leaderboards[competitionID]?.entries ?? [] }
-    private var divisions: [String] { Array(Set(entries.map(\.divisionLabel))).sorted() }
+    private var registrations: [Registration] { store.details[competitionID]?.registrations ?? store.home.registrations }
+    private var divisions: [AthleteCompetitionDefaults.Division] {
+        AthleteCompetitionDefaults.leaderboardDivisions(entries: entries, registrations: registrations, competitionID: competitionID)
+    }
+    private var selectedDivision: String? { AthleteCompetitionDefaults.selectedDivisionID(division, divisions: divisions) }
     private var filtered: [LeaderboardEntry] {
-        entries.filter { (division.isEmpty || $0.divisionLabel == division) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)) }
+        entries.filter { ($0.divisionId == selectedDivision) && (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)) }
             .sorted { $0.divisionLabel == $1.divisionLabel ? $0.overallRank < $1.overallRank : $0.divisionLabel < $1.divisionLabel }
     }
     var body: some View {
         List {
-            Section {
-                Picker("Division", selection: $division) { Text("All divisions").tag(""); ForEach(divisions, id: \.self) { Text($0).tag($0) } }
+            if !divisions.isEmpty {
+                Section {
+                    Picker("Division", selection: Binding(get: { selectedDivision }, set: { division = $0 })) {
+                        ForEach(divisions) { Text($0.label).tag(Optional($0.id)) }
+                    }
+                }
             }
             Section { SyncStatus(resource: .leaderboard(competitionID)) }
             if store.leaderboards[competitionID] == nil {
@@ -99,8 +115,8 @@ struct LeaderboardView: View {
             } else if entries.isEmpty {
                 EmptyState(title: "No published results", message: "Standings appear after the organizer publishes scores.", symbol: "list.number")
             } else if filtered.isEmpty {
-                EmptyState(title: "No matching athletes", message: "Try another name or division.", symbol: "magnifyingglass")
-                Button("Clear filters") { search = ""; division = "" }
+                EmptyState(title: search.isEmpty ? "No published results in this division" : "No matching athletes", message: "Try another name or division, or check back after scores are published.", symbol: "magnifyingglass")
+                Button("Clear filters") { search = ""; division = nil }
             }
             ForEach(filtered) { entry in
                 NavigationLink {
@@ -121,7 +137,7 @@ struct LeaderboardView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.name).font(.headline)
                             Text(entry.divisionLabel).font(.caption).foregroundStyle(.secondary)
-                            if store.home.registrations.contains(where: { $0.id == entry.id }) { Text("YOU").font(.caption2.bold()).foregroundStyle(Color.gameDayOrange) }
+                            if AthleteCompetitionDefaults.registrations(registrations, competitionID: competitionID).contains(where: { $0.id == entry.id }) { Text("YOU").font(.caption2.bold()).foregroundStyle(Color.gameDayOrange) }
                         }
                         Spacer()
                         Text(entry.totalPoints.formatted()).font(.headline.monospacedDigit())
