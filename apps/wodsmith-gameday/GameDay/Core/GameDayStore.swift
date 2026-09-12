@@ -41,6 +41,9 @@ final class GameDayStore {
             return left.startDate < right.startDate
         }
     }
+    private var loadedDetails: [CompetitionDetail] {
+        Array(Dictionary(details.values.map { ($0.competition.id, $0) }, uniquingKeysWith: { first, _ in first }).values)
+    }
     var cacheURL: URL { URL.cachesDirectory.appendingPathComponent("gameday-v1.json") }
     func status(_ resource: GameDayResource) -> ResourceStatus { states[resource] ?? ResourceStatus() }
 
@@ -112,9 +115,9 @@ final class GameDayStore {
             home = result
             states[.home] = ResourceStatus(updatedAt: .now)
             let registeredIDs = Set(result.myCompetitions.map(\.id))
-            details = details.filter { $0.value.registrations.isEmpty || registeredIDs.contains($0.key) }
+            details = details.filter { $0.value.registrations.isEmpty || registeredIDs.contains($0.value.competition.id) }
             await syncReminders()
-            await activities.reconcile(details: Array(details.values))
+            await activities.reconcile(details: loadedDetails)
             // Past competitions remain browsable; upcoming registered and spectated events refresh proactively.
             let today = String(ISO8601DateFormatter().string(from: .now.addingTimeInterval(-86400)).prefix(10))
             let upcomingRegisteredIDs = Set(result.competitions.filter {
@@ -138,12 +141,33 @@ final class GameDayStore {
         do {
             let detail: CompetitionDetail = try await api.request("api/gameday/v1/competitions/\(id)", token: token)
             guard current == generation else { return }
+            // Keep both link aliases and the canonical ID usable offline.
+            for key in details.keys where details[key]?.competition.id == detail.competition.id {
+                details[key] = detail
+                states[.competition(key)] = ResourceStatus(updatedAt: .now)
+            }
             details[id] = detail
+            details[detail.competition.id] = detail
             states[resource] = ResourceStatus(updatedAt: .now)
+            states[.competition(detail.competition.id)] = states[resource]
             saveCache()
             await syncReminders()
-            await activities.reconcile(details: Array(details.values))
-        } catch { await handle(error, resource: resource, generation: current) }
+            await activities.reconcile(details: loadedDetails)
+        } catch {
+            if current == generation, (error as? APIError)?.status == 404 {
+                let canonicalID = details[id]?.competition.id ?? id
+                let removedKeys = details.keys.filter { $0 == id || details[$0]?.competition.id == canonicalID }
+                for key in removedKeys {
+                    details.removeValue(forKey: key)
+                    leaderboards.removeValue(forKey: key)
+                }
+                home = HomeResponse(competitions: home.competitions.filter { $0.id != canonicalID }, registrations: home.registrations, profile: home.profile)
+                saveCache()
+                await syncReminders()
+                await activities.reconcile(details: loadedDetails)
+            }
+            await handle(error, resource: resource, generation: current)
+        }
     }
 
     func loadLeaderboard(_ id: String) async {
@@ -177,7 +201,7 @@ final class GameDayStore {
     }
 
     func syncReminders() async {
-        do { try await reminders.reconcile(details: isSignedIn ? Array(details.values) : []) }
+        do { try await reminders.reconcile(details: isSignedIn ? loadedDetails : []) }
         catch { self.error = "Heat reminders couldn’t be updated: \(error.localizedDescription)" }
     }
 

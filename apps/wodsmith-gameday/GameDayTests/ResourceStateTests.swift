@@ -75,15 +75,22 @@ final class ResourceStateTests: XCTestCase {
         configuration.protocolClasses = [ResourceURLProtocol.self]
         let api = GameDayAPI(baseURL: URL(string: "https://fixture.invalid")!, session: URLSession(configuration: configuration))
         let store = GameDayStore(api: api, spectator: preferences)
+        let previousCache = try? Data(contentsOf: store.cacheURL)
+        defer {
+            if let previousCache { try? previousCache.write(to: store.cacheURL) }
+            else { try? FileManager.default.removeItem(at: store.cacheURL) }
+        }
         store.home = .empty
         store.details = [:]
         ResourceURLProtocol.handler = { request in
             if request.url!.path.hasSuffix("/home") {
                 return (200, try GameDayJSON.encoder().encode(HomeResponse.empty))
             }
-            XCTAssertTrue(request.url!.path.hasSuffix("/competitions/demo-summit"))
+            XCTAssertTrue(request.url!.path.hasSuffix("/competitions/demo-summit") || request.url!.path.hasSuffix("/competitions/summit-throwdown"))
             return (200, try GameDayJSON.encoder().encode(DemoData.spectatorDetail))
         }
+        await store.loadCompetition(DemoData.competition.slug)
+        XCTAssertNotNil(store.details[DemoData.competition.id], "Slug links must cache the canonical ID")
         await store.refresh()
         XCTAssertTrue(store.home.competitions.isEmpty)
         XCTAssertEqual(store.spectatedCompetitions.map(\.id), [DemoData.competition.id])
@@ -93,6 +100,12 @@ final class ResourceStateTests: XCTestCase {
         XCTAssertEqual(restored.spectatedCompetitions.count, 1, "Discovery and cache must not duplicate saved events")
         restored.spectator.setSpectating(DemoData.competition.id, enabled: false)
         XCTAssertTrue(restored.spectatedCompetitions.isEmpty)
+        preferences.setSpectating(DemoData.competition.id, enabled: true)
+        ResourceURLProtocol.handler = { _ in (404, Data("{\"error\":\"Not found\"}".utf8)) }
+        await store.loadCompetition(DemoData.competition.id)
+        XCTAssertTrue(store.spectatedCompetitions.isEmpty)
+        XCTAssertNil(store.details[DemoData.competition.slug], "Revocation removes aliases too")
+        XCTAssertNil(GameDayStore(api: api, spectator: preferences).details[DemoData.competition.id])
     }
 
 }

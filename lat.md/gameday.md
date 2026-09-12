@@ -275,8 +275,10 @@ The iPhone app icon uses the anvil on an opaque white square without the former 
 
 ## Version 1.1 release integration
 
-Version 1.1 build 3 combines the compact athlete UI, division defaults, account-free spectator follows, explicit public heat assignments, and borderless app icon. App and extension versions are generated consistently from the native project script.
+Version 1.1 build 4 combines the compact athlete UI, division defaults, account-free spectator follows, explicit public heat assignments, and borderless app icon. App and extension versions are generated consistently from the native project script.
 
 The public participant/assignment API must be deployed before App Store submission. Existing 1.0 clients ignore the optional fields; no database migration is needed.
 
 Saved spectator IDs refresh independently of discovery, including after a cache or session reset. Participant fallback results show their own freshness, error, and retry state; pull to refresh reloads the fallback only when the full participant list is absent.
+
+Slug links cache a canonical ID alongside aliases; reminder reconciliation deduplicates those details. A confirmed 404 evicts cached competition details and aliases. Saved events still refresh after ending to detect publication changes and final results.

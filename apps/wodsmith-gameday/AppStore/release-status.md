@@ -67,3 +67,9 @@ Release branch: `zac/gameday-1-1-release`; PR https://github.com/wodsmith/thewod
 All repository pre-push lint and type checks passed with Node 24 and lockfile-pinned dependencies. Combined Game Day API tests pass 9/9; native unit tests pass. The spectator task also passed signed-out relaunch/unfollow/division flows, athlete navigation, and largest-text UI checks.
 
 Next: wait for PR checks, review any findings, merge and deploy the compatible public participant/assignment API through the production workflow, verify anonymous published assignments, then complete Add for Review and Submit for Review in App Store Connect. Do not re-upload build 2. Existing review credentials remain saved privately.
+
+## Version 1.1 build 4 — review corrections
+
+Builds 2 and 3 are superseded and must not be submitted. Build 4 adds saved unlisted discovery recovery, canonical slug caching, 404 cache eviction, and participant fallback status/retry. Archive and upload build 4 from the final reviewed code, select it, then submit only after PR #700 is merged and the production API is verified.
+
+The earlier 193 type diagnostics came from the spectator task's shared dependency setup. A fresh frozen-lockfile install with Node 24 resolved that environment mismatch; full pre-push lint/type checks and PR CI type checks passed on 62df9d921.
