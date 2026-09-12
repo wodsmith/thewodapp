@@ -1209,6 +1209,7 @@ async function saveCompetitionScore(
   const receipt = await recordCompetitionResult({
     db,
     command: {
+      competitionId: data.competitionId,
       athleteUserId: data.userId,
       trackWorkoutId: data.trackWorkoutId,
       divisionScope: divisionScopeFromId(data.divisionId),

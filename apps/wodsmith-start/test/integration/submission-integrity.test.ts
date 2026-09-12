@@ -16,6 +16,7 @@ import type { Database } from "@/db"
 import {
   competitionEventsTable,
   competitionRegistrationsTable,
+  teamMembershipTable,
   competitionsTable,
   programmingTracksTable,
   scalingLevelsTable,
@@ -63,6 +64,7 @@ const tables = [
   competitionsTable,
   competitionEventsTable,
   competitionRegistrationsTable,
+  teamMembershipTable,
   programmingTracksTable,
   trackWorkoutsTable,
   workouts,

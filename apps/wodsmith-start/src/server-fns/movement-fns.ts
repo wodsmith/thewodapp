@@ -3,7 +3,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { eq, inArray } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -14,6 +14,7 @@ import {
   workouts,
   workoutTags,
 } from "@/db/schemas/workouts"
+import { workoutVisibilityCondition } from "@/server/training-access"
 import { getSessionFromCookie, requireAdmin } from "@/utils/auth"
 
 /**
@@ -139,7 +140,12 @@ export const getWorkoutsByMovementIdFn = createServerFn({ method: "GET" })
     const workoutsData = await db
       .select()
       .from(workouts)
-      .where(inArray(workouts.id, workoutIds))
+      .where(
+        and(
+          inArray(workouts.id, workoutIds),
+          await workoutVisibilityCondition(),
+        ),
+      )
 
     // Get tags for these workouts
     const workoutTagsData = await db

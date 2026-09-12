@@ -13,15 +13,15 @@ The mobile score route retains bearer-or-cookie authentication plus its exact in
 
 ## Mobile score nullable-division readback
 
-The mobile score route stores the registration division, while a null division currently leaves its post-upsert score-id readback unscoped by division.
+The mobile score route stores and reads back the exact registration division, including explicit null, so another division cannot supply the returned score ID.
 
 ## Mobile score explicit CAP and tiebreak
 
 Mobile score entry trusts explicit CAP, clamps time-with-cap values, accepts non-negative secondary reps, and stores a null encoding for an invalid tiebreak.
 
-## Mobile score non-transactional response
+## Mobile score transactional response
 
-Mobile score entry upserts before reading the score id without a transaction and returns the established success envelope.
+Mobile score entry locks and revalidates the registration, upserts and reads the score ID in one transaction, and returns the established success envelope.
 
 ## Personal padded sort-key storage
 

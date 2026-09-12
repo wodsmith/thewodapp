@@ -1,3 +1,8 @@
+// SQL authorization is exercised with real memberships in integration/training-access.test.ts.
+vi.mock("@/server/training-access", () => ({
+  workoutVisibilityCondition: vi.fn(async () => undefined),
+  requireTrainingTeamMember: vi.fn(async () => undefined),
+}))
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeDrizzleDb} from '@repo/test-utils'
 import {

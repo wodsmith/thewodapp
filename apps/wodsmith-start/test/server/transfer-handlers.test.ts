@@ -1,3 +1,7 @@
+vi.mock("@/server/competition-results/registration-lock", () => ({
+  assertUnambiguousResultOwnership: vi.fn().mockResolvedValue(undefined),
+}))
+
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeDrizzleDb} from '@repo/test-utils'
 
@@ -34,6 +38,7 @@ vi.mock('@tanstack/react-start', () => ({
   createServerOnlyFn: (fn: any) => fn,
 }))
 
+import {waiverSignaturesTable} from '@/db/schema'
 import {handleCompetitionRegistrationTransfer} from '@/server/commerce/transfer-handlers'
 
 const transferDb = mockDb as unknown as Parameters<typeof handleCompetitionRegistrationTransfer>[0]
@@ -85,6 +90,7 @@ beforeEach(() => {
 
   // Add $returningId to chainMock — used by db.insert().values().$returningId()
   const chainMock = mockDb.getChainMock()
+  ;(chainMock.for as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{id: testRegistrationId}])
   ;(chainMock as any).$returningId = vi
     .fn()
     .mockResolvedValue([{id: 'tm-new-001'}])
@@ -240,7 +246,16 @@ describe('handleCompetitionRegistrationTransfer', () => {
       waiverSignatures: [{waiverId: 'waiver-1', signatureName: 'Target Athlete'}],
     })
 
-    expect(mockDb.insert).toHaveBeenCalled()
+    expect(mockDb.insert).toHaveBeenCalledWith(waiverSignaturesTable)
+    expect(mockDb.getChainMock().values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        waiverId: 'waiver-1',
+        signatureName: 'Target Athlete',
+        userId: targetUserId,
+        registrationId: testRegistrationId,
+        signedAt: expect.any(Date),
+      }),
+    )
   })
 
   it('handles team registration: swaps athlete team memberships', async () => {
