@@ -268,3 +268,9 @@ App Store Connect showed 1.0 Ready for Distribution on September 12, 2026. The 1
 ## Native app icon
 
 The iPhone app icon uses the anvil on an opaque white square without the former circular outline. iOS applies its own rounded-square mask. The asset remains a 1024 × 1024 RGB PNG; changing the public App Store icon requires a new app build.
+
+## Version 1.1 release integration
+
+Version 1.1 build 2 combines the compact athlete UI, division defaults, account-free spectator follows, explicit public heat assignments, and borderless app icon. App and extension versions are generated consistently from the native project script.
+
+The public participant/assignment API must be deployed before App Store submission. Existing 1.0 clients ignore the optional fields; no database migration is needed.
