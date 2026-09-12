@@ -1,3 +1,11 @@
+import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
+vi.mock("@/server/workout-import/access", () => ({ requireWorkoutTeamWrite: vi.fn(async () => undefined) }))
+// SQL authorization is exercised with real memberships in integration/training-access.test.ts.
+vi.mock("@/server/training-access", () => ({
+  canReadWorkout: vi.fn(async () => true),
+  workoutVisibilityCondition: vi.fn(async () => undefined),
+  requireTrainingTeamMember: vi.fn(async () => undefined),
+}))
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeDrizzleDb} from '@repo/test-utils'
 import {
@@ -316,19 +324,15 @@ describe('Workout Remix Server Functions', () => {
         typeof vi.fn
       >
 
-      // Default mock returns empty array (for memberships, tags, movements queries)
+      // Default mock returns empty arrays for tags and movements
       mockDb.setMockReturnValue([])
 
       // Sequence of DB calls:
-      // 1. Check team membership
-      limitMock.mockResolvedValueOnce([
-        {teamId: 'team-1', userId: 'test-user-123'},
-      ])
-      // 2. Get source workout
+      // 1. Get source workout
       limitMock.mockResolvedValueOnce([sourceWorkout])
-      // 3. Insert new workout
+      // 2. Insert new workout
       returningMock.mockResolvedValueOnce([createdRemix])
-      // 4. Get created workout
+      // 3. Get created workout
       limitMock.mockResolvedValueOnce([createdRemix])
 
       const result = await createWorkoutRemixFn({
@@ -361,13 +365,9 @@ describe('Workout Remix Server Functions', () => {
         typeof vi.fn
       >
 
-      // Default mock returns empty array (for memberships, tags, movements queries)
+      // Default mock returns empty arrays for tags and movements
       mockDb.setMockReturnValue([])
 
-      // Membership check
-      limitMock.mockResolvedValueOnce([
-        {teamId: 'team-1', userId: 'test-user-123'},
-      ])
       // Get source workout
       limitMock.mockResolvedValueOnce([sourceWorkout])
 
@@ -404,10 +404,6 @@ describe('Workout Remix Server Functions', () => {
     it('throws when source workout not found', async () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 
-      // Membership check passes
-      limitMock.mockResolvedValueOnce([
-        {teamId: 'team-1', userId: 'test-user-123'},
-      ])
       // Source workout not found
       limitMock.mockResolvedValueOnce([])
 
@@ -422,10 +418,9 @@ describe('Workout Remix Server Functions', () => {
     })
 
     it('throws when user not a member of target team', async () => {
-      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 
-      // Membership check fails
-      limitMock.mockResolvedValueOnce([])
+      // Current destination permission is denied before loading the source.
+      vi.mocked(requireWorkoutTeamWrite).mockRejectedValueOnce(new Error('Workout import access required'))
 
       await expect(
         createWorkoutRemixFn({
@@ -435,7 +430,7 @@ describe('Workout Remix Server Functions', () => {
           },
         }),
       ).rejects.toThrow(
-        'You are not authorized to create workouts for this team',
+        'Workout import access required',
       )
     })
 

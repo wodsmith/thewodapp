@@ -705,7 +705,8 @@ describe.skipIf(!mysqlTestConfig)("workout import on MySQL", () => {
     expect((await getWorkoutByIdFn({data:{id:saved.workoutId}})).workout).toMatchObject({roundsToScore:1,repsPerRound:null,tiebreakScheme:null,scalingGroupId:null,movements:[]})
     await db.update(teamMembershipTable).set({isActive:false}).where(eq(teamMembershipTable.teamId,"personal"))
     await expect(updateWorkoutFn({data:{...edit,name:"Forbidden"}})).rejects.toThrow("access required")
-    expect((await getWorkoutByIdFn({data:{id:saved.workoutId}})).workout?.name).toBe("Edited")
+    expect((await getWorkoutByIdFn({data:{id:saved.workoutId}})).workout).toBeNull()
+    expect((await db.query.workouts.findFirst({where:eq(workouts.id,saved.workoutId)}))?.name).toBe("Edited")
   })
   it("manual creation persists metadata and movements with actual destination authorization", async () => {
     const data = {

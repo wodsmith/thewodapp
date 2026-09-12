@@ -1,3 +1,10 @@
+// SQL authorization is exercised with real memberships in integration/training-access.test.ts.
+vi.mock("@/server/training-access", () => ({
+  canReadWorkout: vi.fn(async () => true),
+  workoutVisibilityCondition: vi.fn(async () => undefined),
+  requireTrainingTeamMember: vi.fn(async () => undefined),
+  requireTrackRead: vi.fn(async () => undefined),
+}))
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeDrizzleDb} from '@repo/test-utils'
 import {
@@ -730,6 +737,10 @@ describe('Workout Server Functions (TanStack)', () => {
   })
 
   describe('scheduleWorkoutFn', () => {
+    beforeEach(() => {
+      mockDb.registerTable('workouts')
+      vi.mocked(mockDb.query.workouts.findFirst).mockResolvedValue(createTestWorkout({id: 'wk-123', teamId: 'team-1'}))
+    })
     it('schedules a workout for a team', async () => {
       const instance = createScheduledInstance({
         id: 'instance-123',
