@@ -33,6 +33,7 @@ export const Route = createFileRoute(
 
     return {
       track: trackResult.track,
+      canManageWorkouts: trackResult.canManageWorkouts,
       trackWorkouts: workoutsResult.workouts,
       teamId,
       teamName: team?.name ?? "Team",
@@ -41,7 +42,8 @@ export const Route = createFileRoute(
 })
 
 function AdminTrackDetailPage() {
-  const { track, trackWorkouts, teamId, teamName } = Route.useLoaderData()
+  const { track, trackWorkouts, teamName, canManageWorkouts } =
+    Route.useLoaderData()
   const router = useRouter()
 
   const handleRefresh = () => {
@@ -70,7 +72,6 @@ function AdminTrackDetailPage() {
   }
 
   // Determine if the current team owns this track
-  const isOwner = track.ownerTeamId === teamId
 
   return (
     <>
@@ -113,7 +114,11 @@ function AdminTrackDetailPage() {
         </div>
 
         {/* Track Header Component */}
-        <TrackHeader track={track} onSuccess={handleRefresh} />
+        <TrackHeader
+          canManage={canManageWorkouts}
+          track={track}
+          onSuccess={handleRefresh}
+        />
 
         {/* Track Workouts Section */}
         <div className="mt-8 bg-card border-4 border-primary rounded-none p-6">
@@ -123,7 +128,7 @@ function AdminTrackDetailPage() {
               <p className="text-sm text-muted-foreground font-mono">
                 {trackWorkouts.length} workout(s)
               </p>
-              {isOwner && track.ownerTeamId && (
+              {canManageWorkouts && track.ownerTeamId && (
                 <AddWorkoutToTrackDialog
                   trackId={track.id}
                   teamId={track.ownerTeamId}
@@ -133,6 +138,7 @@ function AdminTrackDetailPage() {
             </div>
           </div>
           <TrackWorkoutList
+            canManage={canManageWorkouts}
             trackWorkouts={trackWorkouts}
             onWorkoutRemoved={handleWorkoutRemoved}
           />

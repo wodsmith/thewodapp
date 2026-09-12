@@ -37,3 +37,5 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[athlete-workout-review]] — Athlete workout editing, catalog choices, and score-dialog review regressions.
 
 - [[transfer-integrity-tests]] — Transfer score scope, division guards, waiver signatures, and invite recovery regression tests.
+- [[training-access]] — Training resource visibility and owner-team mutation boundaries.
+- [[training-access-tests]] — Real MySQL regressions for training visibility, permissions and remix access.
