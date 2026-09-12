@@ -15,10 +15,7 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
-import {
-  createSession,
-  generateSessionToken,
-} from "@/utils/auth"
+import { createSession, generateSessionToken } from "@/utils/auth"
 import { corsHeaders, encodeBearerToken } from "@/utils/bearer-auth"
 import { verifyPassword } from "@/utils/password-hasher"
 
@@ -69,11 +66,17 @@ export const Route = createFileRoute("/api/auth/token")({
         })
 
         if (!user || !user.passwordHash) {
-          return json({ error: "Invalid email or password" }, { status: 401, headers })
+          return json(
+            { error: "Invalid email or password" },
+            { status: 401, headers },
+          )
         }
 
         if (!user.emailVerified) {
-          return json({ error: "Invalid email or password" }, { status: 401, headers })
+          return json(
+            { error: "Invalid email or password" },
+            { status: 401, headers },
+          )
         }
 
         const isValid = await verifyPassword({
@@ -82,7 +85,10 @@ export const Route = createFileRoute("/api/auth/token")({
         })
 
         if (!isValid) {
-          return json({ error: "Invalid email or password" }, { status: 401, headers })
+          return json(
+            { error: "Invalid email or password" },
+            { status: 401, headers },
+          )
         }
 
         const token = generateSessionToken()
@@ -91,6 +97,7 @@ export const Route = createFileRoute("/api/auth/token")({
           userId: user.id,
           authenticationType: "password",
           authenticatedAt,
+          authenticationGeneration: user.authGeneration,
         })
 
         return json(

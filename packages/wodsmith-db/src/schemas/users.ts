@@ -48,6 +48,8 @@ export const userTable = mysqlTable(
       length: 255,
     }).unique(),
     passwordHash: varchar({ length: 255 }),
+    // Durable credential generation; independent of expiring signup intents and KV.
+    authGeneration: int().default(0).notNull(),
     role: varchar({
       length: 50,
       enum: roleTuple,
