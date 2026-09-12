@@ -24,7 +24,7 @@ The production origin is `https://wodsmith.com`. Deploy `apps/wodsmith-start` be
 
 - `POST /api/auth/token`: existing WODsmith email/password session exchange.
 - `GET /api/gameday/v1/home`: public competition directory, and authenticated profile/registrations when a bearer session is supplied.
-- `GET /api/gameday/v1/competitions/{id-or-slug}`: published competition, workouts with applicable division standards, heats, owned assignments, registrations, and permitted announcements.
+- `GET /api/gameday/v1/competitions/{id-or-slug}`: published competition, workouts with applicable division standards, heats, owned assignments, registrations, permitted announcements, and minimal public participants/lane assignments.
 - `GET /api/gameday/v1/competitions/{id-or-slug}/leaderboard`: published standings using WODsmith’s ranking service.
 - `DELETE /api/gameday/v1/session`: revoke the current bearer session.
 - `PATCH /api/gameday/v1/profile`: authenticated first/last name update.
@@ -39,9 +39,13 @@ A user-started Live Activity shows the next heat on the Lock Screen and Dynamic 
 
 Session credentials use the iOS Keychain. Downloaded data is cached per user and cleared on sign-out. No credentials are stored in UserDefaults or the data cache. No advertising or analytics SDK is included.
 
+Spectated competition IDs and followed registration IDs are saved separately in UserDefaults and survive sign-out. Following requires no account. Public lanes never grant athlete ownership or enable athlete reminders. Deploy the API's `participants` and `publicAssignments` projection before distributing the spectator update; older servers show an explicit unavailable state for followed heats.
+
 ## Test fixtures
 
 Debug builds can launch with `--demo` for fictional athlete data and screenshots. Normal launches use the real API, including honest error states when the API is unavailable. Release builds never honor the demo launch flag. Do not present fictional fixtures as proof of a deployed backend.
+
+Add `--spectator-demo` alongside `--demo` for a signed-out fixture with an athlete and team assigned to different heats. The third heat belongs to an unrelated athlete in the same division, guarding against inferred follow membership.
 
 ## Release
 

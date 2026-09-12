@@ -164,6 +164,8 @@ Unknown or draft competitions return 404 before schedules, announcements, or lea
 
 Spectator competition details select only published heats and workouts and sent public announcements. Personal lane assignments are absent without registration ownership.
 
+Separate public assignments contain only published heat, active registration, and lane references.
+
 ### Resource freshness isolation
 
 A failed competition request preserves that schedule’s last successful download time and error, even after a successful directory refresh. Settled failures stop showing a loading state.
@@ -171,6 +173,38 @@ A failed competition request preserves that schedule’s last successful downloa
 ### Contextual retry
 
 Retrying a failed public competition requests that competition directly, replaces its cached data, and clears only its own failure after success.
+
+### Spectator persistence
+
+Spectated competition IDs and followed registration IDs survive relaunch and sign-out. Follows are scoped to competitions; unfollowing removes only the selected registration, and stopping spectating retains follows for later.
+
+### Public follow heat mapping
+
+Athlete and team follows match only explicit public assignments, including mixed-division heats. Multiple divisions combine matches; missing, removed, or unfollowed registrations never gain a heat through division similarity.
+
+### Anonymous spectator navigation
+
+A signed-out spectator marks a competition, follows an athlete and team, sees their exact lanes, relaunches with preferences intact, and unfollows back to an explanatory empty state.
+
+### Accessible spectator controls
+
+At the largest accessibility text size, a spectator can reach and toggle follow controls. Native screenshots also inspect the participant list in landscape; full VoiceOver traversal is not certified.
+
+### Public participant projection
+
+The API returns only active registration references, public display names, team flags, division references, and explicit lanes in published heats. Team captain names, contact details, credentials, and private registration metadata stay out.
+
+## Spectator following
+
+Spectators save competitions and follow athlete or team registrations locally without an account. Spectated competitions have a dedicated discovery section; upcoming followed heats use explicit published lane assignments.
+
+Preferences store only competition and registration IDs in UserDefaults, separately from private download caches. Sign-out clears private data but preserves these device choices. Following a participant also marks the competition as spectating; stopping spectating retains its follows.
+
+The participant list supports search, multiple divisions, and All participants/Following controls. Leaderboards retain exactly one division, prefer active athlete registrations, then followed divisions for spectators. Schedule controls offer My heats for athletes, Following, and All heats, with multiple public division filters and earlier heats collapsed.
+
+Public details add optional `participants` and `publicAssignments` projections. Participants include active registration IDs, display names, division IDs/labels, and a team flag. Public assignments select only those registrations and already-published heat IDs; they never populate athlete-owned assignments or reminders.
+
+Older servers and caches may omit these fields. The app can follow leaderboard entries, explains missing public lanes, and never guesses heat membership. Deploy the updated Game Day API before distributing the spectator build to enable the full participant list and followed schedule.
 
 ## Native design
 
@@ -185,6 +219,7 @@ The registered-first home order follows the user’s brief. Subsequent heats do 
 The confirmation pass covers light/dark athlete schedules and largest-text scrolling to actions and later workouts. Durable simulator evidence is stored in `apps/wodsmith-gameday/AppStore/design-evidence/`. Portrait/landscape standards and live production athlete behavior are verified. Full VoiceOver traversal, RTL, and unusually long organizer content remain bounded validation gaps.
 
 The compact UI and athlete defaults are captured together on an iPhone 16e simulator using fictional demo data in `apps/wodsmith-gameday/AppStore/design-evidence/compact-athlete/`: competition, division leaderboard, and personal schedule.
+The finite competition hub uses a regular stack: a lazy stack with the live countdown could enter a layout loop while scrolling in iOS 26.2. The app icon incorporates the parent task’s borderless artwork.
 
 ## Release preparation
 

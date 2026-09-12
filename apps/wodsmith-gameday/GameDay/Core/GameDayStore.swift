@@ -25,13 +25,26 @@ final class GameDayStore {
     let api: GameDayAPI
     let reminders = HeatReminderManager()
     let activities = HeatActivityManager()
+    let spectator: SpectatorPreferences
     let isDemo: Bool
 
     var isSignedIn: Bool { token != nil || (isDemo && home.profile != nil) }
+    var spectatedCompetitions: [Competition] {
+        home.competitions.filter { spectator.competitionIDs.contains($0.id) }.sorted { left, right in
+            if left.hasEnded() != right.hasEnded() { return !left.hasEnded() }
+            let next: (Competition) -> Date = { competition in
+                self.details[competition.id]?.spectatorHeats(followedIDs: self.spectator.followedIDs(competition.id))
+                    .first { ($0.endsAt ?? .distantFuture) > .now }?.startsAt ?? .distantFuture
+            }
+            if next(left) != next(right) { return next(left) < next(right) }
+            return left.startDate < right.startDate
+        }
+    }
     var cacheURL: URL { URL.cachesDirectory.appendingPathComponent("gameday-v1.json") }
     func status(_ resource: GameDayResource) -> ResourceStatus { states[resource] ?? ResourceStatus() }
 
-    init(api: GameDayAPI = GameDayAPI(), demo: Bool = false) {
+    init(api: GameDayAPI = GameDayAPI(), demo: Bool = false, spectator: SpectatorPreferences = SpectatorPreferences()) {
+        self.spectator = spectator
         self.api = api
         self.isDemo = demo
         if demo {
@@ -40,6 +53,11 @@ final class GameDayStore {
             leaderboards = [DemoData.competition.id: DemoData.leaderboard]
             for resource in [GameDayResource.home, .competition(DemoData.competition.id), .leaderboard(DemoData.competition.id)] {
                 states[resource] = ResourceStatus(updatedAt: .now)
+            }
+            if ProcessInfo.processInfo.arguments.contains("--spectator-demo") {
+                home = HomeResponse(competitions: DemoData.home.competitions, registrations: [], profile: nil)
+                details = [DemoData.competition.id: DemoData.spectatorDetail]
+                leaderboards = [DemoData.competition.id: DemoData.spectatorLeaderboard]
             }
         } else {
             token = SessionKeychain.read()
@@ -96,9 +114,9 @@ final class GameDayStore {
             details = details.filter { $0.value.registrations.isEmpty || registeredIDs.contains($0.key) }
             await syncReminders()
             await activities.reconcile(details: Array(details.values))
-            // Past competitions remain browsable; only upcoming registrations need proactive downloads.
+            // Past competitions remain browsable; upcoming registered and spectated events refresh proactively.
             let today = String(ISO8601DateFormatter().string(from: .now.addingTimeInterval(-86400)).prefix(10))
-            for competition in result.myCompetitions where competition.endDate >= today {
+            for competition in result.competitions where (registeredIDs.contains(competition.id) || spectator.competitionIDs.contains(competition.id)) && competition.endDate >= today {
                 await loadCompetition(competition.id)
                 guard current == generation else { return }
             }

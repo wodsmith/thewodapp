@@ -145,6 +145,8 @@ struct CompetitionDetail: Codable {
     let assignments: [HeatAssignment]
     let workouts: [Workout]
     let announcements: [Announcement]
+    var participants: [PublicParticipant]? = nil
+    var publicAssignments: [HeatAssignment]? = nil
     var myHeats: [Heat] {
         let registrations = Set(registrations.filter { $0.status == "active" }.map(\.id))
         let ids = Set(assignments.filter { registrations.contains($0.registrationId) }.map(\.heatId))

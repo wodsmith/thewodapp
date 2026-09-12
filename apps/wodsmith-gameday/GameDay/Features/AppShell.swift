@@ -64,16 +64,6 @@ struct CompetitionHome: View {
     }
     var body: some View {
         List {
-            if !store.isSignedIn {
-                Section {
-                    Button { store.showSignIn = true } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Athlete sign-in").font(.headline)
-                            Text("See your registered competitions and assigned heats.").font(.subheadline).foregroundStyle(.secondary)
-                        }.padding(.vertical, 6)
-                    }.accessibilityIdentifier("athleteSignIn")
-                }
-            }
             if store.status(.home).error != nil { Section { SyncStatus() } }
             if store.isSignedIn && search.isEmpty {
                 Section {
@@ -87,13 +77,22 @@ struct CompetitionHome: View {
                     }
                 } header: { Text("Your competitions").foregroundStyle(Color.gameDaySecondary) }
             }
+            if search.isEmpty && !store.spectator.competitionIDs.isEmpty {
+                Section("Spectating") {
+                    ForEach(store.spectatedCompetitions) { competition in
+                        NavigationLink { CompetitionView(competitionID: competition.id) } label: {
+                            CompetitionCard(competition: competition)
+                        }
+                    }
+                }
+            }
             Section {
                 if store.status(.home).isLoading && store.home.competitions.isEmpty {
                     ProgressView("Loading competitions…")
                 } else if competitions.isEmpty && store.status(.home).error == nil {
                     EmptyState(title: search.isEmpty ? "No upcoming competitions" : "No matches", message: "Try another search or include past competitions.", symbol: "magnifyingglass")
                 }
-                ForEach(competitions) { competition in
+                ForEach(competitions.filter { !search.isEmpty || !store.spectator.competitionIDs.contains($0.id) }) { competition in
                     NavigationLink { CompetitionView(competitionID: competition.id) } label: { CompetitionCard(competition: competition) }
                 }
             } header: { Text(store.isSignedIn ? "More competitions" : "Upcoming competitions").foregroundStyle(Color.gameDaySecondary) }
@@ -120,8 +119,15 @@ struct MyDayView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 if !store.isSignedIn {
-                    EmptyState(title: "Your heat schedule", message: "Sign in to see your assigned heats, lanes, and reminders.", symbol: "timer")
-                    Button("Sign in to WODsmith") { store.showSignIn = true }.buttonStyle(.borderedProminent).controlSize(.large).frame(maxWidth: .infinity)
+                    if store.spectator.competitionIDs.isEmpty {
+                        EmptyState(title: "Your spectator day", message: "Open a competition and tap Spectate, then follow athletes or teams to build your day. No account needed.", symbol: "star")
+                    }
+                    ForEach(store.spectatedCompetitions) { competition in
+                        NavigationLink(competition.name) { CompetitionView(competitionID: competition.id) }.font(.headline).frame(minHeight: 44)
+                        if let detail = store.details[competition.id] { SpectatorSummary(detail: detail) }
+                        SyncStatus(resource: .competition(competition.id))
+                            .task { if store.details[competition.id] == nil { await store.loadCompetition(competition.id) } }
+                    }
                 } else {
                     if store.home.myCompetitions.isEmpty {
                         EmptyState(title: "No registered competitions", message: "Use Competitions to browse events, or check that you signed in with your registration email.")

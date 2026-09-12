@@ -5,7 +5,7 @@ struct CompetitionView: View {
     let competitionID: String
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
                 if store.status(.competition(competitionID)).error != nil {
                     SyncStatus(resource: .competition(competitionID))
                 }
@@ -19,12 +19,15 @@ struct CompetitionView: View {
                     } else {
                         CompetitionCard(competition: detail.competition)
                     }
+                    if detail.registrations.isEmpty || store.spectator.competitionIDs.contains(detail.competition.id) {
+                        SpectatorSummary(detail: detail)
+                    }
                     VStack(spacing: 0) {
                         hubLink("Full schedule", icon: "calendar.badge.clock") { FullScheduleView(detail: detail) }
                         Divider().padding(.leading, 34)
                         hubLink("Workouts", icon: "dumbbell") { WorkoutsView(detail: detail) }
                         Divider().padding(.leading, 34)
-                        hubLink("Leaderboard", icon: "list.number") { LeaderboardView(competitionID: competitionID) }
+                        hubLink("Leaderboard", icon: "list.number") { LeaderboardView(competitionID: detail.competition.id) }
                         Divider().padding(.leading, 34)
                         hubLink("Announcements", icon: "megaphone") { AnnouncementsView(detail: detail) }
                         if !detail.registrations.isEmpty {
@@ -53,9 +56,19 @@ struct CompetitionView: View {
             .navigationTitle("Competition").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink { ReminderSettingsView() } label: {
-                        Image(systemName: "bell").frame(minWidth: 44, minHeight: 44)
-                    }.accessibilityLabel("Heat reminders")
+                    let id = store.details[competitionID]?.competition.id ?? competitionID
+                    Button {
+                        store.spectator.setSpectating(id, enabled: !store.spectator.competitionIDs.contains(id))
+                    } label: {
+                        Label(store.spectator.competitionIDs.contains(id) ? "Spectating" : "Spectate", systemImage: store.spectator.competitionIDs.contains(id) ? "star.fill" : "star").labelStyle(.titleOnly)
+                    }.accessibilityIdentifier("spectateCompetition")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !(store.details[competitionID]?.registrations.isEmpty ?? true) {
+                        NavigationLink { ReminderSettingsView() } label: {
+                            Image(systemName: "bell").frame(minWidth: 44, minHeight: 44)
+                        }.accessibilityLabel("Heat reminders")
+                    }
                 }
             }
             .task { await store.loadCompetition(competitionID) }

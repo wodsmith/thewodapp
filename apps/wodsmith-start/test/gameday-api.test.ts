@@ -128,7 +128,7 @@ describe("Game Day API", () => {
       ),
     )
     expect(response.status).toBe(200)
-    expect(statements).toHaveLength(4)
+    expect(statements).toHaveLength(5)
     expect(statements[1].sql).toContain("schedulePublishedAt")
     expect(statements[1].sql).toContain("is not null")
     expect(statements[1].params).toContain("published")
@@ -221,6 +221,35 @@ describe("Game Day API", () => {
       expect.arrayContaining(["workout-1", "rx", "scaled"]),
     )
     expect(statements[5].params).toEqual(["competition-1"])
+  })
+
+  // @lat: [[gameday#Tests#Public participant projection]]
+  it("projects active public participants and matches lanes only within published heats", async () => {
+    rows.push(
+      [["competition-1", "summit", "Summit", null, "2026-09-05", "2026-09-05", "America/Boise", "in-person", null, null, null, null, null]],
+      [["heat-1", "event-1", "Engine Room", 1, "2026-09-05T17:00:00Z", 12, "Floor", null]],
+      [], [],
+      [["athlete-1", "rx", "RX", null, "Alex", "Morgan"], ["team-1", "teams", "Teams", "Summit Crew", "Private", "Captain"]],
+      [["heat-1", "athlete-1", 2], ["heat-1", "team-1", 5]],
+    )
+    const response = await handleGameDayRequest(new Request("https://wodsmith.com/api/gameday/v1/competitions/competition-1"))
+    expect(response.status).toBe(200)
+    const detail = await response.json()
+    expect(detail).toHaveProperty("registrations", [])
+    expect(detail).toHaveProperty("assignments", [])
+    expect(detail).toHaveProperty("participants", [
+      {id: "athlete-1", name: "Alex Morgan", divisionId: "rx", division: "RX", isTeam: false},
+      {id: "team-1", name: "Summit Crew", divisionId: "teams", division: "Teams", isTeam: true},
+    ])
+    expect(detail).toHaveProperty("publicAssignments", [
+      {heatId: "heat-1", registrationId: "athlete-1", lane: 2},
+      {heatId: "heat-1", registrationId: "team-1", lane: 5},
+    ])
+    expect(statements[4].params).toEqual(["competition-1", "active"])
+    expect(statements[5].params).toEqual(["heat-1", "athlete-1", "team-1"])
+    expect(statements[1].sql).toContain("schedulePublishedAt")
+    expect(statements[1].params).toContain("published")
+    expect(JSON.stringify(detail)).not.toMatch(/Private|Captain|email|userId|password|payment|checkedIn/)
   })
 
   // @lat: [[gameday#Tests#Session revocation boundary]]
