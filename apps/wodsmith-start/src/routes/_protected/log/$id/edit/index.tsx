@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils"
 import {
   getLogByIdFn,
+  getOwnedLogWorkoutFn,
   getScalingLevelsFn,
   getScoreRoundsFn,
   updateLogFn,
@@ -24,7 +25,6 @@ import {
   getPersonalLibraryScalingLevelsFn,
   savePersonalLibraryResultFn,
 } from "@/server-fns/training-personal-fns"
-import { getWorkoutByIdFn } from "@/server-fns/workout-fns"
 import { parseScore } from "@/utils/score-parser-new"
 
 export const Route = createFileRoute("/_protected/log/$id/edit/")({
@@ -51,8 +51,8 @@ export const Route = createFileRoute("/_protected/log/$id/edit/")({
     // Fetch workout details
     const workoutResult = score.personalWorkout
       ? { workout: { ...score.personalWorkout, id: score.workoutId } }
-      : await getWorkoutByIdFn({
-          data: { id: score.workoutId },
+      : await getOwnedLogWorkoutFn({
+          data: { scoreId: score.id },
         })
 
     // Fetch scaling levels for this workout

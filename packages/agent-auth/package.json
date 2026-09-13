@@ -1,0 +1,13 @@
+{
+  "name": "@repo/agent-auth",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./provider": "./src/provider.ts"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "0.10.3",
+    "zod": "^4.2.1"
+  }
+}

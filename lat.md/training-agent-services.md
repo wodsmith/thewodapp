@@ -105,9 +105,15 @@ The operation catalogue exposes executable canonical schemas and read or destruc
 
 Archiving removes a workout from actual web and agent library selection while retaining its definition for a scheduler that read it before archival. A new scheduling request after archival is denied.
 
+The search API also excludes archived definitions, and the ordinary workout editor locks and rejects an archived row before changing it.
+
 ### Archived composition snapshots
 
 Archiving a library definition preserves existing personal compositions and historical attempts. Their saved definitions remain editable through the canonical history path, while new library selection is denied.
+
+### Archived owned log correction
+
+The legacy log editor resolves archived definitions through the athlete's owned score ID. Other users cannot use that history lookup to read the archived workout, and stale workout editors cannot rewrite the archived definition.
 
 ## Prepared weekly writes
 
@@ -143,3 +149,5 @@ Agent mutations share canonical domain validation and SQL transactions with web 
 The registry also exposes single-day replace, programming draft and explicit publish operations. These call the canonical services within the receipt transaction rather than nesting independently committed writes. Migration `0012_training_mutation_receipts.sql` adds receipt storage and the nullable workout archival timestamp; 0010 and 0011 belong to the planning and gateway workstreams.
 
 The nullable `workouts.archived_at` column is required before any app deployment containing this code, even when the agent resource is disabled. Apply the additive 0012 schema change through the production schema promotion workflow before deploying the application; this task does not run production migrations.
+
+Legacy log correction uses [[apps/wodsmith-start/src/server-fns/log-fns.ts#getOwnedLogWorkoutFn]] with the owned score ID to resolve an archived definition. It does not accept a general include-archived request flag. Planning and CRUD adapters share the same live-grant callback type; planning still requests only its own read/write scopes.

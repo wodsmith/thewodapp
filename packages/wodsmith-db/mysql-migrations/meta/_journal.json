@@ -73,9 +73,23 @@
       "breakpoints": true
     },
     {
+      "idx": 10,
+      "version": "5",
+      "when": 1789261965919,
+      "tag": "0010_training_plans",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1789261965920,
+      "tag": "0011_agent_oauth_grants",
+      "breakpoints": true
+    },
+    {
       "idx": 12,
       "version": "5",
-      "when": 1789257465556,
+      "when": 1789261965921,
       "tag": "0012_training_mutation_receipts",
       "breakpoints": true
     }

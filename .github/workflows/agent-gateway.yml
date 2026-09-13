@@ -1,0 +1,41 @@
+name: Agent gateway
+on:
+  pull_request:
+    paths:
+      - 'apps/wodsmith-agent/**'
+      - 'packages/agent-auth/**'
+      - 'apps/wodsmith-start/src/agent/**'
+      - 'apps/wodsmith-start/src/server.ts'
+      - 'apps/wodsmith-start/alchemy.run.ts'
+      - 'apps/wodsmith-start/src/server/training*.ts'
+      - 'packages/wodsmith-training/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/agent-gateway.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/wodsmith-agent/**'
+      - 'packages/agent-auth/**'
+      - 'apps/wodsmith-start/src/agent/**'
+      - 'apps/wodsmith-start/src/server.ts'
+      - 'apps/wodsmith-start/alchemy.run.ts'
+      - 'apps/wodsmith-start/src/server/training*.ts'
+      - 'packages/wodsmith-training/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/agent-gateway.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter wodsmith-agent cf-typegen
+      - run: pnpm --filter wodsmith-agent type-check
+      - run: pnpm --filter wodsmith-agent test
+      - run: pnpm --filter wodsmith-agent build

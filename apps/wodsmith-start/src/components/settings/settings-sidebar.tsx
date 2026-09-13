@@ -9,6 +9,7 @@ import {
   LogOut,
   Medal,
   Palette,
+  Plug,
   Smartphone,
   User,
   Users,
@@ -58,6 +59,7 @@ const navGroups: SidebarNavGroup[] = [
     label: "Account",
     items: [
       { title: "Sessions", href: "/settings/sessions", icon: Smartphone },
+      { title: "Connected apps", href: "/agent/connections", icon: Plug },
       { title: "Billing", href: "/settings/billing", icon: CreditCard },
       { title: "Downloads", href: "/settings/downloads", icon: Download },
     ],
@@ -106,6 +108,7 @@ export function SettingsSidebar({ hasWorkoutTracking }: SettingsSidebarProps) {
               <Link
                 key={item.href}
                 to={item.href}
+                reloadDocument={item.href === "/agent/connections"}
                 className={cn(
                   buttonVariants({ variant: "ghost" }),
                   pathname.startsWith(item.href)

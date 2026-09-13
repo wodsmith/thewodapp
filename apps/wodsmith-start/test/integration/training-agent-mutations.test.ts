@@ -4,14 +4,16 @@ import { eq } from "drizzle-orm"
 import mysql from "mysql2"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
-const state=vi.hoisted(()=>({db:null as unknown}))
+const state=vi.hoisted(()=>({db:null as unknown,userId:"agent_mutations_user"}))
 vi.mock("@/db",()=>({getDb:()=>state.db}))
-vi.mock("@/utils/auth",()=>({getSessionFromCookie:async()=>({userId:"agent_mutations_user"})}))
+vi.mock("@/utils/auth",()=>({getSessionFromCookie:async()=>({userId:state.userId})}))
 vi.mock("@tanstack/react-start",()=>({
   createServerFn:()=>({handler:(fn:unknown)=>fn,inputValidator:(parse:(value:unknown)=>unknown)=>({handler:(fn:(ctx:{data:unknown})=>unknown)=>(ctx:{data:unknown})=>fn({data:parse(ctx.data)})})}),
   createServerOnlyFn:(fn:unknown)=>fn,
 }))
-import {getWorkoutsFn,scheduleWorkoutFn} from "@/server-fns/workout-fns"
+import {getWorkoutsFn,scheduleWorkoutFn,updateWorkoutFn} from "@/server-fns/workout-fns"
+import { getUserWorkouts } from "@/server/workouts"
+import { getOwnedLogWorkoutFn } from "@/server-fns/log-fns"
 import { executeAgentOperation, listAgentOperations } from "@/server/training-agent"
 import type { TrainingServiceDependencies } from "@/server/training-service-contract"
 
@@ -49,6 +51,7 @@ describe.skipIf(!databaseUrl)("agent mutations on MySQL",()=>{
   })
   beforeEach(async()=>{
     live=true
+    state.userId=userId
     deps={db,actor:{userId,grantId:"grant-one",clientId:"client-one",scopes,allowedTeamIds:[teamId]},hasFeature:async()=>true,authorizeActor:async executor=>{expect(executor).not.toBe(db);if(!live) throw new Error("FORBIDDEN: Grant revoked")}}
     await db.delete(scheduledWorkoutInstancesTable)
     await db.delete(trainingCheersTable)
@@ -103,6 +106,9 @@ describe.skipIf(!databaseUrl)("agent mutations on MySQL",()=>{
     const joined=await db.select({workout:workouts}).from(scheduledWorkoutInstancesTable).innerJoin(workouts,eq(workouts.id,scheduledWorkoutInstancesTable.workoutId)).where(eq(scheduledWorkoutInstancesTable.id,"archive-in-flight"))
     expect(joined[0].workout.name).toBe(workout.name)
     expect((await getWorkoutsFn({data:{teamId,page:1,pageSize:20}})).workouts).toEqual([])
+    expect(await getUserWorkouts({teamId})).toEqual([])
+    await expect(updateWorkoutFn({data:{id:created.workout.id,name:"Stale web editor",description:workout.description,scheme:"reps",scope:"private"}})).rejects.toThrow("archived")
+    expect((await db.select().from(workouts).where(eq(workouts.id,created.workout.id)))[0].name).toBe(workout.name)
     await expect(scheduleWorkoutFn({data:{teamId,workoutId:created.workout.id,scheduledDate:"2026-09-06"}})).rejects.toThrow("unavailable")
   })
 
@@ -171,6 +177,19 @@ describe.skipIf(!databaseUrl)("agent mutations on MySQL",()=>{
     expect(await db.select().from(scoreRoundsTable)).toHaveLength(0)
     expect(await db.select().from(personalTrainingResultsTable)).toHaveLength(0)
     expect((await db.select().from(personalTrainingSessionsTable))[0]).toEqual(session)
+  })
+
+  // @lat: [[training-agent-services#Verification#Archived owned log correction]]
+  it("resolves an archived definition only through an owned historical score",async()=>{
+    const created=workoutReply.parse(await call("create_workout",{teamId,idempotencyKey:"history-workout",workout}))
+    const entry={kind:"direct",value:{trainingDate:"2026-09-05",itemId:"legacy",workoutId:created.workout.id,score:"",asRx:true,roundScores:[{score:"10"},{score:"20"},{score:"30"}]}}
+    const result=resultReply.parse(await call("create_result",{teamId,idempotencyKey:"history-score",entry}))
+    const scoreId=result.saved.score!.id
+    await db.delete(personalTrainingResultsTable).where(eq(personalTrainingResultsTable.id,result.saved.result.id))
+    await call("delete_workout",{teamId,idempotencyKey:"history-archive",workoutId:created.workout.id,expectedVersion:created.version})
+    expect(await getOwnedLogWorkoutFn({data:{scoreId}})).toMatchObject({workout:{id:created.workout.id,name:workout.name}})
+    state.userId="agent_other"
+    await expect(getOwnedLogWorkoutFn({data:{scoreId}})).rejects.toThrow("Owned workout history not found")
   })
 
   // @lat: [[training-agent-services#Verification#Archived composition snapshots]]

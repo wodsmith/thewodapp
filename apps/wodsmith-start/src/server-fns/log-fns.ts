@@ -413,6 +413,19 @@ const getLogByIdInputSchema = z.object({
   id: z.string().min(1, "Score ID is required"),
 })
 
+/** History lookup accepts an owned score ID, never a caller-controlled archive bypass. */
+export const getOwnedLogWorkoutFn = createServerFn({method:"GET"})
+  .inputValidator((input:unknown)=>z.object({scoreId:z.string().min(1).max(255)}).strict().parse(input))
+  .handler(async({data})=>{
+    const session=await getSessionFromCookie()
+    if(!session?.userId) throw new Error("Not authenticated")
+    const [row]=await getDb().select({workout:workouts}).from(scoresTable)
+      .innerJoin(workouts,eq(workouts.id,scoresTable.workoutId))
+      .where(and(eq(scoresTable.id,data.scoreId),eq(scoresTable.userId,session.userId))).limit(1)
+    if(!row) throw new Error("Owned workout history not found")
+    return {workout:row.workout}
+  })
+
 export const getLogByIdFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getLogByIdInputSchema.parse(data))
   .handler(async ({ data }) => {
