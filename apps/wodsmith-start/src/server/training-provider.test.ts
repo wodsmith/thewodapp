@@ -254,6 +254,13 @@ describe.skipIf(!url)("provider projection and persistence", () => {
         items: [{ ...input.items[0], sourceDate: "2026-09-06" }],
       }),
     ).rejects.toThrow("new item ID")
+    await expect(
+      savePersonalTrainingSession({
+        ...input,
+        expectedRevision: saved.revision,
+        items: [{ ...input.items[0], id: "OCCURRENCE-REVIEW", workoutId: "provider_load" }],
+      }),
+    ).rejects.toThrow("new item ID")
     const unchanged = await getPersonalTrainingDay({
       teamId: day.teamId,
       trainingDate: input.trainingDate,
