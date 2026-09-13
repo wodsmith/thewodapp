@@ -146,7 +146,7 @@ export async function preparePersonalSessions(
                 workoutId: item.workoutId,
                 sourceTrackId: item.sourceTrackId,
                 sourceDate: item.sourceDate,
-              })
+              }, stored?.kind === "library")
         library.push({
           itemId: item.id,
           workout: stored?.kind === "library" ? stored.workout : accessibleWorkout,
