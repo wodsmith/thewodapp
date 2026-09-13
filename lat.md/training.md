@@ -42,6 +42,8 @@ The planner uses the root navbar active-team context and ignores legacy `teamId`
 
 Coaches can reorder or remove sections, add scaling and guidance, and plan rest days. Unsaved navigation requires discarding or staying. Failed writes preserve edits. Publishing requires a saved draft and confirms the gym, track, date, timezone, and next version.
 
+Track and week selection share a compact toolbar with an inline track label and bounded desktop selector width. Mobile wraps the week controls onto a second row. Controls retain 44px targets and accessible names without stacked labels or a padded filter band.
+
 ## Verification and Rollout
 
 The MySQL migration adds only training sessions, results, and cheers. It must be applied before deploying the routes; production deployment and remote migration are separate actions.

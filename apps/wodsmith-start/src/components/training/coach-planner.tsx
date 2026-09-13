@@ -286,12 +286,15 @@ function ActiveTeamPlanner({ context }: { context: TrainingContext }) {
           </p>
         </div>
       </header>
-      <div className="grid gap-4 border-y border-border py-5 sm:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="min-w-0 space-y-2">
-          <Label htmlFor="coach-track">Programming track</Label>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto">
+          <Label htmlFor="coach-track" className="shrink-0 text-muted-foreground">
+            Track
+          </Label>
           <select
             id="coach-track"
-            className={selectClass}
+            aria-label="Programming track"
+            className={cn(selectClass, "flex-1 sm:w-56 sm:flex-none")}
             value={location.trackId}
             disabled={busy || !team?.tracks.length}
             onChange={(event) =>
@@ -308,8 +311,8 @@ function ActiveTeamPlanner({ context }: { context: TrainingContext }) {
             ))}
           </select>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="coach-week">Week containing</Label>
+        <div className="w-full sm:ml-auto sm:w-auto">
+          <Label htmlFor="coach-week" className="sr-only">Week containing</Label>
           <div className="flex gap-2">
             <Button
               variant="outline"
