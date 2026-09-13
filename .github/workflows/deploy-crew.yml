@@ -168,7 +168,7 @@ jobs:
           TURNSTILE_SITE_KEY: ${{ vars.CREW_TURNSTILE_SITE_KEY }}
           TURNSTILE_SECRET_KEY: ${{ secrets.CREW_TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          GAMEDAY_PUSH_ENABLED: ${{ vars.GAMEDAY_PUSH_ENABLED || 'false' }}
+          GAMEDAY_PUSH_ENABLED: ${{ env.STAGE == 'prod' && vars.GAMEDAY_PUSH_ENABLED || 'false' }}
           CREW_STRIPE_CHECKOUT_ENABLED: ${{ env.STAGE == 'prod' && (vars.CREW_STRIPE_CHECKOUT_ENABLED || 'false') || (env.STAGE == 'demo' && vars.CREW_STRIPE_CHECKOUT_ENABLED_DEMO || 'false') }}
           STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || (env.STAGE == 'demo' && secrets.STRIPE_SECRET_KEY_DEMO || '') }}
           POSTHOG_KEY: ${{ secrets.CREW_POSTHOG_KEY }}

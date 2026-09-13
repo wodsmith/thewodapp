@@ -143,7 +143,7 @@ const website = await TanStackStart("crew-app", {
     ...(process.env.TURNSTILE_SECRET_KEY && {
       TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY),
     }),
-    GAMEDAY_PUSH_ENABLED: process.env.GAMEDAY_PUSH_ENABLED ?? "false",
+    GAMEDAY_PUSH_ENABLED: String(stage === "prod" && process.env.GAMEDAY_PUSH_ENABLED === "true"),
     ...(process.env.RESEND_API_KEY && {
       RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY),
     }),

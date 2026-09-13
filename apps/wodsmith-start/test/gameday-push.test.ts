@@ -90,6 +90,9 @@ describe("Game Day announcement delivery", () => {
     mocks.send.mockClear()
     await deliverGameDayPush("delivery") // no acquired lease (duplicate/previously sent)
     expect(mocks.send).not.toHaveBeenCalled()
+    expect(statements.at(-2)?.sql).toMatch(/where.*id.*status.*availableAt.*<=/)
+    expect(statements.at(-2)?.params).toContain("pending")
+    expect(statements.at(-1)?.sql).toMatch(/where.*id.*leaseId/)
   })
   it.each(["subscription", "registration", "session"])("does not send after %s access ends", async (boundary) => {
     deliveryRows({ device: boundary !== "subscription", registered: boundary !== "registration" })
@@ -133,5 +136,13 @@ describe("Game Day announcement delivery", () => {
     await deliverGameDayPush("delivery")
     expect(mocks.send).not.toHaveBeenCalled()
     expect(statements.at(-1)?.params).toEqual(expect.arrayContaining(["expired", "RetryLimit"]))
+  })
+  it("requires an unexpired job in the final ownership and lease recheck", async () => {
+    deliveryRows()
+    rows[3] = [] // The final guarded read no longer sees an eligible job.
+    await deliverGameDayPush("delivery")
+    expect(mocks.send).not.toHaveBeenCalled()
+    const finalRead = statements.find((s) => s.sql.includes("inner join `gameday_push_deliveries`"))
+    expect(finalRead?.sql).toMatch(/gameday_push_deliveries.*expiresAt.*>/)
   })
 })

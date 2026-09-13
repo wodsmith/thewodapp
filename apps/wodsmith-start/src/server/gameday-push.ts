@@ -246,6 +246,7 @@ export async function deliverGameDayPush(id: string): Promise<void> {
           eq(deliveries.id, id),
           eq(deliveries.leaseId, leaseId),
           gt(deliveries.availableAt, new Date(Date.now() + 15000)),
+          gt(deliveries.expiresAt, new Date()),
         ),
       )
     job.attempts += 1
@@ -259,6 +260,7 @@ export async function deliverGameDayPush(id: string): Promise<void> {
           eq(deliveries.id, id),
           eq(deliveries.leaseId, leaseId),
           gt(deliveries.availableAt, new Date(Date.now() + 15000)),
+          gt(deliveries.expiresAt, new Date()),
         ),
       )
       .where(

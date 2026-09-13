@@ -56,6 +56,31 @@ final class AnnouncementPushTests: XCTestCase {
         XCTAssertNil(saved)
         XCTAssertFalse(manager.enabled)
     }
+    // @lat: [[gameday-push#Tests#Independent home refresh]]
+    func testHomeRefreshDoesNotWaitForPushCleanup() async {
+        let client = api()
+        let old = PushSubscription(credential: "old:session", token: String(repeating: "ab", count: 32), environment: "sandbox", subscriptionId: UUID().uuidString)
+        let manager = AnnouncementPushManager(api: client, subscription: old, save: { _ in })
+        let store = GameDayStore(api: client, push: manager)
+        store.push.enabled = false
+        let homeRequested = expectation(description: "Home requested while cleanup is suspended")
+        let cleanupRequested = expectation(description: "Cleanup requested")
+        var cleanup: PushURLProtocol?
+        PushURLProtocol.handler = { request in
+            if request.request.url?.path == "/api/gameday/v1/devices" {
+                cleanup = request
+                cleanupRequested.fulfill()
+            } else {
+                homeRequested.fulfill()
+                request.offline()
+            }
+        }
+        let refresh = Task { await store.refresh() }
+        await fulfillment(of: [homeRequested, cleanupRequested], timeout: 3)
+        cleanup?.complete()
+        await refresh.value
+        await store.push.synchronize(allowed: false)
+    }
     // @lat: [[gameday-push#Tests#Offline revocation recovery]]
     func testOfflineSignOutRetainsCleanupForRelaunchAndDoesNotRestoreLogin() async {
         let original = PushSubscription(credential: "old:session", token: String(repeating: "ab", count: 32), environment: "sandbox", subscriptionId: UUID().uuidString)

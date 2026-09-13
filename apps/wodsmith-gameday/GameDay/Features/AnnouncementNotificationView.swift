@@ -34,17 +34,20 @@ struct AnnouncementNotificationView: View {
         loading = true
         error = nil
         let token = store.token
-        defer { loading = false }
+        defer { if token == store.token { loading = false } }
         do {
             let detail: CompetitionDetail
             if store.isDemo { detail = DemoData.detail }
             else { detail = try await store.api.request("api/gameday/v1/competitions/\(link.competitionID)", token: token) }
-            guard token == store.token else { return }
+            guard token == store.token, !Task.isCancelled else { return }
             announcement = detail.announcements.first { $0.id == link.announcementID }
             if announcement == nil { error = "This announcement is unavailable for your account." }
         } catch let apiError as APIError where apiError.status == 401 {
             if token == store.token { await store.signOut(preserveAnnouncement: true) }
-        } catch { self.error = "Couldn’t load this announcement. Check your connection and try again." }
+        } catch {
+            guard token == store.token, !Task.isCancelled else { return }
+            self.error = "Couldn’t load this announcement. Check your connection and try again."
+        }
     }
 }
 

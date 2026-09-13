@@ -48,10 +48,10 @@ final class GameDayStore {
     var cacheURL: URL { URL.cachesDirectory.appendingPathComponent("gameday-v1.json") }
     func status(_ resource: GameDayResource) -> ResourceStatus { states[resource] ?? ResourceStatus() }
 
-    init(api: GameDayAPI = GameDayAPI(), demo: Bool = false, spectator: SpectatorPreferences = SpectatorPreferences()) {
+    init(api: GameDayAPI = GameDayAPI(), demo: Bool = false, spectator: SpectatorPreferences = SpectatorPreferences(), push: AnnouncementPushManager? = nil) {
         self.spectator = spectator
         self.api = api
-        self.push = AnnouncementPushManager(api: api)
+        self.push = push ?? AnnouncementPushManager(api: api)
         self.isDemo = demo
         if demo {
             home = DemoData.home
@@ -67,7 +67,7 @@ final class GameDayStore {
             }
         } else {
             token = SessionKeychain.read()
-            push.updateSession(token)
+            self.push.updateSession(token)
             restoreCache()
         }
     }
@@ -114,9 +114,9 @@ final class GameDayStore {
 
     func refresh() async {
         guard !isDemo, !status(.home).isLoading else { return }
-        await push.refreshPermission()
         let current = generation
         states[.home, default: ResourceStatus()].isLoading = true
+        Task { await push.refreshPermission() }
         do {
             let result: HomeResponse = try await api.request("api/gameday/v1/home", token: token)
             guard current == generation else { return }

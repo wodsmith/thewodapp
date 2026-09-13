@@ -220,10 +220,10 @@ jobs:
           # Secrets for all environments
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          GAMEDAY_PUSH_ENABLED: ${{ vars.GAMEDAY_PUSH_ENABLED || 'false' }}
-          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
-          APNS_TEAM_ID: ${{ secrets.APNS_TEAM_ID }}
-          APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
+          GAMEDAY_PUSH_ENABLED: ${{ env.STAGE == 'prod' && vars.GAMEDAY_PUSH_ENABLED || 'false' }}
+          APNS_KEY_ID: ${{ env.STAGE == 'prod' && secrets.APNS_KEY_ID || '' }}
+          APNS_TEAM_ID: ${{ env.STAGE == 'prod' && secrets.APNS_TEAM_ID || '' }}
+          APNS_PRIVATE_KEY: ${{ env.STAGE == 'prod' && secrets.APNS_PRIVATE_KEY || '' }}
           # AI configuration (optional)
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
@@ -317,10 +317,10 @@ jobs:
           # Secrets for all environments
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          GAMEDAY_PUSH_ENABLED: ${{ vars.GAMEDAY_PUSH_ENABLED || 'false' }}
-          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
-          APNS_TEAM_ID: ${{ secrets.APNS_TEAM_ID }}
-          APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
+          GAMEDAY_PUSH_ENABLED: ${{ env.STAGE == 'prod' && vars.GAMEDAY_PUSH_ENABLED || 'false' }}
+          APNS_KEY_ID: ${{ env.STAGE == 'prod' && secrets.APNS_KEY_ID || '' }}
+          APNS_TEAM_ID: ${{ env.STAGE == 'prod' && secrets.APNS_TEAM_ID || '' }}
+          APNS_PRIVATE_KEY: ${{ env.STAGE == 'prod' && secrets.APNS_PRIVATE_KEY || '' }}
           # AI configuration (optional)
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}

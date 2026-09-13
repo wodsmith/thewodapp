@@ -90,16 +90,17 @@ export async function handleBroadcastEmailQueue(
 	for (const message of batch.messages) {
 		const body = message.body as QueueEmailMessage
 
-    if (body.kind === "gameday-push") {
-      try {
-        const { deliverGameDayPush } = await import("./gameday-push")
-        await deliverGameDayPush(body.deliveryId)
-        message.ack()
-      } catch {
-        message.retry()
-      }
-      continue
-    }
+		if (body.kind === "gameday-push") {
+			try {
+				const { deliverGameDayPush } = await import("./gameday-push")
+				await deliverGameDayPush(body.deliveryId)
+				message.ack()
+			} catch {
+				logError({ message: "[BroadcastQueue] Game Day push delivery failed; retrying", attributes: { deliveryId: body.deliveryId } })
+				message.retry()
+			}
+			continue
+		}
 
 		if (body.kind === "competition-invite") {
 			await handleInviteMessage({

@@ -8,7 +8,7 @@ it("sends a private-content-free alert with stable collapse and deep-link identi
   expect(await sendAPNsAnnouncement(input, transport)).toEqual({ kind: "sent", reason: "Accepted" })
   const [url, options] = transport.mock.calls[0]
   expect(url).toBe(`https://api.sandbox.push.apple.com/3/device/${input.token}`)
-  expect(options.headers).toMatchObject({ "apns-id": input.deliveryId, "apns-collapse-id": "broadcast", "apns-topic": "com.wodsmith.gameday", "apns-expiration": "0" })
+  expect(options.headers).toMatchObject({ authorization: "bearer jwt", "apns-push-type": "alert", "apns-priority": "10", "apns-id": input.deliveryId, "apns-collapse-id": "broadcast", "apns-topic": "com.wodsmith.gameday", "apns-expiration": "0" })
   expect(JSON.parse(options.body)).toMatchObject({ competitionID: "competition", announcementID: "broadcast" })
   expect(options.body).not.toContain(input.token)
 })
@@ -22,6 +22,7 @@ it("signs a verifiable ES256 provider JWT", async () => {
   const pkcs8 = await crypto.subtle.exportKey("pkcs8", key.privateKey)
   const jwt = await createAPNsJWT({ keyId: "key", teamId: "team", privateKey: `-----BEGIN PRIVATE KEY-----\n${Buffer.from(pkcs8).toString("base64")}\n-----END PRIVATE KEY-----` }, 1800000000000)
   const parts = jwt.split(".")
+  expect(JSON.parse(Buffer.from(parts[0], "base64url").toString())).toEqual({ alg: "ES256", kid: "key" })
   expect(JSON.parse(Buffer.from(parts[1], "base64url").toString())).toEqual({ iss: "team", iat: 1800000000 })
   expect(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key.publicKey, Buffer.from(parts[2], "base64url"), new TextEncoder().encode(parts.slice(0, 2).join(".")))).toBe(true)
 })

@@ -28,6 +28,8 @@ Missing credentials and signing failures keep jobs pending without consuming the
 
 Stable APNs request and collapse identifiers reduce duplicate presentation. Exactly-once visible delivery cannot be guaranteed if APNs accepts a request and its response or the following database write is lost. APNs expiration is zero to avoid retaining undelivered alerts after sign-out. Provider JWTs are reused within the isolate for 50 minutes.
 
+An unreachable device can miss an accepted alert because Apple does not store it for later delivery. The announcement remains available in the authenticated app. The worker rechecks job expiry with its final lease check before contacting Apple.
+
 Expired device bindings are deleted during dispatch. Delivery records are deleted 30 days after their one-day expiry. Neither device tokens nor session credentials enter organizer reads or delivery logs.
 
 ## Rollout
@@ -36,7 +38,11 @@ Push is disabled by default. Apply `0010_gameday_push.sql` through the normal Pl
 
 Required secrets are `APNS_KEY_ID`, `APNS_TEAM_ID`, and `APNS_PRIVATE_KEY` (Apple P-256 token-signing key). WODsmith sends for topic `com.wodsmith.gameday`. Crew only writes the shared outbox and must not be enabled before WODsmith delivery is configured against that database. Never enable the same production token/key combination against a development database.
 
+Deployment workflows pass the push flag and credentials only to the production stage. Both Alchemy configurations independently disable push outside production, and the dispatcher cron uses one shared schedule constant. Local tests use isolated mocks.
+
 The native target adds the Push Notifications entitlement, with sandbox in Debug and production in Release. Signing profiles must contain the matching entitlement. The inspected Apple identifier has push disabled, and the attempted signed archive fails because the existing profile lacks Push Notifications and `aps-environment`. The follow-up source version is 1.2 build 6; version 1.1 build 5 remains untouched in App Store Connect.
+
+All physical-device Debug builds and Release archives from this source require the new signing capability; the backend runtime flag does not remove that requirement. Simulator builds remain available while Apple configuration is pending.
 
 Production deployment requires the separately requested authorization. Do not submit the follow-up iOS version until the backend, signing capability, Apple privacy Device ID disclosure, and a controlled real APNs send are verified. Simulator-injected notifications verify presentation and tapping only; they do not prove APNs delivery.
 
@@ -83,3 +89,7 @@ Push messages use an explicit kind discriminator. Email messages retain their or
 ### Configuration recovery budget
 
 Missing APNs credentials and signing failures must not increment provider attempts. Jobs remain pending for recovery within their original expiry.
+
+### Independent home refresh
+
+Suspended push cleanup must not delay competition home requests. Home refresh marks its loading state before asynchronous work, while push synchronization proceeds independently. Announcement loads ignore stale account and cancelled request results.
