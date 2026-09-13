@@ -247,3 +247,9 @@ Intent-based tools the agent calls (per Anthropic's "Building Effective Agents")
 - `mark_complete` — final summary
 
 The organizer page at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/judges-ai.tsx]] mirrors the existing rotation timeline visuals (heats × lanes grid, color-coded coverage). Each streamed proposal renders with its confidence badge, rationale, and any soft violations; the organizer toggles per-proposal Accept/Reject. "Save as Draft" calls [[apps/wodsmith-start/src/server-fns/judge-scheduler-ai-fns.ts#applyAiProposalsFn]], which revalidates proposal membership, event ownership, lane bounds, and slot overlaps before writing `competition_judge_rotations`. The organizer still publishes via the existing rotation timeline screen so versioning + materialization stay in one place.
+
+## Deployment Schema Readiness Tests
+
+Production deployment checks every required table and column from the latest committed schema snapshot before running Alchemy. Missing schema stops deployment without mutating the database.
+
+The app deploy command runs this check only when STAGE=prod; non-production deployment skips it. The check queries only information_schema and permits extra production columns. It verifies presence, not column types or indexes; reviewed PlanetScale deploy requests still own schema changes. Regression coverage verifies missing tables, missing columns, and compatible extra columns.
