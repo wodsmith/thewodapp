@@ -279,6 +279,11 @@ describe.skipIf(!mysqlTestConfig)(
         plans.commit(dependencies.actor, commit),
       ])
       expect(concurrentRetry).toEqual(receipt)
+      expect(receipt.origin).toEqual({
+        kind: "agent",
+        clientId: "client",
+        grantId: "grant",
+      })
       expect(receipt.sessions).toHaveLength(2)
       const personal = createPersonalTrainingService(dependencies)
       const saved = await personal.getPersonalTrainingDay({
@@ -308,6 +313,16 @@ describe.skipIf(!mysqlTestConfig)(
         },
       })
       expect(await plans.commit(dependencies.actor, commit)).toEqual(receipt)
+      expect(
+        await plans.commit(
+          {
+            ...dependencies.actor,
+            clientId: "second-client",
+            grantId: "second-grant",
+          },
+          commit,
+        ),
+      ).toEqual(receipt)
       expect(saved.personalSession?.items[3]).toMatchObject({
         role: "mobility",
         estimatedDurationMinutes: 5,

@@ -12,7 +12,11 @@ import { PLAN_BLUEPRINT_VERSION, type TrainingPlanDocument } from "./blueprint"
 export type PlanningTransaction = Parameters<
   Parameters<WodsmithDb["transaction"]>[0]
 >[0]
-export type PlanningActor = { userId: string }
+export type PlanningActor = {
+  userId: string
+  clientId?: string
+  grantId?: string
+}
 const draftId = z
   .string()
   .min(1)
@@ -350,7 +354,15 @@ export function createTrainingPlanService<
               actor,
               prepared.prepared,
             )
-            const receipt = {
+            const receipt: TrainingPlanCommitReceipt = {
+              origin:
+                actor.clientId && actor.grantId
+                  ? {
+                      kind: "agent",
+                      clientId: actor.clientId,
+                      grantId: actor.grantId,
+                    }
+                  : { kind: "web" },
               trainingPlanId: row.id,
               revision: row.revision,
               previewDigest: data.previewDigest,

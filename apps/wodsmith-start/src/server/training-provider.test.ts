@@ -260,7 +260,15 @@ describe.skipIf(!url)("provider projection and persistence", () => {
         expectedRevision: saved.revision,
         items: [{ ...input.items[0], id: "OCCURRENCE-REVIEW", workoutId: "provider_load" }],
       }),
-    ).rejects.toThrow("new item ID")
+    ).rejects.toThrow("Use the saved item ID exactly")
+    for (const mode of ["append", "undo"] as const) {
+      await expect(savePersonalTrainingSession({
+        ...input,
+        mode,
+        expectedRevision: saved.revision,
+        items: [{ ...input.items[0], id: "OCCURRENCE-REVIEW" }],
+      })).rejects.toThrow("Use the saved item ID exactly")
+    }
     const unchanged = await getPersonalTrainingDay({
       teamId: day.teamId,
       trainingDate: input.trainingDate,

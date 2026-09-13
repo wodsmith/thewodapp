@@ -36,6 +36,8 @@ The weekly commit explicitly uses READ COMMITTED isolation. Authorization can re
 
 Idempotency keys are hashed and scoped by authenticated owner and operation. The durable payload hash binds the plan, revision, and preview digest. An identical retry returns the original result; another payload with the same key fails. Authorization is checked again even for retries. Concurrent updates invalidate earlier previews rather than overwriting a newer proposal.
 
+Receipt JSON records a trusted origin: web, or agent with the authenticated client and grant IDs. Tool inputs cannot set this attribution. A successful retry from another currently authorized client retains the original origin rather than claiming the retrying client performed the write.
+
 ## Migration and Deployment
 
 Migration 0010 adds draft and receipt tables without changing existing sessions, results, or ownership. It follows 0009 composition state and precedes 0011 agent grants.

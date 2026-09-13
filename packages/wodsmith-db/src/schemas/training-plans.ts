@@ -26,6 +26,7 @@ export const trainingPlanDraftsTable = mysqlTable(
 )
 
 export interface TrainingPlanCommitReceipt {
+  origin: { kind: "web" } | { kind: "agent"; clientId: string; grantId: string }
   trainingPlanId: string
   revision: number
   previewDigest: string

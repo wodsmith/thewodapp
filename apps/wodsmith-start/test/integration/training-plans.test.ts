@@ -394,6 +394,7 @@ describe.skipIf(!mysqlTestConfig)(
       ).toBe("draft")
       failSecond = false
       const receipt = await service.commit(actor, input)
+      expect(receipt.origin).toEqual({ kind: "web" })
       expect(receipt.sessions).toHaveLength(2)
       expect(await service.commit(actor, input)).toEqual(receipt)
       expect(await db.select().from(live)).toHaveLength(2)
