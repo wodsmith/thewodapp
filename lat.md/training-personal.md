@@ -223,7 +223,7 @@ A visible workout can record a private score without a remix, follow, or planned
 
 Direct library writes reuse the existing score-and-round transaction, storing a server-resolved performed snapshot and exact optional source occurrence. The day has compositionState=result_only until an explicit composition save. Existing days default to customized, including intentionally empty plans. Direct scores leave an existing custom plan, order and revision unchanged.
 
-The generated composition_state migration is pending integration: `0007_material_champions.sql` collides with #695 and must not be applied as the final lineage. Under Option C, reconcile only after the authorized #691 and #695/#698 dependencies merge, then recheck the actual next migration reservation and regenerate against that lineage. The disposable prototype used 0009 provisionally; it is not an instruction to apply or publish that artifact. PR #699 is not merge-ready while this hold remains. Rich private scores retain entered weight units, rounds, capped zero reps and tiebreak values. Historical edit uses the saved snapshot without reinserting planned work. Progress includes the athlete's results across tracks and independent library attempts.
+Migration `0009_training_composition_state.sql` adds `composition_state` after the transfer-signature and volunteer-confirmation migrations. Existing rows default to customized, preserving intentionally empty plans; new direct-score days explicitly use result_only. Apply the migration before deploying these APIs. Rich private scores retain entered weight units, rounds, capped zero reps and tiebreak values. Historical edit uses the saved snapshot without reinserting planned work. Progress includes the athlete's results across tracks and independent library attempts.
 
 ## Session UX Verification
 
@@ -247,7 +247,7 @@ Normal Add or Customize reuses an owned performed item and its frozen snapshot; 
 
 Personal score normalization rejects incomplete time prefixes before persistence while retaining raw seconds, colon and period formats. Existing load forms decode to three decimal places and convert units through stored grams, preserving notes-only and unit-only edits. New source/workspace/date occurrences reset fields and attempt identity; recognized import handoffs retain notes. Source-origin planned logs return to their track, while My session logs return to performance mode.
 
-See [[session-review-tests]] for focused reproduction and regression coverage. The migration lineage remains held as recorded in Plan 003; this review changes no canonical schema or migration artifacts.
+See [[session-review-tests]] for focused reproduction and regression coverage. The review preserves the canonical scoring schema; composition-state migration lineage is documented under [[training-personal#Independent Direct Scores]].
 
 ## Return navigation and addition intent
 

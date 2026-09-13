@@ -2410,6 +2410,77 @@ export const transferRegistrationDivisionFn = createServerFn({
     let removedHeatAssignments = 0
 
     await db.transaction(async (tx) => {
+      const [currentRegistration] = await tx
+        .select({ id: competitionRegistrationsTable.id })
+        .from(competitionRegistrationsTable)
+        .where(
+          and(
+            eq(competitionRegistrationsTable.id, registration.id),
+            eq(competitionRegistrationsTable.eventId, input.competitionId),
+            eq(competitionRegistrationsTable.userId, registration.userId),
+            eq(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.ACTIVE,
+            ),
+            registration.divisionId === null
+              ? isNull(competitionRegistrationsTable.divisionId)
+              : eq(
+                  competitionRegistrationsTable.divisionId,
+                  registration.divisionId,
+                ),
+          ),
+        )
+        .for("update")
+      if (!currentRegistration) {
+        throw new Error(
+          "Registration changed. Reload before transferring divisions.",
+        )
+      }
+      // This is the first snapshot read in this transaction, after the shared
+      // registration mutex, so a winning score writer's commit is visible.
+      // A scored registration needs an explicit results policy before it can
+      // move. Include teammate results and the null-division scope; never clear
+      // or reinterpret scores as a side effect of an ordinary division change.
+      const recordedResult = await tx.query.scoresTable.findFirst({
+        columns: { id: true },
+        where: and(
+          inArray(
+            scoresTable.competitionEventId,
+            tx
+              .select({ id: competitionEventsTable.trackWorkoutId })
+              .from(competitionEventsTable)
+              .where(
+                eq(competitionEventsTable.competitionId, input.competitionId),
+              ),
+          ),
+          registration.divisionId
+            ? eq(scoresTable.scalingLevelId, registration.divisionId)
+            : isNull(scoresTable.scalingLevelId),
+          or(
+            eq(scoresTable.userId, registration.userId),
+            registration.athleteTeamId
+              ? inArray(
+                  scoresTable.userId,
+                  tx
+                    .select({ userId: teamMembershipTable.userId })
+                    .from(teamMembershipTable)
+                    .where(
+                      eq(
+                        teamMembershipTable.teamId,
+                        registration.athleteTeamId,
+                      ),
+                    ),
+                )
+              : undefined,
+          ),
+        ),
+      })
+      if (recordedResult) {
+        throw new Error(
+          "This registration has recorded results in its current division. Division transfer is blocked. Contact competition support to agree on how those results should be handled; all scores have been preserved.",
+        )
+      }
+
       // Update registration divisionId
       await tx
         .update(competitionRegistrationsTable)

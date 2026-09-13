@@ -1,3 +1,15 @@
+// Registration locking and stale snapshots are exercised against real MySQL
+// in purchase-transfer-transactions.test.ts; these tests isolate score adapters.
+vi.mock(
+  "@/server/competition-results/registration-lock",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/server/competition-results/registration-lock")
+    >()),
+    lockRegistrationForResult: vi.fn().mockResolvedValue(undefined),
+  }),
+)
+
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
   getEventScoreEntryDataFn,

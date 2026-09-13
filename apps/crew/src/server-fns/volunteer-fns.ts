@@ -17,7 +17,6 @@ import {
   SYSTEM_ROLES_ENUM,
   teamInvitationTable,
   teamMembershipTable,
-  teamTable,
   trackWorkoutsTable,
   userTable,
   volunteerShiftAssignmentsTable,
@@ -25,10 +24,8 @@ import {
   workouts,
 } from "@/db/schema"
 import {
-  createTeamId,
   createTeamInvitationId,
   createTeamMembershipId,
-  createUserId,
 } from "@/db/schemas/common"
 import { volunteerRegistrationAnswersTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
@@ -43,13 +40,8 @@ import {
   isDirectInvite,
   isVolunteer,
 } from "@/server/volunteers"
-import {
-  canSignUp,
-  createAndStoreSession,
-  getSessionFromCookie,
-} from "@/utils/auth"
+import { getSessionFromCookie } from "@/utils/auth"
 import { sendVolunteerDirectInviteEmail } from "@/utils/email"
-import { hashPassword } from "@/utils/password-hasher"
 
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -602,124 +594,6 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
       })
       return createVolunteerApplication(data, tx)
     })
-
-    return { success: true, membershipId }
-  })
-
-/**
- * Creates an account and submits a volunteer application in a single server call.
- * Used by the public volunteer signup form when the user is not logged in.
- * Avoids a bad state from two separate client-side calls where the account
- * could be created but the application could fail.
- */
-export const createAccountAndApplyAsVolunteerFn = createServerFn({
-  method: "POST",
-})
-  .inputValidator((data: unknown) =>
-    z
-      .object({
-        // Account fields
-        firstName: z.string().min(1, "First name is required"),
-        lastName: z.string().min(1, "Last name is required"),
-        password: z
-          .string()
-          .min(8, "Password must be at least 8 characters")
-          .regex(/[A-Z]/, "Must contain an uppercase letter")
-          .regex(/[a-z]/, "Must contain a lowercase letter")
-          .regex(/[0-9]/, "Must contain a number"),
-        // Volunteer application fields
-        ...volunteerApplicationSchema.shape,
-        website: z.string().optional(), // Honeypot
-      })
-      .parse(data),
-  )
-  .handler(async ({ data }) => {
-    // Honeypot check
-    if (data.website && data.website.trim() !== "") {
-      return { success: true }
-    }
-
-    const db = getDb()
-
-    // Check if email is disposable or already fully claimed
-    await canSignUp({ email: data.signupEmail })
-
-    const existingUser = await db.query.userTable.findFirst({
-      where: eq(userTable.email, data.signupEmail),
-    })
-
-    const hashedPassword = await hashPassword({ password: data.password })
-
-    const { userId, membershipId } = await db.transaction(async (tx) => {
-      let userId: string
-
-      if (existingUser) {
-        // Fully verified account — ask them to sign in instead
-        if (existingUser.emailVerified && existingUser.passwordHash) {
-          throw new Error(
-            "An account with this email already exists. Please sign in to apply as a volunteer.",
-          )
-        }
-        // Placeholder or unverified — upgrade with password and auto-verify
-        userId = existingUser.id
-        await tx
-          .update(userTable)
-          .set({
-            passwordHash: hashedPassword,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            emailVerified: new Date(),
-          })
-          .where(eq(userTable.id, existingUser.id))
-      } else {
-        // Brand-new user
-        const newUserId = createUserId()
-        const teamId = createTeamId()
-        userId = newUserId
-
-        await tx.insert(userTable).values({
-          id: newUserId,
-          email: data.signupEmail,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          passwordHash: hashedPassword,
-          emailVerified: new Date(),
-        })
-
-        // Create personal team
-        await tx.insert(teamTable).values({
-          id: teamId,
-          name: `${data.firstName}'s Team (personal)`,
-          slug: `${data.firstName.toLowerCase()}-${newUserId.slice(-6)}`,
-          description:
-            "Personal team for individual programming track subscriptions",
-          isPersonalTeam: true,
-          personalTeamOwnerId: newUserId,
-        })
-
-        await tx.insert(teamMembershipTable).values({
-          teamId,
-          userId: newUserId,
-          roleId: "owner",
-          isSystemRole: true,
-          joinedAt: new Date(),
-          isActive: true,
-        })
-      }
-
-      await signRequiredVolunteerWaivers({
-        db: tx,
-        userId,
-        competitionTeamId: data.competitionTeamId,
-        waiverIds: data.waiverIds,
-      })
-      const { membershipId } = await createVolunteerApplication(data, tx)
-
-      return { userId, membershipId }
-    })
-
-    // Log user in only after the application is successfully persisted
-    await createAndStoreSession(userId, "password")
 
     return { success: true, membershipId }
   })

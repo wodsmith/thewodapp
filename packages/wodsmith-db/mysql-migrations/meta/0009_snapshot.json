@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "b2d9de15-e33b-4c98-9167-fb503bd45d8c",
-  "prevId": "649730fd-2773-44da-adb9-ba752d6402df",
+  "id": "7330d8b0-6c37-40bc-8328-605238fff7ad",
+  "prevId": "94457c9c-7fd4-4759-9f41-8309dae59ab9",
   "tables": {
     "addresses": {
       "name": "addresses",
@@ -13975,6 +13975,14 @@
           "autoincrement": false,
           "default": 1
         },
+        "composition_state": {
+          "name": "composition_state",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'customized'"
+        },
         "items": {
           "name": "items",
           "type": "json",
@@ -14265,6 +14273,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "auth_generation": {
+          "name": "auth_generation",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "role": {
           "name": "role",
@@ -16665,6 +16681,108 @@
         }
       },
       "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "volunteer_signup_intents": {
+      "name": "volunteer_signup_intents",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "existing_account": {
+          "name": "existing_account",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "application": {
+          "name": "application",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "return_path": {
+          "name": "return_path",
+          "type": "varchar(600)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "volunteer_signup_intents_expiry_idx": {
+          "name": "volunteer_signup_intents_expiry_idx",
+          "columns": [
+            "expires_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "volunteer_signup_intents_id": {
+          "name": "volunteer_signup_intents_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "volunteer_signup_intents_codeHash_unique": {
+          "name": "volunteer_signup_intents_codeHash_unique",
+          "columns": [
+            "code_hash"
+          ]
+        }
+      },
       "checkConstraint": {}
     }
   },

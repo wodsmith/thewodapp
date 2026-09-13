@@ -18,7 +18,7 @@ Plan 001 is complete. Plan 002 implements direct track logging, optional session
 | [008](008-crew-review-coverage.md) | Clarify prepared verification and run its database regression in CI | P2 | S | Plan 007 DONE | DONE — independently verified; latest two comments addressed |
 | [010](010-crew-print-coverage.md) | Verify every printed schedule day | P2 | S | Plan 008 DONE | DONE — independently verified; all printed headings covered |
 
-PR #699 is not merge-ready. Plans 003–006 address the verified review findings and passed independent checks. Published CI and review output are evaluated separately. The migration waits for PR #691 and the #698/#695 migration dependencies to merge through their own authorized reviews. The migration prototype is disposable and will not be published.
+PR #699's migration hold was reconciled after #691, #695, and #698 merged. Migration `0009_training_composition_state.sql` was regenerated from actual main, preserving the inherited SQL, snapshots, and journal entries. See [the integration receipt](011-session-migration-integration.md). Published CI and review output remain separate merge gates.
 
 ## Decision record
 
