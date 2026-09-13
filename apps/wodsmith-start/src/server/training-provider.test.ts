@@ -230,6 +230,39 @@ describe.skipIf(!url)("provider projection and persistence", () => {
     await db.delete(userTable).where(eq(userTable.id, state.userId))
     await pool.promise().end()
   })
+  // @lat: [[training-agent-services#Verification#Library occurrence edits retain identity]]
+  it("requires a new item identity when changing a saved provider occurrence", async () => {
+    const input = {
+      teamId: day.teamId,
+      trainingDate: "2026-10-03",
+      expectedRevision: 0,
+      items: [
+        {
+          id: "occurrence-review",
+          kind: "library" as const,
+          workoutId: "provider_cap",
+          sourceTrackId: CROSSFIT_TRACK_ID,
+          sourceDate: "2026-09-04",
+        },
+      ],
+    }
+    const saved = await savePersonalTrainingSession(input)
+    await expect(
+      savePersonalTrainingSession({
+        ...input,
+        expectedRevision: saved.revision,
+        items: [{ ...input.items[0], sourceDate: "2026-09-06" }],
+      }),
+    ).rejects.toThrow("new item ID")
+    const unchanged = await getPersonalTrainingDay({
+      teamId: day.teamId,
+      trainingDate: input.trainingDate,
+    })
+    expect(unchanged.personalSession?.revision).toBe(saved.revision)
+    expect(unchanged.personalSession?.items[0]).toMatchObject({
+      occurrence: { sourceDate: "2026-09-04" },
+    })
+  })
   // @lat: [[training#Provider Verification#Read-only dates and precedence]]
   it("projects published dates without writes and gives only published coaching precedence", async () => {
     const insert = vi.spyOn(db, "insert")

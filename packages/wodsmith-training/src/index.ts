@@ -21,8 +21,14 @@ export type TrainingScope =
 
 export function assertTrainingActor(actor: TrainingActor): void {
   if (!actor.userId?.trim()) throw new Error("NOT_AUTHORIZED: Sign in to train")
-  if ((actor.grantId || actor.clientId) &&
-      (!actor.grantId || !actor.clientId || !actor.scopes || !actor.allowedTeamIds))
+  const hasGrant =
+    actor.grantId !== undefined || actor.clientId !== undefined ||
+    actor.scopes !== undefined || actor.allowedTeamIds !== undefined
+  if (
+    hasGrant &&
+    (!actor.grantId?.trim() || !actor.clientId?.trim() ||
+      !Array.isArray(actor.scopes) || !Array.isArray(actor.allowedTeamIds))
+  )
     throw new Error("FORBIDDEN: Incomplete training grant")
 }
 

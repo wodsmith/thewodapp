@@ -8,6 +8,7 @@ import {
 import { trainingSessionsTable } from "@repo/wodsmith-db/schemas/training"
 import { personalTrainingSessionsTable } from "@repo/wodsmith-db/schemas/training-personal"
 import { and, eq, inArray } from "drizzle-orm"
+import { matchesLibraryOccurrence } from "@/lib/training/library-occurrence"
 import type {
   PersonalTrainingItem,
   SavePersonalTrainingSessionInput,
@@ -79,6 +80,22 @@ export async function preparePersonalSessions(
       teamId: input.teamId,
       trainingDate: input.trainingDate,
     })
+    for (const item of input.items) {
+      if (item.kind !== "library") continue
+      const stored = current.personalSession?.items.find(
+        (old) => old.id === item.id,
+      )
+      if (
+        stored?.kind === "library" &&
+        !matchesLibraryOccurrence(stored, item.workoutId, {
+          trackId: item.sourceTrackId,
+          sourceDate: item.sourceDate,
+        })
+      )
+        throw new Error(
+          "CONFLICT: Use a new item ID when changing a workout occurrence",
+        )
+    }
     const sources = []
     const library = []
     for (const item of input.items) {

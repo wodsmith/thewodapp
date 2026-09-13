@@ -82,6 +82,7 @@
     "@react-email/render": "1.0.4",
     "@react-pdf/renderer": "^4.3.1",
     "@repo/wodsmith-db": "workspace:*",
+    "@repo/wodsmith-training": "workspace:*",
     "@sentry/cloudflare": "^10.39.0",
     "@sentry/react": "^10.39.0",
     "@sentry/vite-plugin": "^4.9.1",
@@ -136,8 +137,7 @@
     "ulid": "^3.0.2",
     "workers-ai-provider": "^3.1.14",
     "zod": "^4.2.1",
-    "zustand": "^5.0.5",
-    "@repo/wodsmith-training": "workspace:*"
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
