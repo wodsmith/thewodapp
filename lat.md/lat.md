@@ -7,6 +7,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[volunteer-confirmation]] — Atomic mailbox proof and saved volunteer signup applications
 - [[commerce]] — Stripe payments, registration checkout, coupons, entitlements
 - [[registration]] — Registration flow, payment, capacity, team formation, workflows
+- [[organizer-recovery]] — Organizer partial-save recovery, capacity validation, slugs, heat times, and clipboard tests
 - [[organizer-dashboard]] — Competition organizer dashboard pages and features
 - [[competition-type-capabilities]] — Competition-type capability registry and PR-1 truth-table tests
 - [[route-docs]] — In-app documentation drawer and CMS for organizer pages

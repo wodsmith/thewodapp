@@ -94,8 +94,15 @@ function CoHostsPage() {
 
   const copyInviteLink = async (token: string) => {
     const url = `${window.location.origin}/compete/cohost-invite/${token}`
-    await navigator.clipboard.writeText(url)
-    toast.success("Invite link copied")
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success("Invite link copied")
+    } catch {
+      toast.error("Could not copy the invite link", {
+        description: "Clipboard access was denied. Try copying again.",
+        action: { label: "Retry", onClick: () => void copyInviteLink(token) },
+      })
+    }
   }
 
   const handleRemoveCohost = async (membershipId: string, name: string) => {
