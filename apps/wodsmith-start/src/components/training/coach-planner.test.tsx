@@ -1,4 +1,7 @@
-vi.mock("@/components/workout-import/workout-import-entry", () => ({ WorkoutImportEntry: () => null }))
+vi.mock("@/components/workout-import/workout-import-entry", () => ({
+  WorkoutImportEntry: () => null,
+}))
+
 import {
   act,
   cleanup,
@@ -9,6 +12,7 @@ import {
   within,
 } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { requestTeamSwitch } from "@/lib/team-switch-guard"
 import type {
   TrainingContext,
   TrainingSession,
@@ -412,4 +416,133 @@ it("guards an unapplied workout, preserves legacy content in the shared editor, 
   expect(
     screen.queryByRole("region", { name: "Section 1: Back squat" }),
   ).not.toBeInTheDocument()
+})
+
+const secondTeam = {
+  ...context.teams[0],
+  id: "second",
+  name: "Second gym",
+  tracks: [
+    { id: "second-track", name: "Second programming", description: null },
+  ],
+}
+
+// @lat: [[training#Active Team Programming Tests#Navbar owns programming context]]
+it("loads only the active team and exposes no page team picker", async () => {
+  render(
+    <CoachPlanner
+      context={{
+        ...context,
+        activeTeamId: "second",
+        teams: [...context.teams, secondTeam],
+      }}
+    />,
+  )
+  await screen.findByLabelText("Session title")
+  expect(screen.queryByLabelText("Gym")).not.toBeInTheDocument()
+  expect(api.getWeek).toHaveBeenCalledTimes(1)
+  expect(api.getWeek).toHaveBeenCalledWith({
+    data: expect.objectContaining({
+      teamId: "second",
+      trackId: "second-track",
+    }),
+  })
+})
+
+// @lat: [[training#Active Team Programming Tests#Unavailable teams do not fall back]]
+it("shows unavailable instead of using another team and recovers when access returns", async () => {
+  const denied = {
+    ...context,
+    teams: [{ ...context.teams[0], canProgram: false }, secondTeam],
+  }
+  const view = render(<CoachPlanner context={denied} />)
+  expect(
+    screen.getByText(/Programming is not available for the active team/),
+  ).toBeInTheDocument()
+  expect(api.getWeek).not.toHaveBeenCalled()
+  view.rerender(<CoachPlanner context={{ ...denied, activeTeamId: null }} />)
+  expect(api.getWeek).not.toHaveBeenCalled()
+  view.rerender(<CoachPlanner context={context} />)
+  await screen.findByLabelText("Session title")
+  expect(api.getWeek).toHaveBeenCalledTimes(1)
+})
+
+// @lat: [[training#Active Team Programming Tests#Team changes discard stale reads]]
+it("reinitializes the track on team changes and ignores the previous team's response", async () => {
+  let finish!: (value: TrainingWeek) => void
+  api.getWeek.mockReturnValueOnce(
+    new Promise<TrainingWeek>((resolve) => {
+      finish = resolve
+    }),
+  )
+  const view = render(<CoachPlanner context={context} />)
+  api.getWeek.mockResolvedValue(week([]))
+  view.rerender(
+    <CoachPlanner
+      context={{
+        ...context,
+        activeTeamId: "second",
+        teams: [...context.teams, secondTeam],
+      }}
+    />,
+  )
+  expect(await screen.findByLabelText("Session title")).toHaveValue("")
+  await act(async () => finish(week()))
+  expect(screen.getByLabelText("Session title")).toHaveValue("")
+  expect(api.getWeek).toHaveBeenLastCalledWith({
+    data: expect.objectContaining({
+      teamId: "second",
+      trackId: "second-track",
+    }),
+  })
+})
+
+// @lat: [[training#Active Team Programming Tests#Team switching protects edits]]
+it("waits for an explicit draft decision before allowing a navbar team switch", async () => {
+  const title = await renderPlanner()
+  fireEvent.change(title, { target: { value: "Unsaved plan" } })
+  let decision!: Promise<boolean>
+  await act(async () => {
+    decision = requestTeamSwitch()
+  })
+  expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+    "Discard unsaved changes?",
+  )
+  fireEvent.click(screen.getByRole("button", { name: "Stay on this day" }))
+  await expect(decision).resolves.toBe(false)
+  expect(title).toHaveValue("Unsaved plan")
+  await act(async () => {
+    decision = requestTeamSwitch()
+  })
+  fireEvent.click(screen.getByRole("button", { name: "Discard and continue" }))
+  await expect(decision).resolves.toBe(true)
+  // The team mutation can fail; edits remain guarded until context actually changes.
+  expect(api.blocker.mock.lastCall?.[0].shouldBlockFn()).toBe(true)
+})
+
+// @lat: [[training#Active Team Programming Tests#Busy writes block team switching]]
+it("keeps the team unchanged while saving and settles pending switches on unmount", async () => {
+  let finish!: (value: TrainingSession) => void
+  api.saveDraft.mockReturnValue(
+    new Promise<TrainingSession>((resolve) => {
+      finish = resolve
+    }),
+  )
+  const title = await renderPlanner()
+  fireEvent.change(title, { target: { value: "Saving plan" } })
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }))
+  let decision!: Promise<boolean>
+  await act(async () => {
+    decision = requestTeamSwitch()
+  })
+  expect(
+    screen.getByRole("button", { name: "Discard and continue" }),
+  ).toBeDisabled()
+  await act(async () => finish(session()))
+  expect(
+    screen.getByRole("button", { name: "Discard and continue" }),
+  ).toBeEnabled()
+  cleanup()
+  await expect(decision).resolves.toBe(false)
+  await expect(requestTeamSwitch()).resolves.toBe(true)
 })

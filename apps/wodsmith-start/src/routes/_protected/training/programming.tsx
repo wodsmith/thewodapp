@@ -3,14 +3,13 @@ import { CoachPlanner } from "@/components/training/coach-planner"
 import { getTrainingContextFn } from "@/server-fns/training-fns"
 
 export const Route = createFileRoute("/_protected/training/programming")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    teamId: typeof search.teamId === "string" ? search.teamId : undefined,
-  }),
+  validateSearch: () => ({}),
   loader: () => getTrainingContextFn(),
   component: TrainingProgrammingPage,
 })
 
 function TrainingProgrammingPage() {
-  const { teamId } = Route.useSearch()
-  return <CoachPlanner context={Route.useLoaderData()} initialTeamId={teamId} />
+  const { activeTeamId } = Route.useRouteContext()
+  const context = Route.useLoaderData()
+  return <CoachPlanner context={{ ...context, activeTeamId }} />
 }

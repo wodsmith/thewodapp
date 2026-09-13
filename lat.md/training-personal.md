@@ -211,6 +211,8 @@ Training opens the selected track in performance mode. My session is a separate 
 
 Provider Customize shows disabled preparation feedback while loading one batch of workout definitions. Failure permits retry; old workspace/date/track responses and cleanup cannot affect a newer preparation. Preparing a draft does not persist a composition.
 
+The optional builder uses Add workouts to browse a Programming track and Programmed date. View original programming expands provider instructions. Selected work joins the current draft; source tracks are not presented as other personal sessions.
+
 Customize edits the existing private composition when one exists; otherwise it starts from the displayed day. Start empty, section selection, private editing, repeats, removal and ordering stay local until Save session. Cancel discards the draft; saving returns to the performance surface. Warm-ups, cooldowns and instructions use the original check/note kinds and source snapshots.
 
 Source Add labels and disabled states use the same exact session/block/published-version membership. Workout detail exposes its single shared header Add/Log entry; schedules and earlier results do not repeat a pending-add navigation action.

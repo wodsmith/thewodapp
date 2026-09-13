@@ -1248,7 +1248,7 @@ ${workout.provenance ? "" : workout.description}`,
             onClick={() => setAdding(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add from another session
+            Add workouts
           </Button>
           <Button
             className="min-h-11"
@@ -1405,13 +1405,13 @@ function ProgrammingPicker({
       aria-labelledby="programming-picker-title"
     >
       <h3 id="programming-picker-title" className="text-xl font-semibold">
-        Add from another session
+        Add workouts
       </h3>
       <fieldset disabled={disabled} className="space-y-4">
         <legend className="sr-only">Choose workouts</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="source-track">Track</Label>
+            <Label htmlFor="source-track">Programming track</Label>
             <select
               id="source-track"
               value={trackId}
@@ -1440,7 +1440,7 @@ function ProgrammingPicker({
           <div className="space-y-3">
             <details>
               <summary className="min-h-11 cursor-pointer py-3">
-                Read the original session
+                View original programming
               </summary>
               <p className="whitespace-pre-wrap text-sm">{provider.markdown}</p>
             </details>

@@ -437,10 +437,10 @@ function AthleteTrainingGym({
           </div>
           {team.canProgram && !team.isPersonal ? (
             <a
-              href={`/training/programming?teamId=${encodeURIComponent(team.id)}`}
+              href="/training/programming"
               className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
             >
-              Coach tools
+              Programming builder
             </a>
           ) : null}
         </div>

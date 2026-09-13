@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
+import { registerTeamSwitchGuard } from "@/lib/team-switch-guard"
 import { libraryWorkoutToBlock } from "@/lib/training/library-block"
 import type {
   TrainingBlock,
@@ -126,15 +127,10 @@ interface PlannerLocation {
   selectedDate: string
 }
 
-function initialLocation(
-  context: TrainingContext,
-  initialTeamId?: string,
-): PlannerLocation {
-  const teams = context.teams.filter((team) => team.canProgram)
-  const team =
-    teams.find((item) => item.id === initialTeamId) ||
-    teams.find((item) => item.id === context.activeTeamId) ||
-    teams[0]
+function initialLocation(context: TrainingContext): PlannerLocation {
+  const team = context.teams.find(
+    (item) => item.id === context.activeTeamId && item.canProgram,
+  )
   const today = todayInZone(team?.timezone || "UTC")
   return {
     teamId: team?.id || "",
@@ -144,16 +140,20 @@ function initialLocation(
   }
 }
 
-export function CoachPlanner({
-  context,
-  initialTeamId,
-}: {
-  context: TrainingContext
-  initialTeamId?: string
-}) {
-  const [location, setLocation] = useState(() =>
-    initialLocation(context, initialTeamId),
+export function CoachPlanner({ context }: { context: TrainingContext }) {
+  const canProgram = context.teams.some(
+    (team) => team.id === context.activeTeamId && team.canProgram,
   )
+  return (
+    <ActiveTeamPlanner
+      key={`${context.activeTeamId}:${canProgram}`}
+      context={context}
+    />
+  )
+}
+
+function ActiveTeamPlanner({ context }: { context: TrainingContext }) {
+  const [location, setLocation] = useState(() => initialLocation(context))
   const [week, setWeek] = useState<{
     key: string
     sessions: TrainingSession[]
@@ -165,9 +165,13 @@ export function CoachPlanner({
   const [pendingLocation, setPendingLocation] =
     useState<PlannerLocation | null>(null)
   const [notice, setNotice] = useState("")
+  const [confirmTeamSwitch, setConfirmTeamSwitch] = useState(false)
+  const resolveTeamSwitch = useRef<((allow: boolean) => void) | null>(null)
+  const editState = useRef({ dirty, busy })
+  editState.current = { dirty, busy }
   const dayStrip = useRef<HTMLElement>(null)
   const teams = context.teams.filter((team) => team.canProgram)
-  const team = teams.find((item) => item.id === location.teamId)
+  const team = teams.find((item) => item.id === context.activeTeamId)
   const track = team?.tracks.find((item) => item.id === location.trackId)
   const weekKey = `${location.teamId}:${location.trackId}:${location.startDate}:${retry}`
   const loaded = week?.key === weekKey
@@ -180,6 +184,21 @@ export function CoachPlanner({
     enableBeforeUnload: dirty || busy,
     withResolver: true,
   })
+
+  useEffect(() => {
+    const unregister = registerTeamSwitchGuard(() => {
+      if (!editState.current.dirty && !editState.current.busy) return true
+      return new Promise<boolean>((resolve) => {
+        resolveTeamSwitch.current?.(false)
+        resolveTeamSwitch.current = resolve
+        setConfirmTeamSwitch(true)
+      })
+    })
+    return () => {
+      unregister()
+      resolveTeamSwitch.current?.(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (!loaded || !dayStrip.current) return
@@ -241,14 +260,15 @@ export function CoachPlanner({
     )
   }
 
-  if (!teams.length) {
+  if (!team) {
     return (
       <div className="py-12">
         <h1 className="text-3xl font-semibold tracking-tight">
-          Coach’s planner
+          Programming builder
         </h1>
         <p className="mt-3 text-muted-foreground">
-          You need programming permission in a gym to use this planner.
+          Programming is not available for the active team. Use the team picker
+          in the navigation to choose a team where you can manage programming.
         </p>
       </div>
     )
@@ -262,42 +282,19 @@ export function CoachPlanner({
             Weekly programming
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Plan, review, and publish your gym’s training.
+            {team.name} · Plan, review, and publish your programming.
           </p>
         </div>
       </header>
-      <div className="grid gap-4 border-y border-border py-5 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
-        <div className="min-w-0 space-y-2">
-          <Label htmlFor="coach-gym">Gym</Label>
-          <select
-            id="coach-gym"
-            className={selectClass}
-            value={location.teamId}
-            disabled={busy}
-            onChange={(event) => {
-              const nextTeam = teams.find(
-                (item) => item.id === event.target.value,
-              )
-              if (nextTeam)
-                changeLocation({
-                  ...location,
-                  teamId: nextTeam.id,
-                  trackId: nextTeam.tracks[0]?.id || "",
-                })
-            }}
-          >
-            {teams.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="min-w-0 space-y-2">
-          <Label htmlFor="coach-track">Programming track</Label>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto">
+          <Label htmlFor="coach-track" className="shrink-0 text-muted-foreground">
+            Track
+          </Label>
           <select
             id="coach-track"
-            className={selectClass}
+            aria-label="Programming track"
+            className={cn(selectClass, "flex-1 sm:w-56 sm:flex-none")}
             value={location.trackId}
             disabled={busy || !team?.tracks.length}
             onChange={(event) =>
@@ -314,8 +311,8 @@ export function CoachPlanner({
             ))}
           </select>
         </div>
-        <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-          <Label htmlFor="coach-week">Week containing</Label>
+        <div className="w-full sm:ml-auto sm:w-auto">
+          <Label htmlFor="coach-week" className="sr-only">Week containing</Label>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -496,10 +493,15 @@ export function CoachPlanner({
         </section>
       )}
       <AlertDialog
-        open={!!pendingLocation || blocker.status === "blocked"}
+        open={
+          confirmTeamSwitch || !!pendingLocation || blocker.status === "blocked"
+        }
         onOpenChange={(open) => {
           if (!open) {
             setPendingLocation(null)
+            resolveTeamSwitch.current?.(false)
+            resolveTeamSwitch.current = null
+            setConfirmTeamSwitch(false)
             if (blocker.status === "blocked") blocker.reset()
           }
         }}
@@ -523,7 +525,11 @@ export function CoachPlanner({
               className={primaryClass}
               disabled={busy}
               onClick={() => {
-                setDirty(false)
+                // A failed team mutation leaves this editor mounted with its edits.
+                if (!confirmTeamSwitch) setDirty(false)
+                resolveTeamSwitch.current?.(true)
+                resolveTeamSwitch.current = null
+                setConfirmTeamSwitch(false)
                 if (pendingLocation) {
                   setLocation(pendingLocation)
                   setPendingLocation(null)
