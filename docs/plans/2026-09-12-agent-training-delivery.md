@@ -6,7 +6,7 @@ This plan records the implementation authorized on September 12, 2026, following
 
 An athlete connects an agent through authenticated remote MCP, reads accessible programming and owned training, builds a portable weekly proposal, reviews the exact changes, commits it, and records or corrects results. A separate grant governs publisher actions.
 
-One personal day belongs to the athlete across teams. Team selection supplies programming context; it cannot select a different personal day or become a substitute for source authorization. Preserve current records behind an adapter until the coordinated personal-day migration is ready. Never expose a destination team as permanent personal-day identity.
+The intended model has one personal day per athlete across teams. This delivery retains existing athlete/workspace/day storage behind an explicit compatibility adapter. It checks all owned compositions for the date and rejects ambiguous or alternate-workspace days. It does not migrate or merge those records. Team context cannot replace source authorization.
 
 ## Workstream ownership
 
@@ -18,7 +18,7 @@ Three isolated tasks implement distinct boundaries, with coordinator review befo
 | Build portable weekly training plans | Versioned blueprint, durable proposals/questions, preview digest, atomic commit and receipts | Actor services and canonical transaction-aware save |
 | Build WodSmith MCP and OAuth gateway | New Worker, named tools, consent/grants/revocation, private service binding and infrastructure | Typed service and planning operations |
 
-The existing Simplify training UX task owns its UI work and personal-day migration coordination. The tasks agree on schema migrations and shared exports before editing overlapping files. Existing unrelated competition/code-mode MCP PRs are references, not dependencies to merge wholesale.
+The existing Simplify training UX task owns its UI work. Consolidating personal-day identity remains separate migration work; no active migration is assumed by these PRs. The tasks agree on schema migrations and shared exports before editing overlapping files. Existing unrelated competition/code-mode MCP PRs are references, not dependencies to merge wholesale.
 
 ## Shared contracts
 
@@ -43,4 +43,10 @@ The coordinator reviews code and integration behavior in addition to task report
 - Run focused regression tests for existing web training and result paths, package type checks, Worker builds, schema ownership validation, required repository checks, GitNexus change/impact review, and `lat check`.
 - Review the integrated branch after dependencies merge; an isolated passing task is insufficient evidence that the gateway-to-database flow works.
 
-Production deployment, live data migration, public client support claims, and real-account ChatGPT/Claude connection verification remain rollout work. The authorized PR merges do not substitute for those checks.
+Production deployment, production schema promotion, public client support claims, and real-account ChatGPT/Claude connection verification remain rollout work. The repository's existing push-to-main workflow updates the demo schema and deploys demo. The authorized PR merges do not substitute for production or live-client acceptance checks.
+
+## Implementation and rollout
+
+The implementation separates the public protocol boundary from the canonical database services and keeps planning state portable across clients.
+
+The [agent training guide](../guides/agent-training.md) records the tool workflow, deletion behavior, environment setup, and remaining rollout checks. The [research](../research/agent-first-training.md) remains the source for the Kody comparison and the choice of remote MCP over a hosted WodSmith assistant.
