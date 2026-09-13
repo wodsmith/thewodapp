@@ -45,6 +45,7 @@ import {
 } from "@/lib/logging"
 import { BroadcastNotificationEmail } from "@/react-email/broadcast-notification"
 import type { BroadcastEmailMessage } from "@/server/broadcast-queue-consumer"
+import { isGameDayPushEnabled, recordGameDayPushDeliveries } from "@/server/gameday-push"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "./requireTeamMembership"
 
@@ -890,7 +891,7 @@ export const listBroadcastsFn = createServerFn({ method: "GET" })
       },
     }))
 
-    return { broadcasts: broadcastsWithStats }
+    return { broadcasts: broadcastsWithStats, pushEnabled: isGameDayPushEnabled() }
   })
 
 // ============================================================================
@@ -1130,6 +1131,8 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
       await tx
         .insert(competitionBroadcastRecipientsTable)
         .values(recipientValues)
+
+      await recordGameDayPushDeliveries(tx, broadcast.id)
 
       return { broadcast, recipientValues }
     })

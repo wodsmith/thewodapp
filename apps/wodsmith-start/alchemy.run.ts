@@ -654,7 +654,7 @@ const broadcastEmailQueue = await Queue(`broadcast-email-queue-${stage}`, {
  */
 const website = await TanStackStart("app", {
   // 05:00 PST (UTC-8) year-round, followed by a publication health check.
-  crons: stage === "prod" ? ["0 13 * * *", "15 15 * * *"] : [],
+  crons: [...(stage === "prod" ? ["0 13 * * *", "15 15 * * *"] : []), ...(process.env.GAMEDAY_PUSH_ENABLED === "true" ? ["* * * * *"] : [])],
   /**
    * Queue consumer registration.
    *
@@ -700,6 +700,10 @@ const website = await TanStackStart("app", {
     MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
     /** Queue for async broadcast email delivery */
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
+    GAMEDAY_PUSH_ENABLED: process.env.GAMEDAY_PUSH_ENABLED ?? "false",
+    ...(process.env.APNS_KEY_ID && { APNS_KEY_ID: alchemy.secret(process.env.APNS_KEY_ID) }),
+    ...(process.env.APNS_TEAM_ID && { APNS_TEAM_ID: alchemy.secret(process.env.APNS_TEAM_ID) }),
+    ...(process.env.APNS_PRIVATE_KEY && { APNS_PRIVATE_KEY: alchemy.secret(process.env.APNS_PRIVATE_KEY) }),
     /** Durable Object namespace for the AI judge-scheduling agent */
     JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
     WORKOUT_IMPORT_AGENT: workoutImportAgent,

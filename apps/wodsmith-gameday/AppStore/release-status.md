@@ -77,3 +77,13 @@ The earlier 193 type diagnostics came from the spectator task's shared dependenc
 ## Version 1.1 build 5 — final athlete polish
 
 Build 5 supersedes builds 2–4 and adds personal-only lane labels and deduplicated registered/spectating discovery. This is the final submission candidate; earlier uploaded builds must not be submitted.
+
+## Announcement push follow-up — 1.2 build 6 preparation
+
+On September 12, 2026, App Store Connect still showed 1.1 Prepare for Submission, build 5 selected (`bd02ac14-3ddf-4966-87a6-0f4ed8c7cb12`), with the Lock Screen screenshot first. This task did not alter that version, build selection, reviewer credentials, or submission.
+
+Follow-up source is 1.2 build 6. Native simulator compilation and lifecycle tests pass; notification-injection evidence covers a warm tap to the exact announcement and a signed-out cold launch. See `design-evidence/announcement-push/README.md`.
+
+Apple Developer identifier `G29VQNGV94` (`com.wodsmith.gameday`) currently has Push Notifications unchecked. An APNs signing key is not configured in the inspected WODsmith development configuration. The attempted 1.2 build 6 archive failed: the existing wildcard provisioning profile lacks both Push Notifications and `aps-environment`. Real provider delivery and upload remain blocked. Do not upload or submit this follow-up until those checks and backend rollout are complete.
+
+Before follow-up submission: retain 1.1 build 5, finish the current release separately, apply the push schema migration, configure and verify APNs using an explicitly approved test device/account, and include linked Device ID usage for App Functionality in Apple privacy disclosures. Production deployment still requires separate explicit authorization; this task did not deploy production.

@@ -283,6 +283,11 @@ export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
   fetch: fetchWithLogging,
 
   async scheduled(controller, env) {
+    if (controller.cron === "* * * * *") {
+      const { dispatchGameDayPush } = await import("./server/gameday-push")
+      await dispatchGameDayPush()
+      return
+    }
     const { CROSSFIT_CRON, crossFitScheduledDate } = await import(
       "./lib/crossfit/source"
     )

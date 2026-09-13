@@ -23,6 +23,7 @@ final class GameDayStore {
     private(set) var token: String?
     private var generation = UUID()
     let api: GameDayAPI
+    let push: AnnouncementPushManager
     let reminders = HeatReminderManager()
     let activities = HeatActivityManager()
     let spectator: SpectatorPreferences
@@ -50,6 +51,7 @@ final class GameDayStore {
     init(api: GameDayAPI = GameDayAPI(), demo: Bool = false, spectator: SpectatorPreferences = SpectatorPreferences()) {
         self.spectator = spectator
         self.api = api
+        self.push = AnnouncementPushManager(api: api)
         self.isDemo = demo
         if demo {
             home = DemoData.home
@@ -65,6 +67,7 @@ final class GameDayStore {
             }
         } else {
             token = SessionKeychain.read()
+            push.updateSession(token)
             restoreCache()
         }
     }
@@ -75,6 +78,7 @@ final class GameDayStore {
         try SessionKeychain.save(credential.token)
         generation = UUID()
         token = credential.token
+        push.updateSession(token)
         home = .empty
         details = [:]
         leaderboards = [:]
@@ -84,10 +88,12 @@ final class GameDayStore {
         await refresh()
     }
 
-    func signOut() async {
+    func signOut(preserveAnnouncement: Bool = false) async {
         let previousToken = token
         generation = UUID()
         token = nil
+        push.updateSession(nil)
+        if !preserveAnnouncement { AnnouncementRouter.shared.pending = nil }
         SessionKeychain.clear()
         home = .empty
         details = [:]
@@ -97,6 +103,7 @@ final class GameDayStore {
         try? FileManager.default.removeItem(at: cacheURL)
         await reminders.clear()
         await activities.end()
+        await push.signOut()
         if let previousToken, !isDemo {
             struct Revocation: Decodable { let signedOut: Bool }
             // Device access is cleared even offline. Revoke only this device's server session.
@@ -107,6 +114,7 @@ final class GameDayStore {
 
     func refresh() async {
         guard !isDemo, !status(.home).isLoading else { return }
+        await push.refreshPermission()
         let current = generation
         states[.home, default: ResourceStatus()].isLoading = true
         do {
@@ -209,7 +217,7 @@ final class GameDayStore {
         guard current == generation else { return }
         states[resource, default: ResourceStatus()].isLoading = false
         if (error as? APIError)?.status == 401 {
-            await signOut()
+            await signOut(preserveAnnouncement: true)
             self.error = "Your session expired. Sign in again to see your heats."
         } else if !(error is CancellationError), (error as? URLError)?.code != .cancelled {
             let message: String

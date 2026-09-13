@@ -70,7 +70,7 @@ export interface InviteEmailMessage {
 	replyTo?: string
 }
 
-export type QueueEmailMessage = BroadcastEmailMessage | InviteEmailMessage
+export type QueueEmailMessage = BroadcastEmailMessage | InviteEmailMessage | { kind: "gameday-push"; deliveryId: string }
 
 /**
  * Queue consumer handler — called by the Workers runtime when messages arrive.
@@ -89,6 +89,17 @@ export async function handleBroadcastEmailQueue(
 
 	for (const message of batch.messages) {
 		const body = message.body as QueueEmailMessage
+
+    if (body.kind === "gameday-push") {
+      try {
+        const { deliverGameDayPush } = await import("./gameday-push")
+        await deliverGameDayPush(body.deliveryId)
+        message.ack()
+      } catch {
+        message.retry()
+      }
+      continue
+    }
 
 		if (body.kind === "competition-invite") {
 			await handleInviteMessage({
