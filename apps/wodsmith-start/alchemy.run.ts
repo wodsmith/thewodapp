@@ -98,6 +98,7 @@ import {
   R2Bucket,
   TanStackStart,
   Workflow,
+  Worker,
 } from "alchemy/cloudflare"
 import {
   Branch as PlanetScaleBranch,
@@ -106,6 +107,7 @@ import {
 import { CloudflareStateStore } from "alchemy/state"
 import { WebhookEndpoint } from "alchemy/stripe"
 import { GAMEDAY_PUSH_CRON } from "./src/lib/gameday-push-config"
+import { resolveAgentDeployment } from "./infra/agent-deployment"
 import type { CrossFitImportParams } from "./src/workflows/crossfit-daily-import-workflow"
 
 /**
@@ -137,6 +139,7 @@ import type { CrossFitImportParams } from "./src/workflows/crossfit-daily-import
  * Current stage name for conditional configuration.
  */
 const stage = process.env.STAGE ?? "dev"
+const agentDeployment = resolveAgentDeployment(stage, process.env.APP_URL, process.env.AGENT_RESOURCE)
 const gameDayPushEnabled = stage === "prod" && process.env.GAMEDAY_PUSH_ENABLED === "true"
 
 /**
@@ -695,7 +698,7 @@ const website = await TanStackStart("app", {
     KV_SESSION: kvSession,
     OAUTH_KV: agentOAuthKv,
     AGENT_AUTH_ORIGIN: process.env.APP_URL!,
-    AGENT_RESOURCE: process.env.AGENT_RESOURCE ?? "",
+    AGENT_RESOURCE: agentDeployment?.resource ?? "",
     /** R2 bucket binding for file uploads */
     R2_BUCKET: r2Bucket,
     /** Private R2 bucket for entitlement-gated product downloads */
@@ -875,6 +878,24 @@ const website = await TanStackStart("app", {
  * ```
  */
 export type Env = typeof website.Env
+
+// Await the actual application resource so the named RPC entrypoint is deployed
+// before the gateway. Production remains disabled without an explicit resource.
+export const agentGateway = agentDeployment
+  ? await Worker("agent", {
+      entrypoint: "../wodsmith-agent/src/index.ts",
+      compatibilityDate: "2026-09-12",
+      compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
+      url: false,
+      domains: [agentDeployment.domain],
+      bindings: {
+        TRAINING: Worker.experimentalEntrypoint(website, "AgentTrainingService"),
+        AGENT_AUTH_ORIGIN: agentDeployment.authOrigin,
+        AGENT_RESOURCE: agentDeployment.resource,
+      },
+      observability: { enabled: true },
+    })
+  : undefined
 
 /**
  * Default export of the website resource for external reference.

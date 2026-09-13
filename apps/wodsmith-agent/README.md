@@ -2,9 +2,11 @@
 
 Remote MCP over a private binding to WodSmith Start. OAuth consent uses the existing login origin at `/agent/authorize`; connected apps can be reviewed and revoked at `/agent/connections`.
 
-The checked-in Wrangler configuration is local-only and uses HTTPS localhost. Provider 0.10.3 requires HTTPS authorization-server identifiers, including local consent; run the Start preview with HTTPS on port 3000 and the gateway on HTTPS port 8791. It names `wodsmith-start`, which is the raw Start Wrangler configuration name. Alchemy generates a different stage-specific Worker name. For an Alchemy deployment, set the service binding to the **actual generated/deployed Start Worker name**, entrypoint `AgentTrainingService`; do not copy the local service name into a deployment.
+Alchemy deploys the hosted gateway alongside Start, including its custom domain and named `AgentTrainingService` binding. Demo uses `https://mcp-demo.wodsmith.com/mcp` and authenticates through `https://demo.wodsmith.com`. Production agent access remains disabled by default. See [demo deployment](../../docs/guides/agent-demo-deployment.md).
 
-Start requires `OAUTH_KV` (separate from browser sessions), `AGENT_AUTH_ORIGIN` (existing login origin) and `AGENT_RESOURCE` (exact gateway URL including `/mcp`). Alchemy provisions KV and uses `APP_URL` for the authorization origin. It leaves `AGENT_RESOURCE` empty unless supplied, disabling gateway OAuth on ordinary demo deployments. Apply reviewed SQL migrations before enabling this resource. Production and demo require separate KV and SQL environments, distinct canonical resource URLs, and matching gateway vars. No credentials belong in Wrangler configuration.
+The checked-in Wrangler configuration is local-only. For repeatable local or phone testing, run `pnpm agent:ensure --lan`; see [local development](../../docs/guides/agent-local-development.md).
+
+Start owns `OAUTH_KV`, SQL grants and the application database. The gateway receives only the private service binding and exact public authorization/resource URLs. No credentials belong in Wrangler configuration.
 
 Local verification:
 

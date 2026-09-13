@@ -6,7 +6,7 @@ The training MCP gateway delegates named tools through a private Worker binding.
 
 Consent stays on the existing login origin. The gateway accepts OAuth access tokens only, with no browser-session fallback or caller-supplied actor fields.
 
-[[apps/wodsmith-start/src/agent/consent.ts#handleAgentOAuth]] hosts consent at `/agent/authorize`, token and registration endpoints under `/agent`, and connected-app management at `/agent/connections`, linked from Settings. An unset resource disables these routes. Alchemy defaults it to empty, so an ordinary deployment does not enable an unmigrated gateway.
+[[apps/wodsmith-start/src/agent/consent.ts#handleAgentOAuth]] hosts consent at `/agent/authorize`, token and registration endpoints under `/agent`, and connected-app management at `/agent/connections`, linked from Settings. An unset resource disables these routes. Alchemy enables the canonical demo resource after the demo schema push. Other stages keep it empty unless explicitly configured.
 
 The shipped `@cloudflare/workers-oauth-provider` 0.10.3 owns code exchange, refresh, S256 PKCE, CIMD and DCR. Its installed API differs from the newer split-provider API on the upstream main branch. An omitted scope defaults to `training:read` only. All resource scopes are discoverable; consent initially checks only the requested read scope. Deletion and publication require separate selections.
 
@@ -82,3 +82,15 @@ The sign-in submit handler uses a document navigation for local `/agent/` destin
 The sign-in submit button stays disabled until the client handler is ready, preventing an early native submission from losing the OAuth destination.
 
 The form also declares POST so a native fallback cannot place credentials in a URL. Browser acceptance checks the initial disabled form and the enabled, hydrated login-to-consent flow.
+
+## Demo deployment defaults
+
+Alchemy deploys the demo gateway with the demo app and binds its named training entrypoint directly. Production agent access remains disabled unless explicitly configured.
+
+[[apps/wodsmith-start/infra/agent-deployment.ts#resolveAgentDeployment]] selects `https://mcp-demo.wodsmith.com/mcp` for demo. The existing Deploy workflow pushes the demo database schema before Alchemy deploys the app and gateway. The gateway receives only the private service and public OAuth URLs; Alchemy manages its custom domain and TLS. See `docs/guides/agent-demo-deployment.md` for deployment and connection steps.
+
+## Deployment origin isolation
+
+Deployment configuration rejects mismatched application origins and MCP resources, preventing a demo gateway from accepting production authorization.
+
+Only the exact canonical demo or explicitly enabled production URL pair is accepted. An empty resource disables the gateway. Development uses the separate local launcher. The post-deploy smoke check verifies public resource discovery, authorization discovery, PKCE and rejection of unauthenticated MCP requests.
