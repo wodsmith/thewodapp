@@ -16,6 +16,8 @@ Owner-only listing returns compact IDs, titles, week starts, status, and revisio
 
 The general-functional-fitness@1 blueprint organizes optional roles without choosing scoring rules. Its item schema comes from canonical training validation rather than a parallel workout definition.
 
+The recommended order is warm-up, optional strength or skill, optional conditioning, then cooldown or mobility. No role is required for every session. A compact question catalogue supplies availability, duration, equipment, source, and substitution examples; hosts ask only when missing information changes the proposal.
+
 [[packages/wodsmith-training/src/plans/blueprint.ts#createTrainingPlanSchema]] bounds documents to seven calendar days, forty items per day, fifty questions, fifty constraints, and 256 KB at the service boundary. Each date occurs once regardless of source context. Week start is explicit and need not be Monday.
 
 Each day declares `accessTeamId` as an access context and chooses `train`, `rest`, or `leave_open`. Train replaces the reviewed personal composition, rest explicitly saves an empty composition, and leave-open performs no canonical write. A rest proposal is personal intent, not a claim that a provider published a rest day. Omitted dates remain unchanged.
@@ -97,3 +99,7 @@ Source republication, revoked membership, revoked grants, and ambiguous cross-wo
 ### Concurrent Canonical Contexts
 
 Two drafts for the same athlete/date in different workspaces cannot both commit after concurrent authorization. The regression reproduced two successes under REPEATABLE READ; explicit READ COMMITTED permits only one receipt and day.
+
+### Preserved Library Preview
+
+When a library workout changes after being saved in a personal composition, preview describes the stored definition that commit will preserve. Current access is still required; changing the library does not silently rewrite the saved prescription.

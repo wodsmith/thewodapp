@@ -195,6 +195,90 @@ export function getSessionBlueprint(version: string = PLAN_BLUEPRINT_VERSION) {
       documentBytes: 256_000,
     },
     defaults: { questions: [], constraints: [], warnings: [], days: [] },
+    recommendedStructure: [
+      {
+        order: 1,
+        roles: ["warmup"],
+        optional: true,
+        purpose: "Preparation suited to the selected work",
+      },
+      {
+        order: 2,
+        roles: ["strength", "skill"],
+        optional: true,
+        purpose: "Strength or skill work when it fits the athlete's plan",
+      },
+      {
+        order: 3,
+        roles: ["conditioning"],
+        optional: true,
+        purpose: "Conditioning when called for by the source or personal plan",
+      },
+      {
+        order: 4,
+        roles: ["cooldown", "mobility"],
+        optional: true,
+        purpose: "Optional cooldown or mobility, combined when useful",
+      },
+    ],
+    questionPolicy:
+      "Ask only if the information is missing and its answer changes the plan. Do not present the whole catalogue as a required questionnaire. Persist only the questions actually needed; use known answers and constraints from the draft.",
+    questionCatalogue: [
+      {
+        id: "availability",
+        field: "days",
+        prompt: "Which days are available for training?",
+        askWhen:
+          "Available dates are missing or conflict with the proposed week",
+        exampleAnswer: "Monday, Wednesday and Saturday",
+      },
+      {
+        id: "duration",
+        field: "constraints",
+        prompt: "How much time is available on those days?",
+        askWhen:
+          "A time limit would change the selected work or optional sections",
+        exampleAnswer: "Thirty minutes on Wednesday; an hour on the other days",
+      },
+      {
+        id: "equipment",
+        field: "constraints",
+        prompt: "What equipment is available where you will train?",
+        askWhen:
+          "Available equipment is unknown and affects a selected prescription",
+        exampleAnswer: "Dumbbells only on Wednesday",
+      },
+      {
+        id: "source",
+        field: "days",
+        prompt:
+          "Which accessible programming should anchor the week, and should unpublished days stay open?",
+        askWhen:
+          "Source preference or handling of a missing published day is unresolved",
+        exampleAnswer: "Use my default track and leave unpublished dates open",
+      },
+      {
+        id: "substitution",
+        field: "days",
+        prompt: "Which selected work should be substituted or adapted?",
+        askWhen:
+          "A requested change has more than one meaningful interpretation",
+        exampleAnswer:
+          "Keep the source strength work; propose a personal conditioning remix",
+      },
+    ],
+    structureExamples: [
+      {
+        context: "A full session with both strength and conditioning selected",
+        roles: ["warmup", "strength", "conditioning", "cooldown"],
+        guidance: "Keep the selected canonical scoring rules for each item",
+      },
+      {
+        context: "A shorter day with only skill work selected",
+        roles: ["warmup", "skill", "mobility"],
+        guidance: "Omit conditioning rather than filling every role",
+      },
+    ],
     intents: {
       train: "Replace the personal composition with these items",
       rest: "Save an explicit empty personal composition",
@@ -210,6 +294,10 @@ export function getSessionBlueprint(version: string = PLAN_BLUEPRINT_VERSION) {
     },
     guidance:
       "Roles are optional organization, never scoring rules. Ask about availability, duration, equipment, sources or substitutions only when the answer changes the plan. Unpublished days stay open unless the athlete chooses personal work. Draft constraints do not save athlete preferences.",
-    nextActions: ["create_training_plan", "get_training_plan"],
+    nextActions: [
+      "list_training_plans",
+      "create_training_plan",
+      "get_training_plan",
+    ],
   }
 }

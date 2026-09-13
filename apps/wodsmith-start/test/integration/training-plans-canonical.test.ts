@@ -463,16 +463,46 @@ describe.skipIf(!mysqlTestConfig)(
       ).toHaveLength(0)
     })
 
+    // @lat: [[training-plans#Verification#Preserved Library Preview]]
+    it("previews the stored library definition that the canonical writer will preserve", async () => {
+      const value = document()
+      value.days[0]!.items = [
+        { item: { id: "library", kind: "library", workoutId: "plan_library" } },
+      ]
+      const first = await preview(value)
+      await plans.commit(dependencies.actor, first.commit)
+      await db
+        .update(workouts)
+        .set({ name: "Changed library", timeCap: 600 })
+        .where(eq(workouts.id, "plan_library"))
+      const second = await preview(value)
+      const changes = second.review.changes as {
+        days: { library: { workout: { name: string; timeCap: number } }[] }[]
+      }
+      expect(changes.days[0]!.library[0]!.workout).toMatchObject({
+        name: "Three rounds",
+        timeCap: 300,
+      })
+      await plans.commit(dependencies.actor, second.commit)
+      const personal = await createPersonalTrainingService(
+        dependencies,
+      ).getPersonalTrainingDay({
+        teamId: "plan_gym",
+        trainingDate: "2026-09-07",
+      })
+      expect(personal.personalSession?.items[0]).toMatchObject({
+        workout: { name: "Three rounds", timeCap: 300 },
+      })
+    })
+
     // @lat: [[training-plans#Verification#Concurrent Canonical Contexts]]
     it("rejects alternate workspace commits after both transactions established old read snapshots", async () => {
-      await db
-        .insert(teamMembershipTable)
-        .values({
-          id: "plan_member_foreign",
-          userId: "plan_athlete",
-          teamId: "plan_foreign",
-          roleId: "member",
-        })
+      await db.insert(teamMembershipTable).values({
+        id: "plan_member_foreign",
+        userId: "plan_athlete",
+        teamId: "plan_foreign",
+        roleId: "member",
+      })
       const actor = {
         ...dependencies.actor,
         allowedTeamIds: ["plan_gym", "plan_foreign"],

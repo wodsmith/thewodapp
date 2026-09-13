@@ -381,6 +381,20 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     await expect(db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,valid.prepared))).rejects.toThrow("CONFLICT")
   })
 
+  // @lat: [[training-agent-services#Verification#Prepared library snapshots]]
+  it("reviews the preserved library definition while still requiring current access", async () => {
+    const dependencies = {db,actor:{userId:"personal_athlete"},hasFeature:async()=>true}
+    const item = {id:"saved-library",kind:"library" as const,workoutId:"personal_library"}
+    const saved = await createPersonalTrainingService(dependencies).savePersonalTrainingSession({...day,expectedRevision:0,items:[item]})
+    await db.update(workouts).set({name:"Changed definition"}).where(eq(workouts.id,item.workoutId))
+    const {prepared,review} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:saved.revision,items:[item]}])
+    expect(review.days[0].library[0].workout.name).toBe("Rounds")
+    const committed = await db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))
+    expect(committed[0].items[0]).toMatchObject({workout:{name:"Rounds"}})
+    await db.update(workouts).set({teamId:"personal_foreign"}).where(eq(workouts.id,item.workoutId))
+    await expect(preparePersonalSessions(dependencies,[{...day,expectedRevision:committed[0].revision,items:[item]}])).rejects.toThrow()
+  })
+
   // @lat: [[training-agent-services#Verification#Prepared source and identity conflicts]]
   it("rejects source changes and hidden alternate workspace days before writing", async () => {
     const dependencies = {db,actor:{userId:"personal_athlete",grantId:"g",clientId:"c",scopes:["training:read","training:write"],allowedTeamIds:[day.teamId]},hasFeature:async()=>true}
@@ -421,6 +435,8 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     await db
       .update(workouts)
       .set({
+        name: "Rounds",
+        teamId: day.teamId,
         scheme: "reps",
         roundsToScore: 3,
         scalingGroupId: null,
