@@ -18,7 +18,7 @@ The extraction retains existing source publication, append and undo, private res
 
 Personal storage still uses athlete, team and date. A team is an access context, not a separate athlete identity; this extraction does not claim cross-team personal-day support or add a migration. Source occurrence identity and performed dates remain distinct. Durable mutation receipts and result revisions are separate follow-on behavior.
 
-A saved library item's identity cannot be reused for a different workout, source track, or programmed date. Changing an occurrence requires a new item ID so stored prescriptions and performed results cannot silently attach to a different occurrence.
+A saved library item's identity cannot be reused for a different workout, source track, or programmed date. Changing an occurrence requires a new item ID so stored prescriptions and performed results cannot silently attach to a different occurrence. Callers must retain the exact casing of saved item IDs; case-only variants fail before append, replace, or undo behavior.
 
 ## Verification
 

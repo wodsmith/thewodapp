@@ -489,10 +489,12 @@ export function createPersonalTrainingService(
     const previousItems = (previousSession?.items ??
       []) as PersonalTrainingItem[]
     for (const item of data.items) {
-      if (item.kind !== "library") continue
       const previous = previousItems.find(
         (old) => old.id.toLowerCase() === item.id.toLowerCase(),
       )
+      if (previous && previous.id !== item.id)
+        throw new Error("CONFLICT: Use the saved item ID exactly, including letter case")
+      if (item.kind !== "library") continue
       if (
         previous?.kind === "library" &&
         !matchesLibraryOccurrence(previous, item.workoutId, {
