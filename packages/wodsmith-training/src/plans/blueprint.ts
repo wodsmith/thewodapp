@@ -82,12 +82,13 @@ export function createTrainingPlanSchema<Item extends { id: string }>(
                   z
                     .object({
                       item: itemSchema,
-                      role: z.enum(PLAN_ROLES).optional(),
+                      role: z.enum(PLAN_ROLES).nullable().optional(),
                       estimatedDurationMinutes: z
                         .number()
                         .int()
                         .min(1)
                         .max(1440)
+                        .nullable()
                         .optional(),
                     })
                     .strict(),
@@ -170,8 +171,8 @@ export type TrainingPlanDocument<Item = unknown> = {
     accessTeamId: string
     items: {
       item: Item
-      role?: (typeof PLAN_ROLES)[number]
-      estimatedDurationMinutes?: number
+      role?: (typeof PLAN_ROLES)[number] | null
+      estimatedDurationMinutes?: number | null
     }[]
   }[]
   questions: z.infer<typeof questionSchema>[]
@@ -195,6 +196,8 @@ export function getSessionBlueprint(version: string = PLAN_BLUEPRINT_VERSION) {
       documentBytes: 256_000,
     },
     defaults: { questions: [], constraints: [], warnings: [], days: [] },
+    metadataPolicy:
+      "Omit role or estimatedDurationMinutes to preserve saved metadata. Set either field to null to clear it explicitly. Metadata changes do not change a recorded prescription or result.",
     recommendedStructure: [
       {
         order: 1,

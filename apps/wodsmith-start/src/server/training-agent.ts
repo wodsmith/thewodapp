@@ -151,9 +151,11 @@ const operations = [
   ),
   readOperation(
     "get_training_history",
-    "Read your private performed training history for an accessible track.",
+    "Read your own published results for the selected track and your personal result history for the workspace. Each collection is bounded to 100 rows.",
     trainingTrackInputSchema,
     async (deps, input) => ({
+      publishedHistoryScope: {teamId: input.teamId, trackId: input.trackId},
+      personalHistoryScope: {teamId: input.teamId},
       results: await createTrainingService(deps).getTrainingHistory(input),
       personalResults:
         await createPersonalTrainingService(deps).getPersonalTrainingHistory(

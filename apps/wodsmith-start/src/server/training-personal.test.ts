@@ -228,7 +228,7 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     if (!databaseUrl) throw new Error("TRAINING_TEST_DATABASE_URL is required")
     const url = new URL(databaseUrl)
     if (
-      !["localhost", "127.0.0.1"].includes(url.hostname) ||
+      !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
       !/^\/training_test(?:_[a-f0-9]{32})?$/.test(url.pathname)
     )
       throw new Error("Use a disposable local training_test database")
@@ -379,6 +379,27 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     expect(saved[0].items[0]).toMatchObject({role:"warmup",estimatedDurationMinutes:10})
     expect((await createPersonalTrainingService(dependencies).getPersonalTrainingDay(day)).items[0]).toMatchObject({role:"warmup",estimatedDurationMinutes:10})
     await expect(db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,valid.prepared))).rejects.toThrow("CONFLICT")
+  })
+
+  // @lat: [[training-agent-services#Verification#Scored item organization metadata]]
+  it.each(["personal", "source", "library"] as const)("sets, edits and clears %s metadata without changing performed content", async (kind) => {
+    const dependencies = {db,actor:{userId:"personal_athlete"},hasFeature:async()=>true}
+    const service = createPersonalTrainingService(dependencies)
+    const item: PersonalTrainingItemInput = kind === "personal" ? personalItem : kind === "source" ? sourceItem : {id:"metadata-library",kind:"library",workoutId:"personal_library"}
+    let saved = await service.savePersonalTrainingSession({...day,expectedRevision:0,items:[item]})
+    if (kind === "library") await service.savePersonalLibraryResult({personalSessionId:saved.id,itemId:item.id,expectedRevision:saved.revision,score:"",asRx:true,roundScores:[{score:"10"},{score:"20"},{score:"30"}]})
+    else await service.savePersonalTrainingResult({personalSessionId:saved.id,itemId:item.id,expectedRevision:saved.revision,score:"30",notes:"Retain",unit:"lb",completed:true})
+    const before = await db.select().from(personalTrainingResultsTable)
+    for (const metadata of [{role:"warmup" as const,estimatedDurationMinutes:10},{},{role:"strength" as const,estimatedDurationMinutes:20},{role:null,estimatedDurationMinutes:null}]) {
+      const {prepared} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:saved.revision,items:[{...item,...metadata}]}])
+      ;[saved] = await db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))
+      if (metadata.role === null) {
+        expect(saved.items[0]).not.toHaveProperty("role")
+        expect(saved.items[0]).not.toHaveProperty("estimatedDurationMinutes")
+      } else expect(saved.items[0]).toMatchObject(metadata.role ? metadata : {role:"warmup",estimatedDurationMinutes:10})
+      expect(await db.select().from(personalTrainingResultsTable)).toEqual(before)
+    }
+    if (item.kind === "personal") await expect(service.savePersonalTrainingSession({...day,expectedRevision:saved.revision,items:[{...item,block:{...item.block,prescription:"Different workout"}}]})).rejects.toThrow("has a result")
   })
 
   // @lat: [[training-agent-services#Verification#Prepared library snapshots]]

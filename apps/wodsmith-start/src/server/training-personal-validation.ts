@@ -32,8 +32,9 @@ const itemMetadata = {
       "mobility",
       "other",
     ])
+    .nullable()
     .optional(),
-  estimatedDurationMinutes: z.number().int().min(1).max(1440).optional(),
+  estimatedDurationMinutes: z.number().int().min(1).max(1440).nullable().optional(),
 }
 export const personalTrainingItemSchema = z
   .discriminatedUnion("kind", [

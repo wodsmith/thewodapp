@@ -22,7 +22,7 @@ export const trainingPlanDraftsTable = mysqlTable(
       .default("draft"),
     document: json().$type<unknown>().notNull(),
   },
-  (t) => [index("training_plan_owner_idx").on(t.userId, t.updatedAt)],
+  (t) => [index("training_plan_owner_idx").on(t.userId, t.id)],
 )
 
 export interface TrainingPlanCommitReceipt {
