@@ -94,7 +94,28 @@ const operations = [
       const { sessions, myResults, providerDays } = await createTrainingService(
         deps,
       ).getTrainingWeek({ ...input, mode: "athlete" })
-      return { sessions, myResults, providerDays }
+      const personalService = createPersonalTrainingService(deps)
+      const personalDays = []
+      for (let offset = 0; offset < 7; offset++) {
+        const date = new Date(`${input.startDate}T00:00:00Z`)
+        date.setUTCDate(date.getUTCDate() + offset)
+        const trainingDate = date.toISOString().slice(0, 10)
+        const day = await personalService.getPersonalTrainingDay({
+          teamId: input.teamId,
+          trackId: input.trackId,
+          trainingDate,
+        })
+        personalDays.push({
+          trainingDate,
+          accessTeamId: input.teamId,
+          state: day.personalSession ? "saved" : "projection",
+          personalSession: day.personalSession,
+          items: day.items,
+          results: day.results,
+          libraryResults: day.libraryResults,
+        })
+      }
+      return { sessions, myResults, providerDays, personalDays }
     },
   ),
   readOperation(

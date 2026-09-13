@@ -42,7 +42,7 @@ Source publication or composition changes invalidate a prepared batch. Alternate
 
 ### Agent week privacy
 
-The agent week response includes published programming and only its authenticated athlete's results. It omits the web leaderboard field and other athletes' result notes.
+The agent week response includes published programming, seven saved-or-projected personal days and only its authenticated athlete's results. It omits the web leaderboard field and other athletes' result notes.
 
 ### Partial grants fail closed
 
@@ -51,6 +51,10 @@ Every nonempty incomplete combination of grant fields is rejected by identity, s
 ### Library occurrence edits retain identity
 
 Changing the source date of a saved provider item under the same ID is rejected without changing its revision or occurrence snapshot.
+
+### Current identity under repeatable read
+
+A transaction with an earlier consistent-read snapshot still observes a newly committed alternate workspace day through locking identity reads and rejects the prepared write.
 
 ## Prepared weekly writes
 
@@ -65,3 +69,5 @@ The database integration command creates a uniquely named local schema with real
 It uses only the explicit local test connection and never application credentials. Canonical standalone suites also retain their existing opt-in disposable database URL for manual runs.
 
 The canonical gate verifies current application behavior, not migration replay. Earlier migrations do not include the current score scaling-key column; migration lineage requires separate validation.
+
+Weekly transactions use READ COMMITTED. Identity and source baselines use locking reads as well, so an earlier REPEATABLE READ snapshot cannot hide a newly committed alternate workspace day. This does not add a database-wide athlete/date uniqueness constraint.

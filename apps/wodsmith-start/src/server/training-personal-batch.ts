@@ -70,20 +70,32 @@ export async function preparePersonalSessions(
           eq(personalTrainingSessionsTable.trainingDate, input.trainingDate),
         ),
       )
+      .for("share")
     if (owned.length > 1 || owned.some((row) => row.teamId !== input.teamId))
       throw new Error(
         "CONFLICT: This day has another workspace composition; resolve it in Training before saving",
       )
     const previous = owned[0]
     assertTrainingRevision(previous?.revision ?? 0, input.expectedRevision)
-    const current = await service.getPersonalTrainingDay({
-      teamId: input.teamId,
-      trainingDate: input.trainingDate,
-    })
+    await createTrainingService(dependencies).requireTrainingAccess(
+      input.teamId,
+    )
+    const current = {
+      personalSession: previous
+        ? {
+            id: previous.id,
+            teamId: previous.teamId,
+            trainingDate: previous.trainingDate,
+            revision: previous.revision,
+            compositionState: previous.compositionState,
+            items: previous.items as PersonalTrainingItem[],
+          }
+        : null,
+    }
     for (const item of input.items) {
       if (item.kind !== "library") continue
       const stored = current.personalSession?.items.find(
-        (old) => old.id === item.id,
+        (old) => old.id.toLowerCase() === item.id.toLowerCase(),
       )
       if (
         stored?.kind === "library" &&
@@ -101,7 +113,7 @@ export async function preparePersonalSessions(
     for (const item of input.items) {
       if (item.kind === "personal" && item.block.workout) {
         const previousItem = current.personalSession?.items.find(
-          (old) => old.id === item.id,
+          (old) => old.id.toLowerCase() === item.id.toLowerCase(),
         )
         await validateChangedWorkoutReferences(
           dependencies.db,
@@ -118,7 +130,7 @@ export async function preparePersonalSessions(
           previous?.items as PersonalTrainingItem[] | undefined
         )?.find(
           (old) =>
-            old.id === item.id &&
+            old.id.toLowerCase() === item.id.toLowerCase() &&
             old.kind === "library" &&
             old.workoutId === item.workoutId,
         )
@@ -146,6 +158,7 @@ export async function preparePersonalSessions(
           .select()
           .from(trainingSessionsTable)
           .where(eq(trainingSessionsTable.id, ref.sourceSessionId))
+          .for("share")
         // Domain access and exact published version are also checked again by the canonical writer.
         if (!source || source.teamId !== input.teamId || !source.published)
           throw new Error("FORBIDDEN: Source programming is unavailable")
@@ -165,7 +178,7 @@ export async function preparePersonalSessions(
               old.sourcePublishedVersion === ref.sourcePublishedVersion) ||
             (item.kind === "personal" &&
               old.kind === "personal" &&
-              old.id === item.id &&
+              old.id.toLowerCase() === item.id.toLowerCase() &&
               old.remixedFrom?.sourceSessionId === ref.sourceSessionId &&
               old.remixedFrom.sourceBlockId === ref.sourceBlockId &&
               old.remixedFrom.sourcePublishedVersion ===
