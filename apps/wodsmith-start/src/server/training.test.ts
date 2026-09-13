@@ -71,6 +71,8 @@ import {
   setTrainingCheer,
 } from "./training"
 
+import { createTrainingService } from "./training-service"
+
 const block: TrainingBlock = {
   id: "test_block",
   kind: "load",
@@ -466,6 +468,47 @@ describe.skipIf(!databaseUrl)(
         expectedRevision: saved.revision,
       })
     }
+
+    // @lat: [[training-agent-services#Verification#Cookie independent authority]]
+    it("uses the explicit actor, scopes and live membership without reading cookie identity", async () => {
+      state.userId = ""
+      const actor = {
+        userId: userIds[0],
+        grantId: "grant",
+        clientId: "client",
+        scopes: ["training:read"],
+        allowedTeamIds: [draft.teamId],
+      }
+      const service = createTrainingService({
+        db,
+        actor,
+        hasFeature: async () => true,
+      })
+      expect((await service.getTrainingContext()).userId).toBe(userIds[0])
+      await expect(service.saveTrainingDraft(draft)).rejects.toThrow(
+        "programming:write",
+      )
+      await expect(
+        service.getTrainingWeek({
+          ...draft,
+          teamId: teamIds[1],
+          startDate: draft.trainingDate,
+          mode: "athlete",
+        }),
+      ).rejects.toThrow("outside the training grant")
+      expect(await db.select().from(trainingSessionsTable)).toHaveLength(0)
+      await db
+        .update(teamMembershipTable)
+        .set({ isActive: false })
+        .where(eq(teamMembershipTable.id, "training_test_m1"))
+      await expect(
+        service.getTrainingWeek({
+          ...draft,
+          startDate: draft.trainingDate,
+          mode: "athlete",
+        }),
+      ).rejects.toThrow("FORBIDDEN")
+    })
 
     it("returns only gym memberships and owned/active subscribed noncompetition tracks", async () => {
       const context = await getTrainingContext()
