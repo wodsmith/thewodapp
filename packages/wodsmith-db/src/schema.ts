@@ -53,3 +53,4 @@ export * from "./schemas/workout-import"
 export * from "./schemas/volunteer-signup-intents"
 
 export * from "./schemas/agent-oauth"
+export * from "./schemas/gameday-push"

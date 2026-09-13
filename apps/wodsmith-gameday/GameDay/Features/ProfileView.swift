@@ -58,6 +58,7 @@ struct ProfileView: View {
                 else { Button("Sign in as an athlete") { store.showSignIn = true } }
             }
             Section("Your game day") {
+                NavigationLink { AnnouncementSettingsView() } label: { Label("Announcement alerts", systemImage: "megaphone") }
                 NavigationLink { ReminderSettingsView() } label: { Label("Heat reminders", systemImage: "bell.badge") }
                 if store.activities.activeHeatID != nil {
                     Button("End Lock Screen countdown") { Task { await store.activities.end() } }
@@ -150,6 +151,7 @@ struct LegalView: View {
                     Text("Game Day privacy").font(.title.bold())
                     Text("Game Day connects to WODsmith to show competitions and, when you sign in, your profile, registrations, heat assignments, and announcements. Your password is sent over HTTPS for authentication. Your session is stored in the iPhone Keychain.")
                     Text("Downloaded schedules and account information are cached on this iPhone so you can read them during connection loss. Signing out clears the app’s athlete cache and heat reminders. Reminder preferences stay on your device.")
+                    Text("If you enable announcement alerts, WODsmith links an Apple push token to your signed-in session to deliver organizer updates. Alerts contain no announcement text; opening one checks your account access. Signing out disables alerts. Offline cleanup retries when you reopen the app online, and inactive device registrations expire after seven days.")
                     Text("Notifications are optional. Local heat reminders are scheduled on this iPhone. Live Activities display the heat details you choose on your Lock Screen. Game Day includes no advertising or tracking SDKs.")
                     Text("WODsmith uses server diagnostics to investigate errors and slow requests. These records can include request details and account identifiers when available, and are used for reliability and security.")
                     Link("Read WODsmith’s full privacy policy", destination: URL(string: "https://wodsmith.com/gameday/privacy/")!)

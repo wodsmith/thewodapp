@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./gameday-push": "./src/gameday-push.ts",
     "./schema": "./src/schema.ts",
     "./mysql": "./src/mysql.ts",
     "./ids": "./src/ids.ts",

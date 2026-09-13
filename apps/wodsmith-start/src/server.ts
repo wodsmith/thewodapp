@@ -23,6 +23,7 @@ import { sendBatchToPostHog } from "evlog/posthog"
 import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
 import type { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 import { withEvlog } from "./lib/evlog"
+import { GAMEDAY_PUSH_CRON } from "./lib/gameday-push-config"
 import {
   extractRequestInfo,
   logError,
@@ -287,6 +288,11 @@ export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
   fetch: fetchWithLogging,
 
   async scheduled(controller, env) {
+    if (controller.cron === GAMEDAY_PUSH_CRON) {
+      const { dispatchGameDayPush } = await import("./server/gameday-push")
+      await dispatchGameDayPush()
+      return
+    }
     const { CROSSFIT_CRON, crossFitScheduledDate } = await import(
       "./lib/crossfit/source"
     )

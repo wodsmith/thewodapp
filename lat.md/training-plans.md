@@ -44,7 +44,7 @@ Receipt JSON records a trusted origin: web, or agent with the authenticated clie
 
 ## Migration and Deployment
 
-Migration 0010 adds draft and receipt tables without changing existing sessions, results, or ownership. It follows 0009 composition state and precedes 0011 agent grants.
+Migration 0010 adds draft and receipt tables without changing existing sessions, results, or ownership. It follows 0009 composition state and precedes GameDay push (0011) and agent grants (0012).
 
 Apply `packages/wodsmith-db/mysql-migrations/0010_training_plans.sql` with the repository migration workflow before enabling planning operations. The generated snapshot and journal include both tables. No live database migration or deployment is performed by this change. The future athlete/day identity consolidation is separate from these tables.
 
