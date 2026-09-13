@@ -45,6 +45,8 @@ Following a programming track is the default Training experience. A custom sessi
 
 Training opens the active team's default programming track and selected date. Athletes see the prescribed workouts, log results directly against them, and open the team leaderboard without creating, copying, or customizing a session first. Keep My progress available across all sources.
 
+Use Programming builder for the authorized track-authoring CTA. It opens the weekly programming planner and publishing tools, including when athletes program their own tracks. Avoid Coach tools: creating programming does not require identifying as a coach. Customize session remains the action for an athlete's private composition.
+
 “Customize session” is an explicit opt-in for more control. It opens a draft based on the displayed programming, or the athlete's existing custom composition when one exists. Athletes can add workouts from multiple accessible programming tracks, reorder or modify them privately, and explicitly save or cancel. Returning to a track shows that track's programming; an existing custom session never replaces its contents.
 
 Inside the builder, use “Add workouts.” Its programming browser labels the selector “Programming track” and the source day “Programmed date.” Sources are programming tracks, not other personal sessions. The destination is the custom day already being edited, so selection adds to that draft without another destination dialog. The added workout can show a compact source track/date label; ordinary logging does not require source-management decisions.

@@ -440,7 +440,7 @@ function AthleteTrainingGym({
               href={`/training/programming?teamId=${encodeURIComponent(team.id)}`}
               className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
             >
-              Coach tools
+              Programming builder
             </a>
           ) : null}
         </div>

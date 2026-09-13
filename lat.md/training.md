@@ -32,7 +32,7 @@ Notes remain private. Scored results default to private and may be shared with g
 
 The interface distinguishes loading, failed reads, no track access, rest days, and unpublished days. Score dialogs retain entered data after failed saves and return to the same occurrence. Dismissing the dialog discards unsaved edits; completion and notes saves cannot overlap for the same section. Team comparison selects one section, version, and load unit; only Rx results receive comparable rankings. Progress shows the latest 100 own results, including previous prescriptions.
 
-The selected gym travels to `/training/programming` when an authorized coach follows Program sessions. This local selection does not change the global active-team cookie. Durable offline synchronization, timed publication, class bookings, week templates, and historical score editing remain outside this release.
+The selected gym travels to `/training/programming` through Programming builder for members with programming permission. The action names the tool rather than calling the user a coach. This local selection does not change the global active-team cookie. Durable offline synchronization, timed publication, class bookings, week templates, and historical score editing remain outside this release.
 
 ## Coach Interface
 

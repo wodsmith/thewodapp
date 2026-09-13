@@ -394,7 +394,7 @@ it("keeps personal sessions available with no followed tracks", async () => {
   expect(getPersonalTrainingDayFn).toHaveBeenCalled()
 })
 
-it("keeps gym coaching tools out of an owned personal workspace", async () => {
+it("keeps the gym programming builder out of an owned personal workspace", async () => {
   render(
     <AthleteTraining
       context={{
@@ -414,7 +414,7 @@ it("keeps gym coaching tools out of an owned personal workspace", async () => {
   )
   await screen.findByRole("heading", { name: "My training" })
   expect(
-    screen.queryByRole("link", { name: "Coach tools" }),
+    screen.queryByRole("link", { name: "Programming builder" }),
   ).not.toBeInTheDocument()
   expect(
     screen.queryByRole("button", { name: /^Team$/ }),
