@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { getTableColumns, getTableName } from "drizzle-orm"
 import { CasingCache } from "drizzle-orm/casing"
 import mysql, { type Connection, type RowDataPacket } from "mysql2/promise"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { programmingTracksTable, teamProgrammingTracksTable, teamTable, teamMembershipTable, userTable } from "@/db/schema"
 import { trainingSessionsTable } from "@repo/wodsmith-db/schemas/training"
 import { seedAdminTraining } from "../../scripts/seed/admin-training"
@@ -87,4 +87,41 @@ describe.skipIf(!mysqlTestConfig)("additive admin training seed", () => {
     const [sessions] = await client.query("SELECT * FROM training_sessions")
     expect(sessions).toEqual([])
   })
+  // @lat: [[training-seed#Concurrent seeds serialize]]
+  it.each([false, true])("serializes concurrent seeds with an existing default: %s", async (existingDefault) => {
+    if (!mysqlTestConfig) throw new Error("Missing local MySQL configuration")
+    if (existingDefault) {
+      await client.query("INSERT INTO programming_tracks (id, name, type, owner_team_id, is_public) VALUES ('default', 'Gym programming', 'team_owned', 'gym', 0)")
+      await client.query("UPDATE teams SET default_track_id = 'default'")
+    }
+    const other = await mysql.createConnection({ ...mysqlTestConfig, database })
+    let snapshots = 0
+    let release!: () => void
+    const bothSnapshots = new Promise<void>((resolve) => { release = resolve })
+    const spies = [client, other].map((connection) => {
+      const query = connection.query.bind(connection)
+      return vi.spyOn(connection, "query").mockImplementation((async (...args: Parameters<typeof connection.query>) => {
+        const result = await query(...args)
+        const sql: unknown = args[0]
+        if (typeof sql === "string" && sql.includes("SELECT DISTINCT t.id")) {
+          snapshots += 1
+          if (snapshots === 2) release()
+          await bothSnapshots
+        }
+        return result
+      }) as typeof connection.query)
+    })
+    try {
+      const options = { email: "admin@example.com", startDate: "2026-09-12", days: 3, apply: true }
+      const results = await Promise.all([seedAdminTraining(client, options), seedAdminTraining(other, options)])
+      expect(results.map((result) => result.publishedDays).sort()).toEqual([0, 3])
+      expect(results.map((result) => result.preservedDays).sort()).toEqual([0, 3])
+      const [rows] = await client.query<RowDataPacket[]>("SELECT COUNT(*) AS count FROM training_sessions")
+      expect(rows[0].count).toBe(3)
+    } finally {
+      for (const spy of spies) spy.mockRestore()
+      await other.end()
+    }
+  })
+
 })

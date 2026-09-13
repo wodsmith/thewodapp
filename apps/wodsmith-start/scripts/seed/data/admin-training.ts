@@ -28,6 +28,10 @@ export function buildAdminTrainingDays(startDate: string, days = 61): Array<{ da
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !Number.isFinite(start.getTime()) || start.toISOString().slice(0, 10) !== startDate || !Number.isInteger(days) || days < 1 || days > 93) {
     throw new Error("Choose a valid start date and between 1 and 93 days")
   }
+  const endDate = new Date(start.getTime() + (days - 1) * 86_400_000).toISOString().slice(0, 10)
+  if (startDate < "2000-01-01" || startDate > "2100-12-31" || endDate > "2100-12-31") {
+    throw new Error("Training dates must stay within 2000–2100")
+  }
   return Array.from({ length: days }, (_, index) => {
     const date = new Date(start.getTime() + index * 86_400_000)
     const label = date.toISOString().slice(0, 10)

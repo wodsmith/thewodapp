@@ -40,7 +40,7 @@ export async function seedAdminTraining(client: Connection, options: AdminTraini
       `SELECT p.id, p.name FROM programming_tracks p
        WHERE p.id = ? AND p.competition_id IS NULL AND p.type <> 'series-template'
        AND (p.owner_team_id = ? OR (p.is_public = 1 AND EXISTS (
-         SELECT 1 FROM team_programming_tracks s WHERE s.track_id = p.id AND s.team_id = ? AND s.is_active = 1)))`,
+         SELECT 1 FROM team_programming_tracks s WHERE s.track_id = p.id AND s.team_id = ? AND s.is_active = 1))) FOR UPDATE`,
       [trackId, team.id, team.id],
     )
     const createDefault = !locked[0].default_track_id && tracks.length === 0
@@ -54,7 +54,7 @@ export async function seedAdminTraining(client: Connection, options: AdminTraini
       }
     } catch { /* Match Training's fallback for absent or invalid team settings. */ }
     const [existing] = await client.query<RowDataPacket[]>(
-      "SELECT training_date FROM training_sessions WHERE team_id = ? AND track_id = ? AND training_date BETWEEN ? AND ?",
+      "SELECT training_date FROM training_sessions WHERE team_id = ? AND track_id = ? AND training_date BETWEEN ? AND ? FOR UPDATE",
       [team.id, trackId, days[0].date, days[days.length - 1].date],
     )
     const occupied = new Set(existing.map((row) => row.training_date))

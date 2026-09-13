@@ -33,3 +33,11 @@ pnpm exec tsx scripts/seed-admin-training.ts --email admin@example.com --start 2
 ```
 
 Use `--team-id` when the account manages more than one eligible team. The general application seed is separate and is not required for this additive operation.
+
+## Supported date ranges
+
+Both endpoints of the generated calendar must stay within Training's supported 2000–2100 dates. Invalid or overflowing custom ranges fail before opening a transaction.
+
+## Concurrent seeds serialize
+
+Current reads after the team lock observe tracks and occupied dates committed by an earlier seed. Two concurrent repeatable-read transactions create one calendar without duplicates or stale-default errors.
