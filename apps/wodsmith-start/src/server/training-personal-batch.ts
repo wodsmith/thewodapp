@@ -130,21 +130,24 @@ export async function preparePersonalSessions(
           previous?.items as PersonalTrainingItem[] | undefined
         )?.find(
           (old) =>
-            old.id.toLowerCase() === item.id.toLowerCase() &&
+            old.id === item.id &&
             old.kind === "library" &&
             old.workoutId === item.workoutId,
         )
+        // Match the canonical writer: ordinary saved library items still need
+        // current access, but their reviewed definition is the saved snapshot.
+        const accessibleWorkout =
+          stored?.kind === "library" && stored.provenance
+            ? stored.workout
+            : await service.getTrainingLibraryWorkout({
+                teamId: input.teamId,
+                workoutId: item.workoutId,
+                sourceTrackId: item.sourceTrackId,
+                sourceDate: item.sourceDate,
+              })
         library.push({
           itemId: item.id,
-          workout:
-            stored?.kind === "library" && stored.provenance
-              ? stored.workout
-              : await service.getTrainingLibraryWorkout({
-                  teamId: input.teamId,
-                  workoutId: item.workoutId,
-                  sourceTrackId: item.sourceTrackId,
-                  sourceDate: item.sourceDate,
-                }),
+          workout: stored?.kind === "library" ? stored.workout : accessibleWorkout,
         })
       }
       const ref =

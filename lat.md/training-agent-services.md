@@ -56,6 +56,10 @@ Changing a saved provider occurrence under the same case-insensitive ID is rejec
 
 A transaction with an earlier consistent-read snapshot still observes a newly committed alternate workspace day through locking identity reads and rejects the prepared write.
 
+### Prepared library snapshots
+
+Batch review shows the saved library definition for preserved items, matching the canonical writer after a library edit. Ordinary library items still require current workout access before they can be prepared.
+
 ## Prepared weekly writes
 
 The planning adapter prepares bounded unique dates without writing live sessions, locks the complete source and day dependency set, and revalidates the review before using the canonical day writer in one supplied transaction.
