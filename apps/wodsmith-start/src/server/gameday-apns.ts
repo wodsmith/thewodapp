@@ -76,7 +76,8 @@ export async function sendAPNsAnnouncement(
       : "api.push.apple.com"
   const response = await transport(`https://${host}/3/device/${input.token}`, {
     method: "POST",
-    redirect: "error",
+    // Workers rejects "error". Manual prevents forwarding APNs credentials on redirects.
+    redirect: "manual",
     signal: AbortSignal.timeout(15000),
     headers: {
       authorization: `bearer ${input.jwt}`,

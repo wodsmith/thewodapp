@@ -40,11 +40,13 @@ Required secrets are `APNS_KEY_ID`, `APNS_TEAM_ID`, and `APNS_PRIVATE_KEY` (Appl
 
 Deployment workflows pass the push flag and credentials only to the production stage. Both Alchemy configurations independently disable push outside production, and the dispatcher cron uses one shared schedule constant. Local tests use isolated mocks.
 
-The native target adds the Push Notifications entitlement, with sandbox in Debug and production in Release. Signing profiles must contain the matching entitlement. The inspected Apple identifier has push disabled, and the attempted signed archive fails because the existing profile lacks Push Notifications and `aps-environment`. The combined submission candidate is 1.1 build 6, superseding build 5 after push rollout verification. Build 5 remains selected in App Store Connect until a signed replacement is uploaded.
+The native target adds the Push Notifications entitlement, with sandbox in Debug and production in Release. Signing profiles must contain the matching entitlement. Apple push capability is now enabled and the signed build 6 archive succeeded. The combined submission candidate is 1.1 build 6, superseding build 5 after push rollout verification. Build 6 is uploaded, processed, selected, and saved in the 1.1 draft. Device ID disclosure is published. Review submission awaits the controlled real-device delivery check.
 
 All physical-device Debug builds and Release archives from this source require the new signing capability; the backend runtime flag does not remove that requirement. Simulator builds remain available while Apple configuration is pending.
 
-Production deployment requires the separately requested authorization. Do not submit the follow-up iOS version until the backend, signing capability, Apple privacy Device ID disclosure, and a controlled real APNs send are verified. Simulator-injected notifications verify presentation and tapping only; they do not prove APNs delivery.
+Production schema and GitHub Actions secrets are configured with explicit user approval. PlanetScale requests 47 and 48 aligned main with the release schema. WODsmith and Crew production workflows succeeded. Apple accepted build 6 as Ready to Submit; final submission waits for controlled real-device delivery verification. Do not submit the follow-up iOS version until the backend, signing capability, Apple privacy Device ID disclosure, and a controlled real APNs send are verified. Simulator-injected notifications verify presentation and tapping only; they do not prove APNs delivery.
+
+The owner approved and received an internal TestFlight invitation to Game Day release verification, which contains build 6. Device installation and notification permission remain user steps before the controlled delivery check.
 
 ## Tests
 
@@ -73,6 +75,10 @@ Verify generic payload content, correct topic and environment, stable collapse/r
 ### Native registration ordering
 
 Suspend a registration request during sign-out and verify cleanup follows it. A successfully committed old registration cannot survive completion of online sign-out.
+
+### Workers redirect handling
+
+Use manual redirect handling because Workers rejects the error mode before making a request. A redirect response fails delivery without forwarding the APNs bearer token or device path to another destination.
 
 ### Offline revocation recovery
 

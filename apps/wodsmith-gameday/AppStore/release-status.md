@@ -98,3 +98,39 @@ PR #705 review corrections and full CI passed on `a2005ea6d`. Automatic approval
 The user requested including announcement push in the next review build. The combined candidate is now 1.1 build 6, replacing the earlier separate 1.2 plan. Build 5 remains selected until a signed replacement is uploaded. PR #705's migration collision with main was resolved by regenerating identical push SQL as `0011_gameday_push.sql` after training plans.
 
 PR #700 is merged at `9c2e640ca57fe25b33adc3c6b8e99da07f2ece01`. Its build 5 upload and prior native/API verification remain valid. Production rollout has not been authorized through automatic approval review. Apple Push capability, APNs credentials, the production schema rollout, real-device delivery verification, and accurate Device ID disclosures remain prerequisites for submitting build 6.
+
+
+## Build 6 uploaded and selected
+
+On September 12, 2026 MDT, the user explicitly approved Apple push signing, APNs configuration, the production migration, and backend deployment. PR #705 merged as `ef46c635df4ab0c6500ea3d18edbc010ec56c38a`; all final CI checks passed.
+
+Apple Push Notifications is enabled for `com.wodsmith.gameday`. The production-only, topic-specific APNs key `Y4H2B873S9` was created. The private key is not in this repository. Automatic approval review separately rejected uploading that key to GitHub Actions because the repository credential destination needs explicit approval; that request is pending. No secret upload was executed.
+
+Archive `/tmp/GameDay-1.1-6.xcarchive` succeeded; upload log `/tmp/gameday-build6-upload.log` reports Upload succeeded. Apple processed build 6 and it was selected and saved on the 1.1 draft. Build 5 is superseded. Review submission is not complete.
+
+PlanetScale CLI is authenticated only to other organizations, and the WODsmith browser session expired. A sign-in request is pending. Migration 0011 and production rollout have not run. Real APNs delivery and Device ID privacy disclosure remain unverified. A paired iPhone 13 Pro Max is available for a controlled delivery test after setup.
+
+
+## Production rollout and Apple metadata
+
+The user explicitly approved the GitHub Actions secret destination and the necessary database changes to main. APNs credentials are stored in the private Actions secrets of `wodsmith/thewodapp`; no key material is committed.
+
+PlanetScale deploy request 47 applied the two push tables to production main. Deploy request 48 applied missing committed-schema prerequisites detected by the deployment guard: benchmark tables, training plans, volunteer signup intents, users.auth_generation, waiver signature name, session composition state, and the NULL-safe score key/index. The preflight duplicate-score-group count was zero. A complete column comparison against snapshot 0011 then reported no missing columns. Request 47 was finalized to unblock the queue; request 48 retains its normal revert window.
+
+WODsmith production workflow `34736262879`, attempt 2, deployed successfully from `657a6b0d7900c972cd7e2b65f80647a8ca2279c0`. The first attempt stopped safely at the missing-schema guard. Live verification: home and leaderboard HTTP 200; unauthenticated device registration HTTP 401; public competition had 41 participants, 21 heats, 123 public assignments, and no personal assignments. The updated privacy policy is live. Crew rollout `34736949475` was started afterward.
+
+Apple's Device ID disclosure is published: linked to the user, App Functionality, no tracking. Build 6 (`b53d414a-a8a1-430e-8d09-ba781887eebf`) and announcement description/reviewer notes were saved and verified after reload. The previous selection had not persisted; this later server reload confirms build 6.
+
+An Apple HTTP/2 probe using the production key and a synthetic invalid token returned HTTP 400 BadDeviceToken, without contacting a real device. Real notification delivery remains pending. Internal TestFlight group `ffe2e5e8-989f-4be0-8299-29676b5167c5` contains build 6; adding owner `zac@wodsmith.com` was rejected by automatic approval review pending explicit recipient/group authorization. Do not bypass that rejection. Review submission remains pending verification.
+
+
+## Ready to submit after device verification
+
+Crew production workflow `34736949475` completed successfully. Both organizer backends are deployed. The Apple Add for Review validation passed for version 1.1 build 6, creating a draft submission with one item Ready to Submit. Final Submit for Review has not been clicked.
+
+Production had zero registered push devices at the last checkpoint. The user subsequently explicitly approved adding `zac@wodsmith.com` to Game Day release verification. The invitation succeeded: Apple shows one tester with status Invited and one build. The remaining user steps are installing build 6, signing in, enabling announcement alerts, and readiness for one controlled notification to that account only.
+
+
+## Physical device delivery correction
+
+The owner installed build 6 and registered a production push device. Their sent announcement queued a delivery but failed before APNs because Cloudflare rejects fetch redirect mode error. An isolated remote Worker reproduced the exception; manual mode reached Apple successfully. The backend fix retains redirect protection and adds regression coverage. Real delivery and final review submission remain pending deployment.

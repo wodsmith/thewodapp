@@ -12,6 +12,16 @@ it("sends a private-content-free alert with stable collapse and deep-link identi
   expect(JSON.parse(options.body)).toMatchObject({ competitionID: "competition", announcementID: "broadcast" })
   expect(options.body).not.toContain(input.token)
 })
+// @lat: [[gameday-push#Tests#Workers redirect handling]]
+it("uses Workers-compatible fetch and rejects redirects without following them", async () => {
+  const transport = vi.fn(async (_url, options) => {
+    if (options?.redirect === "error") throw new TypeError("Invalid redirect value")
+    expect(options?.redirect).toBe("manual")
+    return new Response(null, { status: 302, headers: { location: "https://example.com" } })
+  })
+  expect(await sendAPNsAnnouncement(input, transport)).toEqual({ kind: "failed", reason: "HTTP302" })
+  expect(transport).toHaveBeenCalledTimes(1)
+})
 it.each([[410, "Unregistered", "invalid"], [400, "BadDeviceToken", "invalid"], [429, "TooManyRequests", "retry"], [503, "ServiceUnavailable", "retry"], [400, "BadTopic", "failed"]])("classifies APNs %i %s", async (status, reason, kind) => {
   const transport = vi.fn().mockResolvedValue(Response.json({ reason, timestamp: 123 }, { status: Number(status) }))
   expect(await sendAPNsAnnouncement(input, transport)).toMatchObject({ kind, reason })
