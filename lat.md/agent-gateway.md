@@ -36,7 +36,7 @@ Gateway tests cover discovery, actual URL client metadata resolution, exact audi
 
 The Vitest 3-compatible Worker pool currently runs a March 2026 workerd and reports a compatibility-date fallback. This is not evidence of production or live-host interoperability. Gateway CI runs tests, generated binding types, TypeScript and a Wrangler dry-run build. Its path filters include the private service, Start entrypoint, Alchemy configuration and canonical training catalog/planning sources. The Start database integration workflow runs the grant tests against MySQL.
 
-Migration `0011_agent_oauth_grants.sql` creates grants and consent tickets. Apply schema through the normal reviewed database workflow before explicitly configuring matching authorization/resource URLs and the actual Start Worker service name. No production migration or deployment is part of this change.
+Migration `0011_agent_oauth_grants.sql` creates grants and consent tickets. Its journal timestamp must follow migration 0010, even after predecessor regeneration. Database CI runs `db:check-migrations` to validate increasing timestamps, consecutive indices, SQL files and snapshot ancestry. Apply schema through the normal reviewed database workflow before explicitly configuring matching authorization/resource URLs and the actual Start Worker service name. No production migration or deployment is part of this change.
 
 ## Planning adapter
 
