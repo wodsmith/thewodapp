@@ -113,7 +113,9 @@ Archiving a library definition preserves existing personal compositions and hist
 
 ### Archived owned log correction
 
-The legacy log editor resolves archived definitions through the athlete's owned score ID and current workout visibility. Other users cannot use that history lookup to read the archived workout, and stale workout editors cannot rewrite the archived definition.
+The legacy log editor resolves archived definitions through the athlete's owned score ID and current workout visibility.
+
+Other users cannot use that history lookup to read the archived workout, and stale workout editors cannot rewrite the archived definition.
 
 A forged legacy owned score pointing at an inaccessible private definition grants no read access. Only the archive filter is relaxed; membership and public/private visibility still apply.
 
