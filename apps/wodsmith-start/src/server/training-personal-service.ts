@@ -490,7 +490,9 @@ export function createPersonalTrainingService(
       []) as PersonalTrainingItem[]
     for (const item of data.items) {
       if (item.kind !== "library") continue
-      const previous = previousItems.find((old) => old.id === item.id)
+      const previous = previousItems.find(
+        (old) => old.id.toLowerCase() === item.id.toLowerCase(),
+      )
       if (
         previous?.kind === "library" &&
         !matchesLibraryOccurrence(previous, item.workoutId, {

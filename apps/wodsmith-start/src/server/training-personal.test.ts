@@ -339,7 +339,7 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
         unit: "lb",
         completed: true,
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow("FORBIDDEN: This session belongs to another athlete")
     const scoped = createPersonalTrainingService({
       ...dependencies,
       actor: {
