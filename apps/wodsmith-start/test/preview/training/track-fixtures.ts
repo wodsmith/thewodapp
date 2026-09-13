@@ -49,6 +49,8 @@ export const previewContext: TrainingContext = {
       isPersonal: true,
       canProgram: false,
       tracks: [
+        {id:"everyday",name:"Everyday",description:"Strength and conditioning"},
+        {id:"recovery",name:"Recovery",description:"Warm-ups, mobility and cooldowns"},
         {
           id: "ptrk_crossfit_dotcom",
           name: "CrossFit.com",

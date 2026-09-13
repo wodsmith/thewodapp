@@ -33,6 +33,7 @@ export interface ProviderProvenance {
   sourceUrl: string
 }
 export interface PersonalLibraryItem {
+  occurrence?: { trackId?: string; sourceDate?: string }
   provenance?: ProviderProvenance
   id: string
   kind: "library"
@@ -56,13 +57,20 @@ export type PersonalTrainingItem =
 export type PersonalTrainingItemInput =
   | ({ id: string; kind: "source" } & TrainingSourceReference)
   | PersonalOwnedItem
-  | { id: string; kind: "library"; workoutId: string }
+  | {
+      id: string
+      kind: "library"
+      workoutId: string
+      sourceTrackId?: string
+      sourceDate?: string
+    }
 
 export interface PersonalTrainingSession {
   id: string
   teamId: string
   trainingDate: string
   revision: number
+  compositionState?: "result_only" | "customized"
   items: PersonalTrainingItem[]
 }
 export interface PersonalTrainingDay {
@@ -74,12 +82,21 @@ export interface PersonalTrainingDay {
   personalSession: PersonalTrainingSession | null
   items: PersonalTrainingItem[]
   results: OwnTrainingResult[]
-  libraryResults: { itemId: string; scoreId: string }[]
+  libraryResults: {
+    itemId: string
+    scoreId: string
+    displayScore?: string
+    workoutId?: string
+    occurrence?: { trackId?: string; sourceDate?: string }
+    provenance?: ProviderProvenance
+  }[]
 }
 export interface SavePersonalTrainingSessionInput {
   teamId: string
   trainingDate: string
   expectedRevision: number
+  mode?: "replace" | "append" | "undo"
+  allowDuplicate?: boolean
   items: PersonalTrainingItemInput[]
 }
 export interface SavePersonalTrainingResultInput

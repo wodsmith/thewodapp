@@ -92,7 +92,7 @@ A rejected composition save retains the current score and notes, does not naviga
 
 ## Legacy log handoff
 
-Workout-only logging links still redirect to Training for explicit session composition and do not create a session or result while loading.
+Workout-only logging links open direct score entry without requiring session composition. Loading creates no session or result.
 
 ## Expired session restoration
 
