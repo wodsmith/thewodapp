@@ -62,7 +62,7 @@ export const Route = createFileRoute(
     const { competition } = parentMatch.loaderData
 
     const [
-      { broadcasts },
+      { broadcasts, pushEnabled },
       divisionsResult,
       { questions: athleteQuestions },
       { questions: volunteerQuestions },
@@ -95,6 +95,7 @@ export const Route = createFileRoute(
 
     return {
       broadcasts,
+      pushEnabled,
       divisions,
       athleteQuestions,
       volunteerQuestions,
@@ -106,6 +107,7 @@ export const Route = createFileRoute(
 function BroadcastsPage() {
   const {
     broadcasts,
+    pushEnabled,
     divisions,
     athleteQuestions,
     volunteerQuestions,
@@ -137,6 +139,7 @@ function BroadcastsPage() {
       {isComposing && (
         <ComposeCard
           competitionId={competition.id}
+          pushEnabled={pushEnabled}
           divisions={divisions}
           athleteQuestions={athleteQuestions}
           volunteerQuestions={volunteerQuestions}
@@ -235,6 +238,7 @@ const VOLUNTEER_ROLES = [
 
 function ComposeCard({
   competitionId,
+  pushEnabled,
   divisions,
   athleteQuestions,
   volunteerQuestions,
@@ -243,6 +247,7 @@ function ComposeCard({
   onCancel,
 }: {
   competitionId: string
+  pushEnabled: boolean
   divisions: Division[]
   athleteQuestions: RegistrationQuestion[]
   volunteerQuestions: RegistrationQuestion[]
@@ -708,6 +713,11 @@ function ComposeCard({
           Send email notification to recipients
         </label>
 
+        <p className="text-sm text-muted-foreground">
+          {pushEnabled
+            ? "Game Day also sends a push alert to registered athletes in this audience who are signed in to the iOS app and have enabled announcement alerts. Installation alone does not enable alerts; iPhone settings and connectivity can affect delivery."
+            : "Game Day push alerts are not available yet. This announcement will appear in WODsmith and can also be sent by email."}
+        </p>
         <div className="flex justify-end gap-3 pt-4 border-t">
           <Button variant="outline" onClick={onCancel} disabled={isSending}>
             Cancel

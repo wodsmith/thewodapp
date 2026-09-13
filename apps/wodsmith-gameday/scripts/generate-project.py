@@ -30,7 +30,8 @@ products = []
 def configs(name, extra):
     ids = []
     for config in ['Debug','Release']:
-        settings = {'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TARGET':'18.0','SWIFT_VERSION':'5.0','TARGETED_DEVICE_FAMILY':'1','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'TV6G82BJ4U','MARKETING_VERSION':'1.1','CURRENT_PROJECT_VERSION':'5','ENABLE_USER_SCRIPT_SANDBOXING':'YES','CLANG_ENABLE_MODULES':'YES','SWIFT_STRICT_CONCURRENCY':'complete','SWIFT_OPTIMIZATION_LEVEL':'-Onone' if config=='Debug' else '-O','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if config=='Debug' else '', **extra}
+        settings = {'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TARGET':'18.0','SWIFT_VERSION':'5.0','TARGETED_DEVICE_FAMILY':'1','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'TV6G82BJ4U','MARKETING_VERSION':'1.1','CURRENT_PROJECT_VERSION':'6','ENABLE_USER_SCRIPT_SANDBOXING':'YES','CLANG_ENABLE_MODULES':'YES','SWIFT_STRICT_CONCURRENCY':'complete','SWIFT_OPTIMIZATION_LEVEL':'-Onone' if config=='Debug' else '-O','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if config=='Debug' else '', **extra}
+        if name == 'GameDay': settings['APNS_ENVIRONMENT'] = 'development' if config == 'Debug' else 'production'
         ids.append(obj(name+config, '{isa=XCBuildConfiguration; name='+config+'; buildSettings={'+''.join(k+'='+q(v)+';' for k,v in settings.items())+'};}'))
     return obj(name+'configs', '{isa=XCConfigurationList; buildConfigurations='+refs(ids)+'; defaultConfigurationIsVisible=0; defaultConfigurationName=Release;}')
 def target(name, typ, ext, sources, resources, extra, dependencies=[], embed=[]):
@@ -46,7 +47,7 @@ def dependency(name, target):
     proxy=obj(name+'proxy','{isa=PBXContainerItemProxy;containerPortal='+uid('project')+';proxyType=1;remoteGlobalIDString='+target+';remoteInfo='+q(name)+';}')
     return obj(name+'dependency','{isa=PBXTargetDependency;target='+target+';targetProxy='+proxy+';}')
 w,wp=target('GameDayActivity','com.apple.product-type.app-extension','appex',widget+shared,[],{'PRODUCT_BUNDLE_IDENTIFIER':'com.wodsmith.gameday.activity','INFOPLIST_FILE':'GameDayActivity/Info.plist','SKIP_INSTALL':'YES','APPLICATION_EXTENSION_API_ONLY':'YES','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks'})
-a,ap=target('GameDay','com.apple.product-type.application','app',main+shared,[assets,privacy],{'PRODUCT_BUNDLE_IDENTIFIER':'com.wodsmith.gameday','INFOPLIST_FILE':'GameDay/Info.plist','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','ENABLE_TESTABILITY':'YES','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks'},[dependency('GameDayActivity',w)],[wp])
+a,ap=target('GameDay','com.apple.product-type.application','app',main+shared,[assets,privacy],{'PRODUCT_BUNDLE_IDENTIFIER':'com.wodsmith.gameday','INFOPLIST_FILE':'GameDay/Info.plist','CODE_SIGN_ENTITLEMENTS':'GameDay/GameDay.entitlements','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','ENABLE_TESTABILITY':'YES','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks'},[dependency('GameDayActivity',w)],[wp])
 t,tp=target('GameDayTests','com.apple.product-type.bundle.unit-test','xctest',tests,[],{'PRODUCT_BUNDLE_IDENTIFIER':'com.wodsmith.gameday.tests','GENERATE_INFOPLIST_FILE':'YES','TEST_HOST':'$(BUILT_PRODUCTS_DIR)/GameDay.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GameDay','BUNDLE_LOADER':'$(TEST_HOST)'},[dependency('GameDayTests',a)])
 u,up=target('GameDayUITests','com.apple.product-type.bundle.ui-testing','xctest',uitests,[],{'PRODUCT_BUNDLE_IDENTIFIER':'com.wodsmith.gameday.uitests','GENERATE_INFOPLIST_FILE':'YES','TEST_TARGET_NAME':'GameDay'},[dependency('GameDayUITests',a)])
 pg=obj('products','{isa=PBXGroup;children='+refs(products)+';name=Products;sourceTree="<group>";}')
