@@ -1,4 +1,4 @@
-import { createExecutionContext, env } from "cloudflare:test"
+import { createExecutionContext, env, fetchMock } from "cloudflare:test"
 import { describe, expect, it } from "vitest"
 import {
   oauthApi,
@@ -90,6 +90,39 @@ describe("published Cloudflare OAuth provider", () => {
     expect(metadata.token_endpoint_auth_methods_supported).toContain("none")
     expect(resourceMetadata(config).scopes_supported).toEqual([...agentScopes])
   })
+  it("resolves a real URL-based client metadata document in the Worker runtime", async () => {
+    const f = await fixture()
+    const clientId = "https://metadata.example.com/client.json"
+    fetchMock.activate()
+    fetchMock.disableNetConnect()
+    fetchMock
+      .get("https://metadata.example.com")
+      .intercept({ path: "/client.json", method: "GET" })
+      .reply(
+        200,
+        JSON.stringify({
+          client_id: clientId,
+          client_name: "CIMD client",
+          redirect_uris: ["https://client.example.com/callback"],
+          grant_types: ["authorization_code", "refresh_token"],
+          response_types: ["code"],
+          token_endpoint_auth_method: "none",
+        }),
+        { headers: { "content-type": "application/json" } },
+      )
+    try {
+      const request = new URL(f.url)
+      request.searchParams.set("client_id", clientId)
+      expect(await f.api.parseAuthRequest(new Request(request))).toMatchObject({
+        clientId,
+        redirectUri: "https://client.example.com/callback",
+      })
+      fetchMock.assertNoPendingInterceptors()
+    } finally {
+      fetchMock.deactivate()
+      fetchMock.enableNetConnect()
+    }
+  })
   it("issues a resource-bound token after S256 and retains authenticated grant identity", async () => {
     const f = await fixture()
     expect(new URL(f.redirectTo).searchParams.get("iss")).toBe(
@@ -116,6 +149,54 @@ describe("published Cloudflare OAuth provider", () => {
       grant: { props: { grantId: "live-sql-grant" } },
     })
     expect(await f.api.unwrapToken(`${result.access_token}tampered`)).toBeNull()
+  })
+  it("refreshes without widening the audience or trusted grant identity", async () => {
+    const f = await fixture()
+    const exchanged = await token({
+      grant_type: "authorization_code",
+      code: f.code,
+      client_id: f.client.clientId,
+      redirect_uri: f.client.redirectUris[0],
+      code_verifier: verifier,
+      resource: config.AGENT_RESOURCE,
+    })
+    const first = await exchanged.json<{
+      access_token: string
+      refresh_token: string
+    }>()
+    expect(first.refresh_token).toBeTruthy()
+    const refreshed = await token({
+      grant_type: "refresh_token",
+      refresh_token: first.refresh_token,
+      client_id: f.client.clientId,
+      resource: config.AGENT_RESOURCE,
+    })
+    expect(refreshed.status).toBe(200)
+    const next = await refreshed.json<{
+      access_token: string
+      refresh_token: string
+    }>()
+    expect(await f.api.unwrapToken(next.access_token)).toMatchObject({
+      audience: config.AGENT_RESOURCE,
+      scope: ["training:read"],
+      grant: {
+        props: {
+          grantId: "live-sql-grant",
+          userId: "athlete1",
+          clientId: f.client.clientId,
+        },
+      },
+    })
+    expect(
+      (
+        await token({
+          grant_type: "refresh_token",
+          refresh_token: next.refresh_token,
+          client_id: f.client.clientId,
+          resource: "https://attacker.example/mcp",
+        })
+      ).status,
+    ).toBe(400)
   })
   it.each(["wrong_verifier", "wrong_redirect", "wrong_resource"])(
     "rejects %s at code exchange",

@@ -18,3 +18,16 @@ assert.match(
   "Custom Worker exports must be preserved",
 )
 console.log("Custom Start Worker entrypoints are present")
+
+const deployment = await readFile(
+  new URL("../alchemy.run.ts", import.meta.url),
+  "utf8",
+)
+assert.match(
+  deployment,
+  /TanStackStart\("app",\s*\{[^]*?compatibilityFlags:\s*\["global_fetch_strictly_public"\]/,
+  "Alchemy must enable safe CIMD client metadata fetching",
+)
+console.log(
+  "Alchemy enables the required OAuth client metadata compatibility flag",
+)

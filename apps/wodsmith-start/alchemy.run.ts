@@ -655,6 +655,8 @@ const broadcastEmailQueue = await Queue(`broadcast-email-queue-${stage}`, {
  * @see {@link https://tanstack.com/start/latest TanStack Start Docs}
  */
 const website = await TanStackStart("app", {
+  // Required by OAuth client metadata fetches; Alchemy generates its own config.
+  compatibilityFlags: ["global_fetch_strictly_public"],
   // 05:00 PST (UTC-8) year-round, followed by a publication health check.
   crons: stage === "prod" ? ["0 13 * * *", "15 15 * * *"] : [],
   /**

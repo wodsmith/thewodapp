@@ -32,7 +32,7 @@ A fresh SDK server handles each request, with modern MCP envelopes and stateless
 
 Local tests use the shipped OAuth provider in workerd and isolated MySQL grant tables. Real ChatGPT and Claude account connections remain a deployment acceptance gate.
 
-Gateway tests cover discovery, exact audiences, S256, registered redirects, scope narrowing, token tampering, legacy initialization and modern envelopes. SQL tests cover cross-user revoke, scope/workspace tampering, ticket concurrency, live membership changes, expiry, deletion and password recovery. OAuth protocol tests use real provider KV; SQL boundary tests replace token parsing with controlled validated-token fixtures.
+Gateway tests cover discovery, actual URL client metadata resolution, exact audiences, S256, registered redirects, scope narrowing, refresh identity, token tampering, legacy initialization and modern envelopes. Alchemy explicitly enables `global_fetch_strictly_public`; the custom-entrypoint build check guards that deployment setting. SQL tests cover cross-user revoke, scope/workspace tampering, ticket concurrency, live membership changes, expiry, deletion and password recovery. OAuth protocol tests use real provider KV; SQL boundary tests replace token parsing with controlled validated-token fixtures.
 
 The Vitest 3-compatible Worker pool currently runs a March 2026 workerd and reports a compatibility-date fallback. This is not evidence of production or live-host interoperability. Gateway CI runs tests, generated binding types, TypeScript and a Wrangler dry-run build. The Start database integration workflow runs the grant tests against MySQL.
 
