@@ -44,3 +44,4 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[training-access-tests]] — Real MySQL regressions for training visibility, permissions and remix access.
 
 - [[training-agent-services]] — Explicit actor training services and cookie adapters.
+- [[training-plans]] — Durable weekly proposals, flexible blueprints, reviewed atomic commits, and MySQL transaction tests.
