@@ -8,9 +8,11 @@ The agent-first training research recommends a remote MCP gateway over shared tr
 
 The proposal is `docs/research/agent-first-training.md`. It compares Kody's inspected September 12, 2026 architecture with current ChatGPT, Claude, and Cloudflare contracts. Implementation was authorized on September 12; the research itself does not establish shipped capabilities.
 
-`docs/plans/2026-09-12-agent-training-delivery.md` records the coordinated service, weekly-plan, and OAuth/MCP workstreams and their review gates. The newer personal-session direction uses athlete/date ownership across teams; source teams remain explicit access and provenance contexts.
+`docs/plans/2026-09-12-agent-training-delivery.md` records the coordinated service, weekly-plan, and OAuth/MCP workstreams and their review gates. The intended personal-session model uses athlete/date ownership across teams; this delivery keeps existing workspace/day storage behind an adapter that rejects ambiguity.
 
 [[training]] and [[training-personal]] remain the domain authority: published sources, explicit personal composition, occurrence-based results, rich score snapshots, and current access checks. The proposal identifies cookie-independent actors, week projections, planning drafts, atomic commit semantics, and deletion contracts as implementation work. New authoring surfaces retain [[workout-authoring]] reuse boundaries.
+
+`docs/guides/agent-training.md` describes the implementation workflow and rollout boundaries. [[training-agent-services]] and [[training-plans]] document the canonical actor boundary and portable proposals. Production enablement and real hosted-client acceptance remain distinct from merging the implementation PRs.
 
 ## Open Scorecard Downloadables
 
