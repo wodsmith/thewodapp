@@ -59,7 +59,7 @@ describe.skipIf(!url)("provider projection and persistence", () => {
   beforeAll(async () => {
     if (!url) throw new Error("Local test database required")
     const parsed = new URL(url)
-    if (parsed.hostname !== "127.0.0.1" || parsed.pathname !== "/training_test")
+    if (!["127.0.0.1", "localhost", "[::1]"].includes(parsed.hostname) || !/^\/training_test(?:_[a-f0-9]{32})?$/.test(parsed.pathname))
       throw new Error("Use a disposable local training_test database")
     pool = mysql.createPool(url)
     db = createWodsmithDb(pool)

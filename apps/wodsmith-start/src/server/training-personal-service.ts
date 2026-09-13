@@ -8,6 +8,7 @@ import {
   scoreRoundsTable,
   scoresTable,
   trackWorkoutsTable,
+  userTable,
   workoutMovements,
   workouts,
 } from "@repo/wodsmith-db/schema"
@@ -57,6 +58,7 @@ import {
   assertTrainingScope,
   type TrainingDatabase,
   type TrainingServiceDependencies,
+  type TrainingTransaction,
 } from "./training-service-contract"
 import {
   assertTrainingRevision,
@@ -66,6 +68,30 @@ import { validateChangedWorkoutReferences } from "./workout-references"
 
 export function createPersonalTrainingService(
   dependencies: TrainingServiceDependencies,
+) {
+  return createPersonalTrainingOperations(dependencies, (work) =>
+    dependencies.db.transaction(work),
+  )
+}
+
+/** Internal application operation: caller owns the transaction; all domain checks still run. */
+export async function savePersonalTrainingSessionInTransaction(
+  dependencies: TrainingServiceDependencies,
+  tx: TrainingTransaction,
+  input: SavePersonalTrainingSessionInput,
+) {
+  return createPersonalTrainingOperations({ ...dependencies, db: tx }, (work) =>
+    work(tx),
+  ).savePersonalTrainingSession(input)
+}
+
+type RunPersonalTransaction = <T>(
+  work: (tx: TrainingTransaction) => Promise<T>,
+) => Promise<T>
+
+function createPersonalTrainingOperations(
+  dependencies: TrainingServiceDependencies,
+  runTransaction: RunPersonalTransaction,
 ) {
   const { db, actor } = dependencies
   const getDb = () => db
@@ -531,7 +557,12 @@ export function createPersonalTrainingService(
           }),
         )
     try {
-      return await getDb().transaction(async (tx) => {
+      return await runTransaction(async (tx) => {
+        await tx
+          .select({ id: userTable.id })
+          .from(userTable)
+          .where(eq(userTable.id, userId))
+          .for("update")
         const [existing] = await tx
           .select()
           .from(personalTrainingSessionsTable)
@@ -744,8 +775,9 @@ export function createPersonalTrainingService(
             id,
           )
         }
-        const items: PersonalTrainingItem[] = data.items.map(
-          (item: PersonalTrainingItemInput) => {
+        const resolved: PersonalTrainingItem[] = data.items.map(
+          (request: PersonalTrainingItemInput) => {
+            const {role: _role, estimatedDurationMinutes: _duration, ...item} = request
             if (item.kind === "source") return resolveSource(item, item.id)
             if (item.kind === "library") {
               const preserved = previous.find(
@@ -793,6 +825,27 @@ export function createPersonalTrainingService(
             return { ...item, block: { ...item.block, id: item.id } }
           },
         )
+        const items = resolved.map((item, index) => {
+          const requested = data.items[index]
+          const prior = previous.find(old => old.id === item.id)
+          const role = requested.role === undefined ? prior?.role ?? item.role : requested.role
+          const duration = requested.estimatedDurationMinutes === undefined
+            ? prior?.estimatedDurationMinutes ?? item.estimatedDurationMinutes
+            : requested.estimatedDurationMinutes
+          // Clone preserved items so metadata edits cannot mutate performed snapshots.
+          const {role: _role, estimatedDurationMinutes: _duration, ...content} = item
+          return {...content, ...(role == null ? {} : {role}), ...(duration == null ? {} : {estimatedDurationMinutes: duration})}
+        })
+        const scoredContent = (item: PersonalTrainingItem | null | undefined) => {
+          if (!item) return item
+          const {role: _role, estimatedDurationMinutes: _duration, ...content} = item
+          // MySQL JSON normalizes object key order; compare semantic content.
+          return JSON.stringify(content, (_key, value) =>
+            value && typeof value === "object" && !Array.isArray(value)
+              ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+              : value,
+          )
+        }
         for (const result of previousResults) {
           const before =
             previous.find((i) => i.id === result.itemId) ?? result.libraryItem
@@ -807,7 +860,7 @@ export function createPersonalTrainingService(
               .set({ libraryItem: before })
               .where(eq(personalTrainingResultsTable.id, result.id))
           }
-          if (after && JSON.stringify(before) !== JSON.stringify(after))
+          if (after && scoredContent(before) !== scoredContent(after))
             throw new Error(
               "CONFLICT: This workout has a result. Add a new remix to change it.",
             )
@@ -916,7 +969,7 @@ export function createPersonalTrainingService(
     assertTrainingScope(actor, "results:write")
     const data = personalTrainingResultSchema.parse(input)
     const { userId } = await ownedSession(data.personalSessionId)
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       const { session, item } = await lockOwnedItem(
         tx,
         data.personalSessionId,
@@ -976,7 +1029,7 @@ export function createPersonalTrainingService(
     assertTrainingScope(actor, "results:write")
     const data = personalTrainingScoreLinkSchema.parse(input)
     const { userId } = await ownedSession(data.personalSessionId)
-    await getDb().transaction(async (tx) => {
+    await runTransaction(async (tx) => {
       const { session, item } = await lockOwnedItem(
         tx,
         data.personalSessionId,
@@ -1047,7 +1100,7 @@ export function createPersonalTrainingService(
     assertTrainingScope(actor, "results:write")
     const data = personalLibraryResultSchema.parse(input)
     const { userId } = await ownedSession(data.personalSessionId)
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       const { session, item } = await lockOwnedItem(
         tx,
         data.personalSessionId,
@@ -1212,7 +1265,7 @@ export function createPersonalTrainingService(
     const data = directLibraryResultSchema.parse(input)
     const { userId } = await requireTrainingAccess(data.teamId)
     const workout = await getTrainingLibraryWorkout(data)
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       // The unique day key serializes concurrent first attempts without changing a custom plan.
       const [present] = await tx
         .select()

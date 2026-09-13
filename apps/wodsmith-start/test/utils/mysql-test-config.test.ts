@@ -36,3 +36,13 @@ describe("MySQL integration connection configuration", () => {
     },
   )
 })
+
+// @lat: [[training-agent-services#Verification#Explicit loopback test addressing]]
+it("preserves IPv6 loopback and credentials when constructing the canonical test URL", async () => {
+  const { mysqlTestDatabaseUrl } = await import("../integration/mysql-test-config")
+  const url=new URL(mysqlTestDatabaseUrl({host:"::1",port:33318,user:"test@user",password:"test:password"},"training_test"))
+  expect(url.hostname).toBe("[::1]")
+  expect(url.port).toBe("33318")
+  expect(decodeURIComponent(url.username)).toBe("test@user")
+  expect(decodeURIComponent(url.password)).toBe("test:password")
+})
