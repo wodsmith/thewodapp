@@ -21,3 +21,15 @@ A team without a default receives a private team-owned track only on explicit ap
 ## Source and target boundaries
 
 Missing or ambiguous managed teams and inaccessible or competition defaults fail before writes. The seed never selects another team's private track or authorizes an outsider by knowing a team ID.
+
+## Running the seed
+
+Run the dedicated script with Node 24 and the intended database connection. Inspect the preview's team, track, range, and preserved-day count before adding `--apply`.
+
+From `apps/wodsmith-start`, with `DATABASE_URL` set:
+
+```sh
+pnpm exec tsx scripts/seed-admin-training.ts --email admin@example.com --start 2026-09-12 --days 61
+```
+
+Use `--team-id` when the account manages more than one eligible team. The general application seed is separate and is not required for this additive operation.

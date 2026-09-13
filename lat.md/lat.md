@@ -43,3 +43,4 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[training-access]] — Training resource visibility and owner-team mutation boundaries.
 - [[training-access-tests]] — Real MySQL regressions for training visibility, permissions and remix access.
 - [[training-seed]] — Additive default-track demo programming with dry-run and preservation checks.
+- [[training-session-direction]] — Proposed athlete/day ownership, navbar team context, contextual adds, and team comparisons.
