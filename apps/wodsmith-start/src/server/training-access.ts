@@ -10,6 +10,7 @@ import {
 import { CROSSFIT_TRACK_ID } from "@/lib/crossfit/source"
 import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
 import { getSessionFromCookie, requireAdmin } from "@/utils/auth"
+import { createTrainingReadAccess } from "./training-read-access"
 
 function activeMembership(userId: string) {
   return and(
@@ -22,45 +23,27 @@ function activeMembership(userId: string) {
   )
 }
 
-// @lat: [[training-access#Training Access#Private reads]]
 export async function workoutVisibilityCondition() {
   const session = await getSessionFromCookie()
-  if (!session?.userId) return eq(workouts.scope, "public")
-  return or(
-    eq(workouts.scope, "public"),
-    inArray(
-      workouts.teamId,
-      getDb()
-        .select({ teamId: teamMembershipTable.teamId })
-        .from(teamMembershipTable)
-        .where(activeMembership(session.userId)),
-    ),
-  )
+  return createTrainingReadAccess(
+    getDb(),
+    session?.userId,
+  ).workoutVisibilityCondition()
 }
 
 export async function requireTrainingTeamMember(teamId: string) {
   const session = await getSessionFromCookie()
-  if (!session?.userId) throw new Error("Not authenticated")
-  const membership = await getDb().query.teamMembershipTable.findFirst({
-    where: and(
-      activeMembership(session.userId),
-      eq(teamMembershipTable.teamId, teamId),
-    ),
-    columns: { id: true },
-  })
-  if (!membership) throw new Error("Team access required")
+  return createTrainingReadAccess(
+    getDb(),
+    session?.userId,
+  ).requireTrainingTeamMember(teamId)
 }
 
 export async function requireTrackRead(trackId: string) {
-  const track = await getDb().query.programmingTracksTable.findFirst({
-    where: eq(programmingTracksTable.id, trackId),
-  })
-  if (!track) throw new Error("Programming track not found")
-  if (track.isPublic !== 1) {
-    if (!track.ownerTeamId) throw new Error("Track access required")
-    await requireTrainingTeamMember(track.ownerTeamId)
-  }
-  return track
+  const session = await getSessionFromCookie()
+  return createTrainingReadAccess(getDb(), session?.userId).requireTrackRead(
+    trackId,
+  )
 }
 
 // @lat: [[training-access#Training Access#Owner writes]]

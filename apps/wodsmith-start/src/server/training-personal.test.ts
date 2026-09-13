@@ -67,6 +67,8 @@ import {
   saveTrainingPreference,
 } from "./training-personal"
 
+import { createPersonalTrainingService } from "./training-personal-service"
+
 const day = { teamId: "personal_gym", trainingDate: "2026-09-05" }
 const block: TrainingBlock = {
   id: "block",
@@ -306,6 +308,56 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
       },
     ])
   })
+  // @lat: [[training-agent-services#Verification#Personal actor isolation]]
+  it("saves and reads personal work using explicit identity with no cookie session", async () => {
+    state.userId = ""
+    const dependencies = {
+      db,
+      actor: { userId: "personal_athlete" },
+      hasFeature: async () => true,
+    }
+    const service = createPersonalTrainingService(dependencies)
+    const saved = await service.savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [personalItem],
+    })
+    expect(
+      (await service.getPersonalTrainingDay(day)).personalSession?.id,
+    ).toBe(saved.id)
+    const foreign = createPersonalTrainingService({
+      ...dependencies,
+      actor: { userId: "personal_other" },
+    })
+    await expect(
+      foreign.savePersonalTrainingResult({
+        personalSessionId: saved.id,
+        itemId: "bike",
+        expectedRevision: saved.revision,
+        score: "15:00",
+        notes: "private",
+        unit: "lb",
+        completed: true,
+      }),
+    ).rejects.toThrow()
+    const scoped = createPersonalTrainingService({
+      ...dependencies,
+      actor: {
+        userId: "personal_athlete",
+        grantId: "g",
+        clientId: "c",
+        scopes: ["training:read"],
+        allowedTeamIds: [],
+      },
+    })
+    await expect(
+      scoped.getTrainingLibraryWorkout({
+        ...day,
+        workoutId: "personal_library",
+      }),
+    ).rejects.toThrow("outside the training grant")
+  })
+
   beforeEach(async () => {
     state.userId = "personal_athlete"
     state.feature = true

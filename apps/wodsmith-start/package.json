@@ -136,7 +136,8 @@
     "ulid": "^3.0.2",
     "workers-ai-provider": "^3.1.14",
     "zod": "^4.2.1",
-    "zustand": "^5.0.5"
+    "zustand": "^5.0.5",
+    "@repo/wodsmith-training": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
