@@ -5,6 +5,7 @@ struct AppShell: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var tab = 0
     @State private var linkedCompetition: String?
+    @State private var announcementRouter = AnnouncementRouter.shared
     var body: some View {
         @Bindable var store = store
         TabView(selection: $tab) {
@@ -13,9 +14,24 @@ struct AppShell: View {
             Tab("Profile", systemImage: "person.crop.circle", value: 2) { NavigationStack { ProfileView() } }
         }
         .sheet(isPresented: $store.showSignIn) { NavigationStack { SignInView() } }
-        .sheet(item: Binding(get: { linkedCompetition.map(CompetitionLink.init) }, set: { linkedCompetition = $0?.id })) { link in
-            NavigationStack { CompetitionView(competitionID: link.id).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { linkedCompetition = nil } } } }
+        .sheet(item: Binding(get: {
+            if let announcement = announcementRouter.pending { return LinkedDestination.announcement(announcement) }
+            return linkedCompetition.map(LinkedDestination.competition)
+        }, set: { value in
+            if value == nil { announcementRouter.pending = nil; linkedCompetition = nil }
+        })) { destination in
+            NavigationStack {
+                Group {
+                    switch destination {
+                    case .competition(let id): CompetitionView(competitionID: id)
+                    case .announcement(let link): AnnouncementNotificationView(link: link)
+                    }
+                }.toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Done") { announcementRouter.pending = nil; linkedCompetition = nil } }
+                }
+            }
         }
+        .onChange(of: announcementRouter.pending) { _, link in if link != nil { store.showSignIn = false } }
         .onChange(of: store.selectedCompetitionID) { _, id in linkedCompetition = id; store.selectedCompetitionID = nil }
         .alert("Game Day", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK") { store.error = nil }
@@ -25,7 +41,15 @@ struct AppShell: View {
             if phase == .active { Task { await store.refresh() } }
         }
     }
-    private struct CompetitionLink: Identifiable { let id: String }
+    private enum LinkedDestination: Identifiable {
+        case competition(String), announcement(AnnouncementLink)
+        var id: String {
+            switch self {
+            case .competition(let id): "competition:\(id)"
+            case .announcement(let link): "announcement:\(link.id)"
+            }
+        }
+    }
 }
 
 struct SyncStatus: View {

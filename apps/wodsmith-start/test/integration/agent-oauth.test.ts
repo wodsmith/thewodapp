@@ -133,7 +133,7 @@ describe.skipIf(!mysqlTestConfig)("OAuth grants and consent on MySQL", () => {
     const migration = await readFile(
       resolve(
         dirname(fileURLToPath(import.meta.url)),
-        "../../../../packages/wodsmith-db/mysql-migrations/0011_agent_oauth_grants.sql",
+        "../../../../packages/wodsmith-db/mysql-migrations/0012_agent_oauth_grants.sql",
       ),
       "utf8",
     )

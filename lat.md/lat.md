@@ -44,5 +44,6 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[training-access-tests]] — Real MySQL regressions for training visibility, permissions and remix access.
 
 - [[agent-gateway]] — Training MCP, consent and private service binding.
+- [[gameday-push]] — Announcement notification ownership, audience boundaries, retries, rollout, and native tests.
 - [[training-agent-services]] — Explicit actor training services and cookie adapters.
 - [[training-plans]] — Durable weekly proposals, flexible blueprints, reviewed atomic commits, and MySQL transaction tests.

@@ -6,6 +6,7 @@
  */
 // @lat: [[organizer-dashboard#Event announcements]]
 
+import { snapshotGameDayPush } from "@repo/wodsmith-db/gameday-push"
 import { env } from "cloudflare:workers"
 import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
@@ -1012,6 +1013,9 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
         .insert(competitionBroadcastRecipientsTable)
         .values(recipientValues)
 
+      if ((env as typeof env & { GAMEDAY_PUSH_ENABLED?: string }).GAMEDAY_PUSH_ENABLED === "true") {
+        await snapshotGameDayPush(tx, broadcast.id)
+      }
       return { broadcast, recipientValues }
     })
 

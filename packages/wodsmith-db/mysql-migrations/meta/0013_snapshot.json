@@ -17313,6 +17313,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -17356,6 +17363,80 @@
       },
       "uniqueConstraints": {},
       "checkConstraint": {}
+    },
+    "training_mutation_receipts": {
+      "name": "training_mutation_receipts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operation": {
+          "name": "operation",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload_hash": {
+          "name": "payload_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "result": {
+          "name": "result",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "training_mutation_receipt_user_idx": {
+          "name": "training_mutation_receipt_user_idx",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "training_mutation_receipts_id": {
+          "name": "training_mutation_receipts_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
     }
   },
   "views": {},
@@ -17367,6 +17448,6 @@
     "tables": {},
     "indexes": {}
   },
-  "id": "c5d70aee-adc6-43a4-abd7-55bdba367249",
-  "prevId": "9a312201-c7ca-440e-a2f2-fffffef99ead"
+  "id": "920ff125-dfdd-4276-bc46-a3132f2f2bcf",
+  "prevId": "c5d70aee-adc6-43a4-abd7-55bdba367249"
 }

@@ -34,6 +34,8 @@ Only published heats and workouts reach Game Day. An athlete’s heat belongs to
 
 Workout detail includes the base instructions and native division standards, defaulting to an active registered division when available. Standards are scoped to the competition’s scaling group and event mappings, including inherited parent-event mappings, and are cached with the workout.
 
+Organizer announcement alerts have a separate opt-in and authenticated delivery path described in [[gameday-push]].
+
 Athletes opt into local notifications and choose their lead time. Reconciliation replaces notifications when a refreshed schedule changes and removes reminders when signing out. Local notifications use the last downloaded schedule and cannot learn organizer changes while the app is closed.
 
 Notification mutations run in order across asynchronous iOS calls. Sign-out clears after any earlier add finishes, and a newer assignment refresh replaces earlier scheduling work. A failed add does not block subsequent cleanup.
