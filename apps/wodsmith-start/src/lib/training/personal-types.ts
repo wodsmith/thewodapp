@@ -5,17 +5,7 @@ import type {
   TrainingWorkoutScoreInput,
 } from "./types"
 
-export interface PersonalTrainingItemMetadata {
-  role?:
-    | "warmup"
-    | "strength"
-    | "skill"
-    | "conditioning"
-    | "cooldown"
-    | "mobility"
-    | "other"
-  estimatedDurationMinutes?: number
-}
+export type PersonalTrainingItemMetadata = import("@repo/wodsmith-db/schemas/training-personal").PersonalItemMetadataSnapshot
 
 export interface TrainingSourceReference {
   sourceSessionId: string

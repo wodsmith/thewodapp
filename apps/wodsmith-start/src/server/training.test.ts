@@ -367,7 +367,7 @@ describe.skipIf(!databaseUrl)(
         throw new Error("Missing local training test database URL")
       const url = new URL(databaseUrl)
       if (
-        !["127.0.0.1", "localhost"].includes(url.hostname) ||
+        !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
         !/^\/training_test(?:_[a-f0-9]{32})?$/.test(url.pathname)
       )
         throw new Error(

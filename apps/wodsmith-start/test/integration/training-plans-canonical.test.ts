@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto"
 import { execFileSync } from "node:child_process"
 import { readFile, unlink } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { resolve } from "node:path"
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { createWodsmithDb, type WodsmithDb } from "@repo/wodsmith-db/mysql"
 import {
   programmingTracksTable,
@@ -34,6 +35,7 @@ import {
 import { mysqlTestConfig } from "./mysql-test-config"
 
 const fixture = vi.hoisted(() => ({ db: undefined as unknown }))
+const testDirectory = dirname(fileURLToPath(import.meta.url))
 vi.mock("@/db", () => ({ getDb: () => fixture.db }))
 
 import { createPersonalTrainingService } from "@/server/training-personal-service"
@@ -106,10 +108,13 @@ describe.skipIf(!mysqlTestConfig)(
           [
             "exec",
             "tsx",
-            "../../packages/wodsmith-db/scripts/export-test-schema.ts",
+            resolve(
+              testDirectory,
+              "../../../../packages/wodsmith-db/scripts/export-test-schema.ts",
+            ),
             schemaFile,
           ],
-          { cwd: process.cwd(), timeout: 30_000 },
+          { cwd: resolve(testDirectory, "../.."), timeout: 30_000 },
         )
         const statements = JSON.parse(
           await readFile(schemaFile, "utf8"),
@@ -384,6 +389,100 @@ describe.skipIf(!mysqlTestConfig)(
       expect(result).toMatchObject({ notes: "Keep me", block })
       const [session] = await db.select().from(personalTrainingSessionsTable)
       expect(session?.items).toEqual([])
+    })
+
+    // @lat: [[training-plans#Verification#Scored Item Metadata Changes]]
+    it("updates and clears metadata without changing a scored item's result or saved definitions", async () => {
+      const value = document()
+      value.days[0]!.items.push(
+        {
+          item: {
+            id: "source",
+            kind: "source",
+            sourceSessionId: "plan_source",
+            sourceBlockId: "reps",
+            sourcePublishedVersion: 1,
+          },
+          role: "conditioning",
+          estimatedDurationMinutes: 8,
+        },
+        {
+          item: { id: "library", kind: "library", workoutId: "plan_library" },
+          role: "skill",
+          estimatedDurationMinutes: 9,
+        },
+      )
+      const initial = await preview(value)
+      const receipt = await plans.commit(dependencies.actor, initial.commit)
+      const session = receipt.sessions[0]!
+      await createPersonalTrainingService(
+        dependencies,
+      ).savePersonalTrainingResult({
+        personalSessionId: session.id,
+        itemId: "reps",
+        expectedRevision: session.revision,
+        score: "30",
+        notes: "Keep my recorded result",
+        unit: "lb",
+        completed: true,
+      })
+      const [recorded] = await db.select().from(personalTrainingResultsTable)
+      const [before] = await db.select().from(personalTrainingSessionsTable)
+
+      value.days[0]!.items = value.days[0]!.items.map(({ item }) => ({
+        item,
+        role: "other",
+        estimatedDurationMinutes: 15,
+      }))
+      const edited = await preview(value)
+      await plans.commit(dependencies.actor, edited.commit)
+      const [updated] = await db.select().from(personalTrainingSessionsTable)
+      expect(
+        updated!.items.every(
+          (item) =>
+            item.role === "other" && item.estimatedDurationMinutes === 15,
+        ),
+      ).toBe(true)
+      expect((await db.select().from(personalTrainingResultsTable))[0]).toEqual(
+        recorded,
+      )
+
+      value.days[0]!.items = value.days[0]!.items.map(({ item }) => ({ item }))
+      const omitted = await preview(value)
+      await plans.commit(dependencies.actor, omitted.commit)
+      expect(
+        (await db.select().from(personalTrainingSessionsTable))[0]!.items,
+      ).toEqual(updated!.items)
+      expect((await db.select().from(personalTrainingResultsTable))[0]).toEqual(
+        recorded,
+      )
+
+      // Omission preserves saved metadata; explicit null clears each optional field.
+      value.days[0]!.items = value.days[0]!.items.map(({ item }) => ({
+        item,
+        role: null,
+        estimatedDurationMinutes: null,
+      }))
+      const cleared = await preview(value)
+      await plans.commit(dependencies.actor, cleared.commit)
+      const [after] = await db.select().from(personalTrainingSessionsTable)
+      expect(after!.items).toEqual(
+        before!.items.map(
+          ({
+            role: _role,
+            estimatedDurationMinutes: _duration,
+            ...definition
+          }) => definition,
+        ),
+      )
+      expect((await db.select().from(personalTrainingResultsTable))[0]).toEqual(
+        recorded,
+      )
+      expect(recorded).toMatchObject({
+        scoreValue: 30,
+        notes: "Keep my recorded result",
+        block,
+      })
     })
 
     // @lat: [[training-plans#Verification#Canonical Source and Access Conflicts]]

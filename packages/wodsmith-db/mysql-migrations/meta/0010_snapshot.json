@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "756b6c00-59a9-44df-9773-beb1a13ee7ac",
+  "id": "39b3dd1c-e13c-456b-86b9-833f31371afe",
   "prevId": "7330d8b0-6c37-40bc-8328-605238fff7ad",
   "tables": {
     "addresses": {
@@ -14158,7 +14158,7 @@
           "name": "training_plan_owner_idx",
           "columns": [
             "user_id",
-            "updated_at"
+            "id"
           ],
           "isUnique": false
         }

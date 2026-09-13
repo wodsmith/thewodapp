@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
-import { resolve } from "node:path"
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { createWodsmithDb, type WodsmithDb } from "@repo/wodsmith-db/mysql"
 import {
   trainingPlanDraftsTable,
@@ -30,6 +31,7 @@ import { personalTrainingItemSchema } from "@/server/training-personal-validatio
 import { mysqlTestConfig } from "./mysql-test-config"
 
 const schema = createTrainingPlanSchema(personalTrainingItemSchema)
+const testDirectory = dirname(fileURLToPath(import.meta.url))
 const document = () =>
   schema.parse({
     blueprintVersion: PLAN_BLUEPRINT_VERSION,
@@ -195,8 +197,8 @@ describe.skipIf(!mysqlTestConfig)(
       db = createWodsmithDb(pool)
       const migration = await readFile(
         resolve(
-          process.cwd(),
-          "../../packages/wodsmith-db/mysql-migrations/0010_training_plans.sql",
+          testDirectory,
+          "../../../../packages/wodsmith-db/mysql-migrations/0010_training_plans.sql",
         ),
         "utf8",
       )

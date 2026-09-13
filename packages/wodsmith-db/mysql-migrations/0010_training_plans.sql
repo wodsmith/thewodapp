@@ -24,4 +24,4 @@ CREATE TABLE `training_plan_receipts` (
 	CONSTRAINT `training_plan_receipt_key_uq` UNIQUE(`user_id`,`operation`,`key_hash`)
 );
 --> statement-breakpoint
-CREATE INDEX `training_plan_owner_idx` ON `training_plan_drafts` (`user_id`,`updated_at`);
+CREATE INDEX `training_plan_owner_idx` ON `training_plan_drafts` (`user_id`,`id`);

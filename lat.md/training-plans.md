@@ -12,6 +12,8 @@ Every read returns the plan ID, revision, status, document, missing inputs, ques
 
 Owner-only listing returns compact IDs, titles, week starts, status, and revision in descending ID order. Optional status filtering and an opaque cursor bound pages to fifty rows, defaulting to twenty. Listing rechecks authorization even for an empty owner and checks every returned draft's contexts.
 
+The owner-and-ID index follows the listing cursor so pages can seek within an athlete's drafts without sorting that owner's entire collection.
+
 ## Blueprint and Intent
 
 The general-functional-fitness@1 blueprint organizes optional roles without choosing scoring rules. Its item schema comes from canonical training validation rather than a parallel workout definition.
@@ -23,6 +25,8 @@ The recommended order is warm-up, optional strength or skill, optional condition
 Each day declares `accessTeamId` as an access context and chooses `train`, `rest`, or `leave_open`. Train replaces the reviewed personal composition, rest explicitly saves an empty composition, and leave-open performs no canonical write. A rest proposal is personal intent, not a claim that a provider published a rest day. Omitted dates remain unchanged.
 
 Roles and duration estimates are optional metadata. Source, personal-remix, and library references retain canonical identity and complete scoring definitions. Questions and day-specific constraints persist in the draft; required unanswered questions and unresolved constraints block commit. Resolving or waiving a constraint requires an explanation. Nothing automatically saves permanent athlete preferences.
+
+Omitting role or duration preserves saved metadata. An explicit null clears the selected field. Organizational metadata can change after a score is recorded without changing the performed prescription or result snapshot.
 
 ## Preview and Commit
 
@@ -97,6 +101,10 @@ A later performed-item conflict rolls back an earlier attempted day. Explicit re
 ### Canonical Source and Access Conflicts
 
 Source republication, revoked membership, revoked grants, and ambiguous cross-workspace days reject canonical planning writes. Another athlete cannot read the plan or reuse its successful receipt.
+
+### Scored Item Metadata Changes
+
+Role and duration changes, including explicit-null clearing, preserve saved source/library definitions and the scored personal item's result. Organizational metadata does not count as changing its performed prescription.
 
 ### Concurrent Canonical Contexts
 
