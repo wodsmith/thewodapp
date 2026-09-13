@@ -117,6 +117,10 @@ The legacy log editor resolves archived definitions through the athlete's owned 
 
 The existing workout update unit fixture models the parent-row locking read and preserves the established missing-workout error.
 
+### Programming receipt authority
+
+Reading a draft or publication receipt requires programming-read scope and current programmer authority for its stored track. Knowing a receipt ID cannot expose an unpublished draft to a narrowed connection or former programmer.
+
 ## Prepared weekly writes
 
 The planning adapter prepares bounded unique dates without writing live sessions, locks the complete source and day dependency set, and revalidates the review before using the canonical day writer in one supplied transaction.

@@ -219,6 +219,17 @@ describe.skipIf(!databaseUrl)("agent mutations on MySQL",()=>{
     await expect(call("publish_programming",publish)).rejects.toThrow("FORBIDDEN")
   })
 
+  // @lat: [[training-agent-services#Verification#Programming receipt authority]]
+  it("requires programming read scope and current programmer authority for a known draft receipt",async()=>{
+    const saved=await call("save_programming_draft",{teamId,idempotencyKey:"private-draft",trackId:"agent_track",trainingDate:"2026-09-06",timezone:"UTC",expectedRevision:0,content})
+    const receiptId=z.object({receipt:z.object({id:z.string()})}).parse(saved).receipt.id
+    const read={teamId,receiptId}
+    expect(await call("get_mutation_receipt",read)).toMatchObject({result:saved})
+    await expect(call("get_mutation_receipt",read,{...deps,actor:{...deps.actor,scopes:["training:read"]}})).rejects.toThrow("programming:read")
+    await db.update(teamMembershipTable).set({roleId:"member"}).where(eq(teamMembershipTable.id,"agent_owner_membership"))
+    await expect(call("get_mutation_receipt",read)).rejects.toThrow("FORBIDDEN")
+  })
+
   // @lat: [[training-agent-services#Verification#Discoverable mutation contracts]]
   it("advertises only permitted executable operations with serializable canonical schemas",()=>{
     const reads=listAgentOperations({...deps.actor,scopes:["training:read"]})

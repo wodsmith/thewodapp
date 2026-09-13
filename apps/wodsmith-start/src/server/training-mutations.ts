@@ -148,5 +148,23 @@ export async function getTrainingMutationReceipt(
     receipt.teamId !== data.teamId
   )
     throw new Error("NOT_FOUND: Mutation receipt not found")
+  if (
+    receipt.operation === "save_programming_draft" ||
+    receipt.operation === "publish_programming"
+  ) {
+    assertTrainingScope(deps.actor, "programming:read")
+    const stored = z
+      .object({
+        session: z.object({ teamId: z.string(), trackId: z.string() }),
+      })
+      .safeParse(receipt.result)
+    if (!stored.success || stored.data.session.teamId !== receipt.teamId)
+      throw new Error("FORBIDDEN: Programming receipt is unavailable")
+    await createTrainingService(deps).requireTrainingAccess(
+      receipt.teamId,
+      stored.data.session.trackId,
+      true,
+    )
+  }
   return { result: receipt.result, createdAt: receipt.createdAt.toISOString() }
 }
