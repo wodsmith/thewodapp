@@ -115,6 +115,8 @@ Archiving a library definition preserves existing personal compositions and hist
 
 The legacy log editor resolves archived definitions through the athlete's owned score ID. Other users cannot use that history lookup to read the archived workout, and stale workout editors cannot rewrite the archived definition.
 
+The existing workout update unit fixture models the parent-row locking read and preserves the established missing-workout error.
+
 ## Prepared weekly writes
 
 The planning adapter prepares bounded unique dates without writing live sessions, locks the complete source and day dependency set, and revalidates the review before using the canonical day writer in one supplied transaction.

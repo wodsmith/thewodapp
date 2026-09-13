@@ -655,8 +655,9 @@ describe('Workout Server Functions (TanStack)', () => {
         scheme: 'reps',
       })
 
-      // Source uses db.query.workouts.findFirst() after update
+      // The writer locks the parent row before editing, then reads the updated row.
       mockDb.registerTable('workouts')
+      mockDb.setMockReturnValue([updated])
       mockDb.setMockSingleValue(updated)
 
       const result = await updateWorkoutFn({

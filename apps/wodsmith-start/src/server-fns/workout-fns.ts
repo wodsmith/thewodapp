@@ -501,7 +501,8 @@ export const updateWorkoutFn = createServerFn({ method: "POST" })
 
     const updatedWorkout = await db.transaction(async (tx) => {
       const [existing] = await tx.select().from(workouts).where(eq(workouts.id,data.id)).for("update")
-      if (!existing || existing.archivedAt) throw new Error("Workout is archived or unavailable")
+      if (!existing) throw new Error("Workout not found")
+      if (existing.archivedAt) throw new Error("Workout is archived or unavailable")
       if (!existing.teamId)
         throw new Error("Workout has no editable owner team")
       await requireWorkoutTeamWrite(
