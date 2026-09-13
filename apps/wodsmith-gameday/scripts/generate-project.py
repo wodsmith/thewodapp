@@ -30,7 +30,7 @@ products = []
 def configs(name, extra):
     ids = []
     for config in ['Debug','Release']:
-        settings = {'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TARGET':'18.0','SWIFT_VERSION':'5.0','TARGETED_DEVICE_FAMILY':'1','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'TV6G82BJ4U','MARKETING_VERSION':'1.2','CURRENT_PROJECT_VERSION':'6','ENABLE_USER_SCRIPT_SANDBOXING':'YES','CLANG_ENABLE_MODULES':'YES','SWIFT_STRICT_CONCURRENCY':'complete','SWIFT_OPTIMIZATION_LEVEL':'-Onone' if config=='Debug' else '-O','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if config=='Debug' else '', **extra}
+        settings = {'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TARGET':'18.0','SWIFT_VERSION':'5.0','TARGETED_DEVICE_FAMILY':'1','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'TV6G82BJ4U','MARKETING_VERSION':'1.1','CURRENT_PROJECT_VERSION':'6','ENABLE_USER_SCRIPT_SANDBOXING':'YES','CLANG_ENABLE_MODULES':'YES','SWIFT_STRICT_CONCURRENCY':'complete','SWIFT_OPTIMIZATION_LEVEL':'-Onone' if config=='Debug' else '-O','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'DEBUG' if config=='Debug' else '', **extra}
         if name == 'GameDay': settings['APNS_ENVIRONMENT'] = 'development' if config == 'Debug' else 'production'
         ids.append(obj(name+config, '{isa=XCBuildConfiguration; name='+config+'; buildSettings={'+''.join(k+'='+q(v)+';' for k,v in settings.items())+'};}'))
     return obj(name+'configs', '{isa=XCConfigurationList; buildConfigurations='+refs(ids)+'; defaultConfigurationIsVisible=0; defaultConfigurationName=Release;}')

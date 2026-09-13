@@ -53,7 +53,7 @@ See `AppStore/metadata.md` and `AppStore/release-status.md`. Public support and 
 
 ## Organizer announcement alerts
 
-Version 1.2 adds an opt-in announcement setting under Profile. Athletes must sign in, enable announcement alerts, and allow iPhone notifications. Device subscriptions are renewed on foreground refresh and revoked on sign-out, with a Keychain-backed retry after offline cleanup failures.
+Version 1.1 build 6 adds an opt-in announcement setting under Profile. Athletes must sign in, enable announcement alerts, and allow iPhone notifications. Device subscriptions are renewed on foreground refresh and revoked on sign-out, with a Keychain-backed retry after offline cleanup failures.
 
 `PUT` and `DELETE /api/gameday/v1/devices` register and remove the current bearer session’s APNs subscription. Tokens remain on the server and in the device Keychain; private announcement text is never included in push payloads. The exact announcement is retrieved through the existing permission-filtered competition API when tapped.
 

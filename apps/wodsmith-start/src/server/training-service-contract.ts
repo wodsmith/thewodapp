@@ -16,7 +16,11 @@ export type TrainingTransaction = Parameters<
 
 export interface TrainingServiceDependencies {
   actor: TrainingActor
-  db: TrainingDatabase
+  db: TrainingDatabase | TrainingTransaction
   /** The server adapter supplies the canonical entitlement policy. */
-  hasFeature: (teamId: string, featureId: string) => Promise<boolean>
+  hasFeature: (
+    teamId: string,
+    featureId: string,
+    db: TrainingDatabase | TrainingTransaction,
+  ) => Promise<boolean>
 }

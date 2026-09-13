@@ -32,6 +32,18 @@ An explicit actor can read training without a cookie, while a read-only grant ca
 
 A personal service saves and reads composition without a cookie; another athlete cannot save its results and a grant without the workspace cannot read the private library.
 
+### Atomic prepared days
+
+Read-only preparation records the reviewed baseline and source definitions. Saving uses the caller's single transaction, preserves role and duration metadata, and rolls back every day if a later canonical write fails.
+
+### Prepared source and identity conflicts
+
+Source publication or composition changes invalidate a prepared batch. Alternate owned workspace days trigger a generic conflict before grant filtering, preventing hidden compositions from being overwritten or duplicated.
+
+### Agent week privacy
+
+The agent week response includes published programming, seven saved-or-projected personal days and only its authenticated athlete's results. It omits the web leaderboard field and other athletes' result notes.
+
 ### Partial grants fail closed
 
 Every nonempty incomplete combination of grant fields is rejected by identity, scope, and team checks. Plain web actors remain valid, and complete grants with empty restrictions deny access.
@@ -39,3 +51,45 @@ Every nonempty incomplete combination of grant fields is rejected by identity, s
 ### Library occurrence edits retain identity
 
 Changing a saved provider occurrence under the same case-insensitive ID is rejected without changing its revision or snapshot. ID casing cannot reassign existing result identity to a different workout.
+
+### Current identity under repeatable read
+
+A transaction with an earlier consistent-read snapshot still observes a newly committed alternate workspace day through locking identity reads and rejects the prepared write.
+
+### Prepared library snapshots
+
+Batch review shows the saved library definition for preserved items, matching the canonical writer after a library edit. Ordinary library items still require current workout access before they can be prepared.
+
+Batch inputs must preserve the exact casing of saved item IDs.
+
+### Scored item organization metadata
+
+Source, personal and library items can set, edit or explicitly clear role and duration after scoring. Omission preserves existing metadata; null removes it. Performed definitions and result records remain unchanged.
+
+Scored-content comparisons ignore organization metadata and normalize JSON key order, so MySQL storage ordering cannot turn an unchanged prescription into a conflict. Prescription changes still require a new item.
+
+### Explicit loopback test addressing
+
+The database runner preserves IPv6 loopback addresses, ports and encoded credentials when building its disposable database URL. The canonical suites accept the bracketed IPv6 URL hostname.
+
+## Prepared weekly writes
+
+The planning adapter prepares bounded unique dates without writing live sessions, locks the complete source and day dependency set, and revalidates the review before using the canonical day writer in one supplied transaction.
+
+Preparation captures prior revision and items, resolved library definitions, source publication, removed items and history retention. Rest is an explicit empty replacement; removed items retain performed history. Role and estimated duration are optional item metadata, independent of scoring.
+
+## Database regression gate
+
+The database integration command creates a uniquely named local schema with real indexes and generated columns, then runs the canonical and integration suites without skips.
+
+It uses only the explicit local test connection and never application credentials. Canonical standalone suites also retain their existing opt-in disposable database URL for manual runs.
+
+The canonical gate verifies current application behavior, not migration replay. Earlier migrations do not include the current score scaling-key column; migration lineage requires separate validation.
+
+Weekly transactions use READ COMMITTED. Identity and source baselines use locking reads as well, so an earlier REPEATABLE READ snapshot cannot hide a newly committed alternate workspace day. This does not add a database-wide athlete/date uniqueness constraint.
+
+## Read history scope
+
+Agent history returns up to 100 own published results for the selected track and up to 100 personal results for the workspace. Each collection declares its scope so callers cannot mistake personal work for track-filtered history.
+
+Stored personal snapshot metadata and input metadata share the database package type. The database package type-check command also validates the current-schema test exporter through its script-specific TypeScript configuration.

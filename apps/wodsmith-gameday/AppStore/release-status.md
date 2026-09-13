@@ -91,3 +91,10 @@ Before follow-up submission: retain 1.1 build 5, finish the current release sepa
 Automatic approval review rejected enabling Push Notifications on the Apple identifier, requiring specific authorization for that capability change. No capability, profile, key, or App Store submission was changed. GitHub PR #705 contains the gated implementation and migration; rollout authorization and Apple capability/key setup remain external prerequisites.
 
 PR #705 review corrections and full CI passed on `a2005ea6d`. Automatic approval review then rejected the PR merge because it could not find trusted explicit user authorization to mutate the shared target branch. The PR remains open pending that authorization; no alternate merge path was attempted. A subsequent main update required preserving both entries in the documentation index.
+
+
+## Combined announcement release takeover
+
+The user requested including announcement push in the next review build. The combined candidate is now 1.1 build 6, replacing the earlier separate 1.2 plan. Build 5 remains selected until a signed replacement is uploaded. PR #705's migration collision with main was resolved by regenerating identical push SQL as `0011_gameday_push.sql` after training plans.
+
+PR #700 is merged at `9c2e640ca57fe25b33adc3c6b8e99da07f2ece01`. Its build 5 upload and prior native/API verification remain valid. Production rollout has not been authorized through automatic approval review. Apple Push capability, APNs credentials, the production schema rollout, real-device delivery verification, and accurate Device ID disclosures remain prerequisites for submitting build 6.

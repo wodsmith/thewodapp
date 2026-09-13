@@ -17,7 +17,7 @@
     "drizzle.config.ts"
   ],
   "scripts": {
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.scripts.json",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio"

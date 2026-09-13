@@ -34,13 +34,13 @@ Expired device bindings are deleted during dispatch. Delivery records are delete
 
 ## Rollout
 
-Push is disabled by default. Apply `0010_gameday_push.sql` through the normal PlanetScale schema process before enabling `GAMEDAY_PUSH_ENABLED`. Configure APNs credentials and the WODsmith queue consumer/one-minute cron in the same environment.
+Push is disabled by default. Apply `0011_gameday_push.sql` through the normal PlanetScale schema process before enabling `GAMEDAY_PUSH_ENABLED`. Configure APNs credentials and the WODsmith queue consumer/one-minute cron in the same environment.
 
 Required secrets are `APNS_KEY_ID`, `APNS_TEAM_ID`, and `APNS_PRIVATE_KEY` (Apple P-256 token-signing key). WODsmith sends for topic `com.wodsmith.gameday`. Crew only writes the shared outbox and must not be enabled before WODsmith delivery is configured against that database. Never enable the same production token/key combination against a development database.
 
 Deployment workflows pass the push flag and credentials only to the production stage. Both Alchemy configurations independently disable push outside production, and the dispatcher cron uses one shared schedule constant. Local tests use isolated mocks.
 
-The native target adds the Push Notifications entitlement, with sandbox in Debug and production in Release. Signing profiles must contain the matching entitlement. The inspected Apple identifier has push disabled, and the attempted signed archive fails because the existing profile lacks Push Notifications and `aps-environment`. The follow-up source version is 1.2 build 6; version 1.1 build 5 remains untouched in App Store Connect.
+The native target adds the Push Notifications entitlement, with sandbox in Debug and production in Release. Signing profiles must contain the matching entitlement. The inspected Apple identifier has push disabled, and the attempted signed archive fails because the existing profile lacks Push Notifications and `aps-environment`. The combined submission candidate is 1.1 build 6, superseding build 5 after push rollout verification. Build 5 remains selected in App Store Connect until a signed replacement is uploaded.
 
 All physical-device Debug builds and Release archives from this source require the new signing capability; the backend runtime flag does not remove that requirement. Simulator builds remain available while Apple configuration is pending.
 

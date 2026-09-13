@@ -151,7 +151,7 @@ export function createTrainingService(
     const memberships = await trainingMemberships(userId, teamId)
     if (!memberships.length)
       throw new Error("FORBIDDEN: Join this gym to access its training")
-    if (!(await hasFeature(teamId, FEATURES.WORKOUT_TRACKING)))
+    if (!(await hasFeature(teamId, FEATURES.WORKOUT_TRACKING, db)))
       throw new Error("FORBIDDEN: Workout tracking is not enabled for this gym")
     if (programming && !memberships.some(canProgramTraining))
       throw new Error("FORBIDDEN: Programming permission is required")
@@ -214,7 +214,7 @@ export function createTrainingService(
       if (
         (actor.allowedTeamIds && !actor.allowedTeamIds.includes(team.id)) ||
         teams.some((t) => t.id === team.id) ||
-        !(await hasFeature(team.id, FEATURES.WORKOUT_TRACKING))
+        !(await hasFeature(team.id, FEATURES.WORKOUT_TRACKING, db))
       )
         continue
       teams.push({
