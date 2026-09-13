@@ -92,4 +92,6 @@ Missing APNs credentials and signing failures must not increment provider attemp
 
 ### Independent home refresh
 
-Suspended push cleanup must not delay competition home requests. Home refresh marks its loading state before asynchronous work, while push synchronization proceeds independently. Announcement loads ignore stale account and cancelled request results.
+Suspended push cleanup must not delay competition home requests or refresh completion.
+
+Home refresh marks its loading state before asynchronous work, while push synchronization proceeds independently. Announcement loads ignore stale account and cancelled request results.

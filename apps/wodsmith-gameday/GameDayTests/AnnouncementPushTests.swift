@@ -65,6 +65,7 @@ final class AnnouncementPushTests: XCTestCase {
         store.push.enabled = false
         let homeRequested = expectation(description: "Home requested while cleanup is suspended")
         let cleanupRequested = expectation(description: "Cleanup requested")
+        let refreshCompleted = expectation(description: "Home refresh completed before cleanup")
         var cleanup: PushURLProtocol?
         PushURLProtocol.handler = { request in
             if request.request.url?.path == "/api/gameday/v1/devices" {
@@ -75,8 +76,8 @@ final class AnnouncementPushTests: XCTestCase {
                 request.offline()
             }
         }
-        let refresh = Task { await store.refresh() }
-        await fulfillment(of: [homeRequested, cleanupRequested], timeout: 3)
+        let refresh = Task { await store.refresh(); refreshCompleted.fulfill() }
+        await fulfillment(of: [homeRequested, cleanupRequested, refreshCompleted], timeout: 3)
         cleanup?.complete()
         await refresh.value
         await store.push.synchronize(allowed: false)
