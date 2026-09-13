@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { requestTeamSwitch } from "@/lib/team-switch-guard"
 import { setActiveTeamFn } from "@/server-fns/team-settings-fns"
 
 /**
@@ -57,6 +58,7 @@ export function NavTeamSwitcher({
 
     setIsLoading(true)
     try {
+      if (!(await requestTeamSwitch())) return
       const result = await setActiveTeam({ data: { teamId } })
 
       if (!result.success) {
