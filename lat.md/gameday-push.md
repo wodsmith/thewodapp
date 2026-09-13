@@ -73,3 +73,7 @@ Retain a failed offline deregistration across manager recreation, then retry it 
 ### Native announcement routing
 
 Retain valid announcement identifiers through cold launch and session expiry. Explicit sign-out clears the destination. Reject malformed identifiers and open the exact announcement only through the current authenticated account.
+
+### Queue dispatch isolation
+
+Push messages use an explicit kind discriminator. Email messages retain their original path, while an unpersisted push consumer failure requests queue redelivery.
