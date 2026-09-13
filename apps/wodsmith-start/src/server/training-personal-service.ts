@@ -8,6 +8,7 @@ import {
   scoreRoundsTable,
   scoresTable,
   trackWorkoutsTable,
+  userTable,
   workoutMovements,
   workouts,
 } from "@repo/wodsmith-db/schema"
@@ -57,6 +58,7 @@ import {
   assertTrainingScope,
   type TrainingDatabase,
   type TrainingServiceDependencies,
+  type TrainingTransaction,
 } from "./training-service-contract"
 import {
   assertTrainingRevision,
@@ -66,6 +68,30 @@ import { validateChangedWorkoutReferences } from "./workout-references"
 
 export function createPersonalTrainingService(
   dependencies: TrainingServiceDependencies,
+) {
+  return createPersonalTrainingOperations(dependencies, (work) =>
+    dependencies.db.transaction(work),
+  )
+}
+
+/** Internal application operation: caller owns the transaction; all domain checks still run. */
+export async function savePersonalTrainingSessionInTransaction(
+  dependencies: TrainingServiceDependencies,
+  tx: TrainingTransaction,
+  input: SavePersonalTrainingSessionInput,
+) {
+  return createPersonalTrainingOperations({ ...dependencies, db: tx }, (work) =>
+    work(tx),
+  ).savePersonalTrainingSession(input)
+}
+
+type RunPersonalTransaction = <T>(
+  work: (tx: TrainingTransaction) => Promise<T>,
+) => Promise<T>
+
+function createPersonalTrainingOperations(
+  dependencies: TrainingServiceDependencies,
+  runTransaction: RunPersonalTransaction,
 ) {
   const { db, actor } = dependencies
   const getDb = () => db
@@ -513,7 +539,12 @@ export function createPersonalTrainingService(
           }),
         )
     try {
-      return await getDb().transaction(async (tx) => {
+      return await runTransaction(async (tx) => {
+        await tx
+          .select({ id: userTable.id })
+          .from(userTable)
+          .where(eq(userTable.id, userId))
+          .for("update")
         const [existing] = await tx
           .select()
           .from(personalTrainingSessionsTable)
@@ -728,7 +759,16 @@ export function createPersonalTrainingService(
         }
         const items: PersonalTrainingItem[] = data.items.map(
           (item: PersonalTrainingItemInput) => {
-            if (item.kind === "source") return resolveSource(item, item.id)
+            if (item.kind === "source")
+              return {
+                ...resolveSource(item, item.id),
+                ...(item.role === undefined ? {} : { role: item.role }),
+                ...(item.estimatedDurationMinutes === undefined
+                  ? {}
+                  : {
+                      estimatedDurationMinutes: item.estimatedDurationMinutes,
+                    }),
+              }
             if (item.kind === "library") {
               const preserved = previous.find(
                 (old) =>
@@ -775,6 +815,12 @@ export function createPersonalTrainingService(
             return { ...item, block: { ...item.block, id: item.id } }
           },
         )
+        for (const [index, item] of items.entries()) {
+          const requested = data.items[index]
+          if (requested.role !== undefined) item.role = requested.role
+          if (requested.estimatedDurationMinutes !== undefined)
+            item.estimatedDurationMinutes = requested.estimatedDurationMinutes
+        }
         for (const result of previousResults) {
           const before =
             previous.find((i) => i.id === result.itemId) ?? result.libraryItem
@@ -898,7 +944,7 @@ export function createPersonalTrainingService(
     assertTrainingScope(actor, "results:write")
     const data = personalTrainingResultSchema.parse(input)
     const { userId } = await ownedSession(data.personalSessionId)
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       const { session, item } = await lockOwnedItem(
         tx,
         data.personalSessionId,
@@ -958,7 +1004,7 @@ export function createPersonalTrainingService(
     assertTrainingScope(actor, "results:write")
     const data = personalTrainingScoreLinkSchema.parse(input)
     const { userId } = await ownedSession(data.personalSessionId)
-    await getDb().transaction(async (tx) => {
+    await runTransaction(async (tx) => {
       const { session, item } = await lockOwnedItem(
         tx,
         data.personalSessionId,
@@ -1029,7 +1075,7 @@ export function createPersonalTrainingService(
     assertTrainingScope(actor, "results:write")
     const data = personalLibraryResultSchema.parse(input)
     const { userId } = await ownedSession(data.personalSessionId)
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       const { session, item } = await lockOwnedItem(
         tx,
         data.personalSessionId,
@@ -1194,7 +1240,7 @@ export function createPersonalTrainingService(
     const data = directLibraryResultSchema.parse(input)
     const { userId } = await requireTrainingAccess(data.teamId)
     const workout = await getTrainingLibraryWorkout(data)
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       // The unique day key serializes concurrent first attempts without changing a custom plan.
       const [present] = await tx
         .select()

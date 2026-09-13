@@ -67,6 +67,7 @@ import {
   saveTrainingPreference,
 } from "./training-personal"
 
+import { preparePersonalSessions, savePreparedPersonalSessions } from "./training-personal-batch"
 import { createPersonalTrainingService } from "./training-personal-service"
 
 const day = { teamId: "personal_gym", trainingDate: "2026-09-05" }
@@ -228,7 +229,7 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     const url = new URL(databaseUrl)
     if (
       !["localhost", "127.0.0.1"].includes(url.hostname) ||
-      url.pathname !== "/training_test"
+      !/^\/training_test(?:_[a-f0-9]{32})?$/.test(url.pathname)
     )
       throw new Error("Use a disposable local training_test database")
     pool = mysql.createPool(databaseUrl)
@@ -356,6 +357,39 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
         workoutId: "personal_library",
       }),
     ).rejects.toThrow("outside the training grant")
+  })
+
+  // @lat: [[training-agent-services#Verification#Atomic prepared days]]
+  it("prepares without writes and rolls all days back when a later canonical write fails", async () => {
+    const dependencies = {db,actor:{userId:"personal_athlete"},hasFeature:async()=>true}
+    const {prepared} = await preparePersonalSessions(dependencies,[
+      {...day,expectedRevision:0,items:[{...personalItem,role:"warmup",estimatedDurationMinutes:10}]},
+      {...day,trainingDate:"2026-09-06",expectedRevision:0,items:[personalItem]},
+    ])
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(0)
+    await pool.promise().query("CREATE TRIGGER training_batch_failure BEFORE INSERT ON personal_training_sessions FOR EACH ROW BEGIN IF NEW.training_date = '2026-09-06' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'second day failure'; END IF; END")
+    try {
+      await expect(db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))).rejects.toThrow()
+    } finally {
+      await pool.promise().query("DROP TRIGGER training_batch_failure")
+    }
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(0)
+    const valid = await preparePersonalSessions(dependencies,[prepared.inputs[0]])
+    const saved = await db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,valid.prepared))
+    expect(saved[0].items[0]).toMatchObject({role:"warmup",estimatedDurationMinutes:10})
+    expect((await createPersonalTrainingService(dependencies).getPersonalTrainingDay(day)).items[0]).toMatchObject({role:"warmup",estimatedDurationMinutes:10})
+    await expect(db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,valid.prepared))).rejects.toThrow("CONFLICT")
+  })
+
+  // @lat: [[training-agent-services#Verification#Prepared source and identity conflicts]]
+  it("rejects source changes and hidden alternate workspace days before writing", async () => {
+    const dependencies = {db,actor:{userId:"personal_athlete",grantId:"g",clientId:"c",scopes:["training:read","training:write"],allowedTeamIds:[day.teamId]},hasFeature:async()=>true}
+    const {prepared} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:0,items:[sourceItem]}])
+    await db.update(trainingSessionsTable).set({publishedVersion:2}).where(eq(trainingSessionsTable.id,"personal_source"))
+    await expect(db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))).rejects.toThrow("CONFLICT")
+    await db.insert(personalTrainingSessionsTable).values({id:"hidden-day",userId:"personal_athlete",teamId:"personal_foreign",trainingDate:day.trainingDate,items:[]})
+    await expect(preparePersonalSessions(dependencies,[{...day,expectedRevision:0,items:[personalItem]}])).rejects.toThrow("another workspace composition")
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(1)
   })
 
   beforeEach(async () => {

@@ -21,16 +21,36 @@ const personalBlock = trainingBlockSchema.refine(
     block.title.trim().length > 0 && block.prescription.trim().length > 0,
   "Give the workout a title and prescription",
 )
+const itemMetadata = {
+  role: z
+    .enum([
+      "warmup",
+      "strength",
+      "skill",
+      "conditioning",
+      "cooldown",
+      "mobility",
+      "other",
+    ])
+    .optional(),
+  estimatedDurationMinutes: z.number().int().min(1).max(1440).optional(),
+}
 export const personalTrainingItemSchema = z
   .discriminatedUnion("kind", [
-    trainingSourceSchema.extend({ id: itemId, kind: z.literal("source") }),
+    trainingSourceSchema.extend({
+      ...itemMetadata,
+      id: itemId,
+      kind: z.literal("source"),
+    }),
     z.object({
+      ...itemMetadata,
       id: itemId,
       kind: z.literal("personal"),
       block: personalBlock,
       remixedFrom: trainingSourceSchema.optional(),
     }),
     z.object({
+      ...itemMetadata,
       id: itemId,
       kind: z.literal("library"),
       workoutId: id,

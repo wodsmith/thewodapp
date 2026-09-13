@@ -5,12 +5,26 @@ import type {
   TrainingWorkoutScoreInput,
 } from "./types"
 
+export interface PersonalTrainingItemMetadata {
+  role?:
+    | "warmup"
+    | "strength"
+    | "skill"
+    | "conditioning"
+    | "cooldown"
+    | "mobility"
+    | "other"
+  estimatedDurationMinutes?: number
+}
+
 export interface TrainingSourceReference {
   sourceSessionId: string
   sourceBlockId: string
   sourcePublishedVersion: number
 }
-export interface PersonalSourceItem extends TrainingSourceReference {
+export interface PersonalSourceItem
+  extends TrainingSourceReference,
+    PersonalTrainingItemMetadata {
   id: string
   kind: "source"
   sourceIsCurrent?: boolean
@@ -19,7 +33,7 @@ export interface PersonalSourceItem extends TrainingSourceReference {
   trackName: string
   sourceTrainingDate: string
 }
-export interface PersonalOwnedItem {
+export interface PersonalOwnedItem extends PersonalTrainingItemMetadata {
   id: string
   kind: "personal"
   block: TrainingBlock
@@ -32,7 +46,7 @@ export interface ProviderProvenance {
   sourceDate: string
   sourceUrl: string
 }
-export interface PersonalLibraryItem {
+export interface PersonalLibraryItem extends PersonalTrainingItemMetadata {
   occurrence?: { trackId?: string; sourceDate?: string }
   provenance?: ProviderProvenance
   id: string
@@ -54,16 +68,18 @@ export type PersonalTrainingItem =
   | PersonalSourceItem
   | PersonalOwnedItem
   | PersonalLibraryItem
-export type PersonalTrainingItemInput =
-  | ({ id: string; kind: "source" } & TrainingSourceReference)
-  | PersonalOwnedItem
-  | {
-      id: string
-      kind: "library"
-      workoutId: string
-      sourceTrackId?: string
-      sourceDate?: string
-    }
+export type PersonalTrainingItemInput = PersonalTrainingItemMetadata &
+  (
+    | ({ id: string; kind: "source" } & TrainingSourceReference)
+    | PersonalOwnedItem
+    | {
+        id: string
+        kind: "library"
+        workoutId: string
+        sourceTrackId?: string
+        sourceDate?: string
+      }
+  )
 
 export interface PersonalTrainingSession {
   id: string
