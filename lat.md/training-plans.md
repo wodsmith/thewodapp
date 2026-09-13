@@ -10,6 +10,8 @@ Drafts belong to a user, never to a second athlete identity scoped by team. Crea
 
 Every read returns the plan ID, revision, status, document, missing inputs, questions, warnings, suggested next actions, and summary. Updates replace the bounded document with an expected revision. Row locks serialize changes; another athlete receives not-found rather than proposal contents. Only uncommitted drafts can be deleted. Committed proposals remain available with their durable receipt.
 
+Owner-only listing returns compact IDs, titles, week starts, status, and revision in descending ID order. Optional status filtering and an opaque cursor bound pages to fifty rows, defaulting to twenty. Listing rechecks authorization even for an empty owner and checks every returned draft's contexts.
+
 ## Blueprint and Intent
 
 The general-functional-fitness@1 blueprint organizes optional roles without choosing scoring rules. Its item schema comes from canonical training validation rather than a parallel workout definition.
@@ -28,6 +30,8 @@ Preview is read-only. It resolves current access, affected personal-session revi
 
 Commit locks the draft, rechecks current authorization and revision, locks and validates the prepared canonical batch, saves through the shared transaction-aware writer, records a receipt, and marks the proposal committed in one database transaction. No independent per-day transactions are permitted. Failure rolls back every attempted day and the receipt. Performed snapshots remain the canonical writer's responsibility.
 
+The weekly commit explicitly uses READ COMMITTED isolation. Authorization can read before waiting for an athlete lock; after that wait, canonical validation must observe the winning transaction rather than an older REPEATABLE READ snapshot. The canonical writer also locks and validates its current inputs.
+
 Idempotency keys are hashed and scoped by authenticated owner and operation. The durable payload hash binds the plan, revision, and preview digest. An identical retry returns the original result; another payload with the same key fails. Authorization is checked again even for retries. Concurrent updates invalidate earlier previews rather than overwriting a newer proposal.
 
 ## Migration and Deployment
@@ -35,6 +39,14 @@ Idempotency keys are hashed and scoped by authenticated owner and operation. The
 Migration 0010 adds draft and receipt tables without changing existing sessions, results, or ownership. It follows 0009 composition state and precedes 0011 agent grants.
 
 Apply `packages/wodsmith-db/mysql-migrations/0010_training_plans.sql` with the repository migration workflow before enabling planning operations. The generated snapshot and journal include both tables. No live database migration or deployment is performed by this change. The future athlete/day identity consolidation is separate from these tables.
+
+## Canonical Adapter
+
+The Start adapter passes plan replacements to the shared personal-session batch writer. It never opens independent per-day transactions or copies canonical mutation logic into planning.
+
+[[apps/wodsmith-start/src/server/training-plans.ts#createTrainingPlanningService]] reuses the production item schema, transfers role and duration metadata, and supplies current session baselines. Every access context requires current membership and tracking entitlement. Agent calls additionally require a live-grant callback, including inside the commit transaction.
+
+The initial adapter explicitly supports an unambiguous existing workspace day. Another owned composition on the same date in a different workspace fails with a generic conflict, including when that other workspace is outside the grant. It does not claim that the underlying team/day storage has been migrated. Source-team context remains explicit through the day's access team.
 
 ## Verification
 
@@ -61,3 +73,27 @@ A failure after the first day rolls back the full week and its receipt. Successf
 ### Stale Review and Revocation
 
 Source changes, live-day revisions, and revoked access invalidate a previously previewed proposal before the canonical save. Open days remain untouched and unresolved constraints prevent commit.
+
+### Canonical Mixed Week
+
+Real canonical saves preserve source occurrence and moved date, optional role and duration, complete capped library scoring, and durable duplicate-retry receipts. Preview and draft creation leave canonical session tables empty.
+
+### Cross Draft Idempotency
+
+Two different drafts racing for one owner/key produce one canonical outcome. The losing transaction rolls back and reports a stable key-reuse conflict instead of a raw uniqueness error.
+
+### Portable Draft Discovery
+
+A second client can find an athlete's proposals with bounded cursor pages without holding the original create response. Pages exclude other owners and reject revoked access even when no drafts exist.
+
+### Canonical Rollback and History
+
+A later performed-item conflict rolls back an earlier attempted day. Explicit rest lists removed items in preview while retaining the performed prescription and private result notes.
+
+### Canonical Source and Access Conflicts
+
+Source republication, revoked membership, revoked grants, and ambiguous cross-workspace days reject canonical planning writes. Another athlete cannot read the plan or reuse its successful receipt.
+
+### Concurrent Canonical Contexts
+
+Two drafts for the same athlete/date in different workspaces cannot both commit, even when both authorize before taking the athlete lock. The regression reproduced two successes under REPEATABLE READ; explicit READ COMMITTED permits only one receipt and day.
