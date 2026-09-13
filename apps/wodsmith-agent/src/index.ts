@@ -57,10 +57,12 @@ export async function handleGateway(
             params.name,
             params.arguments ?? {},
           )
-          const result = outcome
+          // RPC return values carry symbol metadata that is not MCP JSON data.
+          const serialized = JSON.stringify(outcome)
+          const result = JSON.parse(serialized)
           return {
             isError: !outcome.ok,
-            content: [{ type: "text" as const, text: JSON.stringify(result) }],
+            content: [{ type: "text" as const, text: serialized }],
             structuredContent: result,
           }
         })

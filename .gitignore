@@ -85,3 +85,6 @@ state.json
 .mcp.json
 .cursor/mcp.json
 .gitnexus
+
+# Isolated agent development credentials, local database, logs, and certificates
+.agent-local/

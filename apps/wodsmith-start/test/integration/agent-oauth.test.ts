@@ -83,7 +83,7 @@ async function consent(scopes = "training:read results:delete") {
   const response = await handleAgentOAuth(request, config, context)
   const html = await response!.text()
   const ticket = /name="ticket" value="([^"]+)"/.exec(html)![1]
-  return { ticket, html }
+  return { ticket, html, response }
 }
 async function approve(
   ticket: string,
@@ -242,7 +242,12 @@ describe.skipIf(!mysqlTestConfig)("OAuth grants and consent on MySQL", () => {
     expect(await resolveAgentActor("token", config)).toBeNull()
   })
   it("renders escaped consent, grants only selected requested scopes and workspaces", async () => {
-    const { ticket, html } = await consent()
+    const { ticket, html, response } = await consent()
+    // @lat: [[agent-gateway#Browser consent origin]]
+    expect(response!.headers.get("Referrer-Policy")).toBe("same-origin")
+    expect(response!.headers.get("Content-Security-Policy")).toContain(
+      "form-action 'self' https://client.example;",
+    )
     expect(html).not.toContain("<script>")
     expect(html).toContain("&lt;script&gt;")
     expect((await approve(ticket))?.status).toBe(302)

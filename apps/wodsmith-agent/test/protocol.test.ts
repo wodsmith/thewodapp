@@ -164,6 +164,28 @@ describe("remote training gateway", () => {
       )
     },
   )
+  // @lat: [[agent-gateway#Plain JSON tool results]]
+  it("strips Worker RPC symbol metadata before validating structured output", async () => {
+    const env = setup()
+    const outcome = {
+      ok: true as const,
+      data: { value: "private training" },
+      [Symbol("rpc metadata")]: () => undefined,
+    }
+    vi.mocked(env.TRAINING.execute).mockResolvedValue(outcome)
+    const result = await rpc(env, "tools/call", {
+      name: "training_context",
+      arguments: {},
+    })
+    expect(result.data.error).toBeUndefined()
+    expect(result.data.result.structuredContent).toEqual({
+      ok: true,
+      data: { value: "private training" },
+    })
+    expect(JSON.parse(result.data.result.content[0].text)).toEqual(
+      result.data.result.structuredContent,
+    )
+  })
   it("serves modern per-request envelopes without session state", async () => {
     const env = setup()
     const result = await rpc(

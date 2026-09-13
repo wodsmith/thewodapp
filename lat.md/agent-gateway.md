@@ -56,3 +56,29 @@ This test runs the real private service methods, SQL grants, entitlement checks 
 The private service passes live SQL grant authorization into canonical mutation transactions. All 27 tools retain their domain scopes and annotations.
 
 The composed SQL service test exercises workout creation, retry, edit and archive; result rounds through creation, edit and deletion; personal composition; programming draft and publication; receipt provenance; and scope-filtered discovery. A controlled callback interleaving revokes the grant after token resolution but before the real transaction grant check, verifying that neither a workout nor a receipt is saved. OAuth parsing and Worker hosting retain the separate runtime-test coverage described above.
+
+## Browser consent origin
+
+Consent and connection pages preserve same-origin form Origin headers while withholding referrers from other origins. This allows the existing strict POST origin check to accept normal browser submissions.
+
+The page response uses `Referrer-Policy: same-origin`. Chromium sends `Origin: null` for native form POSTs under `no-referrer`, so that policy breaks consent and disconnection. SQL consent tests pin the policy; the local Inspector walkthrough verifies real browser submission, PKCE exchange and private Worker RPC.
+
+Chromium also enforces `form-action` against redirects after a POST. Only the consent page adds the origin of its provider-validated registered callback to that directive; connection-management pages retain self-only form actions. The callback is never taken directly from an unvalidated query string.
+
+## Plain JSON tool results
+
+The gateway materializes private Worker RPC outcomes as plain JSON before handing structuredContent to the MCP SDK. This removes internal symbol metadata without changing the domain payload.
+
+The text and structured output share the same JSON serialization. A gateway regression test reproduces the SDK invalid-key failure with symbol-bearing outcomes, then asserts equivalent successful text and structured data.
+
+## Sign-in handoff to consent
+
+After password login, agent endpoint redirects load a new document because consent is served directly by the Worker and is absent from the client route tree.
+
+The sign-in submit handler uses a document navigation for local `/agent/` destinations. Other login destinations retain client routing. A fresh-browser LAN Inspector walkthrough verifies login resumes consent without a client-side 404.
+
+## Sign-in hydration
+
+The sign-in submit button stays disabled until the client handler is ready, preventing an early native submission from losing the OAuth destination.
+
+The form also declares POST so a native fallback cannot place credentials in a URL. Browser acceptance checks the initial disabled form and the enabled, hydrated login-to-consent flow.

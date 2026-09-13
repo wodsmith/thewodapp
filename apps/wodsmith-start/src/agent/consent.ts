@@ -114,6 +114,8 @@ export async function handleAgentOAuth(
       return page(
         "Connect to WodSmith",
         `<p><strong>${escapeHtml(client?.clientName ?? parsed.clientId)}</strong> wants access to your WodSmith account.</p><p>Client: ${escapeHtml(parsed.clientId)}<br>Return address: ${escapeHtml(parsed.redirectUri)}</p><form method="post"><input type="hidden" name="ticket" value="${id}"><fieldset><legend>Choose permissions</legend>${parsed.scope.map((scope) => `<label><input type="checkbox" name="scope" value="${scope}" ${scope === "training:read" ? "checked" : ""}>${escapeHtml(scopeLabels[agentScopeSchema.parse(scope)])}</label>`).join("")}</fieldset><fieldset><legend>Allow access to these workspaces and sources</legend>${teams.map((team) => `<label><input type="checkbox" name="teamId" value="${escapeHtml(team.id)}">${escapeHtml(team.name)}</label>`).join("")}</fieldset><p>Deletion and publication are separate permissions. Access expires in 90 days. You can disconnect at any time.</p><button name="decision" value="approve">Connect</button> <button name="decision" value="deny">Cancel</button></form>`,
+        200,
+        new URL(parsed.redirectUri).origin,
       )
     }
     const form = await request.formData()
@@ -244,7 +246,12 @@ export function escapeHtml(value: string) {
       ] ?? c,
   )
 }
-function page(title: string, body: string, status = 200) {
+function page(
+  title: string,
+  body: string,
+  status = 200,
+  formRedirectOrigin?: string,
+) {
   return new Response(
     `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · WodSmith</title><style>body{font:16px/1.5 system-ui;background:#f5f4f0;color:#20241f;margin:0}main{max-width:640px;margin:40px auto;padding:24px}fieldset,article{border:1px solid #adb3a8;padding:20px;margin:24px 0}label{display:flex;gap:12px;margin:16px 0}button{font:inherit;padding:12px 20px;cursor:pointer}input{width:20px;height:20px}p{overflow-wrap:anywhere}a{color:#365d23}</style><main><a href="/">WodSmith</a><h1>${title}</h1>${body}<p><a href="${connectionsPath}">Manage connected applications</a></p></main></html>`,
     {
@@ -253,9 +260,11 @@ function page(title: string, body: string, status = 200) {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
         "Content-Security-Policy":
-          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+          // Chromium applies form-action to the registered OAuth callback redirect.
+          `default-src 'none'; style-src 'unsafe-inline'; form-action 'self'${formRedirectOrigin ? ` ${formRedirectOrigin}` : ""}; frame-ancestors 'none'; base-uri 'none'`,
         "X-Frame-Options": "DENY",
-        "Referrer-Policy": "no-referrer",
+        // Native form POSTs need their Origin; no-referrer makes it null.
+        "Referrer-Policy": "same-origin",
       },
     },
   )
