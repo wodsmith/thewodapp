@@ -93,10 +93,12 @@ export async function preparePersonalSessions(
         : null,
     }
     for (const item of input.items) {
-      if (item.kind !== "library") continue
       const stored = current.personalSession?.items.find(
         (old) => old.id.toLowerCase() === item.id.toLowerCase(),
       )
+      if (stored && stored.id !== item.id)
+        throw new Error("CONFLICT: Use the saved item ID exactly, including letter case")
+      if (item.kind !== "library") continue
       if (
         stored?.kind === "library" &&
         !matchesLibraryOccurrence(stored, item.workoutId, {

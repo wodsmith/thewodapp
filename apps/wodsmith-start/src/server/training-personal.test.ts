@@ -389,6 +389,7 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     await db.update(workouts).set({name:"Changed definition"}).where(eq(workouts.id,item.workoutId))
     const {prepared,review} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:saved.revision,items:[item]}])
     expect(review.days[0].library[0].workout.name).toBe("Rounds")
+    await expect(preparePersonalSessions(dependencies,[{...day,expectedRevision:saved.revision,items:[{...item,id:"SAVED-LIBRARY"}]}])).rejects.toThrow("saved item ID exactly")
     const committed = await db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))
     expect(committed[0].items[0]).toMatchObject({workout:{name:"Rounds"}})
     await db.update(workouts).set({teamId:"personal_foreign"}).where(eq(workouts.id,item.workoutId))

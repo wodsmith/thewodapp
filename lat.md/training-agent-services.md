@@ -58,7 +58,7 @@ A transaction with an earlier consistent-read snapshot still observes a newly co
 
 ### Prepared library snapshots
 
-Batch review shows the saved library definition for preserved items, matching the canonical writer after a library edit. Ordinary library items still require current workout access before they can be prepared.
+Batch review shows the saved library definition for preserved items, matching the canonical writer after a library edit. Ordinary library items still require current workout access before they can be prepared. Batch inputs must preserve the exact casing of saved item IDs.
 
 ## Prepared weekly writes
 
