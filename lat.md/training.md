@@ -32,11 +32,13 @@ Notes remain private. Scored results default to private and may be shared with g
 
 The interface distinguishes loading, failed reads, no track access, rest days, and unpublished days. Score dialogs retain entered data after failed saves and return to the same occurrence. Dismissing the dialog discards unsaved edits; completion and notes saves cannot overlap for the same section. Team comparison selects one section, version, and load unit; only Rx results receive comparable rankings. Progress shows the latest 100 own results, including previous prescriptions.
 
-The selected gym travels to `/training/programming` through Programming builder for members with programming permission. The action names the tool rather than calling the user a coach. This local selection does not change the global active-team cookie. Durable offline synchronization, timed publication, class bookings, week templates, and historical score editing remain outside this release.
+Programming builder links to `/training/programming` for members with programming permission. The planner inherits the navbar active team; the link carries no local team override. Durable offline synchronization, timed publication, class bookings, week templates, and historical score editing remain outside this release.
 
 ## Coach Interface
 
 `/training/programming` provides a weekly planner, daily composer, athlete preview, explicit draft saving, release review, and copying into an empty day.
+
+The planner uses the root navbar active-team context and ignores legacy `teamId` search parameters. Track and week controls stay on the page; team selection belongs only in the navbar. An unavailable active team shows an explicit empty state without choosing another team. Changing teams resets the planner and ignores late reads from the previous team. The navbar waits for the mounted planner to approve discarding edits before changing its active-team cookie; an in-flight write must finish first.
 
 Coaches can reorder or remove sections, add scaling and guidance, and plan rest days. Unsaved navigation requires discarding or staying. Failed writes preserve edits. Publishing requires a saved draft and confirms the gym, track, date, timezone, and next version.
 
@@ -378,3 +380,35 @@ The builder can combine complete source blocks across tracks and dates, includin
 Current workspace membership and workout-tracking entitlement authorize access to the athlete's owned performed snapshots across tracks.
 
 History uses saved result blocks, scores and notes even if source programming becomes unavailable. It does not hydrate live definitions, names or cheers, and removes unavailable source navigation while retaining saved source-date labels. Another athlete cannot read these snapshots, and workspace revocation denies them. Optional track filtering selects owned history without restoring source access. Current guards still govern source reads, new logging/imports and team results. See [[session-review-tests#Owned history survives source revocation safely]].
+
+## Active Team Programming Tests
+
+Regression tests keep programming bound to navbar context and protect drafts when that context changes.
+
+### Navbar owns programming context
+
+The planner loads only the active team's track and renders no page-specific team picker.
+
+### Unavailable teams do not fall back
+
+An unavailable or missing active team cannot display another team's programming; restored access initializes the correct planner.
+
+### Team changes discard stale reads
+
+Switching the active team resets the track and rejects late responses from the previous team's week.
+
+### Team switching protects edits
+
+A dirty planner requires an explicit stay or discard decision before allowing the navbar to change teams.
+
+### Busy writes block team switching
+
+An in-flight write disables leaving, and unmounting resolves pending switch requests safely.
+
+### Legacy URLs cannot override navbar context
+
+The programming route ignores query team IDs and overrides loader fallbacks with the root active team, including a null active team.
+
+### Navbar waits before changing its cookie
+
+The shared navbar picker must await editor approval before calling the active-team mutation or invalidating route data.
