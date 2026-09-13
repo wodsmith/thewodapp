@@ -25,13 +25,30 @@ final class GameDayStore {
     let api: GameDayAPI
     let reminders = HeatReminderManager()
     let activities = HeatActivityManager()
+    let spectator: SpectatorPreferences
     let isDemo: Bool
 
     var isSignedIn: Bool { token != nil || (isDemo && home.profile != nil) }
+    var spectatedCompetitions: [Competition] {
+        let available = Dictionary(home.competitions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return spectator.competitionIDs.compactMap { available[$0] ?? details[$0]?.competition }.sorted { left, right in
+            if left.hasEnded() != right.hasEnded() { return !left.hasEnded() }
+            let next: (Competition) -> Date = { competition in
+                self.details[competition.id]?.spectatorHeats(followedIDs: self.spectator.followedIDs(competition.id))
+                    .first { ($0.endsAt ?? .distantFuture) > .now }?.startsAt ?? .distantFuture
+            }
+            if next(left) != next(right) { return next(left) < next(right) }
+            return left.startDate < right.startDate
+        }
+    }
+    private var loadedDetails: [CompetitionDetail] {
+        Array(Dictionary(details.values.map { ($0.competition.id, $0) }, uniquingKeysWith: { first, _ in first }).values)
+    }
     var cacheURL: URL { URL.cachesDirectory.appendingPathComponent("gameday-v1.json") }
     func status(_ resource: GameDayResource) -> ResourceStatus { states[resource] ?? ResourceStatus() }
 
-    init(api: GameDayAPI = GameDayAPI(), demo: Bool = false) {
+    init(api: GameDayAPI = GameDayAPI(), demo: Bool = false, spectator: SpectatorPreferences = SpectatorPreferences()) {
+        self.spectator = spectator
         self.api = api
         self.isDemo = demo
         if demo {
@@ -40,6 +57,11 @@ final class GameDayStore {
             leaderboards = [DemoData.competition.id: DemoData.leaderboard]
             for resource in [GameDayResource.home, .competition(DemoData.competition.id), .leaderboard(DemoData.competition.id)] {
                 states[resource] = ResourceStatus(updatedAt: .now)
+            }
+            if ProcessInfo.processInfo.arguments.contains("--spectator-demo") {
+                home = HomeResponse(competitions: DemoData.home.competitions, registrations: [], profile: nil)
+                details = [DemoData.competition.id: DemoData.spectatorDetail]
+                leaderboards = [DemoData.competition.id: DemoData.spectatorLeaderboard]
             }
         } else {
             token = SessionKeychain.read()
@@ -93,13 +115,18 @@ final class GameDayStore {
             home = result
             states[.home] = ResourceStatus(updatedAt: .now)
             let registeredIDs = Set(result.myCompetitions.map(\.id))
-            details = details.filter { $0.value.registrations.isEmpty || registeredIDs.contains($0.key) }
+            details = details.filter { $0.value.registrations.isEmpty || registeredIDs.contains($0.value.competition.id) }
             await syncReminders()
-            await activities.reconcile(details: Array(details.values))
-            // Past competitions remain browsable; only upcoming registrations need proactive downloads.
+            await activities.reconcile(details: loadedDetails)
+            // Past competitions remain browsable; upcoming registered and spectated events refresh proactively.
             let today = String(ISO8601DateFormatter().string(from: .now.addingTimeInterval(-86400)).prefix(10))
-            for competition in result.myCompetitions where competition.endDate >= today {
-                await loadCompetition(competition.id)
+            let upcomingRegisteredIDs = Set(result.competitions.filter {
+                registeredIDs.contains($0.id) && $0.endDate >= today
+            }.map(\.id))
+            // Saved unlisted events are intentionally absent from public discovery.
+            // Fetch saved IDs even without a cache, including after a session change.
+            for id in upcomingRegisteredIDs.union(spectator.competitionIDs).sorted() {
+                await loadCompetition(id)
                 guard current == generation else { return }
             }
             saveCache()
@@ -114,12 +141,33 @@ final class GameDayStore {
         do {
             let detail: CompetitionDetail = try await api.request("api/gameday/v1/competitions/\(id)", token: token)
             guard current == generation else { return }
+            // Keep both link aliases and the canonical ID usable offline.
+            for key in details.keys where details[key]?.competition.id == detail.competition.id {
+                details[key] = detail
+                states[.competition(key)] = ResourceStatus(updatedAt: .now)
+            }
             details[id] = detail
+            details[detail.competition.id] = detail
             states[resource] = ResourceStatus(updatedAt: .now)
+            states[.competition(detail.competition.id)] = states[resource]
             saveCache()
             await syncReminders()
-            await activities.reconcile(details: Array(details.values))
-        } catch { await handle(error, resource: resource, generation: current) }
+            await activities.reconcile(details: loadedDetails)
+        } catch {
+            if current == generation, (error as? APIError)?.status == 404 {
+                let canonicalID = details[id]?.competition.id ?? id
+                let removedKeys = details.keys.filter { $0 == id || details[$0]?.competition.id == canonicalID }
+                for key in removedKeys {
+                    details.removeValue(forKey: key)
+                    leaderboards.removeValue(forKey: key)
+                }
+                home = HomeResponse(competitions: home.competitions.filter { $0.id != canonicalID }, registrations: home.registrations, profile: home.profile)
+                saveCache()
+                await syncReminders()
+                await activities.reconcile(details: loadedDetails)
+            }
+            await handle(error, resource: resource, generation: current)
+        }
     }
 
     func loadLeaderboard(_ id: String) async {
@@ -153,7 +201,7 @@ final class GameDayStore {
     }
 
     func syncReminders() async {
-        do { try await reminders.reconcile(details: isSignedIn ? Array(details.values) : []) }
+        do { try await reminders.reconcile(details: isSignedIn ? loadedDetails : []) }
         catch { self.error = "Heat reminders couldn’t be updated: \(error.localizedDescription)" }
     }
 

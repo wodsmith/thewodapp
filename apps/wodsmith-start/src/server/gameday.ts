@@ -351,11 +351,49 @@ async function gameDayCompetition(id: string, userId?: string) {
       ),
     )
     .orderBy(desc(competitionBroadcastsTable.sentAt))
+  // Public identity is the registration, including a team registration as one participant.
+  // Never include account IDs, teammates, contact information, or registration metadata.
+  const participantRows = await db
+    .select({
+      id: competitionRegistrationsTable.id,
+      divisionId: competitionRegistrationsTable.divisionId,
+      division: scalingLevelsTable.label,
+      teamName: competitionRegistrationsTable.teamName,
+      firstName: userTable.firstName,
+      lastName: userTable.lastName,
+    })
+    .from(competitionRegistrationsTable)
+    .leftJoin(userTable, eq(competitionRegistrationsTable.userId, userTable.id))
+    .leftJoin(scalingLevelsTable, eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id))
+    .where(and(
+      eq(competitionRegistrationsTable.eventId, competition.id),
+      eq(competitionRegistrationsTable.status, "active"),
+    ))
+  const participants = participantRows.map((participant) => ({
+    id: participant.id,
+    name: participant.teamName || [participant.firstName, participant.lastName].filter(Boolean).join(" ") || "Athlete",
+    divisionId: participant.divisionId,
+    division: participant.division,
+    isTeam: Boolean(participant.teamName),
+  }))
+  const publicAssignments = heats.length && participants.length
+    ? await db.select({
+        heatId: competitionHeatAssignmentsTable.heatId,
+        registrationId: competitionHeatAssignmentsTable.registrationId,
+        lane: competitionHeatAssignmentsTable.laneNumber,
+      }).from(competitionHeatAssignmentsTable)
+      .where(and(
+        inArray(competitionHeatAssignmentsTable.heatId, heats.map((heat) => heat.id)),
+        inArray(competitionHeatAssignmentsTable.registrationId, participants.map((participant) => participant.id)),
+      ))
+    : []
   return {
     competition,
     registrations,
     heats,
     assignments,
+    participants,
+    publicAssignments,
     workouts: publishedWorkouts,
     announcements,
   }

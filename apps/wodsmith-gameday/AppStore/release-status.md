@@ -57,3 +57,23 @@ The final service-provider privacy clarification merged in [PR #676](https://git
 The final requirement check covered working public privacy/support links and contact methods, retention/deletion choices, service-provider protection, in-app Help access, the matching native privacy manifest and App Store disclosures, reviewer credentials, screenshots, age/content declarations, and the selected validated build. The native app uses existing WODsmith sign-in and offers no account-creation or third-party login flow. Review guidance: [Apple App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), particularly 1.5, 2.1, 4.8, and 5.1.1.
 
 Full VoiceOver traversal, RTL, and unusually long organizer content have not been certified by the bounded design checks. Apple may request changes during review; passing submission validation is not a guarantee of approval.
+
+## Version 1.1 build 2 — uploaded
+
+On September 12, 2026, the combined athlete/spectator release was signed, archived, uploaded, processed by Apple, and saved on the 1.1 App Store draft. It includes the borderless icon and Lock Screen-first listing. The version has not yet been submitted for review.
+
+Release branch: `zac/gameday-1-1-release`; PR https://github.com/wodsmith/thewodapp/pull/700 at commit `97d463425`. Archive: `/tmp/GameDay-1.1-2.xcarchive`; upload log: `/tmp/gameday-release-upload.log`. Apple reported Upload succeeded and exposed build 2 (1.1), which was selected and saved.
+
+All repository pre-push lint and type checks passed with Node 24 and lockfile-pinned dependencies. Combined Game Day API tests pass 9/9; native unit tests pass. The spectator task also passed signed-out relaunch/unfollow/division flows, athlete navigation, and largest-text UI checks.
+
+Next: wait for PR checks, review any findings, merge and deploy the compatible public participant/assignment API through the production workflow, verify anonymous published assignments, then complete Add for Review and Submit for Review in App Store Connect. Do not re-upload build 2. Existing review credentials remain saved privately.
+
+## Version 1.1 build 4 — review corrections
+
+Builds 2 and 3 are superseded and must not be submitted. Build 4 adds saved unlisted discovery recovery, canonical slug caching, 404 cache eviction, and participant fallback status/retry. Archive and upload build 4 from the final reviewed code, select it, then submit only after PR #700 is merged and the production API is verified.
+
+The earlier 193 type diagnostics came from the spectator task's shared dependency setup. A fresh frozen-lockfile install with Node 24 resolved that environment mismatch; full pre-push lint/type checks and PR CI type checks passed on 62df9d921.
+
+## Version 1.1 build 5 — final athlete polish
+
+Build 5 supersedes builds 2–4 and adds personal-only lane labels and deduplicated registered/spectating discovery. This is the final submission candidate; earlier uploaded builds must not be submitted.

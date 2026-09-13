@@ -51,4 +51,28 @@ final class AccessibilityLayoutTests: XCTestCase {
         later.lifetime = .keepAlways
         add(later)
     }
+    // @lat: [[gameday#Tests#Discovery label growth]]
+    @MainActor
+    func testDiscoveryLabelsGrowAtLargestTextSize() {
+        let app = XCUIApplication()
+        let labels = ["The Fall Classic", "Oct 17, 2026", "Salt Lake City, UT"]
+        app.launchArguments = ["--demo", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts[labels[0]].waitForExistence(timeout: 5))
+        let heights = labels.map { app.staticTexts[$0].firstMatch.frame.height }
+        app.terminate()
+        app.launchArguments = ["--demo", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+        for (index, label) in labels.enumerated() {
+            let element = app.staticTexts[label].firstMatch
+            for _ in 0..<8 where !element.isHittable { app.swipeUp() }
+            XCTAssertTrue(element.isHittable)
+            XCTAssertGreaterThan(element.frame.height, heights[index])
+        }
+        let evidence = XCTAttachment(screenshot: app.screenshot())
+        evidence.name = "Discovery labels grow at AX5"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+    }
+
 }

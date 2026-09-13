@@ -13,3 +13,9 @@ The images are unretouched 1284 × 2778 PNGs from an iPhone 14 Plus running iOS 
 5. `6.5-inch/05-reminders.png`: enabled reminders with a configurable lead time.
 
 The dedicated simulator is `9A2C5891-A1A4-4643-A7C2-F80A76F91713`. The refreshed captures use build products in `/tmp/GameDayReminderTests` and are preserved in `/tmp/GameDayStoreRefresh.xcresult`. A temporary XCTest capture harness was removed after extraction; it is not part of the app or test suite. Notification permission was granted only on this simulator for the enabled-reminders capture. App Store screenshot upload does not mean that the binary has been uploaded or submitted for review.
+
+## Version 1.1 draft
+
+On September 12, 2026, the editable 1.1 listing was created because the live 1.0 screenshots are locked. Its English (U.S.) 6.5-inch set leads with `6.5-inch/00-lock-screen.png`, followed by the five existing screenshots in their original order. The new unretouched 1284 × 2778 simulator capture shows the upcoming heat Live Activity with fictional demo data.
+
+Promotional text: “Your next heat, right on your Lock Screen. See your workout, lane, venue, and a live countdown—then get back to warming up.” The draft is saved; no new binary or review submission is included in this screenshot update.
