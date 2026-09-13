@@ -11,6 +11,8 @@ import { TrackDetailView } from "@/components/track-detail-view"
 import { CrossFitImportAdmin } from "@/components/crossfit-import-admin"
 import { AthleteTraining } from "@/components/training/athlete-training"
 import { trackData, previewContext } from "./track-fixtures"
+import { Route as NewLogRoute } from "@/routes/_protected/log/new/index"
+import { Route as EditLogRoute } from "@/routes/_protected/log/$id/edit/index"
 import "./preview.css"
 function Reader() {
   const query = new URLSearchParams(location.search)
@@ -81,14 +83,18 @@ const training = createRoute({
       <AthleteTraining
         context={previewContext}
         initialDate={search.get("date") ?? "2026-09-04"}
-        initialTrackId="ptrk_crossfit_dotcom"
+        initialTrackId={search.get("trackId") ?? undefined}
+        initialSurface={search.get("surface") === "session" ? "session" : "track"}
         libraryWorkoutIds={search.get("workoutIds")?.split(",")}
       />
     )
   },
 })
+const protectedRoot = createRoute({getParentRoute:()=>root,id:"_protected"})
+const logNew = NewLogRoute.update({getParentRoute:()=>protectedRoot,path:"/log/new/"} as never)
+const logEdit = EditLogRoute.update({getParentRoute:()=>protectedRoot,path:"/log/$id/edit/"} as never)
 const router = createRouter({
-  routeTree: root.addChildren([reader, admin, training]),
+  routeTree: root.addChildren([reader, admin, training, protectedRoot.addChildren([logNew,logEdit])]),
 })
 document.documentElement.classList.add("dark")
 createRoot(document.getElementById("root")!).render(

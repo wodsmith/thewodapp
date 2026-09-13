@@ -1,35 +1,82 @@
+import { fixtureAdditionExists } from "./append-fixture"
+export {
+  getDirectLibraryEntryFn,
+  saveDirectLibraryResultFn,
+  getPersonalLibraryScalingLevelsFn,
+  savePersonalLibraryResultFn,
+} from "./log-fixtures"
+import { previewAttempts } from "./log-fixtures"
 export * from "./personal-fixtures"
+import { previewSession, sessionSources } from "./session-ux-fixtures"
 import { providerDays, previewContext } from "./track-fixtures"
 import type {
   PersonalTrainingDay,
   PersonalTrainingSession,
-  PersonalTrainingItem,
   SavePersonalTrainingSessionInput,
   SavePersonalTrainingResultInput,
 } from "@/lib/training/personal-types"
 import { normalizeTrainingResult } from "@/server/training-validation"
 import type { OwnTrainingResult } from "@/lib/training/types"
-const results = new Map<string, OwnTrainingResult>()
-const sessions = new Map<string, PersonalTrainingSession>()
+const results = new Map<string, OwnTrainingResult>(
+  JSON.parse(sessionStorage.getItem("session-ux-private-results") ?? "[]"),
+)
+let defaultTrackId =
+  sessionStorage.getItem("session-ux-default-track") ?? "ptrk_crossfit_dotcom"
+export async function saveTrainingPreferenceFn({
+  data,
+}: {
+  data: { defaultTrackId: string }
+}) {
+  defaultTrackId = data.defaultTrackId
+  sessionStorage.setItem("session-ux-default-track", defaultTrackId)
+}
+const sessions = new Map<string, PersonalTrainingSession>(
+  JSON.parse(sessionStorage.getItem("session-ux-plans") ?? "[]"),
+)
+export function previewPersonalSession(id: string) {
+  return structuredClone(
+    [...sessions.values()].find((session) => session.id === id),
+  )
+}
 export async function getPersonalTrainingDayFn({
   data,
 }: {
   data: { teamId: string; trainingDate: string; trackId?: string }
 }): Promise<PersonalTrainingDay> {
-  const day = providerDays.find((day) => day.date === data.trainingDate)
+  const selectedTrack = data.trackId ?? defaultTrackId
+  const sourceSession = previewSession(selectedTrack, data.trainingDate)
+  const day =
+    selectedTrack === "ptrk_crossfit_dotcom"
+      ? providerDays.find((day) => day.date === data.trainingDate)
+      : undefined
   const session = sessions.get(`${data.teamId}:${data.trainingDate}`) ?? null
-  return {
-    defaultTrackId: "ptrk_crossfit_dotcom",
-    selectedTrackId: data.trackId ?? "ptrk_crossfit_dotcom",
-    sourceSession: null,
-    source: day ? { kind: "provider-day", day } : { kind: "unavailable" },
+  return structuredClone({
+    defaultTrackId,
+    selectedTrackId: selectedTrack,
+    sourceSession,
+    source: sourceSession
+      ? { kind: "coach-session", session: sourceSession }
+      : day
+        ? { kind: "provider-day", day }
+        : { kind: "unavailable" },
     personalSession: session,
     items: session?.items ?? [],
     results: [...results.values()].filter(
       (result) => result.sessionId === session?.id,
     ),
-    libraryResults: [],
-  }
+    libraryResults: Object.entries(previewAttempts())
+      .filter(([, attempt]) => attempt.data.trainingDate === data.trainingDate)
+      .map(([id, attempt]) => ({
+        itemId: id,
+        scoreId: id,
+        workoutId: attempt.workout.id,
+        displayScore: attempt.result.formatted,
+        occurrence: {
+          trackId: attempt.data.sourceTrackId,
+          sourceDate: attempt.data.sourceDate,
+        },
+      })),
+  })
 }
 export async function getTrainingLibraryWorkoutFn({
   data,
@@ -46,6 +93,7 @@ export async function getTrainingLibraryWorkoutFn({
     throw new Error("No preview workout exists for this ID.")
   return {
     ...workout,
+    tiebreakScheme: workout.workoutId === "preview-load" ? "time" : null,
     description: workout.description ?? "",
     id: workout.workoutId,
     provenance: {
@@ -63,15 +111,66 @@ export async function savePersonalTrainingSessionFn({
   data: SavePersonalTrainingSessionInput
 }) {
   const old = sessions.get(`${data.teamId}:${data.trainingDate}`)
+  if (
+    data.mode === "append" &&
+    old &&
+    data.items.every((item) =>
+      fixtureAdditionExists(old.items, item, data.allowDuplicate),
+    )
+  )
+    return structuredClone(old)
   if ((old?.revision ?? 0) !== data.expectedRevision)
     throw new Error("Session changed. Reload.")
+  if (data.mode === "append")
+    data = {
+      ...data,
+      items: [
+        ...(old?.items ?? []),
+        ...data.items.filter(
+          (item) =>
+            !fixtureAdditionExists(old?.items ?? [], item, data.allowDuplicate),
+        ),
+      ],
+    }
+  if (data.mode === "undo")
+    data = {
+      ...data,
+      items: (old?.items ?? []).filter(
+        (item) => !data.items.some((removed) => removed.id === item.id),
+      ),
+    }
   const items = await Promise.all(
     data.items.map(async (item) => {
-      if (item.kind !== "library") return item as PersonalTrainingItem
+      if (item.kind === "personal") return item
+      if (item.kind === "source") {
+        const previous = old?.items.find((previous) => previous.id === item.id)
+        if (previous?.kind === "source") return previous
+        const source = sessionSources.get(item.sourceSessionId)
+        const block = source?.published?.blocks.find(
+          (block) => block.id === item.sourceBlockId,
+        )
+        if (!source || !block) throw new Error("Source is unavailable")
+        return {
+          ...item,
+          block,
+          trackId: source.trackId,
+          trackName: source.trackId === "everyday" ? "Everyday" : "Recovery",
+          sourceTrainingDate: source.trainingDate,
+          sourceIsCurrent: true,
+        }
+      }
       const workout = await getTrainingLibraryWorkoutFn({
         data: { workoutId: item.workoutId },
       })
-      return { ...item, workout, provenance: workout.provenance }
+      return {
+        ...item,
+        workout,
+        provenance: workout.provenance,
+        occurrence: {
+          trackId: item.sourceTrackId,
+          sourceDate: item.sourceDate,
+        },
+      }
     }),
   )
   const session = {
@@ -79,10 +178,12 @@ export async function savePersonalTrainingSessionFn({
     teamId: data.teamId,
     trainingDate: data.trainingDate,
     revision: (old?.revision ?? 0) + 1,
+    compositionState: "customized" as const,
     items,
   }
-  sessions.set(`${data.teamId}:${data.trainingDate}`, session)
-  return session
+  sessions.set(`${data.teamId}:${data.trainingDate}`, structuredClone(session))
+  sessionStorage.setItem("session-ux-plans", JSON.stringify([...sessions]))
+  return structuredClone(session)
 }
 
 export async function savePersonalTrainingResultFn({
@@ -130,6 +231,10 @@ export async function savePersonalTrainingResultFn({
     notes: data.notes,
   }
   results.set(result.id, result)
+  sessionStorage.setItem(
+    "session-ux-private-results",
+    JSON.stringify([...results]),
+  )
   return structuredClone(result)
 }
 export async function getPersonalTrainingHistoryFn({

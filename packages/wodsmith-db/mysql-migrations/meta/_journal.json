@@ -64,6 +64,13 @@
       "when": 1788822517917,
       "tag": "0008_volunteer_signup_intents",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1789257465553,
+      "tag": "0009_training_composition_state",
+      "breakpoints": true
     }
   ]
 }

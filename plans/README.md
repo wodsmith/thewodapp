@@ -4,11 +4,21 @@ This focused Improve and Impeccable pass specifies the track reader, personal fo
 
 ## Execution order and status
 
-Implement the single plan in its ordered slices, starting with reader/admin separation and finishing with daily integration and provenance.
+Plan 001 is complete. Plan 002 implements direct track logging, optional session composition, and UI consistency in an isolated worktree based on the verified access-control dependency.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 | --- | --- | --- | --- | --- | --- |
 | [001](001-track-experience.md) | Make tracks understandable from discovery through daily Training | P1 | L | None | DONE — implemented and independently verified; awaiting release |
+| [002](002-my-session-and-direct-scoring.md) | Direct track logging and an optional My session | P1 | L | Plan 001 DONE; PR #691 final verified head incorporated | DONE — independently verified; [PR #699](https://github.com/wodsmith/thewodapp/pull/699) open |
+| [003](003-session-review-fixes.md) | Resolve session UX review regressions | P1 | M | Plan 002 implemented; migration integration held | DONE — independently verified; runtime review fixes ready for PR #699 |
+| [004](004-session-navigation-and-intents.md) | Preserve session navigation and addition intent | P2 | S | Plan 003 DONE | DONE — independently verified; second-review follow-up |
+| [005](005-session-draft-scoring-review.md) | Guard scoring in unsaved session drafts | P2 | S | Plan 004 DONE | DONE — independently verified; draft scoring guard and preview retry follow-up |
+| [006](006-session-action-consistency.md) | Complete session action consistency | P2 | S | Plan 005 DONE | DONE — independently verified; delayed review dispositions recorded |
+| [007](007-crew-ci-preparation.md) | Verify CI database preparation without a second push | P2 | S | Plan 006 DONE | DONE — independently verified; published CI tracked separately |
+| [008](008-crew-review-coverage.md) | Clarify prepared verification and run its database regression in CI | P2 | S | Plan 007 DONE | DONE — independently verified; latest two comments addressed |
+| [010](010-crew-print-coverage.md) | Verify every printed schedule day | P2 | S | Plan 008 DONE | DONE — independently verified; all printed headings covered |
+
+PR #699's migration hold was reconciled after #691, #695, and #698 merged. Migration `0009_training_composition_state.sql` was regenerated from actual main, preserving the inherited SQL, snapshots, and journal entries. See [the integration receipt](011-session-migration-integration.md). Published CI and review output remain separate merge gates.
 
 ## Decision record
 

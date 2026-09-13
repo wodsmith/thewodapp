@@ -1,3 +1,4 @@
+import type { SavePersonalTrainingSessionInput } from "@/lib/training/personal-types"
 vi.mock("@/components/workout-import/workout-import-entry", () => ({ WorkoutImportEntry: () => null }))
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -42,6 +43,7 @@ beforeEach(() => {
   vi.mocked(getTrainingLibraryWorkoutFn).mockResolvedValue({ id: "fran", name: "Fran", description: "21-15-9 thrusters and pull-ups", scheme: "time", scoreType: "min", roundsToScore: 1, timeCap: null, repsPerRound: null, tiebreakScheme: null, scalingGroupId: null, movementIds: [] })
   vi.mocked(getTrainingWeekFn).mockResolvedValue({ sessions: [session], myResults: [], teamResults: [] })
   vi.mocked(getTrainingHistoryFn).mockResolvedValue([])
+  vi.mocked(savePersonalTrainingSessionFn).mockImplementation(async (options) => { const data = options?.data as SavePersonalTrainingSessionInput | undefined; if (!data) throw new Error("Missing test data"); return ({id: "personal", teamId: data.teamId, trainingDate: data.trainingDate, revision: data.expectedRevision + 1, items: data.items.map(item => item.kind === "library" ? {...item, workout: {name: "Fran", description: "21-15-9", scheme: "time"}} : item.kind === "source" ? {...item, block, trackId: "everyday", trackName: "Everyday", sourceTrainingDate: session.trainingDate} : item)})})
   vi.mocked(saveTrainingResultFn).mockResolvedValue(result)
   vi.mocked(setTrainingCheerFn).mockResolvedValue({ success: true })
 })
@@ -53,7 +55,7 @@ describe("athlete training", () => {
     vi.mocked(saveTrainingResultFn).mockRejectedValueOnce(new Error("Connection interrupted. Try again."))
     const onSaved = vi.fn()
     render(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" onSaved={onSaved} />)
-    const trigger = screen.getByRole("button", { name: "Log result" })
+    const trigger = screen.getByRole("button", { name: "Log score" })
     fireEvent.click(trigger)
     expect(screen.getByText("Test gym · Everyday · 2026-09-07 · America/Boise · Version 2")).toBeVisible()
     fireEvent.change(screen.getByLabelText("Load"), { target: { value: "225" } })
@@ -107,27 +109,27 @@ describe("athlete training", () => {
   // @lat: [[training#Athlete Interface Tests#Dismissed result edits are discarded]]
   it("discards dismissed edits and reopens from the latest saved result", async () => {
     const { rerender } = render(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" result={result} onSaved={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
     fireEvent.change(screen.getByLabelText("Load"), { target: { value: "300" } })
     fireEvent.change(screen.getByLabelText("Private notes"), { target: { value: "Unsaved note" } })
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }))
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     expect(saveTrainingResultFn).not.toHaveBeenCalled()
     rerender(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" result={{ ...result, displayScore: "245", notes: "Latest saved note" }} onSaved={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
     expect(screen.getByLabelText("Load")).toHaveValue(245)
     expect(screen.getByLabelText("Private notes")).toHaveValue("Latest saved note")
     fireEvent.change(screen.getByLabelText("Load"), { target: { value: "275" } })
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
     expect(screen.getByLabelText("Load")).toHaveValue(245)
   })
 
   // @lat: [[training#Athlete Interface Tests#Encoded scores edit in display units]]
   it("edits load and time using display units instead of stored grams or milliseconds", async () => {
     const { unmount } = render(<TrainingResultDialog session={session} block={block} trackName="Everyday" gymName="Test gym" result={result} onSaved={vi.fn()} />)
-    fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+    fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
     expect(screen.getByLabelText("Load")).toHaveValue(225)
     expect(screen.getByLabelText("Load unit")).toHaveValue("lb")
     unmount()
@@ -140,7 +142,7 @@ describe("athlete training", () => {
       { displayScore: "1:00:59.999", scoreValue: 3659999, minutes: 60, seconds: 59.999, submittedScore: "60:59.999" },
     ]) {
       const { unmount: unmountTime } = render(<TrainingResultDialog session={session} block={timeBlock} trackName="Everyday" gymName="Test gym" result={{ ...result, block: timeBlock, displayScore: duration.displayScore, scoreValue: duration.scoreValue }} onSaved={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: "Edit result" }))
+      fireEvent.click(screen.getByRole("button", { name: "Edit score" }))
       expect(screen.getByLabelText("Minutes")).toHaveValue(duration.minutes)
       expect(screen.getByLabelText("Seconds")).toHaveValue(duration.seconds)
       expect(screen.getByLabelText("Seconds")).toBeValid()
@@ -237,7 +239,10 @@ it("creates a personal composition only when a workout is removed", async () => 
   fireEvent.click(screen.getByRole("button", { name: "Customize session" }))
   expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole("button", { name: "Remove" }))
-  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: { teamId: "gym", trainingDate: session.trainingDate, expectedRevision: 0, items: [] } }))
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled())
+  fireEvent.click(screen.getByRole("button", { name: "Save session" }))
+  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: { teamId: "gym", trainingDate: session.trainingDate, expectedRevision: 0, mode: "replace", items: [] } }))
 })
 
 // @lat: [[training#Athlete Interface Tests#Remixes preserve references until saved]]
@@ -249,9 +254,11 @@ it("keeps source ownership until an explicit remix is saved and retains failed e
   fireEvent.click(screen.getByRole("button", { name: "Remix to edit" }))
   expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
   fireEvent.change(screen.getByLabelText("Workout"), { target: { value: "Three easy sets" } })
-  fireEvent.click(screen.getByRole("button", { name: "Save to my session" }))
+  fireEvent.click(screen.getByRole("button", { name: "Apply to draft" }))
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled())
+  fireEvent.click(screen.getByRole("button", { name: "Save session" }))
   await screen.findByText("Save interrupted. Try again.")
-  expect(screen.getByLabelText("Workout")).toHaveValue("Three easy sets")
+  expect(screen.getByText("Three easy sets")).toBeInTheDocument()
   expect(savePersonalTrainingSessionFn).toHaveBeenLastCalledWith({ data: expect.objectContaining({ items: [expect.objectContaining({ kind: "personal", block: expect.objectContaining({ prescription: "Three easy sets" }), remixedFrom: { sourceSessionId: session.id, sourceBlockId: block.id, sourcePublishedVersion: 2 } })] }) })
 })
 
@@ -261,7 +268,7 @@ it("previews a library link without creating a session until confirmed", async (
   await screen.findByRole("heading", { name: "Add Fran?" })
   expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole("button", { name: "Add to my session" }))
-  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: expect.objectContaining({ items: [expect.objectContaining({ kind: "source" }), expect.objectContaining({ kind: "library", workoutId: "fran" })] }) }))
+  await waitFor(() => expect(savePersonalTrainingSessionFn).toHaveBeenCalledWith({ data: expect.objectContaining({ items: [expect.objectContaining({ kind: "library", workoutId: "fran" })] }) }))
 })
 
 // @lat: [[training#Athlete Interface Tests#Moved workouts log on the performed date]]
@@ -270,9 +277,9 @@ it("logs a workout borrowed from another date privately without updating its ori
  const item = { id: "moved-squat", kind: "source" as const, block, trackId: session.trackId, trackName: "Everyday", sourceTrainingDate: session.trainingDate, sourceSessionId: session.id, sourceBlockId: block.id, sourcePublishedVersion: session.publishedVersion, sourceIsCurrent: true }
  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({ defaultTrackId: "everyday", selectedTrackId: "everyday", sourceSession: null, personalSession: { id: "personal-tuesday", teamId: "gym", trainingDate: targetDate, revision: 1, items: [item] }, items: [item], results: [], libraryResults: [] })
  vi.mocked(savePersonalTrainingResultFn).mockResolvedValue({ ...result, id: "moved-result", sessionId: "personal-tuesday", blockId: item.id, trainingDate: targetDate, audience: "private" })
- render(<AthletePersonalSession team={context.teams[0]!} trackId="everyday" date={targetDate} sourceResults={[result]} onSaved={vi.fn()} />)
+ render(<AthletePersonalSession surface="session" team={context.teams[0]!} trackId="everyday" date={targetDate} sourceResults={[result]} onSaved={vi.fn()} />)
  await screen.findByRole("heading", { name: "Back squat" })
- fireEvent.click(screen.getByRole("button", { name: "Log result" }))
+ fireEvent.click(screen.getByRole("button", { name: "Log score" }))
  expect(screen.queryByLabelText("Who can see this result?")).not.toBeInTheDocument()
  fireEvent.change(screen.getByLabelText("Load"), { target: { value: "185" } })
  fireEvent.click(screen.getByRole("button", { name: "Save result" }))
@@ -284,13 +291,13 @@ it("logs a workout borrowed from another date privately without updating its ori
 it("keeps the exact saved source score visible and read-only after a coach republishes", async () => {
   const item = { id: "saved-source", kind: "source" as const, block, trackId: session.trackId, trackName: "Everyday", sourceTrainingDate: session.trainingDate, sourceSessionId: session.id, sourceBlockId: block.id, sourcePublishedVersion: session.publishedVersion, sourceIsCurrent: false }
   vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({ defaultTrackId: "everyday", selectedTrackId: "everyday", sourceSession: { ...session, publishedVersion: 3 }, personalSession: { id: "my-composition", teamId: "gym", trainingDate: session.trainingDate, revision: 1, items: [item] }, items: [item], results: [result], libraryResults: [] })
-  render(<AthletePersonalSession team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[{ ...result, id: "new-version", publishedVersion: 3, displayScore: "300" }]} onSaved={vi.fn()} />)
+  render(<AthletePersonalSession surface="session" team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[{ ...result, id: "new-version", publishedVersion: 3, displayScore: "300" }]} onSaved={vi.fn()} />)
   await screen.findByRole("heading", { name: "Back squat" })
   expect(screen.getByText("225 lb", { exact: false })).toBeVisible()
   expect(screen.queryByText("300 lb", { exact: false })).not.toBeInTheDocument()
   expect(screen.getByText(/Saved against an earlier published version/)).toBeVisible()
-  expect(screen.queryByRole("button", { name: "Log result" })).not.toBeInTheDocument()
-  expect(screen.queryByRole("button", { name: "Edit result" })).not.toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Log score" })).not.toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Edit score" })).not.toBeInTheDocument()
   fireEvent.click(screen.getByText("Private notes"))
   expect(screen.getByText("Private memory")).toBeVisible()
   expect(saveTrainingResultFn).not.toHaveBeenCalled()
@@ -412,7 +419,7 @@ it("keeps gym coaching tools out of an owned personal workspace", async () => {
   expect(
     screen.queryByRole("button", { name: /^Team$/ }),
   ).not.toBeInTheDocument()
-  expect(screen.getByRole("button", { name: "My session" })).toHaveAttribute(
+  expect(screen.getByRole("button", { name: "Training" })).toHaveAttribute(
     "aria-pressed",
     "true",
   )
@@ -505,3 +512,528 @@ it("offers an explicit default save when the saved track is unavailable", async 
   expect(screen.queryByRole("button", { name: "Make default track" })).not.toBeInTheDocument()
   expect(screen.queryByText(/Your saved default is unavailable/)).not.toBeInTheDocument()
 })
+
+// @lat: [[session-review-tests#Browser Back restores absent training context]]
+it("restores the default track, date and workspace when Back removes search parameters",async()=>{
+ vi.useFakeTimers({toFake:["Date"]})
+ vi.setSystemTime(new Date("2026-09-07T16:00:00Z"))
+ window.history.replaceState(null,"","/training")
+ render(<AthleteTraining context={context}/>)
+ await screen.findByRole("heading",{name:"Strength for the week"})
+ fireEvent.change(screen.getByLabelText("Training track"),{target:{value:"compete"}})
+ fireEvent.change(screen.getByLabelText("Choose training date"),{target:{value:"2026-09-09"}})
+ await act(async()=>{window.history.replaceState(null,"","/training");window.dispatchEvent(new PopStateEvent("popstate"))})
+ expect(screen.getByLabelText("Training track")).toHaveValue("everyday")
+ expect(screen.getByLabelText("Choose training date")).toHaveValue("2026-09-07")
+ fireEvent.change(screen.getByLabelText("Training for"),{target:{value:"other"}})
+ await act(async()=>{window.history.replaceState(null,"","/training");window.dispatchEvent(new PopStateEvent("popstate"))})
+ expect(screen.getByLabelText("Training for")).toHaveValue("gym")
+ fireEvent.change(screen.getByLabelText("Training for"),{target:{value:"other"}})
+ await waitFor(()=>expect(getPersonalTrainingDayFn).toHaveBeenLastCalledWith({data:expect.objectContaining({teamId:"other",trackId:undefined})}))
+})
+
+// @lat: [[session-review-tests#My session edits a previously performed occurrence]]
+it("opens the exact reused score from My session performance mode",async()=>{
+ const item={id:"performed",kind:"library" as const,workoutId:"saved-workout",workout:{name:"Saved work",description:"Original prescription",scheme:"time"},occurrence:{trackId:"everyday",sourceDate:session.trainingDate}}
+ vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({defaultTrackId:"everyday",selectedTrackId:"everyday",sourceSession:null,personalSession:{id:"personal",teamId:"gym",trainingDate:session.trainingDate,revision:2,compositionState:"customized",items:[item]},items:[item],results:[],libraryResults:[{itemId:"performed",scoreId:"existing-score",displayScore:"1:23"}]})
+ render(<AthletePersonalSession surface="session" team={context.teams[0]!} trackId="everyday" date={session.trainingDate} sourceResults={[]} onSaved={vi.fn()} />)
+ const edit=await screen.findByRole("link",{name:"Edit score · 1:23"})
+ expect(edit).toHaveAttribute("href",expect.stringContaining("/log/existing-score/edit"))
+ expect(decodeURIComponent(edit.getAttribute("href")!)).toContain("surface=session")
+ expect(screen.queryByRole("link",{name:"Log score"})).not.toBeInTheDocument()
+})
+
+// @lat: [[session-navigation-tests#Personal log return context]]
+it.each([false, true])(
+  "preserves the browsed non-default track for personal log links (scored=%s)",
+  async (scored) => {
+    const item = {
+      id: "performed",
+      kind: "library" as const,
+      workoutId: "saved-workout",
+      workout: { name: "Saved work", description: "Original", scheme: "time" },
+      occurrence: { trackId: "everyday", sourceDate: "2026-09-04" },
+    }
+    vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({
+      defaultTrackId: "everyday",
+      selectedTrackId: "compete",
+      sourceSession: null,
+      personalSession: {
+        id: "personal",
+        teamId: "gym",
+        trainingDate: session.trainingDate,
+        revision: 2,
+        items: [item],
+      },
+      items: [item],
+      results: [],
+      libraryResults: scored
+        ? [
+            {
+              itemId: "performed",
+              scoreId: "existing-score",
+              displayScore: "1:23",
+            },
+          ]
+        : [],
+    })
+    render(
+      <AthletePersonalSession
+        surface="session"
+        team={context.teams[0]!}
+        trackId="compete"
+        date={session.trainingDate}
+        sourceResults={[]}
+        onSaved={vi.fn()}
+      />,
+    )
+    const link = await screen.findByRole("link", {
+      name: scored ? "Edit score · 1:23" : "Log score",
+    })
+    const url = new URL(link.getAttribute("href")!, "https://example.com")
+    if (scored) {
+      const target = new URL(url.searchParams.get("redirectUrl")!, url)
+      expect(Object.fromEntries(target.searchParams)).toMatchObject({
+        teamId: "gym",
+        date: session.trainingDate,
+        trackId: "compete",
+        surface: "session",
+      })
+    } else {
+      expect(Object.fromEntries(url.searchParams)).toMatchObject({
+        teamId: "gym",
+        date: session.trainingDate,
+        returnTrackId: "compete",
+        returnSurface: "session",
+      })
+      expect(url.searchParams.has("trackId")).toBe(false)
+    }
+  },
+)
+
+// @lat: [[session-navigation-tests#Addition cache scopes occurrence identity]]
+it("emits independent Add-all identities across destinations and sources but reuses them when returning", async () => {
+  vi.mocked(getPersonalTrainingDayFn).mockImplementation(async (options) => {
+    const data = options?.data as
+      | { trackId?: string; trainingDate: string }
+      | undefined
+    if (!data) throw new Error("Missing test day data")
+    return {
+      defaultTrackId: "everyday",
+      selectedTrackId: data.trackId ?? null,
+      sourceSession: null,
+      personalSession: null,
+      items: [],
+      results: [],
+      libraryResults: [],
+      source: {
+        kind: "provider-day",
+        day: {
+          id: "published",
+          date: data.trainingDate,
+          url: "https://example.com/work",
+          kind: "workout",
+          markdown: "Work",
+          workouts: [
+            { workoutId: "same", name: "Same workout", scheme: "time" },
+            { workoutId: "second", name: "Second workout", scheme: "reps" },
+          ],
+        },
+      },
+    }
+  })
+  vi.mocked(savePersonalTrainingSessionFn).mockRejectedValue(
+    new Error("Response lost. Retry."),
+  )
+  const props = {
+    team: context.teams[0]!,
+    trackId: "everyday",
+    date: "2026-09-07",
+    sourceResults: [],
+    onSaved: vi.fn(),
+  }
+  const view = render(<AthletePersonalSession {...props} />)
+  async function add() {
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Add all to my day" }),
+    )
+    await screen.findByText("Response lost. Retry.")
+  }
+  await add()
+  await add()
+  view.rerender(<AthletePersonalSession {...props} trackId="compete" />)
+  await add()
+  view.rerender(<AthletePersonalSession {...props} date="2026-09-08" />)
+  await add()
+  view.rerender(<AthletePersonalSession {...props} team={context.teams[1]!} />)
+  await add()
+  view.rerender(<AthletePersonalSession {...props} />)
+  await add()
+  const ids = vi
+    .mocked(savePersonalTrainingSessionFn)
+    .mock.calls.map(([input]) => {
+      const data = input?.data as SavePersonalTrainingSessionInput | undefined
+      if (!data) throw new Error("Missing test addition data")
+      return data.items[0].id
+    })
+  expect(ids[0]).toBe(ids[1])
+  expect(ids[0]).toBe(ids[5])
+  expect(new Set([ids[0], ids[2], ids[3], ids[4]]).size).toBe(4)
+})
+
+// @lat: [[session-navigation-tests#Draft library scoring requires explicit save]]
+it.each(["new", "existing", "scored"] as const)(
+  "keeps library scoring unavailable while editing a %s session until explicit Save",
+  async (state) => {
+    const item = {
+      id: "planned-work",
+      kind: "library" as const,
+      workoutId: "fran",
+      workout: { name: "Fran", description: "21-15-9", scheme: "time" },
+      occurrence: { trackId: "compete", sourceDate: session.trainingDate },
+    }
+    vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({
+      defaultTrackId: "everyday",
+      selectedTrackId: "compete",
+      sourceSession: null,
+      personalSession:
+        state === "new"
+          ? null
+          : {
+              id: "personal",
+              teamId: "gym",
+              trainingDate: session.trainingDate,
+              revision: 2,
+              compositionState: "customized",
+              items: [item],
+            },
+      items: state === "new" ? [] : [item],
+      results: [],
+      libraryResults:
+        state === "scored"
+          ? [{ itemId: item.id, scoreId: "recorded", displayScore: "1:23" }]
+          : [],
+      source: {
+        kind: "provider-day",
+        day: {
+          id: "provider",
+          date: session.trainingDate,
+          url: "https://example.com/work",
+          kind: "workout",
+          markdown: "Work",
+          workouts: [{ workoutId: "fran", name: "Fran", scheme: "time" }],
+        },
+      },
+    })
+    const onSurfaceChange = vi.fn()
+    const props = {
+      team: context.teams[0]!,
+      trackId: "compete",
+      date: session.trainingDate,
+      sourceResults: [],
+      onSaved: vi.fn(),
+      onSurfaceChange,
+    }
+    const view = render(
+      <AthletePersonalSession
+        {...props}
+        surface={state === "new" ? "track" : "session"}
+      />,
+    )
+    const triggerName = state === "new" ? "Customize session" : "Edit session"
+    fireEvent.click(await screen.findByRole("button", { name: triggerName }))
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Save session" }),
+      ).toBeEnabled(),
+    )
+    expect(
+      screen.queryAllByRole("link", { name: /^(Log score|Edit score)/ }),
+    ).toHaveLength(0)
+    expect(
+      screen.getByText("Save your session to record this section."),
+    ).toBeVisible()
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: triggerName }))
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Add another attempt",
+      }),
+    )
+    expect(
+      screen.queryAllByRole("link", { name: /^(Log score|Edit score)/ }),
+    ).toHaveLength(0)
+    expect(
+      screen.getAllByText("Save your session to record this section."),
+    ).toHaveLength(2)
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Save session" }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Save session" }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(savePersonalTrainingSessionFn).toHaveBeenCalledTimes(1)
+    expect(onSurfaceChange).toHaveBeenLastCalledWith("session")
+    view.rerender(<AthletePersonalSession {...props} surface="session" />)
+    const links = screen.getAllByRole("link", {
+      name: /^(Log score|Edit score)/,
+    })
+    expect(links).toHaveLength(2)
+    for (const link of links) {
+      const url = new URL(link.getAttribute("href")!, "https://example.com")
+      if (url.pathname.includes("/edit")) {
+        expect(url.pathname).toBe("/log/recorded/edit")
+        expect(
+          new URL(url.searchParams.get("redirectUrl")!, url).searchParams.get(
+            "trackId",
+          ),
+        ).toBe("compete")
+      } else {
+        expect(Object.fromEntries(url.searchParams)).toMatchObject({
+          personalSessionId: "personal",
+          personalRevision: state === "new" ? "1" : "3",
+          returnTrackId: "compete",
+          returnSurface: "session",
+        })
+        expect(url.searchParams.get("personalItemId")).toBeTruthy()
+      }
+    }
+  },
+)
+
+function providerPreparationDay() {
+  return {
+    defaultTrackId: "everyday",
+    selectedTrackId: "compete",
+    sourceSession: null,
+    personalSession: null,
+    items: [],
+    results: [],
+    libraryResults: [],
+    source: {
+      kind: "provider-day" as const,
+      day: {
+        id: "provider",
+        date: session.trainingDate,
+        url: "https://example.com/work",
+        kind: "workout" as const,
+        markdown: "Work",
+        workouts: [
+          { workoutId: "first", name: "First work", scheme: "time" },
+          { workoutId: "second", name: "Second work", scheme: "time" },
+        ],
+      },
+    },
+  }
+}
+function deferredProviderWorkout() {
+  let resolve!: (
+    value: Awaited<ReturnType<typeof getTrainingLibraryWorkoutFn>>,
+  ) => void
+  let reject!: (reason: Error) => void
+  const promise = new Promise<
+    Awaited<ReturnType<typeof getTrainingLibraryWorkoutFn>>
+  >((done, fail) => {
+    resolve = done
+    reject = fail
+  })
+  return { promise, resolve, reject }
+}
+const preparedWorkout: Awaited<ReturnType<typeof getTrainingLibraryWorkoutFn>> =
+  {
+    id: "prepared",
+    name: "Prepared work",
+    description: "Current prescription",
+    scheme: "time",
+    roundsToScore: 1,
+    scoreType: "min",
+    timeCap: null,
+    repsPerRound: null,
+    tiebreakScheme: null,
+    scalingGroupId: null,
+    movementIds: [],
+  }
+
+// @lat: [[session-navigation-tests#Provider preparation has one visible request batch]]
+it("shows disabled preparation feedback and loads one provider batch without saving", async () => {
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue(
+    providerPreparationDay(),
+  )
+  const pending = deferredProviderWorkout()
+  vi.mocked(getTrainingLibraryWorkoutFn).mockReturnValue(pending.promise)
+  render(
+    <AthletePersonalSession
+      team={context.teams[0]!}
+      trackId="compete"
+      date={session.trainingDate}
+      sourceResults={[]}
+      onSaved={vi.fn()}
+    />,
+  )
+  const trigger = await screen.findByRole("button", {
+    name: "Customize session",
+  })
+  fireEvent.click(trigger)
+  fireEvent.click(trigger)
+  expect(
+    screen.getByRole("button", { name: "Preparing session…" }),
+  ).toBeDisabled()
+  expect(getTrainingLibraryWorkoutFn).toHaveBeenCalledTimes(2)
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  await act(async () => pending.resolve(preparedWorkout))
+  expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled()
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+})
+
+// @lat: [[session-navigation-tests#Failed provider preparation can retry]]
+it("restores Customize after preparation fails and clears the failure on retry", async () => {
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue(
+    providerPreparationDay(),
+  )
+  vi.mocked(getTrainingLibraryWorkoutFn).mockRejectedValueOnce(
+    new Error("Provider offline"),
+  )
+  render(
+    <AthletePersonalSession
+      team={context.teams[0]!}
+      trackId="compete"
+      date={session.trainingDate}
+      sourceResults={[]}
+      onSaved={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Customize session" }),
+  )
+  await screen.findByText("Provider offline")
+  const pending = deferredProviderWorkout()
+  vi.mocked(getTrainingLibraryWorkoutFn).mockReturnValue(pending.promise)
+  fireEvent.click(screen.getByRole("button", { name: "Customize session" }))
+  expect(screen.queryByText("Provider offline")).not.toBeInTheDocument()
+  expect(
+    screen.getByRole("button", { name: "Preparing session…" }),
+  ).toBeDisabled()
+  await act(async () => pending.resolve(preparedWorkout))
+  expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled()
+  expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+})
+
+// @lat: [[session-navigation-tests#Late provider preparation cannot replace a newer context]]
+it.each([
+  ["track", "success"],
+  ["track", "error"],
+  ["date", "success"],
+  ["date", "error"],
+  ["workspace", "success"],
+  ["workspace", "error"],
+] as const)(
+  "ignores late %s preparation %s while a newer request stays pending",
+  async (change, outcome) => {
+    vi.mocked(getPersonalTrainingDayFn).mockResolvedValue(
+      providerPreparationDay(),
+    )
+    const old = deferredProviderWorkout()
+    const next = deferredProviderWorkout()
+    vi.mocked(getTrainingLibraryWorkoutFn).mockReturnValue(old.promise)
+    const props = {
+      team: context.teams[0]!,
+      trackId: "compete",
+      date: session.trainingDate,
+      sourceResults: [],
+      onSaved: vi.fn(),
+    }
+    const view = render(<AthletePersonalSession {...props} />)
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Customize session" }),
+    )
+    vi.mocked(getTrainingLibraryWorkoutFn).mockReturnValue(next.promise)
+    view.rerender(
+      <AthletePersonalSession
+        {...props}
+        trackId={change === "track" ? "everyday" : props.trackId}
+        date={change === "date" ? "2026-09-08" : props.date}
+        team={change === "workspace" ? context.teams[1]! : props.team}
+      />,
+    )
+    const trigger = await screen.findByRole("button", {
+      name: "Customize session",
+    })
+    expect(trigger).toBeEnabled()
+    fireEvent.click(trigger)
+    await act(async () =>
+      outcome === "success"
+        ? old.resolve({ ...preparedWorkout, name: "Obsolete work" })
+        : old.reject(new Error("Obsolete failure")),
+    )
+    expect(screen.queryByText("Obsolete failure")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("heading", { name: "Obsolete work" }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Preparing session…" }),
+    ).toBeDisabled()
+    expect(
+      screen.queryByRole("button", { name: "Save session" }),
+    ).not.toBeInTheDocument()
+    await act(async () => next.resolve(preparedWorkout))
+    expect(screen.getByRole("button", { name: "Save session" })).toBeEnabled()
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  },
+)
+
+// @lat: [[session-navigation-tests#Source membership labels use the published version]]
+it.each([1, 2])(
+  "labels and enables source Add consistently for saved version %s",
+  async (savedVersion) => {
+    const sourceItem = {
+      id: "current",
+      kind: "source" as const,
+      block,
+      trackId: "everyday",
+      trackName: "Everyday",
+      sourceTrainingDate: session.trainingDate,
+      sourceSessionId: session.id,
+      sourceBlockId: block.id,
+      sourcePublishedVersion: 2,
+    }
+    const savedItem = {
+      ...sourceItem,
+      id: "saved",
+      sourcePublishedVersion: savedVersion,
+    }
+    vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({
+      defaultTrackId: "everyday",
+      selectedTrackId: "everyday",
+      sourceSession: session,
+      personalSession: {
+        id: "personal",
+        teamId: "gym",
+        trainingDate: session.trainingDate,
+        revision: 1,
+        compositionState: "customized",
+        items: [savedItem],
+      },
+      items: [savedItem],
+      results: [],
+      libraryResults: [],
+    })
+    render(
+      <AthletePersonalSession
+        team={context.teams[0]!}
+        trackId="everyday"
+        date={session.trainingDate}
+        sourceResults={[]}
+        onSaved={vi.fn()}
+      />,
+    )
+    const action = await screen.findByRole("button", {
+      name: savedVersion === 2 ? "In My session" : "Add to My session",
+    })
+    if (savedVersion === 2) expect(action).toBeDisabled()
+    else expect(action).toBeEnabled()
+    expect(savePersonalTrainingSessionFn).not.toHaveBeenCalled()
+  },
+)

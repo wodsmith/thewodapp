@@ -12,6 +12,7 @@ import { useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { SessionWorkoutActions } from "@/components/training/session-workout-actions"
 import { WorkoutRemixInfo } from "@/components/workout-remix-info"
 import { trackEvent } from "@/lib/posthog"
 import { trainingDateSchema } from "@/server/training-validation"
@@ -28,7 +29,14 @@ export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
   component: WorkoutDetailPage,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { teamId?: string; date?: string } => ({
+  ): {
+    teamId?: string
+    date?: string
+    trackId?: string
+    sourceDate?: string
+  } => ({
+    trackId: typeof search.trackId === "string" ? search.trackId : undefined,
+    sourceDate: trainingDateSchema.safeParse(search.sourceDate).data,
     teamId: typeof search.teamId === "string" ? search.teamId : undefined,
     date: trainingDateSchema.safeParse(search.date).data,
   }),
@@ -37,7 +45,7 @@ export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
     const training = await getTrainingContextFn()
     const team =
       training.teams.find((item) => item.id === deps.teamId) ??
-      training.teams.find((item) => item.id === training.activeTeamId) ??
+      training.teams.find((item) => item.isPersonal) ??
       training.teams[0]
     const teamId = team?.id
     const date =
@@ -109,6 +117,7 @@ function WorkoutDetailPage() {
     }
   }, [workout, sourceWorkout])
 
+  const sourceContext = Route.useSearch()
   if (!workout) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -132,7 +141,12 @@ function WorkoutDetailPage() {
       {/* Header with back button and actions */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="min-h-11 min-w-11"
+            asChild
+          >
             <Link to="/workouts" search={{ view: "row", q: "", teamId, date }}>
               <ArrowLeft className="h-5 w-5" />
             </Link>
@@ -141,7 +155,7 @@ function WorkoutDetailPage() {
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           {canEdit && (
-            <Button variant="outline" asChild>
+            <Button variant="outline" className="min-h-11" asChild>
               <Link
                 to="/workouts/$workoutId/edit"
                 params={{ workoutId: workout.id }}
@@ -151,15 +165,13 @@ function WorkoutDetailPage() {
               </Link>
             </Button>
           )}
-          <Button asChild>
-            <Link
-              to="/training"
-              search={{ view: "training", teamId, date, workoutId: workout.id }}
-            >
-              <Calendar className="h-4 w-4 mr-2" />
-              Add to my session
-            </Link>
-          </Button>
+          <SessionWorkoutActions
+            teamId={teamId}
+            date={date}
+            workoutId={workout.id}
+            trackId={sourceContext.trackId}
+            sourceDate={sourceContext.sourceDate}
+          />
         </div>
       </div>
 
@@ -259,20 +271,6 @@ function WorkoutDetailPage() {
               <CalendarDays className="h-5 w-5" />
               <h2 className="text-lg font-semibold">Scheduled dates</h2>
             </div>
-            <Button asChild variant="outline">
-              <Link
-                to="/training"
-                search={{
-                  view: "training",
-                  teamId,
-                  date,
-                  workoutId: workout.id,
-                }}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                Add to my session
-              </Link>
-            </Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {scheduledInstances.map((instance) => {
@@ -305,14 +303,6 @@ function WorkoutDetailPage() {
             <ListChecks className="h-5 w-5" />
             <h2 className="text-lg font-semibold">EARLIER WORKOUT RESULTS</h2>
           </div>
-          <Button asChild>
-            <Link
-              to="/training"
-              search={{ view: "training", teamId, date, workoutId: workout.id }}
-            >
-              Add to my session
-            </Link>
-          </Button>
         </div>
 
         {scores.length > 0 ? (

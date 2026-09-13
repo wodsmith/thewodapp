@@ -9,10 +9,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
 import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
+import { getTrainingContextFn } from "@/server-fns/training-fns"
 import { trackEvent } from "@/lib/posthog"
 import { cn } from "@/lib/utils"
 import {
   getPersonalLibraryScalingLevelsFn,
+  getDirectLibraryEntryFn,
+  saveDirectLibraryResultFn,
   getPersonalTrainingDayFn,
   savePersonalLibraryResultFn,
   savePersonalTrainingSessionFn,
@@ -24,13 +27,28 @@ export const Route = createFileRoute("/_protected/log/new/")({
   validateSearch: (
     search: Record<string, unknown>,
   ): {
+    returnTrackId?: string
+    returnSurface?: "track" | "session"
     workoutId?: string
+    trackId?: string
+    sourceDate?: string
     teamId?: string
     date?: string
     personalSessionId?: string
     personalItemId?: string
     personalRevision?: number
   } => ({
+    returnTrackId:
+      typeof search.returnTrackId === "string"
+        ? search.returnTrackId
+        : undefined,
+    returnSurface:
+      search.returnSurface === "track" || search.returnSurface === "session"
+        ? search.returnSurface
+        : undefined,
+    sourceDate:
+      typeof search.sourceDate === "string" ? search.sourceDate : undefined,
+    trackId: typeof search.trackId === "string" ? search.trackId : undefined,
     workoutId:
       typeof search.workoutId === "string" ? search.workoutId : undefined,
     teamId: typeof search.teamId === "string" ? search.teamId : undefined,
@@ -51,20 +69,47 @@ export const Route = createFileRoute("/_protected/log/new/")({
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
-    if (
-      !deps.personalSessionId ||
-      !deps.personalItemId ||
-      !deps.teamId ||
-      !deps.date
-    ) {
-      const query = new URLSearchParams()
-      if (deps.workoutId) query.set("workoutId", deps.workoutId)
-      if (deps.teamId) query.set("teamId", deps.teamId)
-      if (deps.date) query.set("date", deps.date)
-      throw redirect({
-        href: `${deps.workoutId ? "/training" : "/workouts"}?${query}`,
+    if (!deps.personalSessionId || !deps.personalItemId) {
+      if (!deps.workoutId) throw redirect({ href: "/workouts" })
+      const context = await getTrainingContextFn()
+      const team =
+        context.teams.find((team) => team.id === deps.teamId) ??
+        context.teams.find((team) => team.isPersonal) ??
+        context.teams[0]
+      if (!team)
+        throw new Error(
+          "Choose an eligible training workspace in settings to log a result.",
+        )
+      const trainingDate =
+        deps.date ??
+        new Intl.DateTimeFormat("en-CA", {
+          timeZone: team.timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date())
+      const { workout, levels } = await getDirectLibraryEntryFn({
+        data: {
+          teamId: team.id,
+          workoutId: deps.workoutId,
+          sourceTrackId: deps.trackId,
+          sourceDate: deps.sourceDate,
+        },
       })
+      return {
+        selectedWorkout: { ...workout, id: workout.id },
+        scalingLevels: levels,
+        teamId: team.id,
+        trainingDate,
+        personalSessionId: undefined,
+        personalItemId: undefined,
+        personalRevision: undefined,
+        provenance: workout.provenance,
+        teamName: team.name,
+      }
     }
+    if (!deps.teamId || !deps.date)
+      throw new Error("Choose the training date and workspace for this result.")
     const day = await getPersonalTrainingDayFn({
       data: { teamId: deps.teamId, trainingDate: deps.date },
     })
@@ -81,7 +126,7 @@ export const Route = createFileRoute("/_protected/log/new/")({
     )
     if (previous)
       throw redirect({
-        href: `/log/${encodeURIComponent(previous.scoreId)}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${personal.teamId}&date=${personal.trainingDate}`)}`,
+        href: `/log/${encodeURIComponent(previous.scoreId)}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${encodeURIComponent(personal.teamId)}&date=${personal.trainingDate}&surface=${deps.returnSurface ?? "session"}${(deps.returnTrackId ?? deps.trackId) ? `&trackId=${encodeURIComponent(deps.returnTrackId ?? deps.trackId ?? "")}` : ""}`)}`,
       })
     const levelsResult = await getPersonalLibraryScalingLevelsFn({
       data: { personalSessionId: personal.id, itemId: item.id },
@@ -94,6 +139,8 @@ export const Route = createFileRoute("/_protected/log/new/")({
       personalSessionId: personal.id,
       personalItemId: item.id,
       personalRevision: personal.revision,
+      provenance: item.provenance,
+      teamName: "My session",
     }
   },
 })
@@ -107,14 +154,23 @@ function LogNewPage() {
     personalSessionId,
     personalItemId,
     personalRevision,
+    provenance,
+    teamName,
   } = Route.useLoaderData()
   const navigate = useNavigate()
   const importedItems = useRef(new Map<string, string>())
+  const attemptId = useRef(crypto.randomUUID())
+  const search = Route.useSearch()
   const workoutId = selectedWorkout?.id
-  const returnTo = `/training?teamId=${encodeURIComponent(teamId)}&date=${trainingDate}`
+  const returnSurface =
+    search.returnSurface ?? (personalSessionId ? "session" : "track")
+  const returnTrackId = search.returnTrackId ?? search.trackId
+  const returnTo = `/training?teamId=${encodeURIComponent(teamId)}&date=${trainingDate}&surface=${returnSurface}${returnTrackId ? `&trackId=${encodeURIComponent(returnTrackId)}` : ""}`
 
   const [score, setScore] = useState("")
   const [notes, setNotes] = useState("")
+  const [unit, setUnit] = useState<"lb" | "kg">("lb")
+  const [tiebreakScore, setTiebreakScore] = useState("")
 
   const [selectedScalingLevelId, setSelectedScalingLevelId] = useState<
     string | undefined
@@ -132,11 +188,25 @@ function LogNewPage() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: A different personal occurrence needs fresh score inputs even when its scoring shape is unchanged.
   useEffect(() => {
+    if (!workoutId || !importedItems.current.has(workoutId)) setNotes("")
     setScore("")
+    setUnit("lb")
+    setTiebreakScore("")
+    setError(null)
+    attemptId.current = crypto.randomUUID()
     setRoundScores(Array(numRounds).fill(""))
     setSelectedScalingLevelId(scalingLevels[0]?.id)
     setAsRx(true)
-  }, [personalItemId, numRounds, scalingLevels])
+  }, [
+    workoutId,
+    personalSessionId,
+    personalItemId,
+    teamId,
+    trainingDate,
+    search.trackId,
+    search.sourceDate,
+    numRounds,
+  ])
 
   // Handle round score changes
   const handleRoundScoreChange = (roundIndex: number, value: string) => {
@@ -176,20 +246,38 @@ function LogNewPage() {
     setError(null)
 
     try {
-      const result = await savePersonalLibraryResultFn({
-        data: {
-          personalSessionId,
-          itemId: personalItemId,
-          expectedRevision: personalRevision,
-          score: isMultiRound ? "" : score,
-          notes,
-          scalingLevelId: selectedScalingLevelId,
-          asRx,
-          roundScores: isMultiRound
-            ? roundScores.map((value) => ({ score: value }))
-            : undefined,
-        },
-      })
+      const values = {
+        unit,
+        tiebreakScore,
+        score: isMultiRound ? "" : score,
+        notes,
+        scalingLevelId: selectedScalingLevelId,
+        asRx,
+        roundScores: isMultiRound
+          ? roundScores.map((value) => ({ score: value }))
+          : undefined,
+      }
+      const result =
+        personalSessionId && personalItemId && personalRevision
+          ? await savePersonalLibraryResultFn({
+              data: {
+                ...values,
+                personalSessionId,
+                itemId: personalItemId,
+                expectedRevision: personalRevision,
+              },
+            })
+          : await saveDirectLibraryResultFn({
+              data: {
+                ...values,
+                teamId,
+                trainingDate,
+                workoutId,
+                sourceTrackId: search.trackId,
+                sourceDate: search.sourceDate,
+                itemId: attemptId.current,
+              },
+            })
 
       trackEvent("workout_result_logged", {
         score_id: result.scoreId,
@@ -217,78 +305,101 @@ function LogNewPage() {
     <div className="container mx-auto max-w-4xl px-4 py-8">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
-        <Button variant="outline" size="icon" asChild>
-          <a href={returnTo} aria-label="Back to my session">
+        <Button
+          variant="outline"
+          size="icon"
+          className="min-h-11 min-w-11"
+          asChild
+        >
+          <a
+            href={returnTo}
+            aria-label={
+              returnSurface === "session"
+                ? "Back to my session"
+                : "Back to training"
+            }
+          >
             <ArrowLeft className="h-5 w-5" />
           </a>
         </Button>
         <h1 className="text-2xl font-bold">Log result</h1>
       </div>
 
-      <div className="mb-6 space-y-2">
-        <WorkoutImportEntry
-          destination={{ kind: "personal" }}
-          saveLabel="Create and use workout"
-          onSaved={async (result) => {
-            // A retried save receipt must reuse its personal occurrence, even
-            // when the composition was saved but its response was lost.
-            let itemId = importedItems.current.get(result.workoutId)
-            if (!itemId) {
-              itemId = crypto.randomUUID()
-              importedItems.current.set(result.workoutId, itemId)
-            }
-            const day = await getPersonalTrainingDayFn({
-              data: { teamId, trainingDate },
-            })
-            const personal = day.personalSession
-            if (!personal || personal.id !== personalSessionId) {
-              throw new Error("Your session is no longer available.")
-            }
-            const existing = personal.items.find((item) => item.id === itemId)
-            if (
-              existing &&
-              (existing.kind !== "library" ||
-                existing.workoutId !== result.workoutId)
-            ) {
-              throw new Error(
-                "Your session changed. Reload before adding this workout.",
-              )
-            }
-            const saved = existing
-              ? personal
-              : await savePersonalTrainingSessionFn({
-                  data: {
-                    teamId,
-                    trainingDate,
-                    expectedRevision: personal.revision,
-                    items: [
-                      ...personal.items,
-                      {
-                        id: itemId,
-                        kind: "library",
-                        workoutId: result.workoutId,
-                      },
-                    ],
-                  },
-                })
-            await navigate({
-              to: "/log/new",
-              search: {
-                workoutId: result.workoutId,
-                teamId: saved.teamId,
-                date: saved.trainingDate,
-                personalSessionId: saved.id,
-                personalItemId: itemId,
-                personalRevision: saved.revision,
-              },
-            })
-          }}
-        />
-        <p className="text-sm text-muted-foreground">
-          Create a missing workout and add it to your session on {trainingDate}.
-          Notes are kept; score and scaling start fresh for the new workout.
-        </p>
-      </div>
+      {personalSessionId && (
+        <div className="mb-6 space-y-2">
+          <WorkoutImportEntry
+            destination={{ kind: "personal" }}
+            saveLabel="Create and use workout"
+            onSaved={async (result) => {
+              // A retried save receipt must reuse its personal occurrence, even
+              // when the composition was saved but its response was lost.
+              let itemId = importedItems.current.get(result.workoutId)
+              if (!itemId) {
+                itemId = crypto.randomUUID()
+                importedItems.current.set(result.workoutId, itemId)
+              }
+              const day = await getPersonalTrainingDayFn({
+                data: { teamId, trainingDate },
+              })
+              const personal = day.personalSession
+              if (!personal || personal.id !== personalSessionId) {
+                throw new Error("Your session is no longer available.")
+              }
+              const existing = personal.items.find((item) => item.id === itemId)
+              if (
+                existing &&
+                (existing.kind !== "library" ||
+                  existing.workoutId !== result.workoutId)
+              ) {
+                throw new Error(
+                  "Your session changed. Reload before adding this workout.",
+                )
+              }
+              const saved = existing
+                ? personal
+                : await savePersonalTrainingSessionFn({
+                    data: {
+                      teamId,
+                      trainingDate,
+                      expectedRevision: personal.revision,
+                      items: [
+                        ...personal.items,
+                        {
+                          id: itemId,
+                          kind: "library",
+                          workoutId: result.workoutId,
+                        },
+                      ],
+                    },
+                  })
+              await navigate({
+                to: "/log/new",
+                search: {
+                  workoutId: result.workoutId,
+                  returnSurface,
+                  returnTrackId,
+                  teamId: saved.teamId,
+                  date: saved.trainingDate,
+                  personalSessionId: saved.id,
+                  personalItemId: itemId,
+                  personalRevision: saved.revision,
+                },
+              })
+            }}
+          />
+          <p className="text-sm text-muted-foreground">
+            Create a missing workout and add it to your session on{" "}
+            {trainingDate}. Notes are kept; score and scaling start fresh for
+            the new workout.
+          </p>
+        </div>
+      )}
+      <p className="mb-6 text-sm text-muted-foreground">
+        Perform on {trainingDate} · {teamName} · Private result
+        {provenance
+          ? ` · ${provenance.trackName} · Programmed ${provenance.sourceDate}`
+          : ""}
+      </p>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Workout Selection */}
         <div>
@@ -331,6 +442,7 @@ function LogNewPage() {
                   <div className="space-y-2">
                     <Label htmlFor="date">Date</Label>
                     <Input
+                      className="min-h-11"
                       id="date"
                       type="date"
                       value={trainingDate}
@@ -353,7 +465,7 @@ function LogNewPage() {
                                 ? "default"
                                 : "outline"
                             }
-                            size="sm"
+                            className="min-h-11"
                             onClick={() => {
                               setSelectedScalingLevelId(level.id)
                               // Position 0 or 1 is typically Rx
@@ -391,12 +503,13 @@ function LogNewPage() {
                                 placeholder={getScorePlaceholder(
                                   selectedWorkout.scheme,
                                 )}
+                                aria-label={`Round ${index + 1}`}
                                 value={roundScore}
                                 onChange={(e) =>
                                   handleRoundScoreChange(index, e.target.value)
                                 }
                                 className={cn(
-                                  "font-mono h-9 flex-1",
+                                  "font-mono min-h-11 flex-1",
                                   parseResult?.error &&
                                     !parseResult?.isValid &&
                                     "border-destructive focus:ring-destructive",
@@ -434,7 +547,7 @@ function LogNewPage() {
                           value={score}
                           onChange={(e) => setScore(e.target.value)}
                           required
-                          className="font-mono"
+                          className="min-h-11 font-mono"
                         />
                         <p className="text-xs text-muted-foreground">
                           {getScoreHint(selectedWorkout.scheme)}
@@ -443,6 +556,37 @@ function LogNewPage() {
                     )}
                   </div>
 
+                  {selectedWorkout.scheme === "load" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="score-unit">Weight unit</Label>
+                      <select
+                        id="score-unit"
+                        className="min-h-11 w-full rounded-xl border border-input bg-background px-3"
+                        value={unit}
+                        onChange={(event) =>
+                          setUnit(event.target.value as "lb" | "kg")
+                        }
+                      >
+                        <option value="lb">lb</option>
+                        <option value="kg">kg</option>
+                      </select>
+                    </div>
+                  )}
+                  {selectedWorkout.tiebreakScheme && (
+                    <div className="space-y-2">
+                      <Label htmlFor="tiebreak-score">
+                        Tiebreak ({selectedWorkout.tiebreakScheme})
+                      </Label>
+                      <Input
+                        id="tiebreak-score"
+                        className="min-h-11"
+                        value={tiebreakScore}
+                        onChange={(event) =>
+                          setTiebreakScore(event.target.value)
+                        }
+                      />
+                    </div>
+                  )}
                   {/* Notes */}
                   <div className="space-y-2">
                     <Label htmlFor="notes">Notes (optional)</Label>
@@ -465,11 +609,16 @@ function LogNewPage() {
                     <Button
                       type="button"
                       variant="outline"
+                      className="min-h-11"
                       onClick={() => window.location.assign(returnTo)}
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={isSubmitting}>
+                    <Button
+                      className="min-h-11"
+                      type="submit"
+                      disabled={isSubmitting}
+                    >
                       {isSubmitting ? "Saving..." : "Save result"}
                     </Button>
                   </div>
