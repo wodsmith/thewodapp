@@ -59,6 +59,21 @@ import { validateChangedWorkoutReferences } from "./workout-references"
 export function createTrainingService(
   dependencies: TrainingServiceDependencies,
 ) {
+  return createTrainingOperations(dependencies, work=>dependencies.db.transaction(work))
+}
+
+/** Internal application adapter; the caller owns the SQL transaction. */
+export function createTrainingServiceInTransaction(
+  dependencies: TrainingServiceDependencies,
+  tx: import("./training-service-contract").TrainingTransaction,
+) {
+  return createTrainingOperations({...dependencies,db:tx},work=>work(tx))
+}
+
+function createTrainingOperations(
+  dependencies:TrainingServiceDependencies,
+  runTransaction:<T>(work:(tx:import("./training-service-contract").TrainingTransaction)=>Promise<T>)=>Promise<T>,
+) {
   const { db, actor, hasFeature } = dependencies
   assertTrainingActor(actor)
   const getDb = () => db
@@ -390,9 +405,8 @@ export function createTrainingService(
     assertTrainingScope(actor, "programming:write")
     await requireTrainingAccess(input.teamId, input.trackId, true)
     const content = trainingContentSchema.parse(input.content)
-    const db = getDb()
     try {
-      return await db.transaction(async (tx) => {
+      return await runTransaction(async (tx) => {
         const [existing] = await tx
           .select()
           .from(trainingSessionsTable)
@@ -467,7 +481,7 @@ export function createTrainingService(
     assertTrainingScope(actor, "programming:publish")
     const session = await findTrainingSession(input.sessionId)
     await requireTrainingAccess(session.teamId, session.trackId, true)
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       const current = await lockTrainingSession(tx, input.sessionId)
       assertTrainingRevision(current.revision, input.expectedRevision)
       if (!current.draft) throw new Error("There is no draft to publish")
@@ -511,7 +525,7 @@ export function createTrainingService(
     await requireTrainingAccess(source.teamId, source.trackId, true)
     await requireTrainingAccess(source.teamId, input.targetTrackId, true)
     try {
-      return await getDb().transaction(async (tx) => {
+      return await runTransaction(async (tx) => {
         const current = await lockTrainingSession(tx, input.sessionId)
         assertTrainingRevision(current.revision, input.expectedRevision)
         const content = current.draft ?? current.published
@@ -558,7 +572,7 @@ export function createTrainingService(
       session.teamId,
       session.trackId,
     )
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       // All result writers and publishers lock the same occurrence before checking its version.
       const current = await lockTrainingSession(tx, input.sessionId)
       const block = publishedTrainingBlock(
@@ -646,7 +660,7 @@ export function createTrainingService(
       target.session.teamId,
       target.session.trackId,
     )
-    return getDb().transaction(async (tx) => {
+    return runTransaction(async (tx) => {
       const session = await lockTrainingSession(tx, target.session.id)
       const [result] = await tx
         .select()

@@ -1,4 +1,5 @@
 import {
+  assertTrainingActor,
   assertTrainingScope,
   type TrainingActor,
   type TrainingScope,
@@ -17,6 +18,37 @@ import {
   trainingTrackInputSchema,
   trainingWeekInputSchema,
 } from "./training-validation"
+
+import {
+  createOwnedWorkout,
+  createOwnedWorkoutSchema,
+  updateOwnedWorkout,
+  updateOwnedWorkoutSchema,
+  deleteOwnedWorkout,
+  deleteOwnedWorkoutSchema,
+  getAgentWorkout,
+} from "./training-workout-mutations"
+import {
+  createOwnedResultSchema,
+  updateOwnedResultSchema,
+  deleteOwnedResultSchema,
+  getOwnedResultSchema,
+  getOwnedResult,
+  saveOwnedResult,
+  deleteOwnedResult,
+} from "./training-result-mutations"
+import {
+  agentTrainingDraftSchema,
+  agentTrainingPublishSchema,
+  agentPersonalDaySchema,
+  saveAgentTrainingDraft,
+  publishAgentTrainingSession,
+  saveAgentPersonalDay,
+} from "./training-programming-mutations"
+import {
+  getTrainingMutationReceipt,
+  trainingMutationReceiptSchema,
+} from "./training-mutations"
 
 export type AgentOperationOutcome =
   | { ok: true; data: Record<string, unknown> }
@@ -72,9 +104,29 @@ function readOperation<T>(
     name,
     description,
     schema,
+    readOnly: true,
+    destructive: false,
     requiredScopes: ["training:read"] as TrainingScope[],
     run: (deps: TrainingServiceDependencies, input: unknown) =>
       run(deps, schema.parse(input)),
+  }
+}
+function mutationOperation<T>(
+  name: string,
+  description: string,
+  schema: z.ZodType<T>,
+  scopes: TrainingScope[],
+  run: (
+    deps: TrainingServiceDependencies,
+    input: T,
+  ) => Promise<Record<string, unknown>>,
+  destructive = false,
+) {
+  return {
+    ...readOperation(name, description, schema, run),
+    requiredScopes: scopes,
+    readOnly: false,
+    destructive,
   }
 }
 const operations = [
@@ -108,7 +160,11 @@ const operations = [
         personalDays.push({
           trainingDate,
           accessTeamId: input.teamId,
-          state: day.personalSession ? "saved" : "projection",
+          state:
+            day.personalSession &&
+            day.personalSession.compositionState !== "result_only"
+              ? "saved"
+              : "projection",
           personalSession: day.personalSession,
           items: day.items,
           results: day.results,
@@ -118,6 +174,22 @@ const operations = [
       return { sessions, myResults, providerDays, personalDays }
     },
   ),
+  {
+    ...readOperation(
+      "get_programming_week",
+      "Read draft and published programming for an authorized programmer. Does not return other athletes' results.",
+      trainingWeekInputSchema.omit({ mode: true }),
+      async (deps, input) => ({
+        sessions: (
+          await createTrainingService(deps).getTrainingWeek({
+            ...input,
+            mode: "coach",
+          })
+        ).sessions,
+      }),
+    ),
+    requiredScopes: ["training:read", "programming:read"] as TrainingScope[],
+  },
   readOperation(
     "get_personal_training_day",
     "Read your saved composition and source day without creating a session. Workspace-scoped storage; cross-workspace day merging is unavailable.",
@@ -142,20 +214,15 @@ const operations = [
     "get_workout",
     "Read a canonical library definition and exact optional source occurrence.",
     trainingLibraryWorkoutSchema,
-    async (deps, input) => ({
-      workout:
-        await createPersonalTrainingService(deps).getTrainingLibraryWorkout(
-          input,
-        ),
-    }),
+    getAgentWorkout,
   ),
   readOperation(
     "get_training_history",
     "Read your own published results for the selected track and your personal result history for the workspace. Each collection is bounded to 100 rows.",
     trainingTrackInputSchema,
     async (deps, input) => ({
-      publishedHistoryScope: {teamId: input.teamId, trackId: input.trackId},
-      personalHistoryScope: {teamId: input.teamId},
+      publishedHistoryScope: { teamId: input.teamId, trackId: input.trackId },
+      personalHistoryScope: { teamId: input.teamId },
       results: await createTrainingService(deps).getTrainingHistory(input),
       personalResults:
         await createPersonalTrainingService(deps).getPersonalTrainingHistory(
@@ -169,11 +236,94 @@ const operations = [
     z.object({}).strict(),
     async () => ({ itemSchema: z.toJSONSchema(personalTrainingItemSchema) }),
   ),
+  readOperation(
+    "get_result",
+    "Read one owned result with complete scoring details and an edit version.",
+    getOwnedResultSchema,
+    getOwnedResult,
+  ),
+  readOperation(
+    "get_mutation_receipt",
+    "Read your original mutation result and trusted client origin.",
+    trainingMutationReceiptSchema,
+    getTrainingMutationReceipt,
+  ),
+  mutationOperation(
+    "create_workout",
+    "Create a reusable workout in your personal library with complete scoring fields.",
+    createOwnedWorkoutSchema,
+    ["workouts:write"],
+    createOwnedWorkout,
+  ),
+  mutationOperation(
+    "update_workout",
+    "Replace an owned library definition after checking the version returned by get_workout.",
+    updateOwnedWorkoutSchema,
+    ["workouts:write"],
+    updateOwnedWorkout,
+    true,
+  ),
+  mutationOperation(
+    "delete_workout",
+    "Archive an owned library definition from new selection while retaining its definition for history and existing programming.",
+    deleteOwnedWorkoutSchema,
+    ["workouts:delete"],
+    deleteOwnedWorkout,
+    true,
+  ),
+  mutationOperation(
+    "create_result",
+    "Create an owned result or direct library attempt. Fails if this occurrence already has a result; source audience must be explicit.",
+    createOwnedResultSchema,
+    ["training:read", "results:write"],
+    (deps, input) => saveOwnedResult(deps, input, "create"),
+  ),
+  mutationOperation(
+    "update_result",
+    "Update an owned result with its current version, retaining canonical rounds, caps, units and scoring.",
+    updateOwnedResultSchema,
+    ["training:read", "results:write"],
+    (deps, input) => saveOwnedResult(deps, input, "update"),
+    true,
+  ),
+  mutationOperation(
+    "delete_result",
+    "Delete an owned training result and its linked personal score rounds. Keeps the day composition; competition and scheduled scores require their original context.",
+    deleteOwnedResultSchema,
+    ["results:delete"],
+    deleteOwnedResult,
+    true,
+  ),
+  mutationOperation(
+    "save_personal_training_day",
+    "Replace one reviewed personal day using its expected revision. Does not log results. Cross-workspace day conflicts require resolution in Training.",
+    agentPersonalDaySchema,
+    ["training:read", "training:write"],
+    saveAgentPersonalDay,
+    true,
+  ),
+  mutationOperation(
+    "save_programming_draft",
+    "Save programmer-owned draft content with expected revision and current programming permission.",
+    agentTrainingDraftSchema,
+    ["programming:write"],
+    saveAgentTrainingDraft,
+    true,
+  ),
+  mutationOperation(
+    "publish_programming",
+    "Publish a reviewed programming draft with expected revision and explicit publish scope.",
+    agentTrainingPublishSchema,
+    ["programming:publish"],
+    publishAgentTrainingSession,
+    true,
+  ),
 ]
 
 export function listAgentOperations(
   actor: TrainingActor,
 ): AgentOperationDefinition[] {
+  assertTrainingActor(actor)
   return operations
     .filter((operation) =>
       operation.requiredScopes.every(
@@ -187,8 +337,8 @@ export function listAgentOperations(
       outputSchema,
       requiredScopes: operation.requiredScopes,
       annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
+        readOnlyHint: operation.readOnly,
+        destructiveHint: operation.destructive,
         idempotentHint: true,
         openWorldHint: false,
       },

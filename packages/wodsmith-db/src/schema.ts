@@ -52,4 +52,5 @@ export * from "./schemas/workouts"
 export * from "./schemas/workout-import"
 export * from "./schemas/volunteer-signup-intents"
 
+export * from "./schemas/training-mutations"
 export * from "./schemas/agent-oauth"

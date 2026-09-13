@@ -74,6 +74,14 @@ export function createPersonalTrainingService(
   )
 }
 
+/** Internal application adapter; the caller owns the SQL transaction. */
+export function createPersonalTrainingServiceInTransaction(
+  dependencies: TrainingServiceDependencies,
+  tx: TrainingTransaction,
+) {
+  return createPersonalTrainingOperations({...dependencies,db:tx},work=>work(tx))
+}
+
 /** Internal application operation: caller owns the transaction; all domain checks still run. */
 export async function savePersonalTrainingSessionInTransaction(
   dependencies: TrainingServiceDependencies,
@@ -395,7 +403,7 @@ function createPersonalTrainingOperations(
     workoutId: string
     sourceTrackId?: string
     sourceDate?: string
-  }): Promise<
+  }, includeArchived = false): Promise<
     Pick<typeof workouts.$inferSelect, keyof typeof libraryFields> & {
       provenance?: import("@/lib/training/personal-types").ProviderProvenance
       movementIds: string[]
@@ -406,7 +414,7 @@ function createPersonalTrainingOperations(
     if (data.sourceDate && !data.sourceTrackId)
       throw new Error("Choose a source track with the programmed date")
     await requireTrainingAccess(data.teamId)
-    const visibility = await workoutVisibilityCondition()
+    const visibility = await workoutVisibilityCondition(includeArchived)
     const [workout] = await getDb()
       .select(libraryFields)
       .from(workouts)
@@ -554,7 +562,7 @@ function createPersonalTrainingOperations(
             workoutId: item.workoutId,
             sourceTrackId: item.sourceTrackId,
             sourceDate: item.sourceDate,
-          }),
+          }, previousItems.some(old=>old.kind === "library" && old.id === item.id && old.workoutId === item.workoutId)),
         )
     try {
       return await runTransaction(async (tx) => {

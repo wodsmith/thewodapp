@@ -90,6 +90,7 @@ export const workouts = mysqlTable(
     ...commonColumns,
     id: varchar({ length: 255 }).primaryKey(),
     name: varchar({ length: 255 }).notNull(),
+    archivedAt: datetime({mode:"date",fsp:3}),
     description: text().notNull(),
     scope: varchar({
       length: 255,

@@ -71,6 +71,59 @@ Scored-content comparisons ignore organization metadata and normalize JSON key o
 ### Explicit loopback test addressing
 
 The database runner preserves IPv6 loopback addresses, ports and encoded credentials when building its disposable database URL. The canonical suites accept the bracketed IPv6 URL hostname.
+### Owned workout mutations
+
+Owned library CRUD preserves the canonical scoring definition and validates references. Concurrent retries create one row; intervening web edits conflict; archival cannot erase programming or legacy history.
+
+### Mutation authority and provenance
+
+Mutation retries recheck grant, scope, workspace, membership and domain authority. The receipt retains the first trusted web or agent origin even when a different authorized client retries the same request.
+
+### Atomic mutation receipts
+
+A mutation and its retry receipt commit in one SQL transaction. A receipt insertion failure rolls back the domain write, making a subsequent retry safe.
+
+### Owned published results
+
+Agents can read, create, update and delete only their own published-block results. Content versions detect intervening web edits; deleting a result also removes its cheers and never changes source programming.
+
+### Owned library round lifecycle
+
+Library attempt edits retain canonical score rounds and values even after the library definition is archived.
+
+Deleting a private attempt removes its score association and rounds together, while preserving the day composition and revision. Result-only rows remain projections in the week read.
+
+### Private day and programmer mutations
+
+Personal composition, programmer draft and publish mutations use separate scopes, expected revisions and retry receipts. Publishing requires current programmer authority even when replaying a prior success.
+
+### Discoverable mutation contracts
+
+The operation catalogue exposes executable canonical schemas and read or destructive annotations only for the actor's granted scopes. Incomplete grant identities fail closed before discovery.
+
+### Archive preserves concurrent references
+
+Archiving removes a workout from actual web and agent library selection while retaining its definition for a scheduler that read it before archival. A new scheduling request after archival is denied.
+
+The search API also excludes archived definitions, and the ordinary workout editor locks and rejects an archived row before changing it.
+
+### Archived composition snapshots
+
+Archiving a library definition preserves existing personal compositions and historical attempts. Their saved definitions remain editable through the canonical history path, while new library selection is denied.
+
+### Archived owned log correction
+
+The legacy log editor resolves archived definitions through the athlete's owned score ID and current workout visibility.
+
+Other users cannot use that history lookup to read the archived workout, and stale workout editors cannot rewrite the archived definition.
+
+A forged legacy owned score pointing at an inaccessible private definition grants no read access. Only the archive filter is relaxed; membership and public/private visibility still apply.
+
+The existing workout update unit fixture models the parent-row locking read and preserves the established missing-workout error.
+
+### Programming receipt authority
+
+Reading a draft or publication receipt requires programming-read scope and current programmer authority for its stored track. Knowing a receipt ID cannot expose an unpublished draft to a narrowed connection or former programmer.
 
 ## Prepared weekly writes
 
@@ -93,3 +146,18 @@ Weekly transactions use READ COMMITTED. Identity and source baselines use lockin
 Agent history returns up to 100 own published results for the selected track and up to 100 personal results for the workspace. Each collection declares its scope so callers cannot mistake personal work for track-filtered history.
 
 Stored personal snapshot metadata and input metadata share the database package type. The database package type-check command also validates the current-schema test exporter through its script-specific TypeScript configuration.
+## Owned mutations and receipts
+
+Agent mutations share canonical domain validation and SQL transactions with web writes. Personal library ownership, result ownership and programmer permissions remain separate authorization boundaries.
+
+[[apps/wodsmith-start/src/server/training-mutations.ts#runTrainingMutation]] locks the athlete row, revalidates the live grant through the trusted adapter, rechecks current domain authority and commits the mutation with its durable receipt under READ COMMITTED. Receipt IDs hash owner, operation and idempotency key; payload hashes reject key reuse for a different normalized request. The original response and trusted client/grant origin persist together. Retrying after a grant or membership revocation fails before returning the receipt.
+
+[[apps/wodsmith-start/src/server/training-workout-mutations.ts#createOwnedWorkout]] and its update/delete peers restrict mutations to the actor's personal library. Definition versions include stored scoring fields, ownership, update counter and movement associations. Deletion archives the definition from current library selection while retaining the row for track programming, schedules, legacy scores, remixes, provider imports and in-flight reference writers. Saved personal snapshots are not rewritten by library edits.
+
+[[apps/wodsmith-start/src/server/training-result-mutations.ts#saveOwnedResult]] supports published blocks, personal items, planned library items and direct library attempts through existing scoring writers. Reads return only the actor's result plus rich round details and a content version. Create rejects existing occurrences; update and delete require the read version. Scheduled and competition legacy scores cannot be deleted through this surface. Explicit source-result audience controls gym sharing; personal results remain private.
+
+The registry also exposes single-day replace, programming draft and explicit publish operations. These call the canonical services within the receipt transaction rather than nesting independently committed writes. Migration `0012_training_mutation_receipts.sql` adds receipt storage and the nullable workout archival timestamp; 0010 and 0011 belong to the planning and gateway workstreams.
+
+The nullable `workouts.archived_at` column is required before any app deployment containing this code, even when the agent resource is disabled. Apply the additive 0012 schema change through the production schema promotion workflow before deploying the application; this task does not run production migrations.
+
+Legacy log correction uses [[apps/wodsmith-start/src/server-fns/log-fns.ts#getOwnedLogWorkoutFn]] with the owned score ID to resolve an archived definition. It does not accept a general include-archived request flag. Planning and CRUD adapters share the same live-grant callback type; planning still requests only its own read/write scopes.
