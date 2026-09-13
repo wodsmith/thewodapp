@@ -392,6 +392,18 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(1)
   })
 
+  // @lat: [[training-agent-services#Verification#Current identity under repeatable read]]
+  it("does not hide a new alternate workspace day behind an earlier transaction snapshot", async () => {
+    const dependencies = {db,actor:{userId:"personal_athlete"},hasFeature:async()=>true}
+    const {prepared} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:0,items:[personalItem]}])
+    await expect(db.transaction(async tx=>{
+      await tx.select().from(personalTrainingSessionsTable)
+      await db.insert(personalTrainingSessionsTable).values({id:"rr-hidden-day",userId:"personal_athlete",teamId:"personal_foreign",trainingDate:day.trainingDate,items:[]})
+      return savePreparedPersonalSessions(dependencies,tx,prepared)
+    },{isolationLevel:"repeatable read"})).rejects.toThrow("another workspace composition")
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(1)
+  })
+
   beforeEach(async () => {
     state.userId = "personal_athlete"
     state.feature = true

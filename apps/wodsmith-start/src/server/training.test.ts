@@ -521,6 +521,8 @@ describe.skipIf(!databaseUrl)(
       expect(outcome.ok).toBe(true)
       if (!outcome.ok) throw new Error(outcome.error.message)
       expect(outcome.data.myResults).toEqual([])
+      expect(outcome.data.personalDays).toHaveLength(7)
+      expect((outcome.data.personalDays as Array<{state:string}>).every(day=>day.state === "projection")).toBe(true)
       expect(outcome.data).not.toHaveProperty("teamResults")
       expect(JSON.stringify(outcome)).not.toContain(score.notes)
     })
