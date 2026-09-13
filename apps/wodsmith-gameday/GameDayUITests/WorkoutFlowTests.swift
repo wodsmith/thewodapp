@@ -8,12 +8,13 @@ final class WorkoutFlowTests: XCTestCase {
         app.launchArguments = ["--demo"]
         app.launch()
         app.staticTexts["Summit Throwdown"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Competition"].waitForExistence(timeout: 5))
         let workouts = app.staticTexts["Workouts"].firstMatch
-        for _ in 0..<5 where !workouts.isHittable { app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch.swipeUp() : app.swipeUp() }
+        for _ in 0..<5 where !workouts.isHittable { app.swipeUp() }
         workouts.tap()
         app.staticTexts["Engine Room"].firstMatch.tap()
         let standard = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Kettlebell: 24 kg / 16 kg.")).firstMatch
-        for _ in 0..<4 where !standard.isHittable { app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch.swipeUp() : app.swipeUp() }
+        for _ in 0..<4 where !standard.isHittable { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(standard.isHittable)
         let portrait = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         portrait.name = "Native workout standards — portrait"
@@ -21,7 +22,7 @@ final class WorkoutFlowTests: XCTestCase {
         add(portrait)
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
-        for _ in 0..<4 where !standard.isHittable { app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch.swipeUp() : app.swipeUp() }
+        for _ in 0..<4 where !standard.isHittable { app.collectionViews.firstMatch.swipeUp() }
         XCTAssertTrue(standard.isHittable)
         let landscape = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         landscape.name = "Native workout standards — landscape"

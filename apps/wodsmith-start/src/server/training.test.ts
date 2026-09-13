@@ -71,6 +71,9 @@ import {
   setTrainingCheer,
 } from "./training"
 
+import { executeAgentOperation } from "./training-agent"
+import { createTrainingService } from "./training-service"
+
 const block: TrainingBlock = {
   id: "test_block",
   kind: "load",
@@ -364,8 +367,8 @@ describe.skipIf(!databaseUrl)(
         throw new Error("Missing local training test database URL")
       const url = new URL(databaseUrl)
       if (
-        !["127.0.0.1", "localhost"].includes(url.hostname) ||
-        !url.pathname.endsWith("/training_test")
+        !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
+        !/^\/training_test(?:_[a-f0-9]{32})?$/.test(url.pathname)
       )
         throw new Error(
           "Training integration tests require a disposable local training_test database",
@@ -466,6 +469,63 @@ describe.skipIf(!databaseUrl)(
         expectedRevision: saved.revision,
       })
     }
+
+    // @lat: [[training-agent-services#Verification#Cookie independent authority]]
+    it("uses the explicit actor, scopes and live membership without reading cookie identity", async () => {
+      state.userId = ""
+      const actor = {
+        userId: userIds[0],
+        grantId: "grant",
+        clientId: "client",
+        scopes: ["training:read"],
+        allowedTeamIds: [draft.teamId],
+      }
+      const service = createTrainingService({
+        db,
+        actor,
+        hasFeature: async () => true,
+      })
+      expect((await service.getTrainingContext()).userId).toBe(userIds[0])
+      await expect(service.saveTrainingDraft(draft)).rejects.toThrow(
+        "programming:write",
+      )
+      await expect(
+        service.getTrainingWeek({
+          ...draft,
+          teamId: teamIds[1],
+          startDate: draft.trainingDate,
+          mode: "athlete",
+        }),
+      ).rejects.toThrow("outside the training grant")
+      expect(await db.select().from(trainingSessionsTable)).toHaveLength(0)
+      await db
+        .update(teamMembershipTable)
+        .set({ isActive: false })
+        .where(eq(teamMembershipTable.id, "training_test_m1"))
+      await expect(
+        service.getTrainingWeek({
+          ...draft,
+          startDate: draft.trainingDate,
+          mode: "athlete",
+        }),
+      ).rejects.toThrow("FORBIDDEN")
+    })
+
+    // @lat: [[training-agent-services#Verification#Agent week privacy]]
+    it("projects only the authenticated athlete's own results in the agent week", async () => {
+      const current = await published()
+      state.userId = userIds[1]
+      await saveTrainingResult({...score,sessionId:current.id})
+      state.userId = ""
+      const outcome = await executeAgentOperation({db,actor:{userId:userIds[0],grantId:"g",clientId:"c",scopes:["training:read"],allowedTeamIds:[draft.teamId]},hasFeature:async()=>true},"get_training_week",{teamId:draft.teamId,trackId:draft.trackId,startDate:draft.trainingDate})
+      expect(outcome.ok).toBe(true)
+      if (!outcome.ok) throw new Error(outcome.error.message)
+      expect(outcome.data.myResults).toEqual([])
+      expect(outcome.data.personalDays).toHaveLength(7)
+      expect((outcome.data.personalDays as Array<{state:string}>).every(day=>day.state === "projection")).toBe(true)
+      expect(outcome.data).not.toHaveProperty("teamResults")
+      expect(JSON.stringify(outcome)).not.toContain(score.notes)
+    })
 
     it("returns only gym memberships and owned/active subscribed noncompetition tracks", async () => {
       const context = await getTrainingContext()

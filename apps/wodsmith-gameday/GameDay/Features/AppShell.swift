@@ -5,6 +5,7 @@ struct AppShell: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var tab = 0
     @State private var linkedCompetition: String?
+    @State private var announcementRouter = AnnouncementRouter.shared
     var body: some View {
         @Bindable var store = store
         TabView(selection: $tab) {
@@ -13,9 +14,24 @@ struct AppShell: View {
             Tab("Profile", systemImage: "person.crop.circle", value: 2) { NavigationStack { ProfileView() } }
         }
         .sheet(isPresented: $store.showSignIn) { NavigationStack { SignInView() } }
-        .sheet(item: Binding(get: { linkedCompetition.map(CompetitionLink.init) }, set: { linkedCompetition = $0?.id })) { link in
-            NavigationStack { CompetitionView(competitionID: link.id).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { linkedCompetition = nil } } } }
+        .sheet(item: Binding(get: {
+            if let announcement = announcementRouter.pending { return LinkedDestination.announcement(announcement) }
+            return linkedCompetition.map(LinkedDestination.competition)
+        }, set: { value in
+            if value == nil { announcementRouter.pending = nil; linkedCompetition = nil }
+        })) { destination in
+            NavigationStack {
+                Group {
+                    switch destination {
+                    case .competition(let id): CompetitionView(competitionID: id)
+                    case .announcement(let link): AnnouncementNotificationView(link: link)
+                    }
+                }.toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Done") { announcementRouter.pending = nil; linkedCompetition = nil } }
+                }
+            }
         }
+        .onChange(of: announcementRouter.pending) { _, link in if link != nil { store.showSignIn = false } }
         .onChange(of: store.selectedCompetitionID) { _, id in linkedCompetition = id; store.selectedCompetitionID = nil }
         .alert("Game Day", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK") { store.error = nil }
@@ -25,7 +41,15 @@ struct AppShell: View {
             if phase == .active { Task { await store.refresh() } }
         }
     }
-    private struct CompetitionLink: Identifiable { let id: String }
+    private enum LinkedDestination: Identifiable {
+        case competition(String), announcement(AnnouncementLink)
+        var id: String {
+            switch self {
+            case .competition(let id): "competition:\(id)"
+            case .announcement(let link): "announcement:\(link.id)"
+            }
+        }
+    }
 }
 
 struct SyncStatus: View {
@@ -64,16 +88,6 @@ struct CompetitionHome: View {
     }
     var body: some View {
         List {
-            if !store.isSignedIn {
-                Section {
-                    Button { store.showSignIn = true } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Athlete sign-in").font(.headline)
-                            Text("See your registered competitions and assigned heats.").font(.subheadline).foregroundStyle(.secondary)
-                        }.padding(.vertical, 6)
-                    }.accessibilityIdentifier("athleteSignIn")
-                }
-            }
             if store.status(.home).error != nil { Section { SyncStatus() } }
             if store.isSignedIn && search.isEmpty {
                 Section {
@@ -87,18 +101,31 @@ struct CompetitionHome: View {
                     }
                 } header: { Text("Your competitions").foregroundStyle(Color.gameDaySecondary) }
             }
+            let spectating = store.spectatedCompetitions.filter { competition in
+                !store.home.myCompetitions.contains { $0.id == competition.id }
+            }
+            if search.isEmpty && !spectating.isEmpty {
+                Section("Spectating") {
+                    ForEach(spectating) { competition in
+                        NavigationLink { CompetitionView(competitionID: competition.id) } label: {
+                            CompetitionCard(competition: competition)
+                        }
+                    }
+                }
+            }
             Section {
                 if store.status(.home).isLoading && store.home.competitions.isEmpty {
                     ProgressView("Loading competitions…")
                 } else if competitions.isEmpty && store.status(.home).error == nil {
                     EmptyState(title: search.isEmpty ? "No upcoming competitions" : "No matches", message: "Try another search or include past competitions.", symbol: "magnifyingglass")
                 }
-                ForEach(competitions) { competition in
+                ForEach(competitions.filter { !search.isEmpty || !store.spectator.competitionIDs.contains($0.id) }) { competition in
                     NavigationLink { CompetitionView(competitionID: competition.id) } label: { CompetitionCard(competition: competition) }
                 }
             } header: { Text(store.isSignedIn ? "More competitions" : "Upcoming competitions").foregroundStyle(Color.gameDaySecondary) }
             if store.status(.home).error == nil { Section { SyncStatus() }.listRowBackground(Color.clear) }
         }
+        .listStyle(.plain)
         .navigationTitle("Competitions")
         .accessibilityIdentifier("homeHeading")
         .searchable(text: $search, prompt: "Search")
@@ -117,10 +144,17 @@ struct MyDayView: View {
     @Environment(GameDayStore.self) private var store
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
+            LazyVStack(alignment: .leading, spacing: 16) {
                 if !store.isSignedIn {
-                    EmptyState(title: "Your heat schedule", message: "Sign in to see your assigned heats, lanes, and reminders.", symbol: "timer")
-                    Button("Sign in to WODsmith") { store.showSignIn = true }.buttonStyle(.borderedProminent).controlSize(.large).frame(maxWidth: .infinity)
+                    if store.spectator.competitionIDs.isEmpty {
+                        EmptyState(title: "Your spectator day", message: "Open a competition and tap Spectate, then follow athletes or teams to build your day. No account needed.", symbol: "star")
+                    }
+                    ForEach(store.spectatedCompetitions) { competition in
+                        NavigationLink(competition.name) { CompetitionView(competitionID: competition.id) }.font(.headline).frame(minHeight: 44)
+                        if let detail = store.details[competition.id] { SpectatorSummary(detail: detail) }
+                        SyncStatus(resource: .competition(competition.id))
+                            .task { if store.details[competition.id] == nil { await store.loadCompetition(competition.id) } }
+                    }
                 } else {
                     if store.home.myCompetitions.isEmpty {
                         EmptyState(title: "No registered competitions", message: "Use Competitions to browse events, or check that you signed in with your registration email.")
@@ -128,7 +162,7 @@ struct MyDayView: View {
                     ForEach(store.home.myCompetitions) { competition in
                         VStack(alignment: .leading, spacing: 12) {
                             NavigationLink { CompetitionView(competitionID: competition.id) } label: {
-                                HStack { Text(competition.name).font(.title2.bold()); Spacer(); Image(systemName: "chevron.right").font(.subheadline).foregroundStyle(.secondary) }.frame(minHeight: 44)
+                                HStack { Text(competition.name).font(.headline); Spacer(); Image(systemName: "chevron.right").font(.subheadline).foregroundStyle(.secondary) }.frame(minHeight: 44)
                             }.buttonStyle(.plain)
                             SyncStatus(resource: .competition(competition.id))
                             if let detail = store.details[competition.id] { AthleteSchedule(detail: detail) }
@@ -138,8 +172,15 @@ struct MyDayView: View {
                         }
                     }
                 }
-            }.padding(20)
-        }.background(Color.gameDayPaper).navigationTitle("My day")
+            }.padding(16)
+        }.background(Color(uiColor: .systemBackground)).navigationTitle("My day")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink { ReminderSettingsView() } label: {
+                        Image(systemName: "bell").frame(minWidth: 44, minHeight: 44)
+                    }.accessibilityLabel("Heat reminders")
+                }
+            }
             .refreshable { await store.refresh() }
     }
 }

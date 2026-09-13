@@ -44,18 +44,18 @@ struct CompetitionCard: View {
         HStack(alignment: .top, spacing: 14) {
             if let source = competition.profileImageUrl, let url = URL(string: source) {
                 AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: { Color(uiColor: .tertiarySystemFill) }
-                    .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
+                    .frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text(competition.name).font(.headline).foregroundStyle(.primary)
-                Text(competition.dateLabel).font(.subheadline).foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(competition.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                Text(competition.dateLabel).font(.subheadline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                 Text(competition.location.isEmpty ? competition.competitionType.capitalized : competition.location)
-                    .font(.subheadline).foregroundStyle(Color.gameDaySecondary)
+                    .font(.subheadline).foregroundStyle(Color.gameDaySecondary).fixedSize(horizontal: false, vertical: true)
                 if registered {
                     Label("Registered", systemImage: "checkmark.circle").font(.footnote)
                         .foregroundStyle(Color.gameDaySecondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
-        }.padding(.vertical, 8).accessibilityElement(children: .combine)
+        }.padding(.vertical, 4).accessibilityElement(children: .combine)
     }
 }

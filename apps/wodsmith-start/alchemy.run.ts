@@ -105,6 +105,7 @@ import {
 } from "alchemy/planetscale"
 import { CloudflareStateStore } from "alchemy/state"
 import { WebhookEndpoint } from "alchemy/stripe"
+import { GAMEDAY_PUSH_CRON } from "./src/lib/gameday-push-config"
 import type { CrossFitImportParams } from "./src/workflows/crossfit-daily-import-workflow"
 
 /**
@@ -136,6 +137,7 @@ import type { CrossFitImportParams } from "./src/workflows/crossfit-daily-import
  * Current stage name for conditional configuration.
  */
 const stage = process.env.STAGE ?? "dev"
+const gameDayPushEnabled = stage === "prod" && process.env.GAMEDAY_PUSH_ENABLED === "true"
 
 /**
  * Whether the current stage needs Stripe webhook.
@@ -654,7 +656,7 @@ const broadcastEmailQueue = await Queue(`broadcast-email-queue-${stage}`, {
  */
 const website = await TanStackStart("app", {
   // 05:00 PST (UTC-8) year-round, followed by a publication health check.
-  crons: stage === "prod" ? ["0 13 * * *", "15 15 * * *"] : [],
+  crons: [...(stage === "prod" ? ["0 13 * * *", "15 15 * * *"] : []), ...(gameDayPushEnabled ? [GAMEDAY_PUSH_CRON] : [])],
   /**
    * Queue consumer registration.
    *
@@ -700,6 +702,10 @@ const website = await TanStackStart("app", {
     MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
     /** Queue for async broadcast email delivery */
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
+    GAMEDAY_PUSH_ENABLED: String(gameDayPushEnabled),
+    ...(gameDayPushEnabled && process.env.APNS_KEY_ID && { APNS_KEY_ID: alchemy.secret(process.env.APNS_KEY_ID) }),
+    ...(gameDayPushEnabled && process.env.APNS_TEAM_ID && { APNS_TEAM_ID: alchemy.secret(process.env.APNS_TEAM_ID) }),
+    ...(gameDayPushEnabled && process.env.APNS_PRIVATE_KEY && { APNS_PRIVATE_KEY: alchemy.secret(process.env.APNS_PRIVATE_KEY) }),
     /** Durable Object namespace for the AI judge-scheduling agent */
     JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
     WORKOUT_IMPORT_AGENT: workoutImportAgent,

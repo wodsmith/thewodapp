@@ -22,3 +22,25 @@ enum DemoData {
         LeaderboardEntry(registrationId: index == 2 ? registration.id : "athlete-\(index)", athleteName: name, divisionId: "rx", divisionLabel: "Individual RX", totalPoints: Double(15 + index * 8), overallRank: index + 1, teamName: nil, eventResults: [EventResult(trackWorkoutId: "event-1", eventName: "Engine Room", rank: index + 1, formattedScore: "0\(8 + index / 3):\(12 + index * 5)")])
     })
 }
+
+extension DemoData {
+    static var spectatorDetail: CompetitionDetail {
+        var result = CompetitionDetail(competition: competition, registrations: [], heats: heats, assignments: [], workouts: detail.workouts, announcements: detail.announcements)
+        result.participants = [
+            .init(id: "athlete-0", name: "Jordan Lee", divisionId: "rx", division: "Individual RX", isTeam: false),
+            .init(id: "team-summit", name: "Summit Crew", divisionId: "teams", division: "Teams RX", isTeam: true),
+            .init(id: "athlete-1", name: "Sam Rivera", divisionId: "rx", division: "Individual RX", isTeam: false)
+        ]
+        result.publicAssignments = [
+            .init(heatId: "heat-1", registrationId: "athlete-0", lane: 2),
+            .init(heatId: "heat-2", registrationId: "team-summit", lane: 5),
+            .init(heatId: "heat-3", registrationId: "athlete-1", lane: 1)
+        ]
+        return result
+    }
+    static var spectatorLeaderboard: LeaderboardResponse {
+        LeaderboardResponse(entries: leaderboard.entries + [
+            LeaderboardEntry(registrationId: "team-summit", athleteName: "", divisionId: "teams", divisionLabel: "Teams RX", totalPoints: 12, overallRank: 1, teamName: "Summit Crew", eventResults: [])
+        ])
+    }
+}

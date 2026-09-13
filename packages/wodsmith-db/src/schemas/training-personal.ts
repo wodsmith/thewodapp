@@ -10,7 +10,12 @@ export interface ProviderProvenanceSnapshot {
   sourceUrl: string
 }
 
-export interface PersonalItemSnapshot {
+export interface PersonalItemMetadataSnapshot {
+  role?: "warmup" | "strength" | "skill" | "conditioning" | "cooldown" | "mobility" | "other" | null
+  estimatedDurationMinutes?: number | null
+}
+
+export interface PersonalItemSnapshot extends PersonalItemMetadataSnapshot {
   provenance?: ProviderProvenanceSnapshot
   id: string
   kind: "source" | "personal" | "library"
@@ -25,7 +30,7 @@ export interface PersonalItemSnapshot {
   workoutId?: string
   workout?: { name: string; description: string; scheme: string; scoreType?: string | null; timeCap?: number | null; roundsToScore?: number | null; repsPerRound?: number | null; tiebreakScheme?: string | null; scalingGroupId?: string | null }
 }
-export interface PersonalLibraryItemSnapshot {
+export interface PersonalLibraryItemSnapshot extends PersonalItemMetadataSnapshot {
   occurrence?: {trackId?: string; sourceDate?: string}
   provenance?: ProviderProvenanceSnapshot
   id: string

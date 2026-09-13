@@ -825,6 +825,9 @@ importers:
       '@repo/wodsmith-db':
         specifier: workspace:*
         version: link:../../packages/wodsmith-db
+      '@repo/wodsmith-training':
+        specifier: workspace:*
+        version: link:../../packages/wodsmith-training
       '@sentry/cloudflare':
         specifier: ^10.39.0
         version: 10.39.0(@cloudflare/workers-types@4.20260702.1)
@@ -1118,6 +1121,21 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+
+  packages/wodsmith-training:
+    dependencies:
+      '@repo/wodsmith-db':
+        specifier: workspace:*
+        version: link:../wodsmith-db
+      drizzle-orm:
+        specifier: ^0.39.3
+        version: 0.39.3(@cloudflare/workers-types@4.20260702.1)(@opentelemetry/api@1.9.0)(@planetscale/database@1.19.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@11.10.0)(mysql2@3.16.2)
+      ulid:
+        specifier: ^3.0.2
+        version: 3.0.2
+      zod:
+        specifier: ^4.2.1
+        version: 4.2.1
 
 packages:
 

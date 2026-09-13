@@ -67,6 +67,9 @@ import {
   saveTrainingPreference,
 } from "./training-personal"
 
+import { preparePersonalSessions, savePreparedPersonalSessions } from "./training-personal-batch"
+import { createPersonalTrainingService } from "./training-personal-service"
+
 const day = { teamId: "personal_gym", trainingDate: "2026-09-05" }
 const block: TrainingBlock = {
   id: "block",
@@ -225,8 +228,8 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     if (!databaseUrl) throw new Error("TRAINING_TEST_DATABASE_URL is required")
     const url = new URL(databaseUrl)
     if (
-      !["localhost", "127.0.0.1"].includes(url.hostname) ||
-      url.pathname !== "/training_test"
+      !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+      !/^\/training_test(?:_[a-f0-9]{32})?$/.test(url.pathname)
     )
       throw new Error("Use a disposable local training_test database")
     pool = mysql.createPool(databaseUrl)
@@ -306,6 +309,137 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
       },
     ])
   })
+  // @lat: [[training-agent-services#Verification#Personal actor isolation]]
+  it("saves and reads personal work using explicit identity with no cookie session", async () => {
+    state.userId = ""
+    const dependencies = {
+      db,
+      actor: { userId: "personal_athlete" },
+      hasFeature: async () => true,
+    }
+    const service = createPersonalTrainingService(dependencies)
+    const saved = await service.savePersonalTrainingSession({
+      ...day,
+      expectedRevision: 0,
+      items: [personalItem],
+    })
+    expect(
+      (await service.getPersonalTrainingDay(day)).personalSession?.id,
+    ).toBe(saved.id)
+    const foreign = createPersonalTrainingService({
+      ...dependencies,
+      actor: { userId: "personal_other" },
+    })
+    await expect(
+      foreign.savePersonalTrainingResult({
+        personalSessionId: saved.id,
+        itemId: "bike",
+        expectedRevision: saved.revision,
+        score: "15:00",
+        notes: "private",
+        unit: "lb",
+        completed: true,
+      }),
+    ).rejects.toThrow("FORBIDDEN: This session belongs to another athlete")
+    const scoped = createPersonalTrainingService({
+      ...dependencies,
+      actor: {
+        userId: "personal_athlete",
+        grantId: "g",
+        clientId: "c",
+        scopes: ["training:read"],
+        allowedTeamIds: [],
+      },
+    })
+    await expect(
+      scoped.getTrainingLibraryWorkout({
+        ...day,
+        workoutId: "personal_library",
+      }),
+    ).rejects.toThrow("outside the training grant")
+  })
+
+  // @lat: [[training-agent-services#Verification#Atomic prepared days]]
+  it("prepares without writes and rolls all days back when a later canonical write fails", async () => {
+    const dependencies = {db,actor:{userId:"personal_athlete"},hasFeature:async()=>true}
+    const {prepared} = await preparePersonalSessions(dependencies,[
+      {...day,expectedRevision:0,items:[{...personalItem,role:"warmup",estimatedDurationMinutes:10}]},
+      {...day,trainingDate:"2026-09-06",expectedRevision:0,items:[personalItem]},
+    ])
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(0)
+    await pool.promise().query("CREATE TRIGGER training_batch_failure BEFORE INSERT ON personal_training_sessions FOR EACH ROW BEGIN IF NEW.training_date = '2026-09-06' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'second day failure'; END IF; END")
+    try {
+      await expect(db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))).rejects.toThrow()
+    } finally {
+      await pool.promise().query("DROP TRIGGER training_batch_failure")
+    }
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(0)
+    const valid = await preparePersonalSessions(dependencies,[prepared.inputs[0]])
+    const saved = await db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,valid.prepared))
+    expect(saved[0].items[0]).toMatchObject({role:"warmup",estimatedDurationMinutes:10})
+    expect((await createPersonalTrainingService(dependencies).getPersonalTrainingDay(day)).items[0]).toMatchObject({role:"warmup",estimatedDurationMinutes:10})
+    await expect(db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,valid.prepared))).rejects.toThrow("CONFLICT")
+  })
+
+  // @lat: [[training-agent-services#Verification#Scored item organization metadata]]
+  it.each(["personal", "source", "library"] as const)("sets, edits and clears %s metadata without changing performed content", async (kind) => {
+    const dependencies = {db,actor:{userId:"personal_athlete"},hasFeature:async()=>true}
+    const service = createPersonalTrainingService(dependencies)
+    const item: PersonalTrainingItemInput = kind === "personal" ? personalItem : kind === "source" ? sourceItem : {id:"metadata-library",kind:"library",workoutId:"personal_library"}
+    let saved = await service.savePersonalTrainingSession({...day,expectedRevision:0,items:[item]})
+    if (kind === "library") await service.savePersonalLibraryResult({personalSessionId:saved.id,itemId:item.id,expectedRevision:saved.revision,score:"",asRx:true,roundScores:[{score:"10"},{score:"20"},{score:"30"}]})
+    else await service.savePersonalTrainingResult({personalSessionId:saved.id,itemId:item.id,expectedRevision:saved.revision,score:"30",notes:"Retain",unit:"lb",completed:true})
+    const before = await db.select().from(personalTrainingResultsTable)
+    for (const metadata of [{role:"warmup" as const,estimatedDurationMinutes:10},{},{role:"strength" as const,estimatedDurationMinutes:20},{role:null,estimatedDurationMinutes:null}]) {
+      const {prepared} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:saved.revision,items:[{...item,...metadata}]}])
+      ;[saved] = await db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))
+      if (metadata.role === null) {
+        expect(saved.items[0]).not.toHaveProperty("role")
+        expect(saved.items[0]).not.toHaveProperty("estimatedDurationMinutes")
+      } else expect(saved.items[0]).toMatchObject(metadata.role ? metadata : {role:"warmup",estimatedDurationMinutes:10})
+      expect(await db.select().from(personalTrainingResultsTable)).toEqual(before)
+    }
+    if (item.kind === "personal") await expect(service.savePersonalTrainingSession({...day,expectedRevision:saved.revision,items:[{...item,block:{...item.block,prescription:"Different workout"}}]})).rejects.toThrow("has a result")
+  })
+
+  // @lat: [[training-agent-services#Verification#Prepared library snapshots]]
+  it("reviews the preserved library definition while still requiring current access", async () => {
+    const dependencies = {db,actor:{userId:"personal_athlete"},hasFeature:async()=>true}
+    const item = {id:"saved-library",kind:"library" as const,workoutId:"personal_library"}
+    const saved = await createPersonalTrainingService(dependencies).savePersonalTrainingSession({...day,expectedRevision:0,items:[item]})
+    await db.update(workouts).set({name:"Changed definition"}).where(eq(workouts.id,item.workoutId))
+    const {prepared,review} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:saved.revision,items:[item]}])
+    expect(review.days[0].library[0].workout.name).toBe("Rounds")
+    await expect(preparePersonalSessions(dependencies,[{...day,expectedRevision:saved.revision,items:[{...item,id:"SAVED-LIBRARY"}]}])).rejects.toThrow("saved item ID exactly")
+    const committed = await db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))
+    expect(committed[0].items[0]).toMatchObject({workout:{name:"Rounds"}})
+    await db.update(workouts).set({teamId:"personal_foreign"}).where(eq(workouts.id,item.workoutId))
+    await expect(preparePersonalSessions(dependencies,[{...day,expectedRevision:committed[0].revision,items:[item]}])).rejects.toThrow()
+  })
+
+  // @lat: [[training-agent-services#Verification#Prepared source and identity conflicts]]
+  it("rejects source changes and hidden alternate workspace days before writing", async () => {
+    const dependencies = {db,actor:{userId:"personal_athlete",grantId:"g",clientId:"c",scopes:["training:read","training:write"],allowedTeamIds:[day.teamId]},hasFeature:async()=>true}
+    const {prepared} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:0,items:[sourceItem]}])
+    await db.update(trainingSessionsTable).set({publishedVersion:2}).where(eq(trainingSessionsTable.id,"personal_source"))
+    await expect(db.transaction(tx=>savePreparedPersonalSessions(dependencies,tx,prepared))).rejects.toThrow("CONFLICT")
+    await db.insert(personalTrainingSessionsTable).values({id:"hidden-day",userId:"personal_athlete",teamId:"personal_foreign",trainingDate:day.trainingDate,items:[]})
+    await expect(preparePersonalSessions(dependencies,[{...day,expectedRevision:0,items:[personalItem]}])).rejects.toThrow("another workspace composition")
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(1)
+  })
+
+  // @lat: [[training-agent-services#Verification#Current identity under repeatable read]]
+  it("does not hide a new alternate workspace day behind an earlier transaction snapshot", async () => {
+    const dependencies = {db,actor:{userId:"personal_athlete"},hasFeature:async()=>true}
+    const {prepared} = await preparePersonalSessions(dependencies,[{...day,expectedRevision:0,items:[personalItem]}])
+    await expect(db.transaction(async tx=>{
+      await tx.select().from(personalTrainingSessionsTable)
+      await db.insert(personalTrainingSessionsTable).values({id:"rr-hidden-day",userId:"personal_athlete",teamId:"personal_foreign",trainingDate:day.trainingDate,items:[]})
+      return savePreparedPersonalSessions(dependencies,tx,prepared)
+    },{isolationLevel:"repeatable read"})).rejects.toThrow("another workspace composition")
+    expect(await db.select().from(personalTrainingSessionsTable)).toHaveLength(1)
+  })
+
   beforeEach(async () => {
     state.userId = "personal_athlete"
     state.feature = true
@@ -323,6 +457,8 @@ describe.skipIf(!databaseUrl)("personal training database invariants", () => {
     await db
       .update(workouts)
       .set({
+        name: "Rounds",
+        teamId: day.teamId,
         scheme: "reps",
         roundsToScore: 3,
         scalingGroupId: null,

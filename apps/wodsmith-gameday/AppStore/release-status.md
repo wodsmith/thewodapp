@@ -57,3 +57,44 @@ The final service-provider privacy clarification merged in [PR #676](https://git
 The final requirement check covered working public privacy/support links and contact methods, retention/deletion choices, service-provider protection, in-app Help access, the matching native privacy manifest and App Store disclosures, reviewer credentials, screenshots, age/content declarations, and the selected validated build. The native app uses existing WODsmith sign-in and offers no account-creation or third-party login flow. Review guidance: [Apple App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), particularly 1.5, 2.1, 4.8, and 5.1.1.
 
 Full VoiceOver traversal, RTL, and unusually long organizer content have not been certified by the bounded design checks. Apple may request changes during review; passing submission validation is not a guarantee of approval.
+
+## Version 1.1 build 2 — uploaded
+
+On September 12, 2026, the combined athlete/spectator release was signed, archived, uploaded, processed by Apple, and saved on the 1.1 App Store draft. It includes the borderless icon and Lock Screen-first listing. The version has not yet been submitted for review.
+
+Release branch: `zac/gameday-1-1-release`; PR https://github.com/wodsmith/thewodapp/pull/700 at commit `97d463425`. Archive: `/tmp/GameDay-1.1-2.xcarchive`; upload log: `/tmp/gameday-release-upload.log`. Apple reported Upload succeeded and exposed build 2 (1.1), which was selected and saved.
+
+All repository pre-push lint and type checks passed with Node 24 and lockfile-pinned dependencies. Combined Game Day API tests pass 9/9; native unit tests pass. The spectator task also passed signed-out relaunch/unfollow/division flows, athlete navigation, and largest-text UI checks.
+
+Next: wait for PR checks, review any findings, merge and deploy the compatible public participant/assignment API through the production workflow, verify anonymous published assignments, then complete Add for Review and Submit for Review in App Store Connect. Do not re-upload build 2. Existing review credentials remain saved privately.
+
+## Version 1.1 build 4 — review corrections
+
+Builds 2 and 3 are superseded and must not be submitted. Build 4 adds saved unlisted discovery recovery, canonical slug caching, 404 cache eviction, and participant fallback status/retry. Archive and upload build 4 from the final reviewed code, select it, then submit only after PR #700 is merged and the production API is verified.
+
+The earlier 193 type diagnostics came from the spectator task's shared dependency setup. A fresh frozen-lockfile install with Node 24 resolved that environment mismatch; full pre-push lint/type checks and PR CI type checks passed on 62df9d921.
+
+## Version 1.1 build 5 — final athlete polish
+
+Build 5 supersedes builds 2–4 and adds personal-only lane labels and deduplicated registered/spectating discovery. This is the final submission candidate; earlier uploaded builds must not be submitted.
+
+## Announcement push follow-up — 1.2 build 6 preparation
+
+On September 12, 2026, App Store Connect still showed 1.1 Prepare for Submission, build 5 selected (`bd02ac14-3ddf-4966-87a6-0f4ed8c7cb12`), with the Lock Screen screenshot first. This task did not alter that version, build selection, reviewer credentials, or submission.
+
+Follow-up source is 1.2 build 6. Native simulator compilation and lifecycle tests pass; notification-injection evidence covers a warm tap to the exact announcement and a signed-out cold launch. See `design-evidence/announcement-push/README.md`.
+
+Apple Developer identifier `G29VQNGV94` (`com.wodsmith.gameday`) currently has Push Notifications unchecked. An APNs signing key is not configured in the inspected WODsmith development configuration. The attempted 1.2 build 6 archive failed: the existing wildcard provisioning profile lacks both Push Notifications and `aps-environment`. Real provider delivery and upload remain blocked. Do not upload or submit this follow-up until those checks and backend rollout are complete.
+
+Before follow-up submission: retain 1.1 build 5, finish the current release separately, apply the push schema migration, configure and verify APNs using an explicitly approved test device/account, and include linked Device ID usage for App Functionality in Apple privacy disclosures. Production deployment still requires separate explicit authorization; this task did not deploy production.
+
+Automatic approval review rejected enabling Push Notifications on the Apple identifier, requiring specific authorization for that capability change. No capability, profile, key, or App Store submission was changed. GitHub PR #705 contains the gated implementation and migration; rollout authorization and Apple capability/key setup remain external prerequisites.
+
+PR #705 review corrections and full CI passed on `a2005ea6d`. Automatic approval review then rejected the PR merge because it could not find trusted explicit user authorization to mutate the shared target branch. The PR remains open pending that authorization; no alternate merge path was attempted. A subsequent main update required preserving both entries in the documentation index.
+
+
+## Combined announcement release takeover
+
+The user requested including announcement push in the next review build. The combined candidate is now 1.1 build 6, replacing the earlier separate 1.2 plan. Build 5 remains selected until a signed replacement is uploaded. PR #705's migration collision with main was resolved by regenerating identical push SQL as `0011_gameday_push.sql` after training plans.
+
+PR #700 is merged at `9c2e640ca57fe25b33adc3c6b8e99da07f2ece01`. Its build 5 upload and prior native/API verification remain valid. Production rollout has not been authorized through automatic approval review. Apple Push capability, APNs credentials, the production schema rollout, real-device delivery verification, and accurate Device ID disclosures remain prerequisites for submitting build 6.

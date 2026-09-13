@@ -16,11 +16,25 @@ The server derives identity from the validated session. Public discovery exclude
 
 Sign-out immediately clears device credentials and private downloads, then attempts to revoke only that bearer session in WODsmith. Offline sign-out still removes device access; server revocation needs a working connection.
 
+## Athlete competition defaults
+
+Leaderboard browsing opens one division: the athlete’s earliest active registration, including team registrations, then a followed division with published results for spectators, falling back to alphabetic order.
+
+Division IDs keep identically named divisions separate.
+
+Registration time and registration ID provide deterministic ordering across refreshes. Registered divisions remain selectable before results exist. A valid explicit division choice survives refresh; clearing filters restores the athlete default. No leaderboard option combines divisions.
+
+The schedule opens on assigned heats across all active registrations, including teams and multiple divisions. Athletes can switch to the full schedule and filter by division or event. Unassigned athletes see an empty personal schedule; spectators see all published heats.
+
+Competition entry retains discovery as the initial tab and assigned heats at the top of the competition page. Registered competition lists place current/upcoming events first and past events most-recent-first, using each competition’s local day boundary.
+
 ## Schedules and reminders
 
 Only published heats and workouts reach Game Day. An athlete’s heat belongs to their registration through an explicit lane assignment, never merely through a matching division.
 
 Workout detail includes the base instructions and native division standards, defaulting to an active registered division when available. Standards are scoped to the competition’s scaling group and event mappings, including inherited parent-event mappings, and are cached with the workout.
+
+Organizer announcement alerts have a separate opt-in and authenticated delivery path described in [[gameday-push]].
 
 Athletes opt into local notifications and choose their lead time. Reconciliation replaces notifications when a refreshed schedule changes and removes reminders when signing out. Local notifications use the last downloaded schedule and cannot learn organizer changes while the app is closed.
 
@@ -43,6 +57,14 @@ Privacy disclosures include linked name, email, and account identifiers for auth
 ## Tests
 
 Native tests verify the athlete’s schedule and reminder invariants and exercise the primary navigation with fictional competition data. These fixtures never replace live API failures.
+
+### Athlete competition defaults
+
+Native regressions cover earliest active team/individual registrations, multiple divisions, duplicate labels, missing results, spectator fallback, refresh selection, and personal schedule ownership across registrations.
+
+### Registered competition relevance
+
+Registered current/upcoming competitions precede historical events so discovery and My day prioritize immediately relevant athlete content.
 
 ### Competition local day boundary
 
@@ -106,6 +128,10 @@ At the largest accessibility text size, an athlete can scroll to the next heat�
 
 Starting a real simulator Live Activity exposes the end action. Ending it completes and restores the start action, exercising the asynchronous ActivityKit update queue through the athlete screen.
 
+### Discovery label growth
+
+Discovery titles, dates, and locations grow from standard text to AX5 and remain reachable by scrolling. This checks the native audit’s claim that these labels do not scale.
+
 ### Discovery accessibility audit
 
 Apple's automated accessibility audit checks discovery descriptions, contrast, clipping, Dynamic Type, traits, and hit regions. Reviewed iOS 26.2 exceptions are recorded with native screenshots in the App Store design review.
@@ -146,6 +172,8 @@ Unknown or draft competitions return 404 before schedules, announcements, or lea
 
 Spectator competition details select only published heats and workouts and sent public announcements. Personal lane assignments are absent without registration ownership.
 
+Separate public assignments contain only published heat, active registration, and lane references.
+
 ### Resource freshness isolation
 
 A failed competition request preserves that schedule’s last successful download time and error, even after a successful directory refresh. Settled failures stop showing a loading state.
@@ -154,13 +182,56 @@ A failed competition request preserves that schedule’s last successful downloa
 
 Retrying a failed public competition requests that competition directly, replaces its cached data, and clears only its own failure after success.
 
+### Saved unlisted competitions
+
+Saved unlisted events load by identifier even when discovery omits them. Cached details keep them visible after relaunch; discovery does not duplicate them, and removing a saved event removes it from spectator lists.
+
+### Spectator persistence
+
+Spectated competition IDs and followed registration IDs survive relaunch and sign-out. Follows are scoped to competitions; unfollowing removes only the selected registration, and stopping spectating retains follows for later.
+
+### Public follow heat mapping
+
+Athlete and team follows match only explicit public assignments, including mixed-division heats. Multiple divisions combine matches; missing, removed, or unfollowed registrations never gain a heat through division similarity.
+
+### Anonymous spectator navigation
+
+A signed-out spectator marks a competition, follows an athlete and team, sees their exact lanes, relaunches with preferences intact, and unfollows back to an explanatory empty state.
+
+### Accessible spectator controls
+
+At the largest accessibility text size, a spectator can reach and toggle follow controls. Native screenshots also inspect the participant list in landscape; full VoiceOver traversal is not certified.
+
+### Public participant projection
+
+The API returns only active registration references, public display names, team flags, division references, and explicit lanes in published heats. Team captain names, contact details, credentials, and private registration metadata stay out.
+
+## Spectator following
+
+Spectators save competitions and follow athlete or team registrations locally without an account. Spectated competitions have a dedicated discovery section; upcoming followed heats use explicit published lane assignments.
+
+Preferences store only competition and registration IDs in UserDefaults, separately from private download caches. Sign-out clears private data but preserves these device choices. Following a participant also marks the competition as spectating; stopping spectating retains its follows.
+
+The participant list supports search, multiple divisions, and All participants/Following controls. Leaderboards retain exactly one division, prefer active athlete registrations, then followed divisions with published results for spectators. Schedule controls offer My heats for athletes, Following, and All heats, with multiple public division filters and earlier heats collapsed.
+
+Public details add optional `participants` and `publicAssignments` projections. Participants include active registration IDs, display names, division IDs/labels, and a team flag. Public assignments select only those registrations and already-published heat IDs; they never populate athlete-owned assignments or reminders.
+
+Older servers and caches may omit these fields. The app can follow leaderboard entries, explains missing public lanes, and never guesses heat membership. Deploy the updated Game Day API before distributing the spectator build to enable the full participant list and followed schedule.
+
 ## Native design
 
 The iOS interface uses native competition rows, a compact next-heat surface, adaptive text, and explicit dates. Independent Impeccable assessments guide the removal of marketing filler and duplicated schedule content.
 
+Competition discovery uses flat rows with compact imagery. Competition details use a smaller title, single-line hub links, and a collapsed About section. Heat reminders are available in the Competition and My day toolbars.
+
+Schedule rows and the next-heat surface use tighter spacing and system text styles, retaining accessibility-size stacking. Routine competition freshness appears below content; download failures stay above the schedule with their retry action.
+
 The registered-first home order follows the user’s brief. Subsequent heats do not repeat the current heat; previous heats remain accessible. Native forms, grouped lists, system navigation, and SF Symbols preserve iPhone conventions. Design evidence lives in `apps/wodsmith-gameday/AppStore/design-review.md`.
 
 The confirmation pass covers light/dark athlete schedules and largest-text scrolling to actions and later workouts. Durable simulator evidence is stored in `apps/wodsmith-gameday/AppStore/design-evidence/`. Portrait/landscape standards and live production athlete behavior are verified. Full VoiceOver traversal, RTL, and unusually long organizer content remain bounded validation gaps.
+
+The compact UI and athlete defaults are captured together on an iPhone 16e simulator using fictional demo data in `apps/wodsmith-gameday/AppStore/design-evidence/compact-athlete/`: competition, division leaderboard, and personal schedule.
+The finite competition hub uses a regular stack: a lazy stack with the live countdown could enter a layout loop while scrolling in iOS 26.2. The app icon incorporates the parent task’s borderless artwork.
 
 ## Release preparation
 
@@ -199,3 +270,29 @@ The ordinary Apple test athlete is registered in one unlisted fictional event wi
 Production checks verify ownership boundaries, division standards, announcements, offline schedule encoding, and reminder timing. The simulator displayed the live athlete schedule, started its Live Activity, and received its actual 30-minute local notification.
 
 Reviewer notes list the fixed September 5, 6, and 12, 2026 practice heat times in America/Denver. Contact can adjust the schedule if needed; there is no repeating fixture or automatic rescheduling. Credentials remain outside source control.
+
+## Lock Screen listing feature
+
+The saved App Store 1.1 draft leads with a native Lock Screen countdown screenshot and promotional copy about the workout, lane, venue, and remaining time. The public 1.0 screenshot set remains unchanged until a new version is approved and released.
+
+App Store Connect showed 1.0 Ready for Distribution on September 12, 2026. The 1.1 English (U.S.) 6.5-inch screenshot set contains the new Live Activity capture followed by the original five images. This metadata preparation does not submit a binary or release the pending native changes.
+
+## Native app icon
+
+The iPhone app icon uses the anvil on an opaque white square without the former circular outline. iOS applies its own rounded-square mask. The asset remains a 1024 × 1024 RGB PNG; changing the public App Store icon requires a new app build.
+
+## Version 1.1 release integration
+
+Version 1.1 build 5 combines the compact athlete UI, division defaults, account-free spectator follows, explicit public heat assignments, and borderless app icon. App and extension versions are generated consistently from the native project script.
+
+The public participant/assignment API must be deployed before App Store submission. Existing 1.0 clients ignore the optional fields; no database migration is needed.
+
+Saved spectator IDs refresh independently of discovery, including after a cache or session reset. Participant fallback results show their own freshness, error, and retry state; pull to refresh reloads the fallback only when the full participant list is absent.
+
+Slug links cache a canonical ID alongside aliases; reminder reconciliation deduplicates those details. A confirmed 404 evicts cached competition details and aliases. Saved events still refresh after ending to detect publication changes and final results.
+
+My heats shows only the athlete’s own lane; followed lane labels appear in Following or All heats. Registered competitions appear once above the Spectating section. UI tests wait for menu and navigation presentation and restore orientation even on failure.
+
+Competition list titles, dates, and locations preserve their vertical intrinsic size at large Dynamic Type sizes, avoiding compressed text while keeping compact spacing at standard sizes.
+
+The iOS26.2 audit accepts the three exact discovery fixture labels only after the separate growth test proves scaling and reachability. All other Dynamic Type flags remain failures.

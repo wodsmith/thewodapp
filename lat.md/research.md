@@ -2,6 +2,16 @@
 
 Research notes capture external product, market, and workflow analysis that informs WODsmith product decisions and downloadable resources.
 
+## Agent-First Training Proposal
+
+The agent-first training research recommends a remote MCP gateway over shared training services, with portable weekly drafts and explicit grants for personal edits, results, and programming publication.
+
+The proposal is `docs/research/agent-first-training.md`. It compares Kody's inspected September 12, 2026 architecture with current ChatGPT, Claude, and Cloudflare contracts. Implementation was authorized on September 12; the research itself does not establish shipped capabilities.
+
+`docs/plans/2026-09-12-agent-training-delivery.md` records the coordinated service, weekly-plan, and OAuth/MCP workstreams and their review gates. The newer personal-session direction uses athlete/date ownership across teams; source teams remain explicit access and provenance contexts.
+
+[[training]] and [[training-personal]] remain the domain authority: published sources, explicit personal composition, occurrence-based results, rich score snapshots, and current access checks. The proposal identifies cookie-independent actors, week projections, planning drafts, atomic commit semantics, and deletion contracts as implementation work. New authoring surfaces retain [[workout-authoring]] reuse boundaries.
+
 ## Open Scorecard Downloadables
 
 The Open scorecard downloadable research describes a two-page WODsmith score kit based on recent CrossFit Open scorecard patterns.

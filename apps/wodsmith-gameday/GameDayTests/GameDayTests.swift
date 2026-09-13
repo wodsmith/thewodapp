@@ -60,4 +60,46 @@ final class GameDayTests: XCTestCase {
         XCTAssertEqual(decoded.myHeats.count, 3)
         XCTAssertThrowsError(try GameDayJSON.decoder().decode(Dates.self, from: Data(#"{"fractional":"not-a-date","whole":"2026-09-05T17:30:00Z"}"#.utf8)))
     }
+    // @lat: [[gameday#Tests#Athlete competition defaults]]
+    func testAthleteDefaultsUseAllActiveRegistrationsAndKeepDivisionIdentity() throws {
+        let competitionID = DemoData.competition.id
+        func registration(_ id: String, _ division: String, days: Double, status: String = "active", competition: String? = nil) -> Registration {
+            Registration(id: id, competitionId: competition ?? competitionID, divisionId: division, division: "Same label", teamName: "Team", status: status, checkedInAt: nil, paymentStatus: nil, registeredAt: Date(timeIntervalSince1970: days * 86400))
+        }
+        let first = registration("team", "team-rx", days: 1)
+        let second = registration("individual", "rx", days: 2)
+        let registrations = [second, registration("removed", "removed", days: 0, status: "removed"),
+            registration("other", "other", days: 0, competition: "other-competition"), first,
+            registration("duplicate", "team-rx", days: 3)]
+        let divisions = AthleteCompetitionDefaults.leaderboardDivisions(entries: DemoData.leaderboard.entries,
+            registrations: registrations, competitionID: competitionID)
+        XCTAssertEqual(divisions.map(\.id), ["team-rx", "rx"])
+        XCTAssertEqual(AthleteCompetitionDefaults.selectedDivisionID(nil, divisions: divisions), "team-rx", "A team registration without results still defaults to its own division")
+        XCTAssertEqual(AthleteCompetitionDefaults.selectedDivisionID("rx", divisions: divisions), "rx", "Refresh preserves a deliberate division choice")
+        XCTAssertEqual(AthleteCompetitionDefaults.selectedDivisionID("removed", divisions: divisions), "team-rx")
+        let spectator = AthleteCompetitionDefaults.leaderboardDivisions(entries: DemoData.leaderboard.entries, registrations: [], competitionID: competitionID)
+        XCTAssertEqual(AthleteCompetitionDefaults.selectedDivisionID(nil, divisions: spectator), "rx")
+        XCTAssertNil(AthleteCompetitionDefaults.selectedDivisionID(nil, divisions: []))
+
+        let source = DemoData.detail
+        let detail = CompetitionDetail(competition: source.competition, registrations: [first, second], heats: source.heats,
+            assignments: [HeatAssignment(heatId: "heat-1", registrationId: first.id, lane: 1),
+                HeatAssignment(heatId: "heat-2", registrationId: second.id, lane: 2)], workouts: [], announcements: [])
+        XCTAssertEqual(AthleteCompetitionDefaults.scheduleHeats(detail: detail, onlyMine: nil).map(\.id), ["heat-1", "heat-2"])
+        XCTAssertEqual(AthleteCompetitionDefaults.scheduleHeats(detail: detail, onlyMine: false).count, 3)
+        let noAssignments = CompetitionDetail(competition: source.competition, registrations: [first], heats: source.heats, assignments: [], workouts: [], announcements: [])
+        XCTAssertTrue(AthleteCompetitionDefaults.scheduleHeats(detail: noAssignments, onlyMine: nil).isEmpty)
+        let publicDetail = CompetitionDetail(competition: source.competition, registrations: [], heats: source.heats, assignments: [], workouts: [], announcements: [])
+        XCTAssertEqual(AthleteCompetitionDefaults.scheduleHeats(detail: publicDetail, onlyMine: nil).count, 3)
+    }
+
+    // @lat: [[gameday#Tests#Registered competition relevance]]
+    func testRegisteredCompetitionsPutUpcomingBeforePast() throws {
+        let nextRegistration = Registration(id: "next", competitionId: DemoData.second.id, divisionId: nil, division: nil,
+            teamName: nil, status: "active", checkedInAt: nil, paymentStatus: nil, registeredAt: .now)
+        let home = HomeResponse(competitions: [DemoData.competition, DemoData.second], registrations: [DemoData.registration, nextRegistration], profile: nil)
+        let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-12T12:00:00Z"))
+        XCTAssertEqual(home.orderedMyCompetitions(at: now).map(\.id), [DemoData.second.id, DemoData.competition.id])
+    }
+
 }

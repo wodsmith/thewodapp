@@ -191,7 +191,7 @@ export async function publishCrossFitImport(
 
 // @lat: [[crossfit-import#CrossFit Daily Import#Dated Track Feed]]
 export async function getPublishedCrossFitDays(
-  db: WodsmithDb,
+  db: Pick<WodsmithDb, "select">,
   trackId: string,
   range?: { startDate: string; endDate: string },
 ) {

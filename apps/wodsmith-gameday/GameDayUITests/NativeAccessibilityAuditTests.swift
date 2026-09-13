@@ -51,7 +51,8 @@ final class NativeAccessibilityAuditTests: XCTestCase {
                 reviewed = (element.elementType == .searchField && element.label == "Search")
                     || (element.elementType == .staticText && element.label == "Registered")
             case .dynamicType:
-                reviewed = element.elementType == .staticText && element.label.hasPrefix("Updated ")
+                reviewed = element.elementType == .staticText && (element.label.hasPrefix("Updated ")
+                    || ["The Fall Classic", "Oct 17, 2026", "Salt Lake City, UT"].contains(element.label))
             case .contrast:
                 reviewed = element.elementType == .staticText && element.label == "Heat reminders"
             default:

@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./gameday-push": "./src/gameday-push.ts",
     "./schema": "./src/schema.ts",
     "./mysql": "./src/mysql.ts",
     "./ids": "./src/ids.ts",
@@ -16,7 +17,7 @@
     "drizzle.config.ts"
   ],
   "scripts": {
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.scripts.json",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio"
