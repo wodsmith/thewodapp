@@ -62,6 +62,16 @@ Batch review shows the saved library definition for preserved items, matching th
 
 Batch inputs must preserve the exact casing of saved item IDs.
 
+### Scored item organization metadata
+
+Source, personal and library items can set, edit or explicitly clear role and duration after scoring. Omission preserves existing metadata; null removes it. Performed definitions and result records remain unchanged.
+
+Scored-content comparisons ignore organization metadata and normalize JSON key order, so MySQL storage ordering cannot turn an unchanged prescription into a conflict. Prescription changes still require a new item.
+
+### Explicit loopback test addressing
+
+The database runner preserves IPv6 loopback addresses, ports and encoded credentials when building its disposable database URL. The canonical suites accept the bracketed IPv6 URL hostname.
+
 ## Prepared weekly writes
 
 The planning adapter prepares bounded unique dates without writing live sessions, locks the complete source and day dependency set, and revalidates the review before using the canonical day writer in one supplied transaction.
@@ -77,3 +87,9 @@ It uses only the explicit local test connection and never application credential
 The canonical gate verifies current application behavior, not migration replay. Earlier migrations do not include the current score scaling-key column; migration lineage requires separate validation.
 
 Weekly transactions use READ COMMITTED. Identity and source baselines use locking reads as well, so an earlier REPEATABLE READ snapshot cannot hide a newly committed alternate workspace day. This does not add a database-wide athlete/date uniqueness constraint.
+
+## Read history scope
+
+Agent history returns up to 100 own published results for the selected track and up to 100 personal results for the workspace. Each collection declares its scope so callers cannot mistake personal work for track-filtered history.
+
+Stored personal snapshot metadata and input metadata share the database package type. The database package type-check command also validates the current-schema test exporter through its script-specific TypeScript configuration.

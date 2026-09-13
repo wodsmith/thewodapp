@@ -34,3 +34,17 @@ export const mysqlTestConfig: PoolOptions | undefined =
         password: process.env.WODSMITH_TEST_MYSQL_PASSWORD ?? "",
       }
     : undefined
+
+/** Preserve explicit loopback addressing, including bracketed IPv6 literals. */
+export function mysqlTestDatabaseUrl(config: PoolOptions, database: string): string {
+  const url = new URL(`mysql://localhost/${database}`)
+  url.username = String(config.user ?? "root")
+  url.password = String(config.password ?? "")
+  if (config.socketPath) url.searchParams.set("socketPath", config.socketPath)
+  else {
+    const host = config.host ?? "localhost"
+    url.hostname = host.includes(":") ? `[${host}]` : host
+    url.port = String(config.port ?? 3306)
+  }
+  return url.toString()
+}
