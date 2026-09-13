@@ -327,6 +327,8 @@ const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
  *
  * @see {@link https://developers.cloudflare.com/kv/ KV Documentation}
  */
+const agentOAuthKv = await KVNamespace("wodsmith-agent-oauth", { adopt: true })
+
 const kvSession = await KVNamespace("wodsmith-sessions", {
   /**
    * Adopt existing KV namespace if it already exists.
@@ -687,6 +689,9 @@ const website = await TanStackStart("app", {
   bindings: {
     /** KV namespace binding for session storage */
     KV_SESSION: kvSession,
+    OAUTH_KV: agentOAuthKv,
+    AGENT_AUTH_ORIGIN: process.env.APP_URL!,
+    AGENT_RESOURCE: process.env.AGENT_RESOURCE ?? "",
     /** R2 bucket binding for file uploads */
     R2_BUCKET: r2Bucket,
     /** Private R2 bucket for entitlement-gated product downloads */
