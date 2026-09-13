@@ -23,6 +23,7 @@ describe("Game Day announcement delivery", () => {
     vi.stubGlobal("crypto", webcrypto)
     statements = []; rows = []
     mocks.env.GAMEDAY_PUSH_ENABLED = "true"
+    mocks.env.APNS_KEY_ID = "key"
     mocks.session.mockResolvedValue({ id: "session", userId: "athlete", expiresAt: future.getTime() })
     mocks.storedSession.mockResolvedValue({ expiresAt: future.getTime() })
     mocks.registrations.mockResolvedValue([{ competitionId: "competition" }])
@@ -78,7 +79,8 @@ describe("Game Day announcement delivery", () => {
   it("claims pending work atomically and revalidates subscription, session, audience and active registration", async () => {
     deliveryRows()
     await deliverGameDayPush("delivery")
-    expect(statements[0].sql).toMatch(/update.*attempts.*where.*status.*availableAt/)
+    expect(statements[0].sql).toMatch(/update.*leaseId.*where.*status.*availableAt/)
+    expect(statements.some((s) => s.sql.includes("set `attempts`"))).toBe(true)
     expect(statements[1].sql).toContain("leaseId")
     expect(mocks.storedSession).toHaveBeenCalledWith("session", "athlete")
     expect(mocks.registrations).toHaveBeenCalledWith("athlete")
@@ -114,5 +116,22 @@ describe("Game Day announcement delivery", () => {
     expect(mocks.env.BROADCAST_EMAIL_QUEUE.sendBatch).toHaveBeenCalledWith([
       { body: { kind: "gameday-push", deliveryId: "job1" } }, { body: { kind: "gameday-push", deliveryId: "job2" } },
     ])
+  })
+  // @lat: [[gameday-push#Tests#Configuration recovery budget]]
+  it.each(["missing credentials", "signing failure"])("preserves the provider budget during %s", async (failure) => {
+    deliveryRows()
+    if (failure === "missing credentials") mocks.env.APNS_KEY_ID = ""
+    else mocks.jwt.mockRejectedValueOnce(new Error("Key unavailable"))
+    await deliverGameDayPush("delivery")
+    expect(mocks.send).not.toHaveBeenCalled()
+    expect(statements.some((s) => s.sql.startsWith("update") && s.sql.includes("`attempts`"))).toBe(false)
+    expect(statements.at(-1)?.params).toContain("pending")
+  })
+  it("expires work after ten actual provider attempts", async () => {
+    deliveryRows()
+    rows[0][0][6] = 10
+    await deliverGameDayPush("delivery")
+    expect(mocks.send).not.toHaveBeenCalled()
+    expect(statements.at(-1)?.params).toEqual(expect.arrayContaining(["expired", "RetryLimit"]))
   })
 })

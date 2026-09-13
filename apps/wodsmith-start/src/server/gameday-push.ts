@@ -149,7 +149,6 @@ export async function deliverGameDayPush(id: string): Promise<void> {
     .set({
       leaseId,
       availableAt: new Date(now.getTime() + 120000),
-      attempts: sql`${deliveries.attempts} + 1`,
     })
     .where(
       and(
@@ -178,7 +177,7 @@ export async function deliverGameDayPush(id: string): Promise<void> {
       .where(and(eq(deliveries.id, id), eq(deliveries.leaseId, leaseId)))
   }
   try {
-    if (job.expiresAt <= now || job.attempts > 10) {
+    if (job.expiresAt <= now || job.attempts >= 10) {
       await finish("expired", "RetryLimit")
       return
     }
@@ -238,6 +237,18 @@ export async function deliverGameDayPush(id: string): Promise<void> {
       teamId: config.APNS_TEAM_ID,
       privateKey: config.APNS_PRIVATE_KEY,
     })
+    // Configuration/signing failures do not consume the provider retry budget.
+    await db
+      .update(deliveries)
+      .set({ attempts: sql`${deliveries.attempts} + 1` })
+      .where(
+        and(
+          eq(deliveries.id, id),
+          eq(deliveries.leaseId, leaseId),
+          gt(deliveries.availableAt, new Date(Date.now() + 15000)),
+        ),
+      )
+    job.attempts += 1
     // Recheck ownership after asynchronous session/registration lookups and signing.
     const [current] = await db
       .select({ id: devices.id })

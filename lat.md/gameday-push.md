@@ -24,6 +24,8 @@ The transactional outbox decouples email from push. A one-minute scheduled dispa
 
 Successful APNs acceptance marks the job sent. Transient failures use bounded exponential backoff, at most ten provider attempts within 24 hours. Invalid tokens are removed only if their registration has not been refreshed since Apple's invalidation timestamp. The consumer acknowledges handled jobs; the outbox recovers lost queue sends and crashed workers.
 
+Missing credentials and signing failures keep jobs pending without consuming the provider retry budget. The 24-hour expiry still bounds recovery when configuration remains unavailable.
+
 Stable APNs request and collapse identifiers reduce duplicate presentation. Exactly-once visible delivery cannot be guaranteed if APNs accepts a request and its response or the following database write is lost. APNs expiration is zero to avoid retaining undelivered alerts after sign-out. Provider JWTs are reused within the isolate for 50 minutes.
 
 Expired device bindings are deleted during dispatch. Delivery records are deleted 30 days after their one-day expiry. Neither device tokens nor session credentials enter organizer reads or delivery logs.
@@ -77,3 +79,7 @@ Retain valid announcement identifiers through cold launch and session expiry. Ex
 ### Queue dispatch isolation
 
 Push messages use an explicit kind discriminator. Email messages retain their original path, while an unpersisted push consumer failure requests queue redelivery.
+
+### Configuration recovery budget
+
+Missing APNs credentials and signing failures must not increment provider attempts. Jobs remain pending for recovery within their original expiry.
