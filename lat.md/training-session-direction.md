@@ -8,7 +8,13 @@ The current contracts remain documented in [[training-personal#Personal Training
 
 A personal day is identified by athlete and calendar date. Each workout separately retains source team, track, occurrence, publication, prescription, and programmed date.
 
-Changing the navbar team changes source browsing, never the personal day or owned history. Team programming appears as suggestions until an explicit add or log creates personal ownership. Personal dates use a stable athlete timezone rather than the active team's timezone.
+Changing the navbar team changes source browsing, never the personal day or owned history. Training opens prescribed track programming for direct logging. A custom session is an explicit opt-in for combining or modifying work from multiple programming tracks. Recording a prescribed result does not opt the athlete into a custom composition. Personal dates use a stable athlete timezone rather than the active team's timezone.
+
+## Programming and Custom Composition
+
+Athletes normally follow a programming track and log its prescribed workouts directly. The optional custom builder combines accessible programming tracks while retaining each workout's source.
+
+Use Add workouts inside the builder, with Programming track and Programmed date identifying the source. Added workouts show compact attribution. They join the existing draft destination and need no additional date dialog. Sources are not called other sessions.
 
 ## Contextual Session Addition
 

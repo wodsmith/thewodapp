@@ -41,21 +41,21 @@ Use the navbar active team as the sole browsing context, while keeping personal 
 
 ## Training layout and weekly planning
 
-Make the personal day the stable center of Training, with team programming presented as an explicit source of suggested work.
+Following a programming track is the default Training experience. A custom session is an optional way to combine and modify workouts from multiple tracks.
 
-Use a “Training” page title, a week strip, and the selected day's “My session.” Keep “Team leaderboard” and “My progress” discoverable alongside it. Personal progress spans all the athlete's sources by default.
+Training opens the active team's default programming track and selected date. Athletes see the prescribed workouts, log results directly against them, and open the team leaderboard without creating, copying, or customizing a session first. Keep My progress available across all sources.
 
-The week strip shows planned workout counts and completion state. Team publication/rest indicators belong to the programming section; a team's rest day must not label an athlete's independently planned day as rest.
+“Customize session” is an explicit opt-in for more control. It opens a draft based on the displayed programming, or the athlete's existing custom composition when one exists. Athletes can add workouts from multiple accessible programming tracks, reorder or modify them privately, and explicitly save or cancel. Returning to a track shows that track's programming; an existing custom session never replaces its contents.
 
-Below the personal session, show “Programming from [active team]” with that team's track selector and published workouts for the selected date. When the personal day is empty, offer “Add today's programming” and individual add actions. Merely viewing programming must not silently put it into My session. This deliberately replaces the current unsaved projection that makes a team day look like an owned personal session.
+Inside the builder, use “Add workouts.” Its programming browser labels the selector “Programming track” and the source day “Programmed date.” Sources are programming tracks, not other personal sessions. The destination is the custom day already being edited, so selection adds to that draft without another destination dialog. The added workout can show a compact source track/date label; ordinary logging does not require source-management decisions.
 
-Existing personal items remain visible while source programming loads or fails. A suggested workout already present shows “In your session.” Coach republishing changes suggestions but never rewrites an athlete's saved prescription.
+The week strip reflects the current view: publication/rest indicators while browsing a track, and planned work/completion in the custom-session view. A track's rest day must not label the athlete's custom day as rest. Source failures must not hide an owned custom composition or recorded history.
 
-Use one stable athlete timezone to compute Today, initialized from an existing personal setting where available, otherwise captured from the browser on first explicit use. Never compute personal Today from whichever team happens to be selected. Persist calendar labels without UTC date shifting. Team programming retains its source timezone and programmed date; show both dates when the performed day differs.
+Use one stable athlete timezone to compute personal Today, initialized from an existing personal setting where available, otherwise captured from the browser on first explicit use. Never compute personal Today from whichever team happens to be selected. Persist calendar labels without UTC date shifting. Team programming retains its source timezone and programmed date; show both dates when the performed day differs.
 
 ## Add to my session interaction
 
-Every athlete-facing add action opens the same date-aware dialog, with a bottom sheet on mobile, while preserving the page and scroll position.
+“Add to my session” on a browsed workout opts into custom planning through a shared date-aware dialog, with a bottom sheet on mobile. Logging prescribed programming remains a direct action and never requires this dialog.
 
 The overlay contains:
 
@@ -71,13 +71,15 @@ Cancellation and opening the overlay write nothing. Disable duplicate submission
 
 If the same source workout is already present, show it and offer “View session”; an intentional “Add another” is explicit. Use an idempotency key so network retries never produce that second copy accidentally. Multiple selected provider components append atomically in their original order.
 
-Remove “Add to session on” from the library. Reuse the interaction in library rows/cards/detail, Training suggestions, provider readers, and legacy dashboard/scheduled-workout entry points. Keep coach “Add to track” separate because it edits programming rather than an athlete's session. Old schedule/log-import bookmarks should open this same review interaction and never write on navigation.
+Inside an open custom builder, Add workouts uses its already-selected destination and stays in the draft until Save session. Do not nest another date-selection step.
+
+Remove “Add to session on” from the library. Reuse the external Add interaction in library rows/cards/detail, browsed programming, provider readers, and legacy dashboard/scheduled-workout entry points. Keep coach “Add to track” separate because it edits programming rather than an athlete's session. Old schedule/log-import bookmarks should open this same review interaction and never write on navigation.
 
 ## Ownership and service changes
 
 Move the personal aggregate to `(authenticated userId, trainingDate)` and attach source authorization and provenance to each item.
 
-- Personal day/session APIs take a date or an owner-checked session ID, not a destination team. A first explicit add or direct log creates the personal day; browsing never does. Direct logging must atomically associate the performed item with that day, so a logged workout is always visible in My session.
+- Personal day/session APIs take a date or an owner-checked session ID, not a destination team. A first explicit add or direct log creates the personal day; browsing never does. Direct logging atomically records the performed item and makes it visible in personal history without creating or opting into a custom composition.
 - Split personal day/history reads from team programming reads. Keep existing team sessions, tracks, and publication rules team-owned.
 - Store server-resolved source team identity on every relevant item, alongside exact occurrence/version, track, workout identity, full scoring definition, programmed date, and snapshot. A source team is not inferred from the navbar during later scoring.
 - Validate access to each new source independently. A session can contain Team A, Team B, public provider, and personal items. Client-provided snapshots and source claims are never authoritative.
@@ -134,7 +136,7 @@ Implement this as a coordinated ownership and interaction change, with checkpoin
 | --- | --- | --- |
 | 1. Active-team consistency | Remove duplicate selectors and URL precedence, fix active-team fallback and reload behavior. | Navbar switches update Training/library/detail; no silent other-team fallback. |
 | 2. Personal ownership | New aggregate, source-aware APIs, global history, timezone rule, migration and old-link adapters. | Two teams append to one date; history and private results survive migration and access changes. |
-| 3. Add interaction and Training layout | Shared dialog/sheet, contextual date choice, inline success, stable personal day, separate team suggestions and weekly counts. | Athlete plans a week across teams without navigation hops or an external destination picker. |
+| 3. Add interaction and Training layout | Programming-first browsing and direct logs, optional custom builder, shared external Add dialog, inline success, and per-view weekly counts. | Athlete plans a week across teams without navigation hops or an external destination picker. |
 | 4. Team comparisons | Team default integration, shared leaderboard presentation/read contract, provider and library coverage, explicit score sharing. | Every eligible team workout exposes a board before logging; scores remain comparable and private by default. |
 | 5. Rollout | Database rehearsal, end-to-end verification, monitored cutover, documentation updates. | No lost or duplicated work, no privacy regression, no old team-specific session writers. |
 
@@ -144,6 +146,7 @@ Prototype the dialog independently, but ship its production append behavior agai
 
 Use focused component and database tests plus browser verification of the entire planning journey on desktop and mobile.
 
+- Follow a track and record exactly its prescribed workouts without entering My session or opening an Add dialog. Customize explicitly opts into a draft, and Add workouts combines multiple tracks without a second destination picker.
 - Navbar Team A → Team B updates programming, library, and leaderboard context while Tuesday's personal session and selected date remain unchanged. Old query parameters and delayed responses cannot restore Team A.
 - Add Cindy to Tuesday from the library, strength to Thursday from detail, and Team B programming to Tuesday. Stay on the initiating page after each add and find all items on the expected days.
 - Cancel, failed save, double click, network retry, concurrent first adds from two teams, stale revision, full day, and multi-component import preserve exact contents and ordering.
