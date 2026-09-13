@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -42,8 +43,10 @@ function SpreadsheetCalculatorPage() {
   return (
     <div className="container mx-auto max-w-screen-md p-4">
       <h1 className="mb-4 font-bold text-2xl">1RM Percentage Calculator</h1>
+      <Label htmlFor="oneRepMax">1 Rep Max (kg/lb)</Label>
       <div className="mb-4 flex gap-2">
         <Input
+          id="oneRepMax"
           type="number"
           value={oneRepMax}
           onChange={(e) => setOneRepMax(e.target.value)}
