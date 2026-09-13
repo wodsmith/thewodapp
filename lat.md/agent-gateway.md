@@ -49,3 +49,10 @@ The gateway advertises eight canonical planning operations with explicit read/wr
 A composed service test exercises successful authorization, discovery, canonical reads, plan creation, preview, commit retry and revocation against isolated MySQL.
 
 This test runs the real private service methods, SQL grants, entitlement checks and A/B domain implementations. It substitutes validated provider-token input and the WorkerEntrypoint host base; separate workerd tests verify real OAuth parsing and the compiled named binding. These seams do not claim a live client connection.
+
+
+## Canonical mutation integration
+
+The private service passes live SQL grant authorization into canonical mutation transactions. All 27 tools retain their domain scopes and annotations.
+
+The composed SQL service test exercises workout creation, retry, edit and archive; result rounds through creation, edit and deletion; personal composition; programming draft and publication; receipt provenance; and scope-filtered discovery. A controlled callback interleaving revokes the grant after token resolution but before the real transaction grant check, verifying that neither a workout nor a receipt is saved. OAuth parsing and Worker hosting retain the separate runtime-test coverage described above.

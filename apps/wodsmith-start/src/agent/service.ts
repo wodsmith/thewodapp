@@ -70,6 +70,7 @@ export class AgentTrainingService
         {
           db,
           actor,
+          authorizeActor: assertLiveAgentGrant,
           hasFeature: (teamId, featureId, executor) =>
             hasCurrentWorkoutFeature(executor, teamId, featureId),
         },
