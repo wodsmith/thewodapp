@@ -1,4 +1,6 @@
 import { readFile } from "node:fs/promises"
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
 import mysql, { type Pool } from "mysql2"
 import { createWodsmithDb } from "@repo/wodsmith-db/mysql"
@@ -129,7 +131,10 @@ describe.skipIf(!mysqlTestConfig)("OAuth grants and consent on MySQL", () => {
         .query(`CREATE TABLE \`${getTableName(table)}\` (${cols.join(",")})`)
     }
     const migration = await readFile(
-      "../../packages/wodsmith-db/mysql-migrations/0011_agent_oauth_grants.sql",
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        "../../../../packages/wodsmith-db/mysql-migrations/0011_agent_oauth_grants.sql",
+      ),
       "utf8",
     )
     for (const statement of migration.split("--> statement-breakpoint"))

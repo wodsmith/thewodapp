@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto"
 import { execFileSync } from "node:child_process"
 import { readFile, unlink } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { resolve } from "node:path"
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import mysql, { type Pool } from "mysql2"
 import { createWodsmithDb, type WodsmithDb } from "@repo/wodsmith-db/mysql"
 import {
@@ -60,7 +61,10 @@ describe.skipIf(!mysqlTestConfig)(
             "../../packages/wodsmith-db/scripts/export-test-schema.ts",
             path,
           ],
-          { cwd: process.cwd(), timeout: 30000 },
+          {
+            cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../.."),
+            timeout: 30000,
+          },
         )
         for (const sql of JSON.parse(await readFile(path, "utf8")) as string[])
           await pool.promise().query(sql)

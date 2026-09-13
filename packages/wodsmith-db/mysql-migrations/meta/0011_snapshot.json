@@ -14978,7 +14978,7 @@
           "name": "training_plan_owner_idx",
           "columns": [
             "user_id",
-            "updated_at"
+            "id"
           ],
           "isUnique": false
         }
@@ -17173,6 +17173,6 @@
     "tables": {},
     "indexes": {}
   },
-  "id": "e892acff-f04e-4a8b-b502-a65e2e1e72e6",
-  "prevId": "756b6c00-59a9-44df-9773-beb1a13ee7ac"
+  "id": "84626498-541f-4349-9d7f-1a9759e77296",
+  "prevId": "39b3dd1c-e13c-456b-86b9-833f31371afe"
 }

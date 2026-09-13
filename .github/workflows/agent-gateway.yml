@@ -1,10 +1,28 @@
 name: Agent gateway
 on:
   pull_request:
-    paths: ['apps/wodsmith-agent/**', 'packages/agent-auth/**', 'pnpm-lock.yaml', '.github/workflows/agent-gateway.yml']
+    paths:
+      - 'apps/wodsmith-agent/**'
+      - 'packages/agent-auth/**'
+      - 'apps/wodsmith-start/src/agent/**'
+      - 'apps/wodsmith-start/src/server.ts'
+      - 'apps/wodsmith-start/alchemy.run.ts'
+      - 'apps/wodsmith-start/src/server/training*.ts'
+      - 'packages/wodsmith-training/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/agent-gateway.yml'
   push:
     branches: [main]
-    paths: ['apps/wodsmith-agent/**', 'packages/agent-auth/**', 'pnpm-lock.yaml', '.github/workflows/agent-gateway.yml']
+    paths:
+      - 'apps/wodsmith-agent/**'
+      - 'packages/agent-auth/**'
+      - 'apps/wodsmith-start/src/agent/**'
+      - 'apps/wodsmith-start/src/server.ts'
+      - 'apps/wodsmith-start/alchemy.run.ts'
+      - 'apps/wodsmith-start/src/server/training*.ts'
+      - 'packages/wodsmith-training/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/agent-gateway.yml'
 jobs:
   verify:
     runs-on: ubuntu-latest
