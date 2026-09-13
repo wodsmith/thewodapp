@@ -50,7 +50,7 @@ Every nonempty incomplete combination of grant fields is rejected by identity, s
 
 ### Library occurrence edits retain identity
 
-Changing the source date of a saved provider item under the same ID is rejected without changing its revision or occurrence snapshot.
+Changing a saved provider occurrence under the same case-insensitive ID is rejected without changing its revision or snapshot. ID casing cannot reassign existing result identity to a different workout.
 
 ### Current identity under repeatable read
 

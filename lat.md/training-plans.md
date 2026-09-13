@@ -96,4 +96,4 @@ Source republication, revoked membership, revoked grants, and ambiguous cross-wo
 
 ### Concurrent Canonical Contexts
 
-Two drafts for the same athlete/date in different workspaces cannot both commit, even when both authorize before taking the athlete lock. The regression reproduced two successes under REPEATABLE READ; explicit READ COMMITTED permits only one receipt and day.
+Two drafts for the same athlete/date in different workspaces cannot both commit after concurrent authorization. The regression reproduced two successes under REPEATABLE READ; explicit READ COMMITTED permits only one receipt and day.
