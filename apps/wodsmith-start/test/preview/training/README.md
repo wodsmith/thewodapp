@@ -14,12 +14,12 @@ Production routes do not import these fixtures. The Vite alias is confined to th
 
 ## Track and provider preview
 
-The track preview mounts the production reader, importer controls, and athlete Training components with in-memory fixtures. The banner identifies illustrative data; these pages make no production writes.
+The track preview mounts the production reader, importer controls, and athlete Training components with isolated browser-storage fixtures. The banner identifies illustrative data; these pages make no production writes.
 
 ```sh
 pnpm --filter wodsmith-start exec vite --config test/preview/training/vite.track.config.ts
 ```
 
-Open `http://127.0.0.1:8767/programming/ptrk_crossfit_dotcom?admin=1&date=2026-09-04` for a multi-score day, or choose September 6 for rest. Omit `admin=1` for the ordinary reader. Import controls are at `/admin/programming/ptrk_crossfit_dotcom`; Training is at `/training?date=2026-09-04`. Reloading resets this preview's in-memory state. Production authorization and persistence are verified separately by the server and disposable-MySQL tests.
+Open `http://127.0.0.1:8767/programming/ptrk_crossfit_dotcom?admin=1&date=2026-09-04` for a multi-score day, or choose September 6 for rest. Omit `admin=1` for the ordinary reader. Import controls are at `/admin/programming/ptrk_crossfit_dotcom`; Training is at `/training?date=2026-09-04`. Training sessions, private block results, library scores and the default track survive native reload in sessionStorage. To reset these training fixtures, remove `session-ux-plans`, `session-ux-private-results`, `session-ux-score-attempts` and `session-ux-default-track`, then reload. Closing the browser tab also clears this sessionStorage state. Production authorization and persistence are verified separately by the server and disposable-MySQL tests.
 
-Personal additions in the track preview share one workspace/date session and result store, including private history after removal. Library score links lead to `/log/new`, which this fixture does not render; real rich-library result persistence is covered by the disposable-MySQL suite. Admin fixture publishes appear in fixture history and exact-date reads.
+Personal additions in the track preview share one workspace/date session and result store, including private history after removal. Library score links render the production `/log/new` and edit forms with local fixture adapters; real authorization and rich-library persistence are separately covered by disposable-MySQL tests. Default selection is resolved by the saved preference when the URL omits trackId. Admin fixture publishes appear in fixture history and exact-date reads.

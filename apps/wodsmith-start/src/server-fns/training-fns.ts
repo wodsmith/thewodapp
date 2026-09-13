@@ -42,7 +42,9 @@ export const setTrainingCheerFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => trainingCheerInputSchema.parse(data))
   .handler(({ data }) => setTrainingCheer(data))
 export const getTrainingHistoryFn = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) => trainingTrackInputSchema.parse(data))
+  .inputValidator((data: unknown) =>
+    trainingTrackInputSchema.partial({ trackId: true }).parse(data),
+  )
   .handler(({ data }) => getTrainingHistory(data))
 
 export const getTrainingWorkoutOptionsFn = createServerFn({ method: "GET" })

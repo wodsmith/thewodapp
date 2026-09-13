@@ -30,7 +30,7 @@ Expired device bindings are deleted during dispatch. Delivery records are delete
 
 ## Rollout
 
-Push is disabled by default. Apply `0009_gameday_push.sql` through the normal PlanetScale schema process before enabling `GAMEDAY_PUSH_ENABLED`. Configure APNs credentials and the WODsmith queue consumer/one-minute cron in the same environment.
+Push is disabled by default. Apply `0010_gameday_push.sql` through the normal PlanetScale schema process before enabling `GAMEDAY_PUSH_ENABLED`. Configure APNs credentials and the WODsmith queue consumer/one-minute cron in the same environment.
 
 Required secrets are `APNS_KEY_ID`, `APNS_TEAM_ID`, and `APNS_PRIVATE_KEY` (Apple P-256 token-signing key). WODsmith sends for topic `com.wodsmith.gameday`. Crew only writes the shared outbox and must not be enabled before WODsmith delivery is configured against that database. Never enable the same production token/key combination against a development database.
 

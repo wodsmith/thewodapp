@@ -8,12 +8,14 @@ export const Route = createFileRoute("/_protected/training/")({
     search: Record<string, unknown>,
   ): {
     view: "training" | "team" | "progress"
+    surface?: "track" | "session"
     teamId?: string
     date?: string
     workoutId?: string
     workoutIds?: string
     trackId?: string
   } => ({
+    surface: search.surface === "session" ? "session" : "track",
     trackId:
       typeof search.trackId === "string" && search.trackId.length <= 255
         ? search.trackId
@@ -42,12 +44,13 @@ export const Route = createFileRoute("/_protected/training/")({
 function TrainingPage() {
   const context = Route.useLoaderData()
   const navigate = useNavigate({ from: Route.fullPath })
-  const { view, teamId, date, workoutId, workoutIds, trackId } =
+  const { view, surface, teamId, date, workoutId, workoutIds, trackId } =
     Route.useSearch()
   return (
     <AthleteTraining
       context={context}
       initialView={view}
+      initialSurface={surface}
       initialTeamId={teamId}
       initialTrackId={trackId}
       libraryWorkoutIds={workoutIds?.split(",").filter(Boolean).slice(0, 20)}

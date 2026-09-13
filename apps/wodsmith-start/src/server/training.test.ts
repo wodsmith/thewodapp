@@ -603,6 +603,30 @@ describe.skipIf(!databaseUrl)(
       ).rejects.toThrow("not shared")
     })
 
+    // @lat: [[session-review-tests#Owned history survives source revocation safely]]
+    it("keeps owned snapshots after source access is revoked without live metadata or cheers",async()=>{
+      const live=await published()
+      const saved=await saveTrainingResult({...score,sessionId:live.id})
+      state.userId=userIds[1]
+      await setTrainingCheer({resultId:saved.id,cheered:true})
+      state.userId=userIds[0]
+      await db.update(programmingTracksTable).set({ownerTeamId:teamIds[1],isPublic:0}).where(eq(programmingTracksTable.id,draft.trackId))
+      await db.update(trainingSessionsTable).set({published:{...content,title:"New private title",blocks:[{...block,title:"Private replacement"}]}}).where(eq(trainingSessionsTable.id,live.id))
+      try {
+        const history=await getTrainingHistory({teamId:draft.teamId})
+        expect(history).toHaveLength(1)
+        expect(history[0]).toMatchObject({block:{title:"Front squat"},notes:score.notes,cheerCount:0,hasCheered:false,trackId:""})
+        expect(JSON.stringify(history)).not.toContain("Private replacement")
+        state.userId=userIds[1]
+        expect(await getTrainingHistory({teamId:draft.teamId})).toEqual([])
+        state.userId=userIds[0]
+        await db.update(teamMembershipTable).set({isActive:false}).where(eq(teamMembershipTable.id,"training_test_m1"))
+        await expect(getTrainingHistory({teamId:draft.teamId})).rejects.toThrow("FORBIDDEN")
+      } finally {
+        await db.update(programmingTracksTable).set({ownerTeamId:draft.teamId}).where(eq(programmingTracksTable.id,draft.trackId))
+      }
+    })
+
     it("upserts the same occurrence/version idempotently and keeps old versions in history", async () => {
       const live = await published()
       const first = await saveTrainingResult({ ...score, sessionId: live.id })

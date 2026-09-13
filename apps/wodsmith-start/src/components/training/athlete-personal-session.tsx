@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
+import { libraryOccurrence } from "@/lib/training/library-occurrence"
 import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
 import type {
   PersonalTrainingDay,
@@ -17,6 +18,7 @@ import type {
   TrainingBlock,
   TrainingSession,
   TrainingTeam,
+  TrainingProviderDay,
 } from "@/lib/training/types"
 import { normalizedWorkoutSaveSchema } from "@/lib/workout-import/schemas"
 import { getTrainingWeekFn } from "@/server-fns/training-fns"
@@ -27,6 +29,7 @@ import {
   savePersonalTrainingSessionFn,
 } from "@/server-fns/training-personal-fns"
 import { AthleteSessionBlock } from "./athlete-session-block"
+import { SessionWorkoutActions } from "./session-workout-actions"
 import { PersonalWorkoutDefinition } from "./personal-workout-definition"
 
 function itemInput(item: PersonalTrainingItem): PersonalTrainingItemInput {
@@ -39,7 +42,13 @@ function itemInput(item: PersonalTrainingItem): PersonalTrainingItemInput {
       sourcePublishedVersion: item.sourcePublishedVersion,
     }
   if (item.kind === "library")
-    return { id: item.id, kind: item.kind, workoutId: item.workoutId }
+    return {
+      id: item.id,
+      kind: item.kind,
+      workoutId: item.workoutId,
+      sourceTrackId: libraryOccurrence(item).trackId,
+      sourceDate: libraryOccurrence(item).sourceDate,
+    }
   return item
 }
 
@@ -53,7 +62,11 @@ export function AthletePersonalSession({
   libraryWorkoutId,
   onLibraryWorkoutHandled,
   onInteractionBusy,
+  surface = "track",
+  onSurfaceChange,
 }: {
+  surface?: "track" | "session"
+  onSurfaceChange?: (surface: "track" | "session") => void
   team: TrainingTeam
   trackId: string
   date: string
@@ -83,8 +96,44 @@ export function AthletePersonalSession({
     }
   }, [importContext])
   const [editing, setEditing] = useState(false)
+  const [preparingBuilder, setPreparingBuilder] = useState(false)
+  const preparingContext = useRef<typeof importContext | null>(null)
+  const [draft, setDraft] = useState<PersonalTrainingItem[]>([])
+  const [receipt, setReceipt] = useState<{
+    items: PersonalTrainingItemInput[]
+    message: string
+  } | null>(null)
+  const additionIds = useRef(new Map<string, string>())
+  const builderTrigger = useRef<HTMLButtonElement>(null)
+  const surfaceScroll = useRef({ track: 0, session: 0 })
+  function selectSurface(next: "track" | "session") {
+    surfaceScroll.current[surface] = window.scrollY
+    onSurfaceChange?.(next)
+    requestAnimationFrame(() =>
+      window.scrollTo({ top: surfaceScroll.current[next] }),
+    )
+  }
+  function additionId(
+    key: string,
+    source?: { trackId: string; sourceDate: string },
+  ) {
+    const identity = JSON.stringify([
+      team.id,
+      date,
+      source?.trackId,
+      source?.sourceDate,
+      key,
+    ])
+    let value = additionIds.current.get(identity)
+    if (!value) {
+      value = crypto.randomUUID()
+      additionIds.current.set(identity, value)
+    }
+    return value
+  }
   const [adding, setAdding] = useState(false)
   const [retry, setRetry] = useState(0)
+  const loadedContext = useRef("")
   const [editor, setEditor] = useState<{
     itemId?: string
     block: TrainingBlock
@@ -95,9 +144,9 @@ export function AthletePersonalSession({
     if (editingWorkout) editorInput.current?.focus()
   }, [editingWorkout])
   useEffect(() => {
-    onInteractionBusy?.(saving || editingWorkout || importOpen)
+    onInteractionBusy?.(saving || editing || editingWorkout || importOpen)
     return () => onInteractionBusy?.(false)
-  }, [saving, editingWorkout, importOpen, onInteractionBusy])
+  }, [saving, editing, editingWorkout, importOpen, onInteractionBusy])
   const [libraryPending, setLibraryPending] = useState<string[]>(
     libraryWorkoutIds ?? (libraryWorkoutId ? [libraryWorkoutId] : []),
   )
@@ -143,9 +192,15 @@ export function AthletePersonalSession({
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    setDay(null)
+    const key = `${team.id}:${date}:${trackId}`
+    if (loadedContext.current !== key) setDay(null)
+    loadedContext.current = key
     setError("")
     setEditor(null)
+    setEditing(false)
+    preparingContext.current = null
+    setPreparingBuilder(false)
+    setReceipt(null)
     setAdding(false)
     getPersonalTrainingDayFn({
       data: {
@@ -184,28 +239,31 @@ export function AthletePersonalSession({
     }
   }
 
-  async function save(items: PersonalTrainingItemInput[]) {
+  async function save(
+    items: PersonalTrainingItemInput[],
+    mode: "replace" | "append" | "undo" = "replace",
+  ) {
     if (!day || saving) return false
+    const savingContext = importContext
     setSaving(true)
     setError("")
     try {
-      await savePersonalTrainingSessionFn({
+      const saved = await savePersonalTrainingSessionFn({
         data: {
           teamId: team.id,
           trainingDate: date,
           expectedRevision: day.personalSession?.revision ?? 0,
           items,
+          mode,
         },
       })
-      const next = await getPersonalTrainingDayFn({
-        data: {
-          teamId: team.id,
-          trainingDate: date,
-          trackId: trackId || undefined,
-        },
-      })
-      setDay(next)
-      return true
+      if (currentImportContext.current !== savingContext) return false
+      setDay((current) =>
+        current
+          ? { ...current, personalSession: saved, items: saved.items }
+          : current,
+      )
+      return saved
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -238,14 +296,143 @@ export function AthletePersonalSession({
     )
   const source = day.sourceSession
   const personal = day.personalSession
-  const title = personal
-    ? "My session"
-    : (source?.published?.title ?? "My session")
-  const items = day.items
+  const customized = !!personal && personal.compositionState !== "result_only"
+  const selectedTrackName =
+    team.tracks.find((track) => track.id === trackId)?.name ??
+    "Track programming"
+  const sourceItems: PersonalTrainingItem[] =
+    source?.published?.blocks.map((block) => ({
+      id: `source-${block.id}`,
+      kind: "source",
+      sourceSessionId: source.id,
+      sourceBlockId: block.id,
+      sourcePublishedVersion: source.publishedVersion,
+      block,
+      trackId: source.trackId,
+      trackName: selectedTrackName,
+      sourceTrainingDate: source.trainingDate,
+    })) ?? []
+  const items = editing
+    ? draft
+    : surface === "session"
+      ? customized
+        ? personal.items
+        : []
+      : sourceItems
+  const title = editing
+    ? "Build My session"
+    : surface === "session"
+      ? "My session"
+      : (source?.published?.title ?? selectedTrackName)
   const inputs = items.map(itemInput)
-  const selectedTrackName = team.tracks.find(
-    (track) => track.id === trackId,
-  )?.name
+  async function updateDraft(next: PersonalTrainingItemInput[]) {
+    const known = [...draft, ...sourceItems, ...(personal?.items ?? [])]
+    setDraft(
+      next.map((input) => {
+        if (input.kind === "personal") return input
+        const item = known.find((item) => item.id === input.id)
+        if (!item) throw new Error("Reload this section before adding it")
+        return item
+      }),
+    )
+    return true
+  }
+  async function append(entries: PersonalTrainingItemInput[]) {
+    const existingIds = new Set(personal?.items.map((item) => item.id))
+    const saved = await save(entries, "append")
+    if (saved) {
+      const inserted = entries.filter(
+        (entry) =>
+          !existingIds.has(entry.id) &&
+          saved.items.some((item) => item.id === entry.id),
+      )
+      setReceipt(
+        inserted.length
+          ? {
+              items: inserted,
+              message: `Added to My session · ${providerDateLabel(date)}`,
+            }
+          : null,
+      )
+      return true
+    }
+    return false
+  }
+  async function beginBuilder(empty = false) {
+    const builderContext = importContext
+    if (preparingContext.current === builderContext) return
+    if (!empty && customized && personal) {
+      setDraft([...personal.items])
+      setEditing(true)
+      return
+    }
+    if (!empty && surface === "track" && day?.source?.kind === "provider-day") {
+      preparingContext.current = builderContext
+      setPreparingBuilder(true)
+      setError("")
+      try {
+        const entries = await Promise.all(
+          day.source.day.workouts.map(async (entry) => {
+            const workout = await getTrainingLibraryWorkoutFn({
+              data: {
+                teamId: team.id,
+                workoutId: entry.workoutId,
+                sourceTrackId: trackId,
+                sourceDate: date,
+              },
+            })
+            return {
+              id: additionId(`library-${entry.workoutId}`, {
+                trackId,
+                sourceDate: date,
+              }),
+              kind: "library" as const,
+              workoutId: entry.workoutId,
+              occurrence: { trackId, sourceDate: date },
+              workout,
+              provenance: workout.provenance,
+            }
+          }),
+        )
+        if (
+          !builderContext.active ||
+          currentImportContext.current !== builderContext
+        )
+          return
+        setDraft(entries)
+        setEditing(true)
+      } catch (cause) {
+        if (
+          builderContext.active &&
+          currentImportContext.current === builderContext
+        ) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Could not load this session",
+          )
+        }
+      } finally {
+        if (
+          builderContext.active &&
+          currentImportContext.current === builderContext &&
+          preparingContext.current === builderContext
+        ) {
+          preparingContext.current = null
+          setPreparingBuilder(false)
+        }
+      }
+      return
+    }
+    setDraft(
+      empty
+        ? []
+        : surface === "session" && customized
+          ? [...personal.items]
+          : [...sourceItems],
+    )
+    setEditing(true)
+  }
 
   function startEditor(item?: PersonalTrainingItem) {
     if (item?.kind === "library") return
@@ -279,8 +466,11 @@ export function AthletePersonalSession({
   }
 
   return (
-    <section aria-labelledby="training-session-title" aria-busy={saving}>
-      <div className="pb-6">
+    <section
+      aria-labelledby="training-session-title"
+      aria-busy={saving || preparingBuilder}
+    >
+      <div className="pb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h2
             id="training-session-title"
@@ -289,57 +479,135 @@ export function AthletePersonalSession({
             {title}
           </h2>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              className="min-h-11"
-              disabled={saving || editor !== null}
-              onClick={() => {
-                document.getElementById("session-add-workout")?.focus()
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-              Add workout
-            </Button>
-            <Button
-              variant="ghost"
-              className="min-h-11"
-              disabled={saving || editor !== null}
-              onClick={() => setEditing(!editing)}
-            >
-              {editing ? "Done customizing" : "Customize session"}
-            </Button>
+            {editing ? (
+              <>
+                <Button
+                  className="min-h-11"
+                  disabled={saving || !!editor}
+                  onClick={async () => {
+                    if (await save(inputs)) {
+                      setEditing(false)
+                      selectSurface("session")
+                      requestAnimationFrame(() =>
+                        builderTrigger.current?.focus(),
+                      )
+                    }
+                  }}
+                >
+                  Save session
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11"
+                  disabled={saving}
+                  onClick={() => {
+                    setEditing(false)
+                    setEditor(null)
+                    setAdding(false)
+                    requestAnimationFrame(() => builderTrigger.current?.focus())
+                  }}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  ref={builderTrigger}
+                  variant="outline"
+                  className="min-h-11"
+                  disabled={preparingBuilder}
+                  onClick={() => beginBuilder()}
+                >
+                  {preparingBuilder
+                    ? "Preparing session…"
+                    : surface === "session" && customized
+                      ? "Edit session"
+                      : "Customize session"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="min-h-11"
+                  onClick={() =>
+                    selectSurface(surface === "session" ? "track" : "session")
+                  }
+                >
+                  {surface === "session"
+                    ? `Back to ${selectedTrackName}`
+                    : `My session${customized ? ` · ${personal.items.length}` : ""}`}
+                </Button>
+              </>
+            )}
           </div>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
           {date} ·{" "}
-          {personal
+          {surface === "session" || editing
             ? "Your session · Personal changes are private"
             : (selectedTrackName ?? "Personal training")}
         </p>
-        {!personal && source?.published?.coachNote ? (
+        {surface === "track" && !editing && source?.published?.coachNote ? (
           <p className="mt-5 max-w-prose whitespace-pre-wrap break-words leading-relaxed">
             {source.published.coachNote}
           </p>
         ) : null}
-        {!personal && !items.length && day.source?.kind !== "provider-day" ? (
+        {!items.length &&
+        (surface === "session" || day.source?.kind !== "provider-day") ? (
           <p className="mt-5 text-muted-foreground">
-            {source?.published?.isRestDay
-              ? "Rest day. Add your own work if you choose to train."
-              : "No session is published for this day. You can still build your own."}
+            {surface === "session"
+              ? "Your session is empty. Customize a track or start empty to build your day."
+              : source?.published?.isRestDay
+                ? "Rest day. Add your own work if you choose to train."
+                : "No session is published for this day. You can still build your own."}
           </p>
         ) : null}
         {editing ? (
           <p className="mt-4 max-w-prose text-sm text-muted-foreground">
-            Add, remove, or reorder workouts for your day. Published workouts
-            stay linked to their track. Remix a workout to change its
-            prescription.
+            {`${customized ? "Your private composition" : `Based on ${selectedTrackName}`} · ${date}. Changes stay in this draft until you save.`}
+            <Button
+              variant="ghost"
+              className="min-h-11"
+              onClick={() => setDraft([])}
+            >
+              Start empty
+            </Button>
           </p>
         ) : null}
       </div>
+      {receipt ? (
+        <output className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/40 p-4">
+          <p className="mr-auto text-sm">{receipt.message}</p>
+          <Button
+            variant="outline"
+            className="min-h-11"
+            onClick={() => {
+              selectSurface("session")
+              requestAnimationFrame(() =>
+                document
+                  .getElementById(`session-item-${receipt.items[0]?.id}`)
+                  ?.focus(),
+              )
+            }}
+          >
+            Open session
+          </Button>
+          <Button
+            variant="ghost"
+            className="min-h-11"
+            disabled={saving}
+            onClick={async () => {
+              if (await save(receipt.items, "undo")) setReceipt(null)
+            }}
+          >
+            Undo
+          </Button>
+        </output>
+      ) : null}
       {error ? (
         <div role="alert" className="mb-6 space-y-2">
           <p className="text-sm text-destructive">{error}</p>
           <Button
+            className="min-h-11"
             variant="outline"
             disabled={saving}
             onClick={() => setRetry((value) => value + 1)}
@@ -386,15 +654,28 @@ ${workout.provenance ? "" : workout.description}`,
               className="min-h-11 bg-primary text-black hover:bg-primary hover:brightness-110 dark:text-black dark:hover:bg-primary"
               disabled={saving || !libraryPreview}
               onClick={async () => {
+                if (editing && libraryPreview) {
+                  setDraft([
+                    ...draft,
+                    ...libraryPending.map((workoutId, index) => ({
+                      id: additionId(`library-${workoutId}`),
+                      kind: "library" as const,
+                      workoutId,
+                      workout: libraryPreview[index]!,
+                      provenance: libraryPreview[index]?.provenance,
+                    })),
+                  ])
+                  clearLibraryRequest()
+                  return
+                }
                 if (
-                  await save([
-                    ...inputs,
-                    ...libraryPending.map((workoutId) => ({
-                      id: crypto.randomUUID(),
+                  await append(
+                    libraryPending.map((workoutId) => ({
+                      id: additionId(`library-${workoutId}`),
                       kind: "library" as const,
                       workoutId,
                     })),
-                  ])
+                  )
                 ) {
                   clearLibraryRequest()
                 }
@@ -403,6 +684,7 @@ ${workout.provenance ? "" : workout.description}`,
               Add to my session
             </Button>
             <Button
+              className="min-h-11"
               variant="outline"
               disabled={saving}
               onClick={clearLibraryRequest}
@@ -447,6 +729,15 @@ ${workout.provenance ? "" : workout.description}`,
               : item.remixedFrom
                 ? "Your remix"
                 : "Your workout"
+        const inSession =
+          item.kind === "source" &&
+          !!personal?.items.some(
+            (existing) =>
+              existing.kind === "source" &&
+              existing.sourceSessionId === item.sourceSessionId &&
+              existing.sourceBlockId === item.sourceBlockId &&
+              existing.sourcePublishedVersion === item.sourcePublishedVersion,
+          )
         const renderedSession: TrainingSession = {
           id:
             item.kind === "source"
@@ -463,7 +754,12 @@ ${workout.provenance ? "" : workout.description}`,
           published: null,
         }
         return (
-          <div key={item.id}>
+          <div
+            key={item.id}
+            id={`session-item-${item.id}`}
+            tabIndex={-1}
+            className="focus-visible:outline-2 focus-visible:outline-ring"
+          >
             <div className="flex flex-wrap items-center justify-between gap-x-4">
               {personal || editing ? (
                 <p className="py-3 text-sm text-muted-foreground">
@@ -479,7 +775,7 @@ ${workout.provenance ? "" : workout.description}`,
                 </p>
               ) : null}
               {editing ? (
-                <div className="flex flex-wrap items-center gap-1">
+                <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -491,7 +787,7 @@ ${workout.provenance ? "" : workout.description}`,
                       const moved = next.splice(index, 1)[0]
                       if (!moved) return
                       next.splice(index - 1, 0, moved)
-                      void save(next)
+                      void updateDraft(next)
                     }}
                   >
                     <ArrowUp className="h-4 w-4" />
@@ -509,7 +805,7 @@ ${workout.provenance ? "" : workout.description}`,
                       const moved = next.splice(index, 1)[0]
                       if (!moved) return
                       next.splice(index + 1, 0, moved)
-                      void save(next)
+                      void updateDraft(next)
                     }}
                   >
                     <ArrowDown className="h-4 w-4" />
@@ -542,7 +838,34 @@ ${workout.provenance ? "" : workout.description}`,
                     className="min-h-11"
                     disabled={saving || editor !== null}
                     onClick={() =>
-                      void save(inputs.filter((entry) => entry.id !== item.id))
+                      setDraft((current) => [
+                        ...(current ?? []),
+                        item.kind === "source"
+                          ? {
+                              id: crypto.randomUUID(),
+                              kind: "personal",
+                              block: item.block,
+                              remixedFrom: {
+                                sourceSessionId: item.sourceSessionId,
+                                sourceBlockId: item.sourceBlockId,
+                                sourcePublishedVersion:
+                                  item.sourcePublishedVersion,
+                              },
+                            }
+                          : { ...item, id: crypto.randomUUID() },
+                      ])
+                    }
+                  >
+                    Add another attempt
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="min-h-11"
+                    disabled={saving || editor !== null}
+                    onClick={() =>
+                      void updateDraft(
+                        inputs.filter((entry) => entry.id !== item.id),
+                      )
                     }
                   >
                     Remove
@@ -561,26 +884,57 @@ ${workout.provenance ? "" : workout.description}`,
                 <p className="text-sm text-muted-foreground">
                   {item.workout.scheme}
                 </p>
-                <a
-                  className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
-                  href={
-                    day.libraryResults.find(
+                {editing ? (
+                  <p className="text-sm text-muted-foreground">
+                    Save your session to record this section.
+                  </p>
+                ) : (
+                  <a
+                    className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+                    href={
+                      day.libraryResults.find(
+                        (result) => result.itemId === item.id,
+                      )
+                        ? `/log/${encodeURIComponent(day.libraryResults.find((result) => result.itemId === item.id)?.scoreId ?? "")}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${encodeURIComponent(team.id)}&date=${date}&trackId=${encodeURIComponent(trackId)}&surface=session`)}`
+                        : `/log/new?workoutId=${encodeURIComponent(item.workoutId)}&date=${date}&teamId=${encodeURIComponent(team.id)}&personalSessionId=${encodeURIComponent(personal?.id ?? "")}&personalItemId=${encodeURIComponent(item.id)}&personalRevision=${personal?.revision ?? 0}&returnSurface=session&returnTrackId=${encodeURIComponent(trackId)}`
+                    }
+                  >
+                    {day.libraryResults.some(
                       (result) => result.itemId === item.id,
                     )
-                      ? `/log/${encodeURIComponent(day.libraryResults.find((result) => result.itemId === item.id)?.scoreId ?? "")}/edit?redirectUrl=${encodeURIComponent(`/training?teamId=${team.id}&date=${date}`)}`
-                      : `/log/new?workoutId=${encodeURIComponent(item.workoutId)}&date=${date}&teamId=${encodeURIComponent(team.id)}&personalSessionId=${encodeURIComponent(personal?.id ?? "")}&personalItemId=${encodeURIComponent(item.id)}&personalRevision=${personal?.revision ?? 0}`
-                  }
-                >
-                  {day.libraryResults.some(
-                    (result) => result.itemId === item.id,
-                  )
-                    ? "View saved workout"
-                    : "Log workout"}
-                </a>
+                      ? `Edit score · ${day.libraryResults.find((result) => result.itemId === item.id)?.displayScore ?? "Saved"}`
+                      : "Log score"}
+                  </a>
+                )}
               </div>
             ) : (
               <ol>
                 <AthleteSessionBlock
+                  secondaryActions={
+                    surface === "track" && !editing ? (
+                      <div className="contents">
+                        <Button
+                          variant="outline"
+                          className="min-h-11"
+                          disabled={saving || inSession}
+                          onClick={() =>
+                            void append([
+                              {
+                                ...itemInput(item),
+                                id: additionId(
+                                  item.kind === "source"
+                                    ? `${item.sourceSessionId}:${item.sourcePublishedVersion}:${item.sourceBlockId}`
+                                    : item.id,
+                                ),
+                              },
+                            ])
+                          }
+                        >
+                          {inSession ? "In My session" : "Add to My session"}
+                        </Button>
+                      </div>
+                    ) : null
+                  }
                   session={renderedSession}
                   block={item.block}
                   index={index}
@@ -588,9 +942,11 @@ ${workout.provenance ? "" : workout.description}`,
                   trackName={sourceLabel}
                   result={result}
                   readOnlyMessage={
-                    readOnlySourceResult
-                      ? "Saved against an earlier published version. This result is preserved in My progress and cannot be edited here."
-                      : undefined
+                    editing
+                      ? "Save your session to record this section."
+                      : readOnlySourceResult
+                        ? "Saved against an earlier published version. This result is preserved in My progress and cannot be edited here."
+                        : undefined
                   }
                   privateOnly={personalResult}
                   saveResult={
@@ -641,18 +997,44 @@ ${workout.provenance ? "" : workout.description}`,
           </div>
         )
       })}
-      {day.source?.kind === "provider-day" && (
-        <div className={personal ? "mt-8 border-t pt-6" : ""}>
-          <h3 className="mb-4 text-lg font-semibold">
-            {selectedTrackName} · Source programming
-          </h3>
-          <CrossFitTrackDays
-            days={[day.source.day]}
-            selectedDate={date}
-            onAdd={setLibraryPending}
-          />
-        </div>
-      )}
+      {day.source?.kind === "provider-day" &&
+        surface === "track" &&
+        !editing && (
+          <div className={personal ? "mt-8 border-t pt-6" : ""}>
+            <h3 className="mb-4 text-lg font-semibold">
+              {selectedTrackName} · Source programming
+            </h3>
+            <CrossFitTrackDays
+              days={[day.source.day]}
+              selectedDate={date}
+              onAdd={(ids) =>
+                void append(
+                  ids.map((workoutId) => ({
+                    id: additionId(`library-${workoutId}`, {
+                      trackId,
+                      sourceDate: date,
+                    }),
+                    kind: "library",
+                    workoutId,
+                    sourceTrackId: trackId,
+                    sourceDate: date,
+                  })),
+                )
+              }
+              renderActions={(workout) => (
+                <SessionWorkoutActions
+                  teamId={team.id}
+                  date={date}
+                  workoutId={workout.workoutId}
+                  trackId={trackId}
+                  day={day}
+                  onChanged={setDay}
+                  onOpenSession={() => selectSurface("session")}
+                />
+              )}
+            />
+          </div>
+        )}
       {editor ? (
         <form
           className="space-y-4 border-t border-border py-6"
@@ -704,7 +1086,7 @@ ${workout.provenance ? "" : workout.description}`,
                   : {}),
             }
             if (
-              await save(
+              await updateDraft(
                 original
                   ? inputs.map((item) =>
                       item.id === original.id ? next : item,
@@ -757,6 +1139,7 @@ ${workout.provenance ? "" : workout.description}`,
                     : "Workout name"}
                 </Label>
                 <Input
+                  className="min-h-11"
                   ref={editorInput}
                   id="personal-title"
                   required
@@ -828,9 +1211,10 @@ ${workout.provenance ? "" : workout.description}`,
               disabled={saving}
               type="submit"
             >
-              {saving ? "Saving…" : "Save to my session"}
+              Apply to draft
             </Button>
             <Button
+              className="min-h-11"
               disabled={saving}
               variant="outline"
               type="button"
@@ -848,13 +1232,14 @@ ${workout.provenance ? "" : workout.description}`,
           currentItems={items}
           disabled={saving}
           onAdd={async (entries) => {
-            if (await save([...inputs, ...entries])) setAdding(false)
+            setDraft([...draft, ...entries])
+            setAdding(false)
           }}
           onClose={() => setAdding(false)}
         />
       ) : null}
-      {!editor && !adding ? (
-        <div className="flex flex-wrap gap-2 border-t border-border py-6">
+      {editing && !editor && !adding ? (
+        <div className="grid grid-cols-1 gap-2 border-t border-border py-6 sm:flex sm:flex-wrap">
           <Button
             id="session-add-workout"
             className="min-h-11"
@@ -863,7 +1248,7 @@ ${workout.provenance ? "" : workout.description}`,
             onClick={() => setAdding(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
-            From programming
+            Add from another session
           </Button>
           <Button
             className="min-h-11"
@@ -936,18 +1321,22 @@ function ProgrammingPicker({
   date: string
   currentItems: PersonalTrainingItem[]
   disabled: boolean
-  onAdd: (items: PersonalTrainingItemInput[]) => Promise<void>
+  onAdd: (items: PersonalTrainingItem[]) => Promise<void>
   onClose: () => void
 }) {
   const [trackId, setTrackId] = useState(team.tracks[0]?.id ?? "")
   const [sourceDate, setSourceDate] = useState(date)
   const [session, setSession] = useState<TrainingSession | null>(null)
+  const [provider, setProvider] = useState<TrainingProviderDay | null>(null)
+  const [excerpt, setExcerpt] = useState("")
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   useEffect(() => {
     let cancelled = false
     setSession(null)
+    setProvider(null)
+    setExcerpt("")
     setSelected([])
     setError("")
     if (!trackId || !/^\d{4}-\d{2}-\d{2}$/.test(sourceDate)) return
@@ -961,11 +1350,18 @@ function ProgrammingPicker({
       },
     })
       .then((week) => {
-        if (!cancelled)
-          setSession(
+        if (!cancelled) {
+          const coached =
             week.sessions.find((item) => item.trainingDate === sourceDate) ??
-              null,
+            null
+          setSession(coached)
+          setProvider(
+            coached
+              ? null
+              : (week.providerDays?.find((day) => day.date === sourceDate) ??
+                  null),
           )
+        }
       })
       .catch((cause: unknown) => {
         if (!cancelled)
@@ -982,15 +1378,25 @@ function ProgrammingPicker({
       cancelled = true
     }
   }, [team.id, trackId, sourceDate])
-  const blocks = session?.published?.blocks ?? []
+  const sourceBlocks = session?.published?.blocks ?? []
+  const blocks = provider
+    ? provider.workouts.map((workout) => ({
+        id: workout.workoutId,
+        title: workout.name,
+        prescription: workout.description ?? "",
+      }))
+    : sourceBlocks
   const available = blocks.filter(
     (block) =>
-      !currentItems.some(
-        (item) =>
-          item.kind === "source" &&
-          item.sourceSessionId === session?.id &&
-          item.sourceBlockId === block.id &&
-          item.sourcePublishedVersion === session.publishedVersion,
+      !currentItems.some((item) =>
+        item.kind === "library"
+          ? item.workoutId === block.id &&
+            item.occurrence?.trackId === trackId &&
+            item.occurrence?.sourceDate === sourceDate
+          : item.kind === "source" &&
+            item.sourceSessionId === session?.id &&
+            item.sourceBlockId === block.id &&
+            item.sourcePublishedVersion === session.publishedVersion,
       ),
   )
   return (
@@ -999,7 +1405,7 @@ function ProgrammingPicker({
       aria-labelledby="programming-picker-title"
     >
       <h3 id="programming-picker-title" className="text-xl font-semibold">
-        Add from programming
+        Add from another session
       </h3>
       <fieldset disabled={disabled} className="space-y-4">
         <legend className="sr-only">Choose workouts</legend>
@@ -1022,6 +1428,7 @@ function ProgrammingPicker({
           <div className="space-y-2">
             <Label htmlFor="source-date">Programmed date</Label>
             <Input
+              className="min-h-11"
               id="source-date"
               type="date"
               value={sourceDate}
@@ -1029,6 +1436,28 @@ function ProgrammingPicker({
             />
           </div>
         </div>
+        {provider?.markdown && (
+          <div className="space-y-3">
+            <details>
+              <summary className="min-h-11 cursor-pointer py-3">
+                Read the original session
+              </summary>
+              <p className="whitespace-pre-wrap text-sm">{provider.markdown}</p>
+            </details>
+            <Label htmlFor="borrowed-instructions">
+              Instructions to borrow (optional)
+            </Label>
+            <Textarea
+              id="borrowed-instructions"
+              placeholder="Paste the warm-up, cooldown or instructions you want to keep."
+              value={excerpt}
+              onChange={(event) => setExcerpt(event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Saved as a private note with the source track, date and link.
+            </p>
+          </div>
+        )}
         {loading ? (
           <output>Loading programming…</output>
         ) : error ? (
@@ -1044,11 +1473,12 @@ function ProgrammingPicker({
         ) : (
           <>
             <Button
+              className="min-h-11"
               variant="ghost"
               type="button"
               onClick={() => setSelected(available.map((block) => block.id))}
             >
-              Select all workouts
+              Select all sections
             </Button>
             <div className="divide-y divide-border">
               {available.map((block) => (
@@ -1085,8 +1515,59 @@ function ProgrammingPicker({
       <div className="flex flex-wrap gap-2">
         <Button
           className="min-h-11 bg-primary text-black hover:bg-primary hover:brightness-110 dark:text-black dark:hover:bg-primary"
-          disabled={disabled || loading || !selected.length}
-          onClick={() => {
+          disabled={
+            disabled || loading || (!selected.length && !excerpt.trim())
+          }
+          onClick={async () => {
+            if (provider) {
+              setLoading(true)
+              setError("")
+              try {
+                const borrowed: PersonalTrainingItem[] = await Promise.all(
+                  selected.map(async (workoutId) => {
+                    const workout = await getTrainingLibraryWorkoutFn({
+                      data: {
+                        teamId: team.id,
+                        workoutId,
+                        sourceTrackId: trackId,
+                        sourceDate,
+                      },
+                    })
+                    return {
+                      id: crypto.randomUUID(),
+                      kind: "library" as const,
+                      workoutId,
+                      workout,
+                      provenance: workout.provenance,
+                      occurrence: { trackId, sourceDate },
+                    }
+                  }),
+                )
+                if (excerpt.trim())
+                  borrowed.push({
+                    id: crypto.randomUUID(),
+                    kind: "personal",
+                    block: {
+                      id: crypto.randomUUID(),
+                      kind: "note",
+                      title: "Borrowed instructions",
+                      prescription: `${excerpt.trim()}\n\nSource: ${team.tracks.find((track) => track.id === trackId)?.name ?? "Programming"} · ${sourceDate}\n${provider.url}`,
+                      coachGuidance: "",
+                      scalingGuidance: "",
+                    },
+                  })
+                await onAdd(borrowed)
+              } catch (cause) {
+                setError(
+                  cause instanceof Error
+                    ? cause.message
+                    : "Could not load the selected workouts",
+                )
+              } finally {
+                setLoading(false)
+              }
+              return
+            }
             if (session)
               void onAdd(
                 selected.map((blockId) => ({
@@ -1095,14 +1576,25 @@ function ProgrammingPicker({
                   sourceSessionId: session.id,
                   sourceBlockId: blockId,
                   sourcePublishedVersion: session.publishedVersion,
+                  block: sourceBlocks.find((block) => block.id === blockId)!,
+                  trackId: session.trackId,
+                  trackName:
+                    team.tracks.find((track) => track.id === session.trackId)
+                      ?.name ?? "Programming",
+                  sourceTrainingDate: session.trainingDate,
                 })),
               )
           }}
         >
-          Add {selected.length || "selected"} workout
-          {selected.length === 1 ? "" : "s"}
+          Add {selected.length + (excerpt.trim() ? 1 : 0) || "selected"} workout
+          {selected.length + (excerpt.trim() ? 1 : 0) === 1 ? "" : "s"}
         </Button>
-        <Button variant="outline" disabled={disabled} onClick={onClose}>
+        <Button
+          className="min-h-11"
+          variant="outline"
+          disabled={disabled}
+          onClick={onClose}
+        >
           Close
         </Button>
       </div>

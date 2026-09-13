@@ -366,3 +366,15 @@ An omitted configured time or reps tiebreak ranks after a provided value when th
 ### Large capped totals retain order
 
 Large valid round totals compare their full numeric values without wrapping the bit-packed sort key's capped-time segment.
+
+## Performing and Customizing
+
+Training keeps subscribed tracks in place and prioritizes recording the displayed workout. My session is an optional distinct performance surface; Customize or Edit explicitly opens the draft builder.
+
+The builder can combine complete source blocks across tracks and dates, including instructions and completion sections. Its changes persist only on Save session. Buttons and inputs in the affected flows use consistent 44px touch targets. Library and workout details offer direct personal score entry independently of source editing.
+
+## Owned history after source access changes
+
+Current workspace membership and workout-tracking entitlement authorize access to the athlete's owned performed snapshots across tracks.
+
+History uses saved result blocks, scores and notes even if source programming becomes unavailable. It does not hydrate live definitions, names or cheers, and removes unavailable source navigation while retaining saved source-date labels. Another athlete cannot read these snapshots, and workspace revocation denies them. Optional track filtering selects owned history without restoring source access. Current guards still govern source reads, new logging/imports and team results. See [[session-review-tests#Owned history survives source revocation safely]].

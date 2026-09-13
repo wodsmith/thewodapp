@@ -26,6 +26,7 @@ export interface PersonalItemSnapshot {
   workout?: { name: string; description: string; scheme: string; scoreType?: string | null; timeCap?: number | null; roundsToScore?: number | null; repsPerRound?: number | null; tiebreakScheme?: string | null; scalingGroupId?: string | null }
 }
 export interface PersonalLibraryItemSnapshot {
+  occurrence?: {trackId?: string; sourceDate?: string}
   provenance?: ProviderProvenanceSnapshot
   id: string
   kind: "library"
@@ -48,6 +49,7 @@ export const personalTrainingSessionsTable = mysqlTable("personal_training_sessi
   teamId: varchar({ length: 255 }).notNull(),
   trainingDate: varchar({ length: 10 }).notNull(),
   revision: int().notNull().default(1),
+  compositionState: varchar({ length: 16 }).$type<"result_only" | "customized">().notNull().default("customized"),
   items: json().$type<PersonalItemSnapshot[]>().notNull(),
 }, (t) => [uniqueIndex("personal_training_day_uq").on(t.userId, t.teamId, t.trainingDate)])
 

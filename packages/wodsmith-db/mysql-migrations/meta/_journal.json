@@ -68,8 +68,15 @@
     {
       "idx": 9,
       "version": "5",
-      "when": 1789259815940,
-      "tag": "0009_gameday_push",
+      "when": 1789257465553,
+      "tag": "0009_training_composition_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1789260305144,
+      "tag": "0010_gameday_push",
       "breakpoints": true
     }
   ]
