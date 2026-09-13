@@ -488,6 +488,20 @@ export function createPersonalTrainingService(
       )
     const previousItems = (previousSession?.items ??
       []) as PersonalTrainingItem[]
+    for (const item of data.items) {
+      if (item.kind !== "library") continue
+      const previous = previousItems.find((old) => old.id === item.id)
+      if (
+        previous?.kind === "library" &&
+        !matchesLibraryOccurrence(previous, item.workoutId, {
+          trackId: item.sourceTrackId,
+          sourceDate: item.sourceDate,
+        })
+      )
+        throw new Error(
+          "CONFLICT: Use a new item ID when changing a workout occurrence",
+        )
+    }
     const library = new Map<
       string,
       Awaited<ReturnType<typeof getTrainingLibraryWorkout>>
