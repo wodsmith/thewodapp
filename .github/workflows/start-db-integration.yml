@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/wodsmith-start/**'
       - 'packages/wodsmith-db/**'
+      - 'packages/wodsmith-training/**'
       - 'packages/test-utils/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'apps/wodsmith-start/**'
       - 'packages/wodsmith-db/**'
+      - 'packages/wodsmith-training/**'
       - 'packages/test-utils/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'

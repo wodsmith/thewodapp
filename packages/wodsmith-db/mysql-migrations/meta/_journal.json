@@ -71,6 +71,13 @@
       "when": 1789257465553,
       "tag": "0009_training_composition_state",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1789258957178,
+      "tag": "0010_training_plans",
+      "breakpoints": true
     }
   ]
 }
