@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wodsmith-agent",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-12",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": false,
+  "observability": { "enabled": true },
+  "vars": {
+    "AGENT_AUTH_ORIGIN": "https://localhost:3000",
+    "AGENT_RESOURCE": "https://localhost:8791/mcp"
+  },
+  "dev": { "port": 8791, "local_protocol": "https" },
+  "services": [
+    {
+      "binding": "TRAINING",
+      "service": "wodsmith-start",
+      "entrypoint": "AgentTrainingService"
+    }
+  ]
+}

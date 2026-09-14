@@ -16,6 +16,7 @@ import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
+import { createTrainingReadAccess } from "@/server/training-read-access"
 import {
   createPersonalWorkoutResult,
   normalizeSubmittedPersonalWorkoutResult,
@@ -412,6 +413,38 @@ export const getLogsByUserFn = createServerFn({ method: "GET" })
 const getLogByIdInputSchema = z.object({
   id: z.string().min(1, "Score ID is required"),
 })
+
+/** History lookup accepts an owned score ID, never a caller-controlled archive bypass. */
+export const getOwnedLogWorkoutFn = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({ scoreId: z.string().min(1).max(255) })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+    const db = getDb()
+    const visibility = await createTrainingReadAccess(
+      db,
+      session.userId,
+    ).workoutVisibilityCondition(true)
+    const [row] = await db
+      .select({ workout: workouts })
+      .from(scoresTable)
+      .innerJoin(workouts, eq(workouts.id, scoresTable.workoutId))
+      .where(
+        and(
+          eq(scoresTable.id, data.scoreId),
+          eq(scoresTable.userId, session.userId),
+          visibility,
+        ),
+      )
+      .limit(1)
+    if (!row) throw new Error("Owned workout history not found")
+    return { workout: row.workout }
+  })
 
 export const getLogByIdFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getLogByIdInputSchema.parse(data))

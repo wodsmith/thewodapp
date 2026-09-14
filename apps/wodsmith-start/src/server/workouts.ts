@@ -59,7 +59,7 @@ export async function getUserWorkouts({
   const needsMovementJoin = !!movement
 
   // Build conditions
-  const conditions: ReturnType<typeof eq>[] = []
+  const conditions: ReturnType<typeof eq>[] = [isNull(workouts.archivedAt)]
 
   // Base condition: team-owned or public workouts
   const teamIds = Array.isArray(teamId) ? teamId : [teamId]

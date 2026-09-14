@@ -13,6 +13,7 @@
  * @see https://tanstack.com/start/latest/docs/framework/react/hosting#custom-server-entry
  */
 
+import { handleAgentOAuth } from "./agent/consent"
 import { env, waitUntil } from "cloudflare:workers"
 import type { ExecutionContext, MessageBatch } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
@@ -99,6 +100,7 @@ initWorkersLogger({
 })
 
 // Workers runtime requires Durable Object classes to be exported from the entry point
+export { AgentTrainingService } from "./agent/service"
 export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 export { WorkoutImportAgent } from "./agents/workout-import-agent"
 export { CrossFitDailyImportWorkflow } from "./workflows/crossfit-daily-import-workflow"
@@ -164,6 +166,8 @@ async function fetchWithLogging(
   _env: Env,
   _ctx: ExecutionContext,
 ): Promise<Response> {
+  const agentResponse = await handleAgentOAuth(request, _env, _ctx)
+  if (agentResponse) return agentResponse
   const requestInfo = extractRequestInfo(request)
   const startTime = Date.now()
 

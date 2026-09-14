@@ -52,6 +52,8 @@
 		"EMAIL_FROM_NAME": "WODsmith",
 		"EMAIL_REPLY_TO": "support@mail.wodsmith.com",
 		"APP_URL": "https://wodsmith.com",
+		"AGENT_AUTH_ORIGIN": "https://localhost:3000",
+		"AGENT_RESOURCE": "https://localhost:8791/mcp",
 		"WORKOUT_IMPORT_GATEWAY": "wodsmith-import-prod",
 		"R2_PUBLIC_URL": "https://pub-10ec4eb87e8d4c7383ead07a9dd77fa5.r2.dev",
 		"POSTHOG_KEY": "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
@@ -63,6 +65,7 @@
 	 * Used for session storage
 	 */
 	"kv_namespaces": [
+        { "binding": "OAUTH_KV", "id": "agent-oauth-local-only" },
 		{
 			"binding": "KV_SESSION",
 			"id": "e7a18a19d2cb4afbaf02be597cbecb35"

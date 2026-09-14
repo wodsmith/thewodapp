@@ -45,6 +45,9 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[training-seed]] — Additive default-track demo programming with dry-run and preservation checks.
 - [[training-session-direction]] — Proposed athlete/day ownership, navbar team context, contextual adds, and team comparisons.
 
+- [[agent-gateway]] — Training MCP, consent and private service binding.
 - [[gameday-push]] — Announcement notification ownership, audience boundaries, retries, rollout, and native tests.
 - [[training-agent-services]] — Explicit actor training services and cookie adapters.
 - [[training-plans]] — Durable weekly proposals, flexible blueprints, reviewed atomic commits, and MySQL transaction tests.
+
+- [[agent-local-development]] — Repeatable isolated desktop and phone MCP testing

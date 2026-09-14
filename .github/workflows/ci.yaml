@@ -40,9 +40,9 @@ jobs:
           cat > apps/wodsmith-start/.alchemy/local/wrangler.jsonc << 'EOF'
           {
             "name": "wodsmith-app-ci",
-            "main": "@tanstack/react-start/server-entry",
+            "main": "../../src/server.ts",
             "compatibility_date": "2026-06-19",
-            "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+            "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env", "global_fetch_strictly_public"],
             "assets": {
               "directory": "../../dist/client",
               "binding": "ASSETS",
@@ -50,7 +50,7 @@ jobs:
               "html_handling": "auto-trailing-slash",
               "run_worker_first": false
             },
-            "kv_namespaces": [{ "binding": "KV_SESSION", "id": "ci-placeholder" }],
+            "kv_namespaces": [{ "binding": "KV_SESSION", "id": "ci-placeholder" }, { "binding": "OAUTH_KV", "id": "ci-oauth-placeholder" }],
             "r2_buckets": [{ "binding": "R2_BUCKET", "bucket_name": "ci-placeholder" }],
             "d1_databases": [{
               "binding": "DB",
@@ -58,7 +58,7 @@ jobs:
               "database_name": "ci-placeholder",
               "migrations_dir": "./src/db/migrations"
             }],
-            "vars": {}
+            "vars": {"AGENT_AUTH_ORIGIN":"https://localhost:3000","AGENT_RESOURCE":"https://localhost:8791/mcp"}
           }
           EOF
 
@@ -86,6 +86,12 @@ jobs:
           }
           EOF
       - run: pnpm turbo build --filter=${{ matrix.app }}
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+      - if: matrix.app == 'wodsmith-start'
+        run: |
+          node apps/wodsmith-start/scripts/check-agent-entrypoint.mjs
+          pnpm --filter wodsmith-agent exec node scripts/check-start-binding.mjs
       - uses: actions/cache/save@v4
         with:
           path: .turbo

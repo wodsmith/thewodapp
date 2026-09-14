@@ -142,7 +142,7 @@ jobs:
           echo "ERROR: Production deploys can only be triggered from the main branch."
           echo "Current branch: ${{ github.ref }}"
           echo "To deploy to prod, either:"
-          echo "  1. Push to main (triggers automatic prod deploy)"
+          echo "  1. Select main and stage=prod in the manual Deploy workflow"
           echo "  2. Run workflow_dispatch from the main branch"
           exit 1
 
@@ -201,6 +201,13 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
+      - name: Verify agent deployment configuration
+        run: |
+          pnpm exec vitest run test/agent-deployment.test.ts
+          pnpm --filter wodsmith-agent type-check
+          pnpm --filter wodsmith-agent test
+          pnpm --filter wodsmith-agent build
+
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
@@ -239,6 +246,10 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: wodsmith
           SENTRY_PROJECT: wodsmith-start
+
+      - name: Check demo agent endpoint
+        if: ${{ inputs.stage == 'demo' }}
+        run: node ../wodsmith-agent/scripts/check-demo.mjs
 
   deploy-demo:
     # Only run on push to main (workflow_dispatch handles demo via main deploy job)
@@ -299,6 +310,13 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
 
+      - name: Verify agent deployment configuration
+        run: |
+          pnpm exec vitest run test/agent-deployment.test.ts
+          pnpm --filter wodsmith-agent type-check
+          pnpm --filter wodsmith-agent test
+          pnpm --filter wodsmith-agent build
+
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
@@ -337,6 +355,9 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: wodsmith
           SENTRY_PROJECT: wodsmith-start
+
+      - name: Check demo agent endpoint
+        run: node ../wodsmith-agent/scripts/check-demo.mjs
 
   # Slack notification - success (production deploys only)
   notify-success:

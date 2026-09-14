@@ -20,7 +20,8 @@
     "type-check": "tsc --noEmit && tsc -p tsconfig.scripts.json",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:check-migrations": "node scripts/check-migration-journal.mjs"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",

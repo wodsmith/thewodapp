@@ -6,7 +6,7 @@ import {
   useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -67,6 +67,8 @@ function SignInPage() {
   } = Route.useSearch()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isHydrated, setIsHydrated] = useState(false)
+  useEffect(() => setIsHydrated(true), [])
 
   // PostHog tracking hooks
   const trackEvent = useTrackEvent()
@@ -98,6 +100,12 @@ function SignInPage() {
       // Identify user and track successful sign-in
       identifyUser(result.userId, { email: data.email })
       trackEvent("user_signed_in", { auth_method: "email_password" })
+
+      // OAuth endpoints are served by the Worker, outside the client router.
+      if (redirectPath.startsWith("/agent/")) {
+        window.location.assign(redirectPath)
+        return
+      }
 
       // Redirect to the intended destination
       router.navigate({ to: redirectPath })
@@ -140,7 +148,7 @@ function SignInPage() {
           )}
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -179,8 +187,8 @@ function SignInPage() {
                 )}
               />
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign in"}
+              <Button type="submit" className="w-full" disabled={!isHydrated || isLoading}>
+                {!isHydrated ? "Loading sign in..." : isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
           </Form>

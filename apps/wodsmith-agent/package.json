@@ -1,0 +1,28 @@
+{
+  "name": "wodsmith-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "cf-typegen": "wrangler types --include-runtime=false"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "@repo/agent-auth": "workspace:*",
+    "agents": "0.23.0",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.12.21",
+    "@cloudflare/workers-types": "4.20260702.1",
+    "@types/node": "^22.19.3",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.5",
+    "wrangler": "4.83.0"
+  }
+}
