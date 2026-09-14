@@ -94,3 +94,9 @@ Alchemy deploys the demo gateway with the demo app and binds its named training 
 Deployment configuration rejects mismatched application origins and MCP resources, preventing a demo gateway from accepting production authorization.
 
 Only the exact canonical demo or explicitly enabled production URL pair is accepted. An empty resource disables the gateway. Development uses the separate local launcher. The post-deploy smoke check verifies public resource discovery, authorization discovery, PKCE and rejection of missing and invalid tokens. Invalid-token requests exercise the private binding; failure output includes response diagnostics for edge-layer blocks.
+
+## Hosted client reachability
+
+A hosted MCP client must receive an OAuth challenge from the gateway, not a Cloudflare browser challenge. Deployment success alone does not establish this property.
+
+The initial demo rollout reached the private service successfully from a direct client, but CI received `403` with `cf-mitigated: challenge`. Resolve the responsible edge rule before accepting hosted-client compatibility; retain production protection and OAuth authorization. The demo deployment guide records how to distinguish and investigate this condition.

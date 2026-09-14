@@ -27,3 +27,9 @@ The read-only smoke check verifies the exact resource and issuer, expected OAuth
 ## Production remains explicit
 
 This work does not deploy production. Production deployment still requires selecting `main` and `stage=prod` in the manual workflow and satisfying its production environment protection. Production agent access additionally requires an explicit `AGENT_RESOURCE=https://mcp.wodsmith.com/mcp` configuration, reviewed production schema changes and client acceptance testing. The current workflow does not pass that setting, so ordinary production deployments leave agent access disabled.
+
+## Cloudflare challenges
+
+The MCP endpoint must be reachable by clients that cannot solve a browser challenge. A `403` with `cf-mitigated: challenge` is an edge challenge, not an OAuth failure. Use the reported `cf-ray` in Cloudflare Security Events to identify the responsible rule before changing settings.
+
+Initial demo deployments succeeded, but the GitHub runner's smoke requests received this challenge while direct requests passed. Keep client acceptance and merging pending until the challenge is resolved. Any exception should be scoped to the demo MCP hostname and the responsible rule; do not disable protection across the production zone. Cloudflare's free [Bot Fight Mode](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/) does not support per-request skip rules, so identifying the product is necessary before choosing a fix.
