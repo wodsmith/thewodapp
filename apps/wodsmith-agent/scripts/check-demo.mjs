@@ -17,19 +17,23 @@ async function verify() {
   assert.equal(oauth.authorization_endpoint, `${origin}/agent/authorize`)
   assert.equal(oauth.token_endpoint, `${origin}/agent/token`)
   assert.ok(oauth.code_challenge_methods_supported.includes("S256"))
-  const unauthenticated = await fetch(resource, { signal: AbortSignal.timeout(15000) })
-  assert.equal(unauthenticated.status, 401, "MCP requires authorization")
-  assert.ok(unauthenticated.headers.get("www-authenticate")?.includes(metadataUrl))
+  for (const headers of [{}, { Authorization: "Bearer demo-invalid-token-check" }]) {
+    const response = await fetch(resource, { headers, signal: AbortSignal.timeout(15000) })
+    const body = await response.text()
+    assert.equal(response.status, 401,
+      `MCP requires authorization; cf-ray=${response.headers.get("cf-ray")}; cf-mitigated=${response.headers.get("cf-mitigated")}; body=${body.slice(0,600)}`)
+    assert.ok(response.headers.get("www-authenticate")?.includes(metadataUrl))
+  }
 }
 
 for (let attempt = 1; ; attempt++) {
   try {
     await verify()
-    console.log("Demo MCP discovery, OAuth origins, PKCE, and unauthenticated rejection passed")
+    console.log("Demo MCP discovery, OAuth origins, PKCE, and private-service authorization rejection passed")
     break
   } catch (error) {
     if (attempt === 12) throw error
-    console.log(`Demo endpoint is not ready yet (${attempt}/12); retrying in 10s`)
+    console.log(`Demo check failed (${attempt}/12): ${error.message}; retrying in 10s`)
     await new Promise(resolve => setTimeout(resolve, 10000))
   }
 }

@@ -93,4 +93,4 @@ Alchemy deploys the demo gateway with the demo app and binds its named training 
 
 Deployment configuration rejects mismatched application origins and MCP resources, preventing a demo gateway from accepting production authorization.
 
-Only the exact canonical demo or explicitly enabled production URL pair is accepted. An empty resource disables the gateway. Development uses the separate local launcher. The post-deploy smoke check verifies public resource discovery, authorization discovery, PKCE and rejection of unauthenticated MCP requests.
+Only the exact canonical demo or explicitly enabled production URL pair is accepted. An empty resource disables the gateway. Development uses the separate local launcher. The post-deploy smoke check verifies public resource discovery, authorization discovery, PKCE and rejection of missing and invalid tokens. Invalid-token requests exercise the private binding; failure output includes response diagnostics for edge-layer blocks.
