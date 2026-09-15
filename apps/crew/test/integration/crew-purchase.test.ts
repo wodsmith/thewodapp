@@ -70,8 +70,8 @@ function completion(session: Stripe.Checkout.Session) {
 // @lat: [[crew#Crew Purchase Integration Tests]]
 describe.skipIf(!databaseUrl)("Crew purchase persistence", () => {
   beforeAll(async () => {
-    await db!.insert(planTable).values({ id: "crew_basic", name: "Crew Basic", price: 20000 })
-      .onDuplicateKeyUpdate({ set: { price: 20000, isActive: 1, isPublic: 1, interval: null } })
+    await db!.insert(planTable).values({ id: "crew_basic", name: "Crew Basic", price: 3000 })
+      .onDuplicateKeyUpdate({ set: { price: 3000, isActive: 1, isPublic: 1, interval: null } })
   })
   beforeEach(async () => {
     sessions.clear()
@@ -85,7 +85,7 @@ describe.skipIf(!databaseUrl)("Crew purchase persistence", () => {
     await db!.insert(crewEventSettingsTable).values({
       id: settingsId, competitionId: eventId, settings: JSON.stringify({ setup: { note: "preserve" } }),
     })
-    await db!.update(planTable).set({ price: 20000 }).where(eq(planTable.id, "crew_basic"))
+    await db!.update(planTable).set({ price: 3000 }).where(eq(planTable.id, "crew_basic"))
     sessionCookie.mockResolvedValue({ user: { id: "user_owner", email: "owner@example.com", role: "admin" }, teams: [] })
     managerAccess.mockImplementation(() => sessionCookie())
     stripeCreate.mockImplementation(fakeCreate)
@@ -103,16 +103,18 @@ describe.skipIf(!databaseUrl)("Crew purchase persistence", () => {
   it("requires settlement before exports and records duplicate payment only once", async () => {
     await expect(requireCrewSchedulePurchase({ eventId })).rejects.toThrow(/Purchase/)
     await createCrewCheckoutSession({ eventId })
+    expect(stripeCreate.mock.calls[0][0].line_items[0].price_data.unit_amount).toBe(3000)
     await expect(requireCrewSchedulePurchase({ eventId })).rejects.toThrow(/Purchase/)
     const session = [...sessions.values()][0]
     await completeCrewCheckoutSessionFromWebhook(completion(session))
     expect(await completeCrewCheckoutSessionFromWebhook(completion(session))).toEqual({ status: "duplicate" })
     await expect(requireCrewSchedulePurchase({ eventId })).resolves.toBeUndefined()
-    expect((await settings()).crewBillingState).toBe("paid")
+    expect(await settings()).toMatchObject({ crewBillingState: "paid", crewBillingAmountCents: 3000 })
     const events = await db!.select().from(crewBillingEventsTable).where(and(
       eq(crewBillingEventsTable.competitionId, eventId), eq(crewBillingEventsTable.eventType, "checkout_completed"),
     ))
     expect(events).toHaveLength(1)
+    expect(events[0].amountCents).toBe(3000)
   })
 
   it("serializes simultaneous purchases into one session and one creation audit", async () => {

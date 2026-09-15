@@ -481,7 +481,7 @@ export async function seed(client: Connection): Promise<void> {
 			name: "Crew Basic",
 			description:
 				"One-time Crew event plan with imports and confirmation reminders",
-			price: 20000,
+			price: 3000,
 			interval: null,
 			is_active: 1,
 			is_public: 1,

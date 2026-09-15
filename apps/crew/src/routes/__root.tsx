@@ -56,10 +56,14 @@ function RootComponent() {
   const usesAuthShell = useRouterState({
     select: (state) => usesCrewAuthShell(state.location.pathname),
   })
+  const usesPublicSchedule = useRouterState({
+    select: (state) =>
+      /^\/e\/[^/]+\/schedule\/?$/.test(state.location.pathname),
+  })
 
   return (
     <div className="crew-app min-h-svh min-w-0 bg-background text-foreground">
-      {!usesEventSidebar && !usesAuthShell && (
+      {!usesEventSidebar && !usesAuthShell && !usesPublicSchedule && (
         <CrewHeader session={session} isAdmin={isAdmin} />
       )}
       <Outlet />

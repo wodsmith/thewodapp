@@ -198,7 +198,7 @@ jobs:
 
       - run: pnpm --filter crew exec playwright install chromium webkit --with-deps
         timeout-minutes: 10
-      - run: pnpm --filter crew exec playwright test e2e/crew-organizer-flow.spec.ts e2e/crew-volunteer-flow.spec.ts e2e/crew-mobile.spec.ts
+      - run: pnpm --filter crew exec playwright test e2e/crew-organizer-flow.spec.ts e2e/crew-volunteer-flow.spec.ts e2e/crew-mobile.spec.ts e2e/crew-published-schedule.spec.ts
         env:
           CI: true
           CREW_E2E_DB_PREPARED: "1"

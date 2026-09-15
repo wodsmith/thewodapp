@@ -14,6 +14,7 @@ export * from "./schemas/competitions"
 // @lat: [[crew#Crew Billing State And Audit]]
 export * from "./schemas/crew-billing-events"
 export * from "./schemas/crew-event-settings"
+export * from "./schemas/crew-published-schedules"
 // `@lat`: [[crew#Add Thin Crew Tables]]
 export * from "./schemas/crew-imports"
 // @lat: [[crew#Self Serve Preset Schema]]

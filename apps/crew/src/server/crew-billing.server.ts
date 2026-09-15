@@ -38,6 +38,7 @@ import {
   type CrewBillingPlanId,
   type CrewBillingStateSnapshot,
   isCrewBillingDuplicateEntryError,
+  MANUAL_CREW_BILLING_ACTION,
   normalizeCrewBillingState,
   type PlanManualCrewBillingActionInput,
   planCrewBillingAuditAppend,
@@ -1035,4 +1036,70 @@ function isCrewStripeCheckoutEnabled() {
     Boolean(runtimeEnv.STRIPE_SECRET_KEY && runtimeEnv.STRIPE_WEBHOOK_SECRET) &&
     isCrewStripeCheckoutEnabledValue(runtimeEnv.CREW_STRIPE_CHECKOUT_ENABLED)
   )
+}
+
+// @lat: [[crew#Manual Paid And Founder Grants]]
+export async function grantCrewPilotAccess(data: {
+  eventId: string
+  reason: string
+}): Promise<{ status: "granted" | "already_granted" }> {
+  const actor = await requireAdmin()
+  if (!actor)
+    throw new Error("FORBIDDEN: Crew pilot grants require an operator")
+  const reason = data.reason.trim()
+  if (reason.length < 3 || reason.length > 500) {
+    throw new Error("Enter a pilot grant reason between 3 and 500 characters.")
+  }
+  const scope = await requireCrewBillingScope(data.eventId)
+  const idempotencyKey = "pilot-launch-2026"
+
+  return getDb().transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(crewEventSettingsTable)
+      .where(eq(crewEventSettingsTable.competitionId, scope.id))
+      .for("update")
+    if (!row) throw new Error("Crew event not found")
+    const existing = await tx
+      .select()
+      .from(crewBillingEventsTable)
+      .where(
+        and(
+          eq(crewBillingEventsTable.competitionId, scope.id),
+          eq(
+            crewBillingEventsTable.eventType,
+            CREW_BILLING_EVENT_TYPE.EVENT_COMPED,
+          ),
+          eq(crewBillingEventsTable.idempotencyKey, idempotencyKey),
+        ),
+      )
+    if (existing.length) return { status: "already_granted" }
+    if (row.crewBillingState !== CREW_BILLING_STATE.UNPAID) {
+      throw new Error(
+        "Pilot grants require an unpaid event. Resolve any pending payment first.",
+      )
+    }
+    const appendPlan = planManualCrewBillingAction(existing, {
+      action: MANUAL_CREW_BILLING_ACTION.COMP_EVENT,
+      competitionId: scope.id,
+      teamId: scope.organizingTeamId,
+      current: billingSnapshotFromSettings(row),
+      planId: "crew_basic",
+      idempotencyKey,
+      actorUserId: actor.user.id,
+      actorLabel: actor.user.email,
+      publicNote: "Free pilot event access",
+      privateMetadata: { pilot: "crew-launch-2026", reason },
+    })
+    if (appendPlan.action === "skip_duplicate")
+      return { status: "already_granted" }
+    await tx
+      .insert(crewBillingEventsTable)
+      .values(toNewCrewBillingEvent(appendPlan.event))
+    await tx
+      .update(crewEventSettingsTable)
+      .set({ ...appendPlan.settingsPatch, updatedAt: new Date() })
+      .where(eq(crewEventSettingsTable.id, row.id))
+    return { status: "granted" }
+  })
 }

@@ -18,7 +18,7 @@ test.describe("Crew organizer scheduling flow", () => {
       await expect(page).toHaveURL(new RegExp(`/events/${demo.eventId}/shifts$`))
       await expect(page.getByRole("link", { name: "Confirmations", exact: true })).toHaveCount(0)
       await expect(page.getByRole("link", { name: "Event Day", exact: true })).toHaveCount(0)
-      await expect(page.getByRole("link", { name: "Export Schedule", exact: true })).toBeVisible()
+      await expect(page.getByRole("link", { name: "Schedule", exact: true })).toBeVisible()
     }
   })
 
@@ -58,7 +58,9 @@ test.describe("Crew organizer scheduling flow", () => {
       await expect(assignments.getByText("1/1 assigned")).toBeVisible()
       await assignments.getByRole("button", { name: "Close", exact: true }).click()
 
-      await page.getByRole("link", { name: "Export Schedule", exact: true }).click()
+      await page.getByRole("link", { name: "Schedule", exact: true }).click()
+      await expect(page.getByRole("button", { name: "Draft preview" })).toBeVisible()
+      await page.getByRole("link", { name: "Print or download", exact: true }).click()
       await expect(page).toHaveURL(new RegExp(`${eventPath}/billing$`))
       await expect(page.getByRole("heading", { name: "Purchase event access" })).toBeVisible()
       await expect(page.getByRole("button", { name: "Checkout unavailable" })).toBeDisabled()
@@ -66,7 +68,8 @@ test.describe("Crew organizer scheduling flow", () => {
 
       await page.goto(`${eventPath}/billing?crew_checkout=success`)
       await expect(page.getByText(/We are waiting for payment confirmation/)).toBeVisible()
-      await page.getByRole("link", { name: "Export Schedule", exact: true }).click()
+      await page.getByRole("link", { name: "Schedule", exact: true }).click()
+      await page.getByRole("link", { name: "Print or download", exact: true }).click()
       await expect(page.getByRole("heading", { name: "Purchase event access" })).toBeVisible()
       await page.goto(`${eventPath}/billing?crew_checkout=canceled`)
       await expect(page.getByText(/Checkout was canceled. Your schedule is saved/)).toBeVisible()

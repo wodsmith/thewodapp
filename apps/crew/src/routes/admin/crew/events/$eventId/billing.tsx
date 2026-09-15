@@ -3,6 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { CreditCard, ExternalLink } from "lucide-react"
 import type { ReactNode } from "react"
+import { CrewPilotGrant } from "@/components/crew-pilot-grant"
 import type { CrewBillingActionViewModel } from "@/lib/crew/billing-page"
 import {
   type CrewAdminBillingData,
@@ -92,10 +93,16 @@ function CrewAdminBillingPage() {
             <BillingAction action={viewModel.paymentLink} />
             <BillingAction action={viewModel.checkout} />
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Mutating admin billing actions remain in the existing billing
-            service layer; this PR exposes the guarded admin read surface.
-          </p>
+          <CrewPilotGrant
+            eventId={event.id}
+            eventName={event.name}
+            billingState={billing.state}
+            alreadyGranted={auditEvents.some(
+              (audit) =>
+                audit.eventType === "event_comped" &&
+                audit.idempotencyKey === "pilot-launch-2026",
+            )}
+          />
         </aside>
       </section>
 
