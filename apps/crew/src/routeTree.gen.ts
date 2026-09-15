@@ -37,6 +37,7 @@ import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/str
 import { Route as ApiE2eSessionRouteImport } from './routes/api/e2e/session'
 import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
 import { Route as AdminCrewEventsRouteImport } from './routes/admin/crew/events'
+import { Route as ESlugScheduleIndexRouteImport } from './routes/e/$slug/schedule/index'
 import { Route as EventsEventIdDiscoveryJudgesRouteImport } from './routes/events/$eventId/discovery/judges'
 import { Route as ESlugScheduleTokenRouteImport } from './routes/e/$slug/schedule/$token'
 import { Route as ESlugConsentTokenRouteImport } from './routes/e/$slug/consent/$token'
@@ -186,6 +187,11 @@ const AdminCrewEventsRoute = AdminCrewEventsRouteImport.update({
   path: '/events',
   getParentRoute: () => AdminCrewRoute,
 } as any)
+const ESlugScheduleIndexRoute = ESlugScheduleIndexRouteImport.update({
+  id: '/e/$slug/schedule/',
+  path: '/e/$slug/schedule/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsEventIdDiscoveryJudgesRoute =
   EventsEventIdDiscoveryJudgesRouteImport.update({
     id: '/discovery/judges',
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
   '/events/$eventId/discovery/judges': typeof EventsEventIdDiscoveryJudgesRoute
+  '/e/$slug/schedule': typeof ESlugScheduleIndexRoute
   '/admin/crew/events/$eventId/billing': typeof AdminCrewEventsEventIdBillingRoute
   '/admin/crew/events/$eventId/convert': typeof AdminCrewEventsEventIdConvertRoute
   '/admin/crew/events/$eventId/readiness': typeof AdminCrewEventsEventIdReadinessRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByTo {
   '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
   '/events/$eventId/discovery/judges': typeof EventsEventIdDiscoveryJudgesRoute
+  '/e/$slug/schedule': typeof ESlugScheduleIndexRoute
   '/admin/crew/events/$eventId/billing': typeof AdminCrewEventsEventIdBillingRoute
   '/admin/crew/events/$eventId/convert': typeof AdminCrewEventsEventIdConvertRoute
   '/admin/crew/events/$eventId/readiness': typeof AdminCrewEventsEventIdReadinessRoute
@@ -341,6 +349,7 @@ export interface FileRoutesById {
   '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
   '/events/$eventId/discovery/judges': typeof EventsEventIdDiscoveryJudgesRoute
+  '/e/$slug/schedule/': typeof ESlugScheduleIndexRoute
   '/admin/crew/events/$eventId/billing': typeof AdminCrewEventsEventIdBillingRoute
   '/admin/crew/events/$eventId/convert': typeof AdminCrewEventsEventIdConvertRoute
   '/admin/crew/events/$eventId/readiness': typeof AdminCrewEventsEventIdReadinessRoute
@@ -381,6 +390,7 @@ export interface FileRouteTypes {
     | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
     | '/events/$eventId/discovery/judges'
+    | '/e/$slug/schedule'
     | '/admin/crew/events/$eventId/billing'
     | '/admin/crew/events/$eventId/convert'
     | '/admin/crew/events/$eventId/readiness'
@@ -418,6 +428,7 @@ export interface FileRouteTypes {
     | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
     | '/events/$eventId/discovery/judges'
+    | '/e/$slug/schedule'
     | '/admin/crew/events/$eventId/billing'
     | '/admin/crew/events/$eventId/convert'
     | '/admin/crew/events/$eventId/readiness'
@@ -456,6 +467,7 @@ export interface FileRouteTypes {
     | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
     | '/events/$eventId/discovery/judges'
+    | '/e/$slug/schedule/'
     | '/admin/crew/events/$eventId/billing'
     | '/admin/crew/events/$eventId/convert'
     | '/admin/crew/events/$eventId/readiness'
@@ -476,6 +488,7 @@ export interface RootRouteChildren {
   ESlugConfirmTokenRoute: typeof ESlugConfirmTokenRoute
   ESlugConsentTokenRoute: typeof ESlugConsentTokenRoute
   ESlugScheduleTokenRoute: typeof ESlugScheduleTokenRoute
+  ESlugScheduleIndexRoute: typeof ESlugScheduleIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -676,6 +689,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCrewEventsRouteImport
       parentRoute: typeof AdminCrewRoute
     }
+    '/e/$slug/schedule/': {
+      id: '/e/$slug/schedule/'
+      path: '/e/$slug/schedule'
+      fullPath: '/e/$slug/schedule'
+      preLoaderRoute: typeof ESlugScheduleIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events/$eventId/discovery/judges': {
       id: '/events/$eventId/discovery/judges'
       path: '/discovery/judges'
@@ -845,6 +865,7 @@ const rootRouteChildren: RootRouteChildren = {
   ESlugConfirmTokenRoute: ESlugConfirmTokenRoute,
   ESlugConsentTokenRoute: ESlugConsentTokenRoute,
   ESlugScheduleTokenRoute: ESlugScheduleTokenRoute,
+  ESlugScheduleIndexRoute: ESlugScheduleIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

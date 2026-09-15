@@ -17,6 +17,22 @@ export async function cleanupCrewScheduleTestEvent(url: string, eventName: strin
       [eventName, "e2e_personal_team_test"],
     )
     for (const event of events) {
+      await connection.execute("DELETE FROM crew_published_schedules WHERE competition_id = ?", [event.id])
+      await connection.execute("DELETE FROM crew_billing_events WHERE competition_id = ?", [event.id])
+      await connection.execute(
+        "DELETE r FROM crew_import_rows r INNER JOIN crew_imports i ON i.id = r.import_id WHERE i.competition_id = ?",
+        [event.id],
+      )
+      await connection.execute("DELETE FROM crew_imports WHERE competition_id = ?", [event.id])
+      await connection.execute(
+        "DELETE a FROM competition_registration_answers a INNER JOIN competition_registration_questions q ON q.id = a.question_id WHERE q.competition_id = ?",
+        [event.id],
+      )
+      await connection.execute(
+        "DELETE a FROM volunteer_registration_answers a INNER JOIN competition_registration_questions q ON q.id = a.question_id WHERE q.competition_id = ?",
+        [event.id],
+      )
+      await connection.execute("DELETE FROM competition_registration_questions WHERE competition_id = ?", [event.id])
       await connection.execute("DELETE FROM crew_assignment_confirmations WHERE competition_id = ?", [event.id])
       await connection.execute(
         "DELETE a FROM volunteer_shift_assignments a INNER JOIN volunteer_shifts s ON s.id = a.shift_id WHERE s.competition_id = ?",

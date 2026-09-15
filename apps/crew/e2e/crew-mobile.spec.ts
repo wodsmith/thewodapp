@@ -85,6 +85,7 @@ for (const width of [320, 390, 768, 1280]) {
         "/volunteers",
         "/shifts",
         "/judges",
+        "/schedule",
         "/exports",
         "/billing",
       ].map((path) => eventPath + path),
@@ -199,7 +200,9 @@ test("creates and assigns a volunteer schedule on a small phone", async ({
     await expect(
       page.getByRole("article", { name: "Morning judges" }),
     ).toContainText("1 / 1")
-    await navigateEvent(page, "Export Schedule")
+    await navigateEvent(page, "Schedule")
+    await expectPageFits(page)
+    await page.getByRole("link", { name: "Print or download", exact: true }).click()
     await expect(
       page.getByRole("heading", { name: "Purchase event access" }),
     ).toBeVisible()

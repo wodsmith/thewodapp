@@ -160,7 +160,7 @@ describe("billing seed catalog", () => {
 		)
 		expect(planById.get("crew_basic")).toEqual(
 			expect.objectContaining({
-				price: 20000,
+				price: 3000,
 				interval: null,
 				is_public: 1,
 			}),

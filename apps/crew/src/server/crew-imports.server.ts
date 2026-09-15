@@ -79,6 +79,7 @@ import {
 } from "../lib/crew/imports/apply"
 import { selectBuiltInImportMappingSuggestion } from "../lib/crew/imports/builtin-presets"
 import { isSupportedCrewImportFile } from "../lib/crew/imports/file"
+import { getCrewImportInvitationExpiry } from "../lib/crew/imports/invitation-expiry"
 import {
   buildCrewImportMappingPresetWrite,
   type CrewImportMappingPresetCandidate,
@@ -661,6 +662,12 @@ async function applyVolunteerImport({
   )
   const timestamp = new Date()
 
+  const invitationExpiresAt = getCrewImportInvitationExpiry({
+    now: timestamp,
+    endDate: event.endDate,
+    timezone: event.timezone,
+  })
+
   let createdQuestionCount = 0
   let answerCount = 0
 
@@ -704,6 +711,7 @@ async function applyVolunteerImport({
           event.competitionTeamId,
           row,
           timestamp,
+          invitationExpiresAt,
         )
       } else if (row.operation === "update_invitation" && row.targetId) {
         await updateVolunteerInvitation(
@@ -714,6 +722,7 @@ async function applyVolunteerImport({
             row.metadata,
           ),
           timestamp,
+          invitationExpiresAt,
         )
       } else if (row.operation === "update_membership" && row.targetId) {
         await updateVolunteerMembership(
@@ -806,7 +815,6 @@ async function applyVolunteerImport({
         createdVolunteerQuestionCount: createdQuestionCount,
         volunteerAnswerCount: answerCount,
         knownLimitations: [
-          "Pending no-account volunteers are written as team invitations and are not assignable until they accept or become approved memberships.",
           "Question answers are attached to volunteer invitations only; rows matched to existing memberships do not receive imported answers.",
         ],
       },
@@ -1044,10 +1052,9 @@ async function createVolunteerInvitation(
   competitionTeamId: string,
   row: VolunteerApplyRowPlan,
   timestamp: Date,
+  expiresAt: Date,
 ) {
   const invitationId = createTeamInvitationId()
-  const expiresAt = new Date(timestamp)
-  expiresAt.setDate(expiresAt.getDate() + 30)
 
   await db.insert(teamInvitationTable).values({
     id: invitationId,
@@ -1072,10 +1079,8 @@ async function updateVolunteerInvitation(
   invitationId: string,
   metadata: string | null,
   timestamp: Date,
+  expiresAt: Date,
 ) {
-  const expiresAt = new Date(timestamp)
-  expiresAt.setDate(expiresAt.getDate() + 30)
-
   await db
     .update(teamInvitationTable)
     .set({
@@ -2016,6 +2021,7 @@ async function requireCrewEvent(eventId: string) {
       competitionTeamId: competitionsTable.competitionTeamId,
       groupId: competitionsTable.groupId,
       startDate: competitionsTable.startDate,
+      endDate: competitionsTable.endDate,
       timezone: competitionsTable.timezone,
       settings: competitionsTable.settings,
     })
