@@ -85,13 +85,6 @@
       "when": 1789263444451,
       "tag": "0011_gameday_push",
       "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "5",
-      "when": 1789508618853,
-      "tag": "0012_crew_published_schedules",
-      "breakpoints": true
     }
   ]
 }
