@@ -696,11 +696,11 @@ Crew reuses the existing WODsmith Stripe credentials and Alchemy webhook provisi
 
 The revised launch offer targets the existing active, public `crew_basic` catalog entry at 3,000 USD cents ($30) per event, with no recurring interval. Existing databases require a separate guarded catalog update.
 
-Production must contain that active, public plan before Checkout is enabled. On September 6, 2026, the missing production row was inserted from the existing billing seed with a `WHERE NOT EXISTS` guard; other plans and existing prices were preserved. Demo already contained the same offer.
+Production must contain that active, public plan at 3,000 cents before Checkout is enabled. Billing seeds use `INSERT IGNORE`, so reseeding cannot update an existing $200 row. The [operator runbook](../apps/crew/docs/guides/paid-launch-ops-runbook.md) requires the guarded catalog update and readback before enabling Checkout or releasing the $30 offer.
 
 [[apps/crew/scripts/update-crew-price.ts]] defaults to a dry run, requires an explicit demo/prod stage, and requires the exact database name for apply. It accepts only the former 20,000-cent value or the already-updated 3,000-cent value; its sole write is a guarded Basic catalog price update. It reports pending attempts at other amounts without rewriting frozen Checkout amounts, historical event billing, or audit rows. [[apps/crew/test/scripts/crew-launch-price.test.ts]] checks the guardrails, idempotency, and both app seeds; [[apps/wodsmith-start/test/scripts/billing-seed-catalog.test.ts]] checks the WODsmith catalog.
 
-Read-only verification on September 15, 2026 found both PlanetScale `wodsmith/wodsmith-db` branches `demo` and `main` still at 20,000 cents, with no pending Crew Basic attempts at another price, and no published-schedule table. These are pre-rollout observations, not evidence that the new schema, price, or worker has been deployed.
+On September 15, 2026, the guarded catalog update changed exactly one `crew_basic` row in each PlanetScale `wodsmith/wodsmith-db` branch, `demo` and `main`, from 20,000 to 3,000 cents. Readback verified both prices, active/public flags, and null intervals. Preflight found no pending Basic attempts at another amount. Historical billing and checkout attempt records were not modified. This verifies the catalog update; the schema cutover and application release remain separate rollout steps.
 
 ## Production Launch Verification
 
