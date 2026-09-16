@@ -83,7 +83,6 @@ function VolunteersPage() {
   const router = useRouter()
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
   const [editingVolunteer, setEditingVolunteer] =
     useState<CrewRosterVolunteer | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -160,9 +159,11 @@ function VolunteersPage() {
             <ClipboardPaste />
             Paste emails
           </Button>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <FileUp />
-            Import volunteers
+          <Button asChild variant="outline">
+            <Link to="/events/$eventId/import-volunteers" params={{ eventId }}>
+              <FileUp />
+              Import volunteers
+            </Link>
           </Button>
           <Button onClick={() => setAddOpen(true)}>
             <UserPlus />
@@ -329,12 +330,6 @@ function VolunteersPage() {
         eventId={eventId}
         onOpenChange={setPasteOpen}
         onCreated={reloadRoster}
-      />
-      <ImportVolunteersDialog
-        open={importOpen}
-        eventId={eventId}
-        onOpenChange={setImportOpen}
-        onImported={reloadRoster}
       />
       <EditRosterVolunteerDialog
         volunteer={editingVolunteer}
@@ -746,37 +741,6 @@ function PasteVolunteerEmailsDialog({
             </Button>
           </DialogFooter>
         </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function ImportVolunteersDialog({
-  open,
-  eventId,
-  onOpenChange,
-  onImported,
-}: {
-  open: boolean
-  eventId: string
-  onOpenChange: (open: boolean) => void
-  onImported: () => Promise<void>
-}) {
-  async function handleApplyComplete() {
-    onOpenChange(false)
-    await onImported()
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Import volunteers</DialogTitle>
-        </DialogHeader>
-        <VolunteerImportFlow
-          eventId={eventId}
-          onApplyComplete={handleApplyComplete}
-        />
       </DialogContent>
     </Dialog>
   )

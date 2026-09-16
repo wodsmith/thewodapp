@@ -380,7 +380,7 @@ Operator-facing durations render in compact hour/minute labels so workout block 
 
 Crew import preview is a private operator workflow for volunteer and heat schedule uploads from CSV or Excel workbooks.
 
-Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
+Volunteer imports use a dedicated event screen at [[apps/crew/src/routes/events/$eventId/import-volunteers.tsx]], reached from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] and rendered by [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports remain in a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
 
 CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel workbook parsing accepts `.xlsx` and `.xlsm` uploads, reads the first worksheet through [[apps/crew/src/lib/crew/imports/xlsx.ts#parseXlsx]], converts shared strings and styled time/date cells into text, and feeds the same tabular parser shape as CSV so column mapping, warning generation, and apply planning remain shared. The shared tabular parser rejects any blank header cell with a `missing_headers` error (not just fully empty header rows), since blank labels would collapse multiple columns onto one empty key and silently drop data. Both upload panels catch `parseCrewImportFile` throws (malformed workbooks), reset the mapping state, and surface an `invalid_import_file` client issue so the dialog stays usable.
 
@@ -433,6 +433,12 @@ The confirmed mutation is the only apply path allowed to create or update Crew r
 It keeps the destructive boundary explicit: preview remains read-only, while confirmation can create invitations, update memberships, and attach import metadata to the resulting records.
 
 Volunteer apply composes first-class import fields into `VolunteerMembershipMetadata`: `phoneCountryCode` + `phone` become `signupPhone` (e.g. `+1 5551234567`, without double-prefixing), `shirtSize` maps through, and ranked role preferences resolve to a deduped ordered `volunteerRoleTypes` (falling back to `GENERAL`) while their raw labels are preserved in `internalNotes`. Provenance is stored under the extra keys `crewImportExternalId` and `crewImportSourceCreatedAt`.
+
+### Dedicated Volunteer Import Screen
+
+The volunteer import screen presents upload and mapping, preview review, and confirmed import as three persistent steps so operators always know the full path and can see disabled actions before they become available.
+
+Changing the file, source label, or column mapping after preview marks that preview out of date and disables import until the operator rebuilds it. The final import action is present from the start and stays on the page with a completion state after apply.
 
 ## Add Thin Crew Tables
 
