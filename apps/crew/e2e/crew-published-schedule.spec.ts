@@ -41,20 +41,20 @@ async function gotoHydrated(page: Page, url: string) {
 }
 
 async function uploadCompetitionCornerVolunteers(page: Page) {
-  await page.getByRole("button", { name: "Import volunteers", exact: true }).click()
-  const dialog = page.getByRole("dialog", { name: "Import volunteers", exact: true })
-  await dialog.getByLabel("CSV or Excel file", { exact: true }).setInputFiles({
+  await page.getByRole("link", { name: "Import volunteers", exact: true }).click()
+  await waitForHydration(page)
+  await page.getByLabel("CSV or Excel file", { exact: true }).setInputFiles({
     name: "competition-corner-volunteers.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(competitionCornerCsv),
   })
-  await dialog.getByRole("button", { name: "Use Competition Corner mapping", exact: true }).click()
-  await dialog.getByRole("button", { name: "Preview volunteer list", exact: true }).click()
-  await expect(dialog.getByRole("heading", { name: /Preview ready: 1 volunteer/ })).toBeVisible()
-  await dialog.getByRole("button", { name: "Apply volunteer list", exact: true }).click()
-  const confirmation = page.getByRole("dialog", { name: "Apply volunteer list?", exact: true })
-  await confirmation.getByRole("button", { name: "Apply volunteer list", exact: true }).click()
-  await expect(dialog).not.toBeVisible()
+  await page.getByRole("button", { name: "Use Competition Corner mapping", exact: true }).click()
+  await page.getByRole("button", { name: "Build preview", exact: true }).click()
+  await expect(page.getByRole("heading", { name: /Preview ready: 1 volunteer/ })).toBeVisible()
+  await page.getByRole("button", { name: "Import 1 volunteer", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Your roster is up to date", exact: true })).toBeVisible()
+  await page.getByRole("link", { name: "Back to roster", exact: true }).click()
+  await waitForHydration(page)
   await expect(page.getByRole("table").getByText(volunteerName, { exact: true })).toBeVisible()
 }
 

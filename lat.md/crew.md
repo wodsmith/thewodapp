@@ -316,7 +316,7 @@ Draft `competition_judge_rotations` stay editable after publishing — saves are
 
 Manual volunteer intake lets Crew operators build the roster from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the event volunteer page]] without leaving the existing volunteer primitives.
 
-Single-add, paste, and CSV import flows are all available as dialogs on the volunteers page. Single-add and paste flows call [[apps/crew/src/server-fns/crew-roster-shift-fns.ts|route-safe server functions]] backed by [[apps/crew/src/server/crew-roster-shift.server.ts|server-only roster mutations]] to create pending volunteer `team_invitations` with `SYSTEM_ROLES_ENUM.VOLUNTEER`, normalize email casing and whitespace, skip existing volunteer invitations or memberships, and use the same volunteer membership metadata shape consumed by [[crew#Roster Shifts Assignments]], public signup, import, roster display, shifts, and assignment validation.
+Single-add and paste flows are available as dialogs on the volunteers page, while CSV import opens [[apps/crew/src/routes/events/$eventId/import-volunteers.tsx|a dedicated event screen]]. The dialog flows call [[apps/crew/src/server-fns/crew-roster-shift-fns.ts|route-safe server functions]] backed by [[apps/crew/src/server/crew-roster-shift.server.ts|server-only roster mutations]] to create pending volunteer `team_invitations` with `SYSTEM_ROLES_ENUM.VOLUNTEER`, normalize email casing and whitespace, skip existing volunteer invitations or memberships, and use the same volunteer membership metadata shape consumed by [[crew#Roster Shifts Assignments]], public signup, import, roster display, shifts, and assignment validation.
 
 [[apps/crew/src/lib/crew/manual-volunteer-intake.ts|Manual intake helpers]] parse pasted email batches and default missing role selections through `getCrewRosterRoleTypes()` so manually entered volunteers display as General and stay compatible with shift assignment behavior.
 
@@ -326,7 +326,7 @@ The single-add form makes email optional so operators can roster a volunteer wit
 
 Email-less volunteers store an empty-string `team_invitations.email` (the column stays `notNull`) and omit `signupEmail` from metadata, so dedup, identity matching, and the roster never treat them as sharing a blank email anchor. The schema requires a name or an email, no invite email is sent (the manual path never sends one), and roster, shift, and assignment surfaces render a "No email" placeholder. Bulk role assignment and scheduling already key off the membership-or-invitation id, so email-less volunteers are fully selectable and assignable. The paste flow stays email-only.
 
-The CSV import modal uses [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] to render the upload, column-mapping, preview, and apply steps inside a Dialog, scoped to the volunteer kind only. On a successful apply the modal closes and the router invalidates so newly imported volunteers appear without a page navigation.
+The dedicated CSV import screen uses [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] to render the upload, column-mapping, preview, and apply steps, scoped to the volunteer kind only. On a successful apply it keeps a visible completion state and invalidates the router; the operator returns to the refreshed roster through the persistent back link.
 
 ## Staffing Page Gap Report
 
@@ -382,7 +382,7 @@ Crew import preview is a private operator workflow for volunteer and heat schedu
 
 Volunteer imports use a dedicated event screen at [[apps/crew/src/routes/events/$eventId/import-volunteers.tsx]], reached from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] and rendered by [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports remain in a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
 
-CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel workbook parsing accepts `.xlsx` and `.xlsm` uploads, reads the first worksheet through [[apps/crew/src/lib/crew/imports/xlsx.ts#parseXlsx]], converts shared strings and styled time/date cells into text, and feeds the same tabular parser shape as CSV so column mapping, warning generation, and apply planning remain shared. The shared tabular parser rejects any blank header cell with a `missing_headers` error (not just fully empty header rows), since blank labels would collapse multiple columns onto one empty key and silently drop data. Both upload panels catch `parseCrewImportFile` throws (malformed workbooks), reset the mapping state, and surface an `invalid_import_file` client issue so the dialog stays usable.
+CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel workbook parsing accepts `.xlsx` and `.xlsm` uploads, reads the first worksheet through [[apps/crew/src/lib/crew/imports/xlsx.ts#parseXlsx]], converts shared strings and styled time/date cells into text, and feeds the same tabular parser shape as CSV so column mapping, warning generation, and apply planning remain shared. The shared tabular parser rejects any blank header cell with a `missing_headers` error (not just fully empty header rows), since blank labels would collapse multiple columns onto one empty key and silently drop data. Both upload panels catch `parseCrewImportFile` throws (malformed workbooks), reset the mapping state, and surface an `invalid_import_file` client issue so the import surface stays usable.
 
 To bound decompression on the worker, `parseXlsx` only extracts the workbook parts it reads (workbook metadata, worksheets, shared strings, and styles) and rejects the upload with an `invalid_workbook` error when any entry exceeds 20 MB or the extracted total exceeds 50 MB. Shared-string extraction ignores phonetic furigana (`<rPh>`) runs so only base text becomes cell values.
 
@@ -438,7 +438,7 @@ Volunteer apply composes first-class import fields into `VolunteerMembershipMeta
 
 The volunteer import screen presents upload and mapping, preview review, and confirmed import as three persistent steps so operators always know the full path and can see disabled actions before they become available.
 
-Changing the file, source label, or column mapping after preview marks that preview out of date and disables import until the operator rebuilds it. The final import action is present from the start and stays on the page with a completion state after apply.
+Changing the file, source label, or column mapping after preview marks that preview out of date and disables import until the operator rebuilds it. A preview response is accepted only when its captured draft version still matches the visible controls, so a late response cannot re-enable an outdated import. The final import action is present from the start and stays on the page with a completion state after apply.
 
 ## Add Thin Crew Tables
 
@@ -490,7 +490,7 @@ Crew import mapping memory stores confirmed CSV header mappings in `crew_import_
 
 [[apps/crew/src/lib/crew/imports/mapping-memory.ts]] owns pure header fingerprinting, source normalization, scoped suggestion selection, and save-payload sanitization. [[apps/crew/src/server-fns/crew-import-fns.ts]] keeps the route-facing functions thin while [[apps/crew/src/server/crew-imports.server.ts]] loads and upserts presets through the shared table.
 
-The volunteer import modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
+The [[apps/crew/src/routes/events/$eventId/import-volunteers.tsx|dedicated volunteer import screen]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
 
 ### Built-in Presets
 
