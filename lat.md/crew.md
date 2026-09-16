@@ -1,14 +1,16 @@
 # Crew
 
-Crew helps organizers using another registration platform import volunteers, build shifts and judge assignments, and export a staffing schedule using normal WODsmith competition records.
+Crew helps organizers using another registration platform import volunteers, build shifts and judge assignments, and publish or print a volunteer schedule using normal WODsmith competition records.
 
 ## Scheduling Launch Scope
 
-Crew launches as a volunteer scheduling product: event details, volunteer import, shifts, optional heat-based judge assignments, and schedule exports. Broadcasting, confirmations, and event-day tracking are outside the launch workflow.
+Crew launches with volunteer import, shifts, optional heat-based judge assignments, a schedule preview, accountless published name lookup, and printable exports. Broadcasting, confirmations, and event-day tracking remain outside the launch workflow.
 
 [[apps/crew/src/lib/crew/navigation.ts]] and [[apps/crew/src/components/crew-event-sidebar.tsx]] expose the scheduling steps. The legacy messages and day-of routes are redirect-only stubs that lead to shifts. Stored data, server-side history helpers, and volunteer response links remain available without requiring these workflows.
 
 [[apps/crew/src/server/crew-organizer-home.server.ts]] derives setup completion from the event name, dates, and timezone rather than the retired setup checklist. [[apps/crew/src/lib/crew/organizer-next-action.ts]] guides organizers from roster to shifts and exports; heat imports are optional for shift-only events, and incomplete coverage points back to assignments.
+
+The Schedule navigation item retains the existing `print-packet` key and opens [[apps/crew/src/routes/events/$eventId/schedule.tsx]]. Organizers distribute [[crew#Published Volunteer Schedule]] through a copied link or volunteer message pasted into Competition Corner or their existing email tool. Crew does not send that message in the launch workflow.
 
 ## Mobile Layout and Navigation
 
@@ -31,6 +33,8 @@ Phone export verification requires nonempty, matching sets of Time and People he
 Crew billing catalog rows live in the existing billing seed and entitlement config surfaces while paid event access remains separate from WODsmith team subscription state.
 
 [[apps/wodsmith-start/scripts/seed/seeders/02-billing.ts]] and [[apps/crew/scripts/seed/seeders/02-billing.ts]] seed Crew plan, feature, and limit catalog rows for launch pricing. The Crew plan IDs are event-level catalog entries and must not be assigned to `teams.currentPlanId` for one-event purchases.
+
+The public purchase surface offers one Crew Event package backed by `crew_basic` at 3,000 USD cents ($30), with no recurring interval. Seeds in both apps use that value; changing existing demo or production rows requires the guarded rollout in [[crew#Crew Production Catalog]]. Existing checkout attempts keep their frozen amount and historical purchases remain unchanged.
 
 Public launch catalog entries are `crew_starter`, `crew_basic`, and `crew_pro`. Manual/private entries are `crew_concierge` and `crew_founding_2026` so concierge and founder pricing can be granted and audited later without exposing founder pricing publicly.
 
@@ -56,11 +60,19 @@ Manual Crew paid states are private operator/server actions that assign an event
 
 Full-platform upgrade credit is single-use per Crew event. Setting or applying credit uses stable idempotency keys and rejects old credit audit rows without a tested reversal path.
 
+### Free Pilot Event Grants
+
+An operator can grant one selected unpaid event complimentary Basic access, with an actor, reason, and event-scoped audit entry. Early pilot allocation is manual.
+
+[[apps/crew/src/components/crew-pilot-grant.tsx]] renders the grant form in [[apps/crew/src/routes/admin/crew/events/$eventId/billing.tsx]]. [[apps/crew/src/server/crew-billing.server.ts#grantCrewPilotAccess]] requires a local admin, locks the selected settings row, and uses the existing `comp_event` planner and `event_comped` audit with stable `pilot-launch-2026` idempotency. Retries do not create another grant, including after a later refund. Pending purchases and events with existing access cannot be overwritten.
+
+The operator chooses each organizer and event; no generic coupon system, automatic first-ten counter, Stripe discount, or team subscription mutation is added. [[apps/crew/test/server/crew-pilot-grant.test.ts]] covers authorization before database access, event scope, audit data, idempotency, and rejection of conflicting billing states.
+
 ## Billing Page And Upgrade CTA
 
 The Crew purchase page offers one event package and shows verified event access without exposing operator-only audit metadata.
 
-[[apps/crew/src/routes/events/$eventId/billing.tsx]] renders the server-priced Crew Event package, starts or resumes Stripe Checkout, and polls event access after returning from Stripe. Draft editing stays available before purchase; exporting requires active event access.
+[[apps/crew/src/routes/events/$eventId/billing.tsx]] renders the server-priced Crew Event package, starts or resumes Stripe Checkout, and polls event access after returning from Stripe. Draft editing and preview stay available before purchase; publishing, sharing, and exporting require active event access.
 
 [[apps/crew/src/lib/crew/billing-page.ts]] derives public page labels and CTA state from normalized event-level Crew billing state. It does not read team subscription state, expose founder pricing, or pass Stripe IDs through to the route view model.
 
@@ -217,6 +229,14 @@ Shift assignments reference a volunteer by a canonical assignee id, so imported 
 `volunteer_shift_assignments` carries a nullable `membershipId` and a nullable `invitationId` (exactly one is set per row), mirroring `crew_assignment_confirmations`. [[apps/crew/src/lib/crew/roster-shifts.ts#getCrewRosterAssigneeId]] derives the canonical id and [[apps/crew/src/lib/crew/roster-shifts.ts#isCrewRosterVolunteerStaffable]] gates the assignable pool: a volunteer is staffable when it has a usable id and a staffable status (`active`, `accepted`, or `pending`); `inactive` memberships and `expired` invitations are excluded. Role compatibility (General matches every shift) is checked separately by [[apps/crew/src/lib/crew/roster-shifts.ts#isVolunteerCompatibleWithShift]].
 
 [[apps/crew/src/server/crew-roster-shift.server.ts#assignCrewVolunteerToShift]] resolves the assignee from either source, stores the matching column, and seeds the confirmation with the same `invitationId`/`membershipId`. The shift board, staffing matrix, pilot ops, and day-of actions all key assignments by the canonical assignee id so invitation-based volunteers participate in coverage, double-booking, credential checks, and organizer-entered attendance overrides.
+
+### Organizer Roster Lifetime
+
+Imported and manually added roster people remain schedulable after the account invitation expires. Cancellation still removes a person from the assignable roster.
+
+[[apps/crew/src/lib/crew/roster-shifts.ts#getCrewRosterStatus]] recognizes a nonblank `crewImportId` or `crewSignupSource: manual_operator` as an organizer-created roster record. This also repairs the staffing view of existing imports with the former 30-day invitation expiry; it does not accept invitations, create accounts, or extend authentication tokens. Ordinary signup invitations still expire, and cancelled invitations are inactive even if previously accepted.
+
+[[apps/crew/src/lib/crew/imports/invitation-expiry.ts#getCrewImportInvitationExpiry]] gives new or refreshed import invitations the later of 30 days from import and the end of the competition's final local calendar day. Invalid event dates or timezones fail before volunteer writes. [[apps/crew/src/lib/crew/roster-lifetime.test.ts]], [[apps/crew/src/lib/crew/imports/invitation-expiry.test.ts]], and [[apps/crew/test/server/crew-import-scheduling.test.ts]] cover legacy records, cancellation, timezone boundaries, and import scheduling behavior.
 
 ## Roster Volunteer Editing
 
@@ -502,9 +522,29 @@ Crew copy-prior-event setup lets a local operator preview structural setup from 
 
 [[apps/crew/src/components/crew-copy-event/crew-copy-prior-event-panel.tsx]] renders the setup-page preview and conservative apply action on [[apps/crew/src/routes/events/$eventId/setup.tsx]].
 
+## Published Volunteer Schedule
+
+Organizers preview and explicitly publish a competition schedule that volunteers can search by name without logging in. Draft edits stay private until the next publication.
+
+[[apps/crew/src/routes/events/$eventId/schedule.tsx]] renders [[apps/crew/src/components/crew/schedule-sharing-panel.tsx]] with draft and published previews, publish, unpublish, a stable share URL, and copy-link or copy-message actions. The organizer can keep using their existing volunteer messaging tool. Printing and CSV remain on the existing exports route.
+
+[[apps/crew/src/server/crew-published-schedule.server.ts]] authenticates full event managers before preview or mutation, independently enforces active event-level billing access for publication, and serializes publication changes on the event settings row used by billing. [[apps/crew/src/server-fns/crew-published-schedule-fns.ts]] keeps database/runtime imports out of routes. Department-lead subset access cannot publish or hydrate the full roster.
+
+[[packages/wodsmith-db/src/schemas/crew-published-schedules.ts]] stores one current JSON snapshot per competition; both apps re-export this canonical schema. Add the table on a dedicated PlanetScale branch and review a deploy request containing only this table before deploying application code. Crew does not commit generated migration files or run programmatic migrations for this change. Publishing atomically replaces that row, and unpublishing removes it. Live staffing reads are not wrapped in one shared read transaction, so organizers should finish concurrent schedule editing before publishing.
+
+[[apps/crew/src/lib/crew/published-schedule.ts]] combines assigned shifts and active judge heat assignments using canonical membership or invitation IDs. The public allowlist contains only event details, volunteer display names, opaque event-scoped IDs, assignment times, roles, locations, heats, and lanes. Emails, phones, contact metadata, private notes, confirmation tokens, and raw roster IDs are excluded. Inactive volunteers and cancelled, declined, or no-show duties are omitted. Missing roster or heat references and oversized snapshots reject publication without replacing the saved release.
+
+[[apps/crew/src/lib/crew/published-schedule.ts#resolveCrewPublishedScheduleIdentities]] carries invitation-based duties onto a roster membership after an account claim, using an explicit `acceptedBy` link or an unambiguous normalized email match. Shared-email ambiguity is not guessed, cancelled invitations are excluded, and assignment rows and confirmation tokens remain unchanged. The server loads identity links only from the selected competition team; public snapshots contain none of that linkage data.
+
+Publication resolves a claimed invitation through its explicit `acceptedBy` user link, or an unambiguous normalized email shared by exactly one invitation and one event membership. Existing invitation-based shift and judge duties then appear under that member. Names never establish identity, and ambiguous missing identities fail closed. This projection leaves stored invitations, assignments, and tokens unchanged. [[apps/crew/src/lib/crew/published-schedule.test.ts]] and [[apps/crew/src/server/crew-published-schedule.server.test.ts]] cover account claims, changed emails, duplicate names and emails, cancelled invitations, and the public privacy boundary.
+
+[[apps/crew/src/routes/e/$slug/schedule/index.tsx]] reads only the stored snapshot, rechecks the event slug, Crew-only status, lifecycle, and current access, and uses no-store/noindex responses. [[apps/crew/src/components/crew/public-schedule-view.tsx]] provides name lookup, separate choices for duplicate names, event-timezone assignments, and a printable personal schedule. Anyone with the link can browse names and assignments; this is public event sharing rather than identity verification. Unpublishing or losing paid access makes the link unavailable.
+
+The manager returns `preview: null` and a safe `previewError` when the draft cannot be built. Existing publication status and unpublish stay available while the organizer repairs the draft; publish still validates the actual source strictly. [[apps/crew/src/server/crew-published-schedule.server.test.ts]] verifies those recovery paths alongside authorization, billing, unchanged published data after draft edits, revocation, and privacy. [[apps/crew/src/lib/crew/published-schedule.test.ts]] and [[apps/crew/test/components/public-schedule-view.test.tsx]] cover serialization and name lookup.
+
 ## Volunteer Self Service
 
-Crew volunteer self-service is a no-session, no-password token surface scoped to the volunteer assignment confirmation token.
+Legacy volunteer self-service is a no-session, no-password token surface scoped to an assignment confirmation. Launch sharing uses [[crew#Published Volunteer Schedule]] instead.
 
 [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] renders the token volunteer's own schedule, response entry point, print-friendly schedule view, calendar links, and contact metadata form. [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] keeps route imports thin while [[apps/crew/src/server/crew-confirmation.server.ts]] validates the event slug, token hash, Crew-only event state, assignment row, and volunteer membership before returning or mutating data.
 
@@ -602,9 +642,11 @@ Crew persists each checkout attempt before calling Stripe so duplicate clicks, u
 
 ## Schedule Purchase Boundary
 
-Organizers can draft schedules before purchasing. Exporting requires active event-level Crew access, including existing paid, comped, credited, or founder grants; unpaid, pending, and refunded events cannot export.
+Organizers can draft and preview before purchasing. Publishing and exporting require active event-level Crew access from paid, comped, credited, or founder grants; unpaid, pending, and refunded events cannot publish or export.
 
 [[apps/crew/src/routes/events/$eventId/exports.tsx]] redirects unpaid organizers to event billing. [[apps/crew/src/server/crew-pilot-exports.server.ts]] independently enforces the same purchase boundary before returning export data, so direct server-function calls cannot bypass it.
+
+[[crew#Published Volunteer Schedule]] applies the same boundary on the server before publishing and on every public read. Managers may still preview a draft and take an existing publication offline without paid access.
 
 The public purchase page reads the active Basic catalog price from the server and offers one event package. Deployment reuses the existing WODsmith live/test Stripe keys and provisions a separate Crew signing secret with Alchemy. Checkout is available only when the flag and both Stripe secrets are present; existing operator grants remain usable.
 
@@ -614,11 +656,13 @@ Real MySQL tests verify event purchase locking, retry recovery, settlement order
 
 [[apps/crew/test/integration/crew-purchase.test.ts]] runs only with `CREW_TEST_DATABASE_URL` pointing to an isolated database ending in `_test` or `_e2e`. It exercises concurrent requests, a lost Stripe response, cancellation, stale expiration and settlement, webhook-before-response ordering, duplicate payment delivery, and the unpaid-to-paid export boundary.
 
+The launch fixture uses the 3,000-cent Basic catalog. Settlement coverage asserts that the production checkout service sends Stripe a 3,000-cent line item and records the same amount in event billing and its completion audit. The uncertain-response regression still changes the catalog mid-attempt to prove retries retain the frozen original price.
+
 Event managers can view access status and the purchase handoff. Starting Checkout still requires the organizing team’s billing permission; managers without it are directed to the event owner. Production secret selection never falls back to test keys.
 
 ## Crew Launch Verification
 
-Crew CI runs the complete unit suite and uses the isolated MySQL browser-test database to verify purchase transactions. Browser coverage follows the organizer from event creation through scheduling and the export purchase boundary.
+Crew CI runs unit, isolated MySQL purchase, and browser checks. Launch coverage follows a Competition Corner import through pilot access, stable publication, accountless name lookup, and printing.
 
 The unit job in `.github/workflows/ci.yaml` includes Crew. The Crew job in `.github/workflows/e2e.yaml` runs [[crew#Crew Purchase Integration Tests]] and [[crew#Prepared Crew real database preserves seeded data]] serially against the already prepared database before browser mutations. Full-platform refund and revenue component tests remain in WODsmith Start, where those components exist.
 
@@ -628,7 +672,9 @@ Volunteer add, edit, and email-paste dialogs scroll within the viewport so their
 
 The seeded demo includes a Basic plan with its complimentary grant. Browser tests verify that active access produces a downloadable CSV containing the assigned volunteers.
 
-[[apps/crew/e2e/fixtures/crew-schedule-cleanup.ts]] requires an isolated test database and removes the fresh-event scenario’s event, event team, invitation, shifts, and confirmation rows in a `finally` cleanup, including after assertion failures.
+[[apps/crew/e2e/crew-published-schedule.spec.ts]] uploads an independent synthetic Competition Corner CSV, checks mapped roles and availability, repeats the import without duplicating the volunteer, simulates a legacy day-35 import, assigns a shift, verifies unpaid gating, grants one pilot event through the admin UI, and opens the publication in a separate anonymous browser context. It checks private-field exclusion, printing, draft isolation, republishing at the same URL, and unpublishing. A second scenario checks shifts and active judge heat assignments together. These scenarios are included in the Crew browser CI job.
+
+[[apps/crew/e2e/fixtures/crew-schedule-cleanup.ts]] requires an isolated test database and removes the fresh-event scenario’s event, event team, invitation, shifts, confirmations, import records, billing audit, and published schedule in a `finally` cleanup, including after assertion failures.
 
 ## Shared Stripe Account Isolation
 
@@ -640,15 +686,21 @@ After signature verification, [[apps/crew/src/routes/api/webhooks/stripe.ts]] pr
 
 Crew reuses the existing WODsmith Stripe credentials and Alchemy webhook provisioning, with separate demo and production purchase switches.
 
+[[apps/crew/vite.config.ts]] uses `agents/vite` for TC39 decorator transforms. Crew explicitly declares the existing locked `@babel/plugin-proposal-decorators` 7.29.0 as a development dependency because the Agents preset resolves its plugin name from the app directory. This keeps isolated pnpm production builds working without hoisting transitive dependencies or changing the Agents/Babel versions.
+
 `.github/workflows/deploy-crew.yml` uses `STRIPE_SECRET_KEY` for production and `STRIPE_SECRET_KEY_DEMO` for demo. Other deployed stages receive no Stripe API key. Alchemy rejects a test key in production or a live key in demo and creates a stage-specific webhook for completed and expired Checkout Sessions using the account default event API version, matching the existing WODsmith Alchemy provider.
 
 [[apps/crew/alchemy.run.ts]] binds the resource's signing secret directly to the Crew worker and refuses enabled checkout without it; operators do not copy WODsmith's endpoint secret or create duplicate Crew key secrets. `CREW_STRIPE_CHECKOUT_ENABLED_DEMO` enables demo purchases; `CREW_STRIPE_CHECKOUT_ENABLED` enables production. Both default to false. CI deployments outside demo/production force checkout off. Local development can enable checkout with a test key and local listener secret; every non-production stage rejects live keys.
 
 ## Crew Production Catalog
 
-The launch purchase uses the existing `crew_basic` catalog entry at 20,000 USD cents per event, with no recurring interval.
+The revised launch offer targets the existing active, public `crew_basic` catalog entry at 3,000 USD cents ($30) per event, with no recurring interval. Existing databases require a separate guarded catalog update.
 
-Production must contain that active, public plan before Checkout is enabled. On September 6, 2026, the missing production row was inserted from the existing billing seed with a `WHERE NOT EXISTS` guard; other plans and existing prices were preserved. Demo already contained the same offer.
+Production must contain that active, public plan at 3,000 cents before Checkout is enabled. Billing seeds use `INSERT IGNORE`, so reseeding cannot update an existing $200 row. The [operator runbook](../apps/crew/docs/guides/paid-launch-ops-runbook.md) requires the guarded catalog update and readback before enabling Checkout or releasing the $30 offer.
+
+[[apps/crew/scripts/update-crew-price.ts]] defaults to a dry run, requires an explicit demo/prod stage, and requires the exact database name for apply. It accepts only the former 20,000-cent value or the already-updated 3,000-cent value; its sole write is a guarded Basic catalog price update. It reports pending attempts at other amounts without rewriting frozen Checkout amounts, historical event billing, or audit rows. [[apps/crew/test/scripts/crew-launch-price.test.ts]] checks the guardrails, idempotency, and both app seeds; [[apps/wodsmith-start/test/scripts/billing-seed-catalog.test.ts]] checks the WODsmith catalog.
+
+On September 15, 2026, the guarded catalog update changed exactly one `crew_basic` row in each PlanetScale `wodsmith/wodsmith-db` branch, `demo` and `main`, from 20,000 to 3,000 cents. Readback verified both prices, active/public flags, and null intervals. Preflight found no pending Basic attempts at another amount. Historical billing and checkout attempt records were not modified. This verifies the catalog update; the schema cutover and application release remain separate rollout steps.
 
 ## Production Launch Verification
 

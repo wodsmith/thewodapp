@@ -7,8 +7,8 @@ import {
 import {
   VOLUNTEER_AVAILABILITY,
   VOLUNTEER_ROLE_LABELS,
-  VOLUNTEER_ROLE_TYPES,
   VOLUNTEER_ROLE_TYPE_VALUES,
+  VOLUNTEER_ROLE_TYPES,
   type VolunteerAvailability,
   type VolunteerMembershipMetadata,
   type VolunteerRoleType,
@@ -164,9 +164,8 @@ const statusWeight: Record<CrewRosterStatus, number> = {
 // invitations and live in the "pending"/"accepted" states before they ever
 // have an account — they must still be schedulable. Deactivated memberships
 // ("inactive") and lapsed invitations ("expired") are intentionally excluded.
-const STAFFABLE_ROSTER_STATUSES: ReadonlySet<CrewRosterStatus> = new Set<
-  CrewRosterStatus
->(["active", "accepted", "pending"])
+const STAFFABLE_ROSTER_STATUSES: ReadonlySet<CrewRosterStatus> =
+  new Set<CrewRosterStatus>(["active", "accepted", "pending"])
 
 /**
  * Canonical id used to reference a roster volunteer in a shift assignment.
@@ -223,7 +222,9 @@ export function buildCrewRosterVolunteerMetadataUpdate(
   const next: CrewRosterMetadata = {
     ...existing,
     volunteerRoleTypes: getCrewRosterRoleTypes(input.roleTypes),
-    signupEmail: emptyToUndefined(normalizeCrewRosterVolunteerEmail(input.email)),
+    signupEmail: emptyToUndefined(
+      normalizeCrewRosterVolunteerEmail(input.email),
+    ),
     signupName: emptyToUndefined(input.name),
     inviteName: undefined,
     signupPhone: emptyToUndefined(input.phone),
@@ -349,7 +350,7 @@ export function getCrewRosterStatus(
       >)
     | ({ source: "team_invitation" } & Pick<
         CrewVolunteerInvitationRecord,
-        "acceptedAt" | "expiresAt" | "status"
+        "acceptedAt" | "expiresAt" | "status" | "metadata"
       >),
   now = new Date(),
 ): CrewRosterStatus {
@@ -357,11 +358,20 @@ export function getCrewRosterStatus(
     return record.isActive === false ? "inactive" : "active"
   }
 
+  if (record.status === INVITATION_STATUS.CANCELLED) return "inactive"
+
   if (record.acceptedAt || record.status === INVITATION_STATUS.ACCEPTED) {
     return "accepted"
   }
 
-  if (isPast(record.expiresAt, now)) {
+  // An organizer-created Crew roster record outlives its account invitation.
+  // This also covers legacy imports with a 30-day expiry. Token validation and
+  // invitation acceptance keep their own expiry checks and are not changed.
+  const metadata = parseCrewRosterMetadata(record.metadata)
+  const isOrganizerRosterRecord =
+    Boolean(nonBlankText(metadata.crewImportId)) ||
+    metadata.crewSignupSource === "manual_operator"
+  if (isPast(record.expiresAt, now) && !isOrganizerRosterRecord) {
     return "expired"
   }
 

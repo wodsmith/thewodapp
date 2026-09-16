@@ -12,11 +12,15 @@ function HomePage() {
             Give every volunteer a place and a time.
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Bring your volunteer list, create shifts, and assign your judges.
-            Keep the registration platform you already use and leave with a
-            schedule ready to share.
+            Keep your competition on Competition Corner. Import your volunteer
+            list, assign shifts and judges, and share a schedule where
+            volunteers find their name. No volunteer login needed.
           </p>
         </div>
+        <p className="text-base font-medium">
+          $30 per competition. Build your draft for free; unlock publishing and
+          printing when you’re ready.
+        </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link
             to="/events/new"
@@ -54,7 +58,7 @@ function HomePage() {
             ],
             [
               "Share with your crew",
-              "Export and print your staffing schedule for volunteers and team leads.",
+              "Publish one link for volunteers to find their schedule, and print copies for event day.",
             ],
           ].map(([title, description], index) => (
             <li key={title} className="flex gap-4">

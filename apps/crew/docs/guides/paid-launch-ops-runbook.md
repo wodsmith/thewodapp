@@ -59,6 +59,7 @@ Before enabling `CREW_STRIPE_CHECKOUT_ENABLED`:
 
 - Confirm the billing page still hides Checkout when the flag is false.
 - Confirm Checkout plan choices are public paid plans only.
+- Read the target database's `crew_basic` row and confirm `price = 3000`, `is_active = 1`, `is_public = 1`, and a null recurring interval. Complete the guarded catalog update below before enabling Checkout.
 - Confirm Checkout metadata excludes founder/private pricing, invoices, and audit notes.
 - Confirm webhook completion requires matching pending event billing state, Checkout Session ID, plan, amount, currency, and idempotency metadata.
 - Confirm non-Crew registration Checkout Sessions still route through the existing athlete registration workflow.
@@ -79,7 +80,9 @@ Only run live Stripe checks after the Checkout flag decision is made and the tar
 
 ## Scheduling launch checkout
 
-Crew now offers one public event package backed by the existing `crew_basic` catalog row (seed price: $200 USD). Draft scheduling is free; one purchase unlocks exports for that event. Existing paid, comped, credited, and founder grants continue to work. Pro and private plans remain in historical billing records but are not offered for new self-service purchases.
+Crew now offers one public event package backed by the existing `crew_basic` catalog row at $30 USD. Draft scheduling is free; one purchase unlocks publishing, sharing, and exports for that event. Existing paid, comped, credited, and founder grants continue to work. Pro and private plans remain in historical billing records but are not offered for new self-service purchases.
+
+The billing seeds use `INSERT IGNORE`; reseeding does not change an existing $200 row. Before enabling Checkout or releasing the $30 offer, use `scripts/update-crew-price.ts` against the intended demo or production database: review its default dry run, then apply with `--apply --expected-database` using the verified database name. An equivalent guarded catalog UPDATE is also supported. Read back the active, public, one-time `crew_basic` price of 3,000 cents after applying it. Review any existing pending attempts at other amounts separately; preserve their frozen amount and all historical billing records. This is a catalog data update, separate from PlanetScale schema deploy requests.
 
 Reuse the existing GitHub repository secrets `STRIPE_SECRET_KEY` (live) and `STRIPE_SECRET_KEY_DEMO` (test). Alchemy creates a dedicated Crew webhook for `checkout.session.completed` and `checkout.session.expired` and binds its signing secret to the Worker automatically. Do not reuse the main app's webhook secret. Set `CREW_STRIPE_CHECKOUT_ENABLED_DEMO=true` to validate demo purchases, then `CREW_STRIPE_CHECKOUT_ENABLED=true` for production after confirming the active catalog price. Both variables default to false. Production rejects test keys, demo rejects live keys, and other stages keep checkout disabled. Local development uses `STRIPE_SECRET_KEY` and the Stripe CLI's `STRIPE_WEBHOOK_SECRET` in `.dev.vars`. Missing configuration leaves checkout unavailable and preserves operator grants.
 

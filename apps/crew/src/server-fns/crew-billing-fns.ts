@@ -246,3 +246,18 @@ export const getCrewScheduleAccessFn = createServerFn({ method: "GET" })
     )
     return getCrewScheduleAccess(data)
   })
+
+export const grantCrewPilotAccessFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    getCrewBillingInputSchema
+      .extend({
+        reason: z.string().trim().min(3).max(500),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { grantCrewPilotAccess } = await import(
+      "../server/crew-billing.server"
+    )
+    return grantCrewPilotAccess(data)
+  })

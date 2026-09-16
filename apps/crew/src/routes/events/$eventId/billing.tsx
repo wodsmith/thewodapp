@@ -65,8 +65,8 @@ function CrewPurchasePage() {
           {active ? "Your event access is active" : "Purchase event access"}
         </h2>
         <p className="mt-2 text-muted-foreground">
-          Create your draft schedule for free. Purchase once to export and print
-          the schedule for {event.name}.
+          Build your schedule for free. Purchase once to publish, share, export,
+          and print the schedule for {event.name}.
         </p>
       </div>
       <div className="rounded-md border bg-card p-6 space-y-4">
@@ -83,8 +83,9 @@ function CrewPurchasePage() {
           </p>
         ) : null}
         <p>
-          Volunteer imports, role-based shifts, judge assignments, and printable
-          schedule exports. Keep using your existing registration platform.
+          Import your volunteer list, arrange shifts and judge assignments, and
+          share a schedule volunteers can view without an account. Printable
+          schedules are included. Keep your existing registration platform.
         </p>
         {active ? (
           <Link

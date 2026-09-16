@@ -17,6 +17,7 @@ export type CrewEventNavRoute =
   | "/events/$eventId/messages"
   | "/events/$eventId/day-of"
   | "/events/$eventId/exports"
+  | "/events/$eventId/schedule"
   | "/events/$eventId/billing"
 
 export interface CrewEventNavigationState {
@@ -84,8 +85,8 @@ export const CREW_EVENT_NAV_ITEMS = [
   },
   {
     key: "print-packet",
-    label: "Export Schedule",
-    to: "/events/$eventId/exports",
+    label: "Schedule",
+    to: "/events/$eventId/schedule",
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
   {
