@@ -1,7 +1,6 @@
 // Re-export all tables and types from schema modules
 
 export * from "./schemas/addresses"
-// @lat: [[architecture#Deployment Schema Readiness Tests#Shared Demo Schema Ownership]]
 export * from "./schemas/agent-oauth"
 export * from "./schemas/coupons"
 export * from "./schemas/affiliates"
