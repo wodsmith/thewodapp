@@ -10,7 +10,7 @@ import {
   Upload,
 } from "lucide-react"
 import type { ChangeEvent, FormEvent, ReactNode } from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   getImportFields,
@@ -236,8 +236,14 @@ function VolunteerUploadPanel({
   const [isLoadingMappingSuggestion, setIsLoadingMappingSuggestion] =
     useState(false)
   const [isSavingMapping, setIsSavingMapping] = useState(false)
+  const draftVersionRef = useRef(0)
   const fields = useMemo(() => getImportFields(kind), [kind])
   const mappedFieldCount = Object.keys(mapping).length
+
+  function markDraftChanged() {
+    draftVersionRef.current += 1
+    onDraftChange()
+  }
 
   // Headers not claimed by a first-class field can be mapped to a volunteer
   // registration question (existing or created from the column header).
@@ -309,7 +315,7 @@ function VolunteerUploadPanel({
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selectedFile = event.target.files?.[0] ?? null
-    onDraftChange()
+    markDraftChanged()
     setFile(selectedFile)
 
     if (!selectedFile) {
@@ -345,7 +351,7 @@ function VolunteerUploadPanel({
   }
 
   function updateMapping(field: string, header: string) {
-    onDraftChange()
+    markDraftChanged()
     setMapping((current) => {
       const next = { ...current }
       if (header) {
@@ -373,7 +379,7 @@ function VolunteerUploadPanel({
   }
 
   function updateQuestionMapping(header: string, questionKey: string) {
-    onDraftChange()
+    markDraftChanged()
     setMapping((current) => {
       const next = { ...current }
       for (const key of Object.keys(next)) {
@@ -387,7 +393,7 @@ function VolunteerUploadPanel({
   }
 
   function handleUseSuggestedMapping(suggestion: CrewImportMappingSuggestion) {
-    onDraftChange()
+    markDraftChanged()
     setMapping(suggestion.columnMapping)
     if (suggestion.isBuiltIn) {
       // Pre-fill the source label so a subsequent save records this as the
@@ -440,6 +446,7 @@ function VolunteerUploadPanel({
     }
 
     setIsSubmitting(true)
+    const submittedDraftVersion = draftVersionRef.current
     const formData = new FormData()
     formData.append("eventId", eventId)
     formData.append("kind", kind)
@@ -461,6 +468,8 @@ function VolunteerUploadPanel({
           "error" in payload ? payload.error : "Failed to preview import",
         )
       }
+
+      if (draftVersionRef.current !== submittedDraftVersion) return
 
       onPreviewComplete(payload.importPreview)
       toast.success("Volunteer list preview ready")
@@ -514,7 +523,7 @@ function VolunteerUploadPanel({
               id="volunteer-import-source"
               value={sourcePlatform}
               onChange={(event) => {
-                onDraftChange()
+                markDraftChanged()
                 setSourcePlatform(event.target.value)
               }}
               placeholder="Competition Corner export"
