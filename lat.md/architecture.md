@@ -86,6 +86,8 @@ Alchemy deployment builds use an 8 GiB Node heap for both manual and automatic d
 
 Non-prod stages (demo, staging, dev) run `drizzle-kit push` against their PlanetScale branch during deploy, matching the push-based local dev workflow. Production schema changes are **not** pushed on deploy — they are applied out-of-band via PlanetScale deploy requests — so the prod deploy skips the schema-push step. This avoids `drizzle-kit push` hitting an interactive data-loss prompt (e.g. on leftover Vitess `_vt_*` artifact tables) that would hang the non-interactive CI job.
 
+The demo PlanetScale branch is shared by `main` and manual feature-branch deployments. Once a feature deployment materializes a table there, the canonical shared schema must retain that exact table definition until the feature merges or the table is explicitly removed; otherwise a later push can misclassify the live table as a rename candidate.
+
 ### apps/crm
 
 The CRM app is a separate TanStack Start application shell for future customer relationship workflows.
@@ -251,5 +253,9 @@ The organizer page at [[apps/wodsmith-start/src/routes/compete/organizer/$compet
 ## Deployment Schema Readiness Tests
 
 Production deployment checks every required table and column from the latest committed schema snapshot before running Alchemy. Missing schema stops deployment without mutating the database.
+
+### Shared Demo Schema Ownership
+
+The shared schema keeps exact descriptors for tables already materialized by staged demo deployments so later non-interactive pushes do not infer unrelated table renames.
 
 The app deploy command runs this check only when STAGE=prod; non-production deployment skips it. The check queries only information_schema and permits extra production columns. It verifies presence, not column types or indexes; reviewed PlanetScale deploy requests still own schema changes. Regression coverage verifies missing tables, missing columns, and compatible extra columns.
