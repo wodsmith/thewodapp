@@ -283,6 +283,8 @@ Time-based work assignments for volunteers independent of heats.
 
 Uses `getCompetitionShiftsFn`. `ShiftList` and `ShiftFormDialog` components handle CRUD. Shifts have start/end times, role requirements, and volunteer assignments via `ShiftAssignmentPanel`.
 
+The assignment panel shows each available volunteer's other shift commitments and active published judge assignments, including event, heat, lane, and scheduled time, so organizers can spot likely availability conflicts before assigning them.
+
 ### Judge Scheduling
 
 Assigns judges to heats with rotation patterns so judges move between lanes across events.

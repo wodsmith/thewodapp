@@ -8,20 +8,25 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import type { VolunteerMembershipMetadata } from "@/db/schema"
 import {
+  competitionHeatsTable,
   competitionsTable,
+  judgeAssignmentVersionsTable,
+  judgeHeatAssignmentsTable,
   teamMembershipTable,
+  trackWorkoutsTable,
   userTable,
   VOLUNTEER_ROLE_TYPES,
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
+  workouts,
 } from "@/db/schema"
-import type { VolunteerMembershipMetadata } from "@/db/schema"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
   createVolunteerShiftAssignmentId,
   createVolunteerShiftId,
 } from "@/db/schemas/common"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -177,6 +182,84 @@ export const getCompetitionShiftsFn = createServerFn({ method: "GET" })
     })
 
     return shifts
+  })
+
+export interface VolunteerJudgeAssignmentSummary {
+  id: string
+  membershipId: string
+  heatId: string
+  trackWorkoutId: string
+  eventName: string
+  heatNumber: number
+  scheduledTime: Date | null
+  durationMinutes: number | null
+  laneNumber: number | null
+  position: string | null
+}
+
+/**
+ * Get active, published judge assignments for volunteers in a competition.
+ * The shift assignment panel uses this compact projection to show an
+ * organizer each volunteer's existing judge commitments before adding them.
+ */
+export const getCompetitionJudgeAssignmentsForShiftsFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionId: competitionIdSchema,
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }): Promise<VolunteerJudgeAssignmentSummary[]> => {
+    await getCompetitionWithAuthCheck(data.competitionId)
+
+    const db = getDb()
+    const assignments = await db
+      .select({
+        id: judgeHeatAssignmentsTable.id,
+        membershipId: judgeHeatAssignmentsTable.membershipId,
+        heatId: judgeHeatAssignmentsTable.heatId,
+        trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+        eventName: workouts.name,
+        heatNumber: competitionHeatsTable.heatNumber,
+        scheduledTime: competitionHeatsTable.scheduledTime,
+        durationMinutes: competitionHeatsTable.durationMinutes,
+        laneNumber: judgeHeatAssignmentsTable.laneNumber,
+        position: judgeHeatAssignmentsTable.position,
+      })
+      .from(judgeHeatAssignmentsTable)
+      .innerJoin(
+        judgeAssignmentVersionsTable,
+        and(
+          eq(
+            judgeHeatAssignmentsTable.versionId,
+            judgeAssignmentVersionsTable.id,
+          ),
+          eq(judgeAssignmentVersionsTable.isActive, true),
+        ),
+      )
+      .innerJoin(
+        competitionHeatsTable,
+        eq(judgeHeatAssignmentsTable.heatId, competitionHeatsTable.id),
+      )
+      .innerJoin(
+        trackWorkoutsTable,
+        eq(competitionHeatsTable.trackWorkoutId, trackWorkoutsTable.id),
+      )
+      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+      .where(eq(competitionHeatsTable.competitionId, data.competitionId))
+      .orderBy(
+        asc(competitionHeatsTable.scheduledTime),
+        asc(competitionHeatsTable.heatNumber),
+      )
+
+    return assignments.flatMap((assignment) =>
+      assignment.membershipId
+        ? [{ ...assignment, membershipId: assignment.membershipId }]
+        : [],
+    )
   })
 
 /**

@@ -2,7 +2,16 @@
 
 import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Calendar, Clock, MapPin, Minus, Plus, User, Users } from "lucide-react"
+import {
+  Calendar,
+  Clock,
+  Gavel,
+  MapPin,
+  Minus,
+  Plus,
+  User,
+  Users,
+} from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -24,14 +33,15 @@ import {
   type VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
 import {
-  assignVolunteerToShiftFn,
-  type getCompetitionShiftsFn,
-  unassignVolunteerFromShiftFn,
-} from "@/server-fns/volunteer-shift-fns"
-import {
   getCompetitionVolunteersFn,
   type TeamMembershipWithUser,
 } from "@/server-fns/volunteer-fns"
+import {
+  assignVolunteerToShiftFn,
+  type getCompetitionShiftsFn,
+  unassignVolunteerFromShiftFn,
+  type VolunteerJudgeAssignmentSummary,
+} from "@/server-fns/volunteer-shift-fns"
 
 // Type inferred from getCompetitionShiftsFn return type
 type ShiftWithAssignments = Awaited<
@@ -104,6 +114,30 @@ function formatShiftTimeCompact(
   return `${dateStr} ${startStr}-${endStr}`
 }
 
+function formatJudgeAssignmentTimeCompact(
+  scheduledTime: Date | string | null,
+  durationMinutes: number | null,
+): string | null {
+  if (!scheduledTime) return null
+  const scheduled = toDate(scheduledTime)
+  const dateStr = scheduled.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  })
+  const startTime = scheduled
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    .replace(":00", "")
+    .toLowerCase()
+  if (!durationMinutes) return `${dateStr} ${startTime}`
+
+  const end = new Date(scheduled.getTime() + durationMinutes * 60_000)
+  const endTime = end
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    .replace(":00", "")
+    .toLowerCase()
+  return `${dateStr} ${startTime}-${endTime}`
+}
+
 /**
  * Get display name from an assignment's membership with user relation.
  * The user property comes from the Drizzle relation query.
@@ -139,16 +173,25 @@ function getAssignmentVolunteerEmail(
 interface ShiftAssignmentPanelProps {
   shift: ShiftWithAssignments | null
   allShifts: ShiftWithAssignments[]
+  judgeAssignments: VolunteerJudgeAssignmentSummary[]
   competitionTeamId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onAssignmentChange: (updatedShift: ShiftWithAssignments) => void
   /** Optional callback to fetch volunteers. Defaults to organizer server fn. */
-  onGetVolunteers?: (params: { competitionTeamId: string }) => Promise<TeamMembershipWithUser[]>
+  onGetVolunteers?: (params: {
+    competitionTeamId: string
+  }) => Promise<TeamMembershipWithUser[]>
   /** Optional callback to assign volunteer to shift. Defaults to organizer server fn. */
-  onAssignVolunteer?: (params: { shiftId: string; membershipId: string }) => Promise<unknown>
+  onAssignVolunteer?: (params: {
+    shiftId: string
+    membershipId: string
+  }) => Promise<unknown>
   /** Optional callback to unassign volunteer from shift. Defaults to organizer server fn. */
-  onUnassignVolunteer?: (params: { shiftId: string; membershipId: string }) => Promise<unknown>
+  onUnassignVolunteer?: (params: {
+    shiftId: string
+    membershipId: string
+  }) => Promise<unknown>
 }
 
 /**
@@ -158,6 +201,7 @@ interface ShiftAssignmentPanelProps {
 export function ShiftAssignmentPanel({
   shift,
   allShifts,
+  judgeAssignments,
   competitionTeamId,
   open,
   onOpenChange,
@@ -236,6 +280,16 @@ export function ShiftAssignmentPanel({
     return map
   }, [allShifts, shift])
 
+  const judgeAssignmentsByMembershipId = useMemo(() => {
+    const map = new Map<string, VolunteerJudgeAssignmentSummary[]>()
+    for (const assignment of judgeAssignments) {
+      const existing = map.get(assignment.membershipId) ?? []
+      existing.push(assignment)
+      map.set(assignment.membershipId, existing)
+    }
+    return map
+  }, [judgeAssignments])
+
   // Calculate capacity info
   const assignedCount = shift?.assignments.length ?? 0
   const capacity = shift?.capacity ?? 0
@@ -304,7 +358,14 @@ export function ShiftAssignmentPanel({
         setAssigningId(null)
       }
     },
-    [shift, defaultAssignVolunteer, onAssignVolunteer, allVolunteers, onAssignmentChange, router],
+    [
+      shift,
+      defaultAssignVolunteer,
+      onAssignVolunteer,
+      allVolunteers,
+      onAssignmentChange,
+      router,
+    ],
   )
 
   const handleUnassign = useCallback(
@@ -341,7 +402,13 @@ export function ShiftAssignmentPanel({
         setUnassigningId(null)
       }
     },
-    [shift, defaultUnassignVolunteer, onUnassignVolunteer, onAssignmentChange, router],
+    [
+      shift,
+      defaultUnassignVolunteer,
+      onUnassignVolunteer,
+      onAssignmentChange,
+      router,
+    ],
   )
 
   if (!shift) return null
@@ -431,7 +498,9 @@ export function ShiftAssignmentPanel({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleUnassign(assignment.membershipId ?? "")}
+                        onClick={() =>
+                          handleUnassign(assignment.membershipId ?? "")
+                        }
                         disabled={unassigningId === assignment.membershipId}
                         aria-label={`Remove ${volunteerName}`}
                       >
@@ -464,6 +533,8 @@ export function ShiftAssignmentPanel({
                   const volunteerName = getVolunteerName(volunteer)
                   const otherShifts =
                     volunteerOtherShifts.get(volunteer.id) ?? []
+                  const volunteerJudgeAssignments =
+                    judgeAssignmentsByMembershipId.get(volunteer.id) ?? []
 
                   return (
                     <div
@@ -514,6 +585,65 @@ export function ShiftAssignmentPanel({
                                       </p>
                                     </div>
                                   ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                          {volunteerJudgeAssignments.length > 0 && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                >
+                                  <Gavel className="h-3 w-3 shrink-0" />
+                                  <span className="underline decoration-dotted">
+                                    {volunteerJudgeAssignments.length} judge
+                                    assignment
+                                    {volunteerJudgeAssignments.length !== 1
+                                      ? "s"
+                                      : ""}
+                                  </span>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="max-h-72 w-72 overflow-y-auto p-2"
+                                align="start"
+                              >
+                                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                                  Judge Assignments
+                                </p>
+                                <div className="space-y-2">
+                                  {volunteerJudgeAssignments.map(
+                                    (assignment) => {
+                                      const scheduledTime =
+                                        formatJudgeAssignmentTimeCompact(
+                                          assignment.scheduledTime,
+                                          assignment.durationMinutes,
+                                        )
+                                      const details = [
+                                        `Heat ${assignment.heatNumber}`,
+                                        assignment.laneNumber
+                                          ? `Lane ${assignment.laneNumber}`
+                                          : null,
+                                        scheduledTime,
+                                      ].filter(Boolean)
+
+                                      return (
+                                        <div
+                                          key={assignment.id}
+                                          className="text-sm"
+                                        >
+                                          <p className="font-medium">
+                                            {assignment.eventName}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {details.join(" · ")}
+                                          </p>
+                                        </div>
+                                      )
+                                    },
+                                  )}
                                 </div>
                               </PopoverContent>
                             </Popover>

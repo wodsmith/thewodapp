@@ -48,6 +48,7 @@ import {
 import {
   deleteShiftFn,
   type getCompetitionShiftsFn,
+  type VolunteerJudgeAssignmentSummary,
 } from "@/server-fns/volunteer-shift-fns"
 import { ShiftAssignmentPanel } from "./shift-assignment-panel"
 import { ShiftFormDialog } from "./shift-form-dialog"
@@ -102,6 +103,8 @@ interface ShiftListProps {
   competitionId: string
   competitionTeamId: string
   shifts: ShiftWithAssignments[]
+  /** Active judge assignments shown as availability context in the panel. */
+  judgeAssignments?: VolunteerJudgeAssignmentSummary[]
   /** Optional callback to delete a shift. Defaults to organizer server fn. */
   onDeleteShift?: (params: { shiftId: string }) => Promise<{ success: boolean }>
   /** Optional callback to create a shift. Passed through to ShiftFormDialog. */
@@ -150,6 +153,7 @@ export function ShiftList({
   competitionId,
   competitionTeamId,
   shifts: initialShifts,
+  judgeAssignments = [],
   onDeleteShift,
   onCreateShift,
   onUpdateShift,
@@ -479,6 +483,7 @@ export function ShiftList({
       <ShiftAssignmentPanel
         shift={selectedShift}
         allShifts={shifts}
+        judgeAssignments={judgeAssignments}
         competitionTeamId={competitionTeamId}
         open={assignmentPanelOpen}
         onOpenChange={setAssignmentPanelOpen}
