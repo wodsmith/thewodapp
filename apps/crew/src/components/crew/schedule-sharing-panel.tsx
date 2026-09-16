@@ -211,8 +211,8 @@ export function CrewScheduleSharingPanel({
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Paste the link or message into Competition Corner’s volunteer
-              messaging or your usual email tool.
+              Paste the link or message into your registration platform or usual
+              email tool.
             </p>
           </div>
         )}
@@ -220,7 +220,10 @@ export function CrewScheduleSharingPanel({
 
       <section aria-label="Volunteer schedule preview" className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-          <fieldset className="flex flex-wrap gap-2" aria-label="Preview version">
+          <fieldset
+            className="flex flex-wrap gap-2"
+            aria-label="Preview version"
+          >
             <Button
               variant={view === "draft" ? "secondary" : "ghost"}
               className="min-h-11"

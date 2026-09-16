@@ -5,7 +5,7 @@ import { crewDepartmentLeadsTable } from "@/db/schemas/crew-self-serve-presets"
 import { INVITATION_STATUS, TEAM_PERMISSIONS, teamInvitationTable } from "@/db/schemas/teams"
 import { volunteerShiftAssignmentsTable, volunteerShiftsTable } from "@/db/schemas/volunteers"
 import { buildVolunteerApplyPlan } from "@/lib/crew/imports/apply"
-import { competitionCornerVolunteerPreset } from "@/lib/crew/imports/builtin-presets"
+import { volunteerRegistrationExportPreset } from "@/lib/crew/imports/builtin-presets"
 import { buildCrewImportPreview } from "@/lib/crew/imports/preview"
 import { buildCrewRoster } from "@/lib/crew/roster-shifts"
 import { assignCrewVolunteerToShift } from "@/server/crew-roster-shift.server"
@@ -25,7 +25,7 @@ vi.mock("@/server/crew-confirmation.server", () => ({
 }))
 
 const event = {
-  id: "comp_cc",
+  id: "comp_registration_export",
   name: "October Throwdown",
   slug: "october-throwdown",
   organizingTeamId: "team_organizer",
@@ -45,23 +45,23 @@ const shift = {
   location: "Main floor",
 }
 const availability = "Saturday Oct 10, 8:00 AM–12:00 PM; Sunday Oct 11, 1:00 PM–5:00 PM"
-// Representative Competition Corner export, including all preset headers and
+// Representative volunteer registration export, including all preset headers and
 // a quoted, multi-day Shifts cell. Names and contact details are synthetic.
 const csv = [
-  competitionCornerVolunteerPreset.headers.join(","),
-  ["cc-9001", "Casey", "Volunteer", "CASEY@example.com", "1", "5551234567", "31", "1995-01-01", "", "M", "M", "9", "Prefers morning", "", "", "2026-09-01", availability, "Judge", "Check-in", ""].map((value) => `"${value.replaceAll('"', '""')}"`).join(","),
+  volunteerRegistrationExportPreset.headers.join(","),
+  ["volunteer-9001", "Casey", "Volunteer", "CASEY@example.com", "1", "5551234567", "31", "1995-01-01", "", "M", "M", "9", "Prefers morning", "", "", "2026-09-01", availability, "Judge", "Check-in", ""].map((value) => `"${value.replaceAll('"', '""')}"`).join(","),
 ].join("\n")
 
 function importedInvitation() {
   const preview = buildCrewImportPreview({
     kind: "volunteers",
-    file: { filename: "competition-corner-volunteers.csv", mimeType: "text/csv", data: Uint8Array.from(new TextEncoder().encode(csv)) },
-    columnMapping: competitionCornerVolunteerPreset.columnMapping,
+    file: { filename: "volunteer-registration-export.csv", mimeType: "text/csv", data: Uint8Array.from(new TextEncoder().encode(csv)) },
+    columnMapping: volunteerRegistrationExportPreset.columnMapping,
     context: { roleLabels: ["Judge", "Check-in"], divisions: [], workouts: [], heats: [] },
   })
   expect(preview.errorCount).toBe(0)
   const plan = buildVolunteerApplyPlan(preview.rows, {
-    importId: "cimp_cc",
+    importId: "cimp_registration_export",
     existingInvitations: [],
     existingMemberships: [],
   })
@@ -69,7 +69,7 @@ function importedInvitation() {
   return {
     preview,
     invitation: {
-      id: "tinv_cc",
+      id: "tinv_registration_export",
       teamId: event.competitionTeamId,
       email: plan.rows[0]!.email,
       metadata: plan.rows[0]!.metadata,
@@ -108,7 +108,7 @@ function databaseFor(invitation: ReturnType<typeof importedInvitation>["invitati
   return { ...db, writes }
 }
 
-describe("Competition Corner import to accountless shift scheduling", () => {
+describe("Volunteer registration import to accountless shift scheduling", () => {
   beforeEach(() => {
     vi.useFakeTimers()
     // Day 35 after import, and still before the competition.
@@ -118,7 +118,7 @@ describe("Competition Corner import to accountless shift scheduling", () => {
       user: { role: "user", email: "organizer@example.com" },
       teams: [{ id: event.organizingTeamId, permissions: [TEAM_PERMISSIONS.MANAGE_COMPETITIONS] }],
     })
-    mocks.confirmation.mockResolvedValue({ id: "confirmation_cc", action: "created", token: null })
+    mocks.confirmation.mockResolvedValue({ id: "confirmation_registration_export", action: "created", token: null })
   })
   afterEach(() => vi.useRealTimers())
 
@@ -127,7 +127,7 @@ describe("Competition Corner import to accountless shift scheduling", () => {
     const [volunteer] = buildCrewRoster([invitation], [])
     expect(volunteer).toMatchObject({ name: "Casey Volunteer", email: "casey@example.com", availability: null, availabilityNotes: availability, imported: true, status: "pending" })
     const reimport = buildVolunteerApplyPlan(preview.rows, {
-      importId: "cimp_cc_again",
+      importId: "cimp_registration_export_again",
       existingInvitations: [invitation],
       existingMemberships: [],
     })

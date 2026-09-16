@@ -259,7 +259,7 @@ export interface CrewImportsPageData {
 
 export interface CrewImportMappingSuggestionResult {
   suggestion: CrewImportMappingSuggestion | null
-  // Code-defined built-in preset match (e.g. Competition Corner), independent
+  // Code-defined built-in preset match, independent
   // of team-saved presets. Team suggestions take precedence when both exist.
   builtInSuggestion: CrewImportMappingSuggestion | null
 }

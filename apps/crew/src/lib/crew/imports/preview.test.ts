@@ -136,7 +136,7 @@ describe("buildCrewImportPreview", () => {
     expect(preview.rows[1]?.action).toBe("skip")
   })
 
-  it("auto-maps Competition Corner volunteer export headers to first-class fields", () => {
+  it("auto-maps volunteer registration export headers to first-class fields", () => {
     const preview = buildCrewImportPreview({
       kind: "volunteers",
       context: previewContext,

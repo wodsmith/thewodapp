@@ -526,7 +526,7 @@ function VolunteerUploadPanel({
                 markDraftChanged()
                 setSourcePlatform(event.target.value)
               }}
-              placeholder="Competition Corner export"
+              placeholder="Registration platform export"
               className="h-11 w-full rounded-md border bg-background px-3 text-sm"
             />
           </ImportField>

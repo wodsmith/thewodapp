@@ -2,8 +2,8 @@
 import { describe, expect, it } from "vitest"
 import {
   builtInImportPresets,
-  competitionCornerVolunteerPreset,
   selectBuiltInImportMappingSuggestion,
+  volunteerRegistrationExportPreset,
 } from "./builtin-presets"
 import {
   computeImportHeaderFingerprint,
@@ -14,7 +14,7 @@ import {
   isQuestionMappingKey,
 } from "./question-mapping"
 
-const COMPETITION_CORNER_HEADERS = [
+const VOLUNTEER_REGISTRATION_EXPORT_HEADERS = [
   "Id",
   "First Name",
   "Last Name",
@@ -38,15 +38,15 @@ const COMPETITION_CORNER_HEADERS = [
 ]
 
 describe("Built-in import presets", () => {
-  it("maps all 20 Competition Corner columns, including newQuestion keys", () => {
+  it("maps all 20 volunteer registration columns, including newQuestion keys", () => {
     const suggestion = selectBuiltInImportMappingSuggestion({
       kind: "volunteers",
-      headers: COMPETITION_CORNER_HEADERS,
+      headers: VOLUNTEER_REGISTRATION_EXPORT_HEADERS,
     })
 
     expect(suggestion).not.toBeNull()
     expect(suggestion?.isBuiltIn).toBe(true)
-    expect(suggestion?.name).toBe("Competition Corner")
+    expect(suggestion?.name).toBe("Volunteer registration export")
     expect(suggestion?.matchedFieldCount).toBe(20)
     expect(suggestion?.columnMapping).toMatchObject({
       sourceExternalId: "Id",
@@ -75,7 +75,7 @@ describe("Built-in import presets", () => {
   it("keeps question-namespaced keys valid after sanitization", () => {
     const suggestion = selectBuiltInImportMappingSuggestion({
       kind: "volunteers",
-      headers: COMPETITION_CORNER_HEADERS,
+      headers: VOLUNTEER_REGISTRATION_EXPORT_HEADERS,
     })
     const questionKeys = Object.keys(suggestion?.columnMapping ?? {}).filter(
       (key) => isQuestionMappingKey(key),
@@ -123,7 +123,7 @@ describe("Built-in import presets", () => {
 
   it("still matches when a few columns are missing, dropping their mappings", () => {
     // Drop 3 of 20 columns → 85% coverage, above the 0.8 threshold.
-    const headers = COMPETITION_CORNER_HEADERS.filter(
+    const headers = VOLUNTEER_REGISTRATION_EXPORT_HEADERS.filter(
       (header) =>
         header !== "Instagram" &&
         header !== "WhatsApp" &&
@@ -170,7 +170,7 @@ describe("Built-in import presets", () => {
     expect(
       selectBuiltInImportMappingSuggestion({
         kind: "heat_schedule",
-        headers: COMPETITION_CORNER_HEADERS,
+        headers: VOLUNTEER_REGISTRATION_EXPORT_HEADERS,
       }),
     ).toBeNull()
   })
@@ -182,20 +182,20 @@ describe("Built-in import presets", () => {
     // from the built-in mapping.
     const teamSuggestion = selectCrewImportMappingSuggestion({
       teamId: "team_1",
-      sourcePlatform: "Competition Corner",
+      sourcePlatform: "Volunteer registration export",
       kind: "volunteers",
-      headers: COMPETITION_CORNER_HEADERS,
+      headers: VOLUNTEER_REGISTRATION_EXPORT_HEADERS,
       candidates: [
         {
           id: "cimap_team",
           teamId: "team_1",
           kind: "volunteers",
-          sourcePlatform: "competition corner",
-          name: "Our Competition Corner tweak",
+          sourcePlatform: "volunteer registration export",
+          name: "Our volunteer registration tweak",
           headerFingerprint: computeImportHeaderFingerprint(
-            COMPETITION_CORNER_HEADERS,
+            VOLUNTEER_REGISTRATION_EXPORT_HEADERS,
           ),
-          headers: COMPETITION_CORNER_HEADERS,
+          headers: VOLUNTEER_REGISTRATION_EXPORT_HEADERS,
           columnMapping: { email: "Email", firstName: "First Name" },
           parserVersion: "crew-tabular-preview-v2",
           lastUsedAt: "2026-06-20T12:00:00.000Z",
@@ -206,24 +206,24 @@ describe("Built-in import presets", () => {
     })
     const builtInSuggestion = selectBuiltInImportMappingSuggestion({
       kind: "volunteers",
-      headers: COMPETITION_CORNER_HEADERS,
+      headers: VOLUNTEER_REGISTRATION_EXPORT_HEADERS,
     })
 
     expect(teamSuggestion?.presetId).toBe("cimap_team")
     expect(teamSuggestion?.isBuiltIn).toBeUndefined()
     expect(teamSuggestion?.matchedFieldCount).toBe(2)
     expect(builtInSuggestion?.presetId).toBe(
-      "builtin:competition-corner-volunteers",
+      "builtin:volunteer-registration-export",
     )
     expect(builtInSuggestion?.isBuiltIn).toBe(true)
     expect(builtInSuggestion?.matchedFieldCount).toBe(20)
   })
 
-  it("exposes the Competition Corner preset in the built-in registry", () => {
-    expect(builtInImportPresets).toContain(competitionCornerVolunteerPreset)
-    expect(competitionCornerVolunteerPreset.headers).toHaveLength(20)
+  it("exposes the volunteer registration preset in the built-in registry", () => {
+    expect(builtInImportPresets).toContain(volunteerRegistrationExportPreset)
+    expect(volunteerRegistrationExportPreset.headers).toHaveLength(20)
     expect(
-      Object.keys(competitionCornerVolunteerPreset.columnMapping),
+      Object.keys(volunteerRegistrationExportPreset.columnMapping),
     ).toHaveLength(20)
   })
 })

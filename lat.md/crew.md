@@ -10,7 +10,7 @@ Crew launches with volunteer import, shifts, optional heat-based judge assignmen
 
 [[apps/crew/src/server/crew-organizer-home.server.ts]] derives setup completion from the event name, dates, and timezone rather than the retired setup checklist. [[apps/crew/src/lib/crew/organizer-next-action.ts]] guides organizers from roster to shifts and exports; heat imports are optional for shift-only events, and incomplete coverage points back to assignments.
 
-The Schedule navigation item retains the existing `print-packet` key and opens [[apps/crew/src/routes/events/$eventId/schedule.tsx]]. Organizers distribute [[crew#Published Volunteer Schedule]] through a copied link or volunteer message pasted into Competition Corner or their existing email tool. Crew does not send that message in the launch workflow.
+The Schedule navigation item retains the existing `print-packet` key and opens [[apps/crew/src/routes/events/$eventId/schedule.tsx]]. Organizers distribute [[crew#Published Volunteer Schedule]] through a copied link or volunteer message pasted into their registration platform or existing email tool. Crew does not send that message in the launch workflow.
 
 ## Mobile Layout and Navigation
 
@@ -388,7 +388,7 @@ CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel
 
 To bound decompression on the worker, `parseXlsx` only extracts the workbook parts it reads (workbook metadata, worksheets, shared strings, and styles) and rejects the upload with an `invalid_workbook` error when any entry exceeds 20 MB or the extracted total exceeds 50 MB. Shared-string extraction ignores phonetic furigana (`<rPh>`) runs so only base text becomes cell values.
 
-Volunteer imports carry first-class fields beyond name/email/role so Competition Corner exports auto-map: `phoneCountryCode`, `shirtSize`, ranked `rolePreference1`–`rolePreference3`, plus provenance `sourceExternalId` and `sourceCreatedAt`. [[apps/crew/src/lib/crew/imports/column-mapping.ts]] defines their header aliases and [[apps/crew/src/lib/crew/imports/normalize-volunteer-row.ts]] normalizes each to a trimmed string.
+Volunteer imports carry first-class fields beyond name/email/role so common registration exports auto-map: `phoneCountryCode`, `shirtSize`, ranked `rolePreference1`–`rolePreference3`, plus provenance `sourceExternalId` and `sourceCreatedAt`. [[apps/crew/src/lib/crew/imports/column-mapping.ts]] defines their header aliases and [[apps/crew/src/lib/crew/imports/normalize-volunteer-row.ts]] normalizes each to a trimmed string.
 
 ### Question Mapped Columns
 
@@ -500,7 +500,7 @@ Built-in presets are code-defined mappings shipped with Crew (no DB row, no migr
 
 [[apps/crew/src/lib/crew/imports/builtin-presets.ts]] exports the presets and a pure `selectBuiltInImportMappingSuggestion`. It reuses [[apps/crew/src/lib/crew/imports/mapping-memory.ts]] normalization/fingerprinting and matches tolerantly: a preset qualifies when its normalized headers cover the upload at or above `BUILT_IN_IMPORT_PRESET_MIN_COVERAGE` (0.8), so extra upload columns never hurt and a few missing columns are allowed; unrelated files fall below the threshold and do not match. The returned mapping is adapted to the upload's header casing and sanitized, so absent columns drop out.
 
-The Competition Corner volunteer preset maps all 20 export columns: first-class fields for identity, contact, shirt size, notes, source id/date, availability, and role preferences, plus `newQuestion:<label>` keys (Age, Birth Date, Gender, Shorts Size, Shoe Size, Instagram, WhatsApp) so no exported column is dropped.
+The volunteer registration export preset maps all 20 columns: first-class fields for identity, contact, shirt size, notes, source id/date, availability, and role preferences, plus `newQuestion:<label>` keys (Age, Birth Date, Gender, Shorts Size, Shoe Size, Instagram, WhatsApp) so no exported column is dropped.
 
 [[apps/crew/src/server/crew-imports.server.ts]] returns the built-in match beside the team suggestion (`builtInSuggestion`); [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] renders the team suggestion first (precedence) then the built-in, labeled "(built-in)". Applying a built-in mapping fills the visible mapping and pre-fills the source label; it is never written to `crew_import_mapping_presets` as-is — an operator tweak saved afterward goes through the normal team preset save flow.
 
@@ -670,7 +670,7 @@ Event managers can view access status and the purchase handoff. Starting Checkou
 
 ## Crew Launch Verification
 
-Crew CI runs unit, isolated MySQL purchase, and browser checks. Launch coverage follows a Competition Corner import through pilot access, stable publication, accountless name lookup, and printing.
+Crew CI runs unit, isolated MySQL purchase, and browser checks. Launch coverage follows a volunteer registration import through pilot access, stable publication, accountless name lookup, and printing.
 
 The unit job in `.github/workflows/ci.yaml` includes Crew. The Crew job in `.github/workflows/e2e.yaml` runs [[crew#Crew Purchase Integration Tests]] and [[crew#Prepared Crew real database preserves seeded data]] serially against the already prepared database before browser mutations. Full-platform refund and revenue component tests remain in WODsmith Start, where those components exist.
 
@@ -680,7 +680,7 @@ Volunteer add, edit, and email-paste dialogs scroll within the viewport so their
 
 The seeded demo includes a Basic plan with its complimentary grant. Browser tests verify that active access produces a downloadable CSV containing the assigned volunteers.
 
-[[apps/crew/e2e/crew-published-schedule.spec.ts]] uploads an independent synthetic Competition Corner CSV, checks mapped roles and availability, repeats the import without duplicating the volunteer, simulates a legacy day-35 import, assigns a shift, verifies unpaid gating, grants one pilot event through the admin UI, and opens the publication in a separate anonymous browser context. It checks private-field exclusion, printing, draft isolation, republishing at the same URL, and unpublishing. A second scenario checks shifts and active judge heat assignments together. These scenarios are included in the Crew browser CI job.
+[[apps/crew/e2e/crew-published-schedule.spec.ts]] uploads an independent synthetic volunteer registration CSV, checks mapped roles and availability, repeats the import without duplicating the volunteer, simulates a legacy day-35 import, assigns a shift, verifies unpaid gating, grants one pilot event through the admin UI, and opens the publication in a separate anonymous browser context. It checks private-field exclusion, printing, draft isolation, republishing at the same URL, and unpublishing. A second scenario checks shifts and active judge heat assignments together. These scenarios are included in the Crew browser CI job.
 
 [[apps/crew/e2e/fixtures/crew-schedule-cleanup.ts]] requires an isolated test database and removes the fresh-event scenario’s event, event team, invitation, shifts, confirmations, import records, billing audit, and published schedule in a `finally` cleanup, including after assertion failures.
 

@@ -9,7 +9,7 @@ import { TEST_DATA } from "./fixtures/test-data"
 
 const volunteerName = "Casey Launch Volunteer"
 const volunteerEmail = "casey-launch@example.com"
-const privateNote = "Private organizer note from Competition Corner"
+const privateNote = "Private organizer note from registration export"
 const availability = "Saturday 8:00 AM–12:00 PM; Sunday 1:00 PM–5:00 PM"
 
 test.use({ actionTimeout: 15_000 })
@@ -27,11 +27,11 @@ test.afterEach(async ({ page }, testInfo) => {
   await writeFile(path, JSON.stringify(browserErrors.get(page) ?? [], null, 2))
   await testInfo.attach("browser-errors", { path, contentType: "application/json" })
 })
-// Synthetic Competition Corner export. Keep the upload independent of the
+// Synthetic volunteer registration export. Keep the upload independent of the
 // implementation's preset so a broken/renamed mapping fails this rehearsal.
-const competitionCornerCsv = [
+const volunteerRegistrationCsv = [
   "Id,First Name,Last Name,Email,Area Code/Country Code,Phone,Age,Birth Date,Gender,Shirt Size,Shorts Size,Shoe Size,Note,Instagram,WhatsApp,Create Date,Shifts,Preference 1,Preference 2,Preference 3",
-  ["cc-launch-1", "Casey", "Launch Volunteer", volunteerEmail, "1", "5551234567", "31", "1995-01-01", "", "M", "M", "9", privateNote, "", "", "2026-09-01", availability, "Judge", "Check-in", ""].map((cell) => `"${cell.replaceAll('"', '""')}"`).join(","),
+  ["volunteer-launch-1", "Casey", "Launch Volunteer", volunteerEmail, "1", "5551234567", "31", "1995-01-01", "", "M", "M", "9", privateNote, "", "", "2026-09-01", availability, "Judge", "Check-in", ""].map((cell) => `"${cell.replaceAll('"', '""')}"`).join(","),
 ].join("\n")
 
 async function gotoHydrated(page: Page, url: string) {
@@ -40,15 +40,15 @@ async function gotoHydrated(page: Page, url: string) {
   await expect(page.getByRole("heading", { name: "Something went wrong", exact: true })).toHaveCount(0)
 }
 
-async function uploadCompetitionCornerVolunteers(page: Page) {
+async function uploadVolunteerRegistrationExport(page: Page) {
   await page.getByRole("link", { name: "Import volunteers", exact: true }).click()
   await waitForHydration(page)
   await page.getByLabel("CSV or Excel file", { exact: true }).setInputFiles({
-    name: "competition-corner-volunteers.csv",
+    name: "volunteer-registration-export.csv",
     mimeType: "text/csv",
-    buffer: Buffer.from(competitionCornerCsv),
+    buffer: Buffer.from(volunteerRegistrationCsv),
   })
-  await page.getByRole("button", { name: "Use Competition Corner mapping", exact: true }).click()
+  await page.getByRole("button", { name: "Use Volunteer registration export mapping", exact: true }).click()
   await page.getByRole("button", { name: "Build preview", exact: true }).click()
   await expect(page.getByRole("heading", { name: /Preview ready: 1 volunteer/ })).toBeVisible()
   await page.getByRole("button", { name: "Import 1 volunteer", exact: true }).click()
@@ -94,7 +94,7 @@ async function findVolunteer(page: Page, name: string, roleContext?: string) {
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible()
 }
 
-test("imports Competition Corner volunteers, grants pilot access, and publishes a stable accountless schedule", async ({ page, browser }) => {
+test("imports a volunteer registration export, grants pilot access, and publishes a stable accountless schedule", async ({ page, browser }) => {
   test.setTimeout(180_000)
   const databaseUrl = requireCrewScheduleTestDatabase()
   const eventName = `Fall Throwdown ${crypto.randomUUID().slice(0, 8)}`
@@ -116,15 +116,15 @@ test("imports Competition Corner volunteers, grants pilot access, and publishes 
 
     await gotoHydrated(page, `${eventPath}/volunteers`)
     await waitForHydration(page)
-    await uploadCompetitionCornerVolunteers(page)
+    await uploadVolunteerRegistrationExport(page)
     const firstImport = await inspectImportedVolunteer(databaseUrl, eventId)
     const firstMetadata = JSON.parse(firstImport.metadata)
-    expect(firstMetadata).toMatchObject({ signupName: volunteerName, availabilityNotes: availability, crewImportExternalId: "cc-launch-1" })
+    expect(firstMetadata).toMatchObject({ signupName: volunteerName, availabilityNotes: availability, crewImportExternalId: "volunteer-launch-1" })
     expect(firstMetadata.volunteerRoleTypes).toContain("judge")
     // New imports already cover events beyond the former 30-day cutoff.
     expect(new Date(firstImport.expires_at).getTime()).toBeGreaterThan(new Date(`${endDate}T12:00:00Z`).getTime())
 
-    await uploadCompetitionCornerVolunteers(page)
+    await uploadVolunteerRegistrationExport(page)
     const reimport = await inspectImportedVolunteer(databaseUrl, eventId)
     expect(reimport.id).toBe(firstImport.id)
     expect(reimport.accepted_at).toBeNull()

@@ -17,7 +17,7 @@ export interface BuiltInImportPreset {
   // Stable, non-DB id (prefixed so it can never collide with a preset row id).
   id: string
   kind: CrewImportKind
-  // Operator-facing display name, e.g. "Competition Corner".
+  // Operator-facing display name, e.g. "Volunteer registration export".
   name: string
   // Source label pre-filled when the operator applies the preset.
   sourcePlatform: string
@@ -28,18 +28,18 @@ export interface BuiltInImportPreset {
 
 // A built-in preset matches when at least this fraction of its expected
 // headers appear in the upload. 0.8 tolerates a couple of renamed/removed
-// columns (16 of Competition Corner's 20) while rejecting unrelated files.
+// columns (16 of the preset's 20) while rejecting unrelated files.
 export const BUILT_IN_IMPORT_PRESET_MIN_COVERAGE = 0.8
 
-// Competition Corner volunteer export. First-class fields cover identity,
+// Generic volunteer registration export. First-class fields cover identity,
 // contact, shirt size, notes, source id/date, availability, and role
 // preferences; the remaining columns become new volunteer questions so no
 // exported data is silently dropped.
-export const competitionCornerVolunteerPreset: BuiltInImportPreset = {
-  id: "builtin:competition-corner-volunteers",
+export const volunteerRegistrationExportPreset: BuiltInImportPreset = {
+  id: "builtin:volunteer-registration-export",
   kind: "volunteers",
-  name: "Competition Corner",
-  sourcePlatform: "Competition Corner",
+  name: "Volunteer registration export",
+  sourcePlatform: "Volunteer registration export",
   headers: [
     "Id",
     "First Name",
@@ -87,7 +87,7 @@ export const competitionCornerVolunteerPreset: BuiltInImportPreset = {
 }
 
 export const builtInImportPresets: BuiltInImportPreset[] = [
-  competitionCornerVolunteerPreset,
+  volunteerRegistrationExportPreset,
 ]
 
 // Pick the best-matching built-in preset for an upload, or null. Matching is
