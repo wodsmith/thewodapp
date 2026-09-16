@@ -72,13 +72,21 @@ describe("EventPilotExportsView", () => {
     expect(screen.getByText("Event 1")).toBeInTheDocument()
     expect(screen.getByText(/Heat 1 \/ Competition floor/)).toBeInTheDocument()
     expect(
+      screen.queryByRole("columnheader", { name: "Status" }),
+    ).not.toBeInTheDocument()
+    expect(
       screen.queryByRole("button", { name: "Master CSV" }),
     ).not.toBeInTheDocument()
 
     // Shifts tab lists each shift as its own section without contact details.
     fireEvent.click(screen.getByRole("tab", { name: /Shifts/ }))
     expect(screen.getByText("Floor reset")).toBeInTheDocument()
-    expect(screen.getByRole("cell", { name: "Rae Reset", exact: true })).toBeInTheDocument()
+    expect(
+      screen.getByRole("cell", { name: "Rae Reset", exact: true }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("columnheader", { name: "Status" }),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText("reset@example.com")).not.toBeInTheDocument()
   })
 })

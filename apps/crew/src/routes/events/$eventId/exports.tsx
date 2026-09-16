@@ -9,7 +9,6 @@ import type {
   CrewPilotMasterScheduleDaySection,
   CrewPilotShiftSheet,
 } from "@/lib/crew/exports/pilot-exports"
-import { formatCrewValue } from "@/lib/crew-event-display"
 import { getCrewScheduleAccessFn } from "@/server-fns/crew-billing-fns"
 import {
   type CrewPilotExportsPageData,
@@ -274,15 +273,10 @@ function JudgesTab({
                   {formatExportDate(heat.startsAt, timezone) || "Unscheduled"}
                 </p>
                 <PacketTable
-                  headers={["Lane", "Judge", "Position", "Status"]}
+                  headers={["Lane", "Judge", "Position"]}
                   rows={heat.rows.map((row) => ({
                     key: `${heat.heatId}:lane:${row.laneNumber}`,
-                    cells: [
-                      row.laneNumber,
-                      row.judgeName,
-                      row.position,
-                      formatCrewValue(row.confirmationStatus),
-                    ],
+                    cells: [row.laneNumber, row.judgeName, row.position],
                   }))}
                   empty="No lanes for this heat."
                 />
@@ -315,13 +309,10 @@ function ShiftsTab({
           subtitle={`${formatRange(sheet.startsAt, sheet.endsAt, timezone)} / ${sheet.location} / ${sheet.roleLabel} / ${sheet.assigned}/${sheet.needed} filled${sheet.open > 0 ? ` (${sheet.open} open)` : ""}`}
         >
           <PacketTable
-            headers={["Volunteer", "Status"]}
+            headers={["Volunteer"]}
             rows={sheet.rows.map((row) => ({
               key: row.rowKey,
-              cells: [
-                row.volunteerName,
-                formatCrewValue(row.confirmationStatus),
-              ],
+              cells: [row.volunteerName],
             }))}
             empty="No volunteers on this shift."
           />
