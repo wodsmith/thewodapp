@@ -10,7 +10,10 @@ import {
   createVolunteerShiftAssignmentId,
 } from "../db/schemas/common"
 import type { Competition } from "../db/schemas/competitions"
-import { competitionsTable } from "../db/schemas/competitions"
+import {
+  competitionHeatsTable,
+  competitionsTable,
+} from "../db/schemas/competitions"
 import { CREW_ASSIGNMENT_CONFIRMATION_TYPE } from "../db/schemas/crew-imports"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
@@ -32,9 +35,13 @@ import type {
   VolunteerRoleType,
 } from "../db/schemas/volunteers"
 import {
+  judgeAssignmentVersionsTable,
+  judgeHeatAssignmentsTable,
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
 } from "../db/schemas/volunteers"
+import { trackWorkoutsTable } from "../db/schemas/programming"
+import { workouts } from "../db/schemas/workouts"
 import type {
   ExistingManualVolunteerInvitation,
   ExistingManualVolunteerMembership,
@@ -159,6 +166,21 @@ export interface CrewShiftBoardItem {
   openSlots: number
 }
 
+export interface CrewShiftJudgeAssignment {
+  id: string
+  assigneeId: string
+  membershipId: string | null
+  invitationId: string | null
+  heatId: string
+  trackWorkoutId: string
+  eventName: string
+  heatNumber: number
+  scheduledTime: Date | null
+  durationMinutes: number | null
+  laneNumber: number | null
+  position: string | null
+}
+
 export interface CrewRosterPageData {
   event: CrewRosterCompetition
   roster: CrewRosterVolunteer[]
@@ -172,6 +194,7 @@ export interface CrewShiftBoardData {
   roster: CrewRosterVolunteer[]
   rosterSummary: CrewRosterSummary
   shifts: CrewShiftBoardItem[]
+  judgeAssignments: CrewShiftJudgeAssignment[]
   shiftSummary: CrewShiftSummary
   pilotOps: CrewShiftBoardPilotOpsData
 }
@@ -328,9 +351,10 @@ export async function getCrewShiftBoard(
 ): Promise<CrewShiftBoardData> {
   const event = await requireCrewRosterEvent(data.eventId)
   const access = await resolveCrewDepartmentLeadAccess(event)
-  const [roster, shifts] = await Promise.all([
+  const [roster, shifts, judgeAssignments] = await Promise.all([
     loadCrewRoster(event.competitionTeamId),
     loadCrewShifts(event.id),
+    loadCrewShiftJudgeAssignments(event.id),
   ])
   const scopedShifts = filterCrewDepartmentLeadShifts(shifts, access)
   const scopedRoster = filterCrewDepartmentLeadRoster(
@@ -350,6 +374,7 @@ export async function getCrewShiftBoard(
     roster: scopedRoster,
     rosterSummary: summarizeCrewRoster(scopedRoster),
     shifts: scopedShifts,
+    judgeAssignments,
     shiftSummary: summarizeCrewShifts(scopedShifts),
     pilotOps: buildCrewShiftBoardPilotOps({
       shifts: scopedShifts,
@@ -357,6 +382,61 @@ export async function getCrewShiftBoard(
       matrix,
     }),
   }
+}
+
+/**
+ * Load active, published judge commitments for the shift assignment panel.
+ * Both membership- and invitation-backed judges use their canonical assignee
+ * id so every staffable Crew roster entry can be matched consistently.
+ */
+export async function loadCrewShiftJudgeAssignments(
+  eventId: string,
+): Promise<CrewShiftJudgeAssignment[]> {
+  const db = getDb()
+  const assignments = await db
+    .select({
+      id: judgeHeatAssignmentsTable.id,
+      membershipId: judgeHeatAssignmentsTable.membershipId,
+      invitationId: judgeHeatAssignmentsTable.invitationId,
+      heatId: judgeHeatAssignmentsTable.heatId,
+      trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+      eventName: workouts.name,
+      heatNumber: competitionHeatsTable.heatNumber,
+      scheduledTime: competitionHeatsTable.scheduledTime,
+      durationMinutes: competitionHeatsTable.durationMinutes,
+      laneNumber: judgeHeatAssignmentsTable.laneNumber,
+      position: judgeHeatAssignmentsTable.position,
+    })
+    .from(judgeHeatAssignmentsTable)
+    .innerJoin(
+      judgeAssignmentVersionsTable,
+      and(
+        eq(
+          judgeHeatAssignmentsTable.versionId,
+          judgeAssignmentVersionsTable.id,
+        ),
+        eq(judgeAssignmentVersionsTable.isActive, true),
+      ),
+    )
+    .innerJoin(
+      competitionHeatsTable,
+      eq(judgeHeatAssignmentsTable.heatId, competitionHeatsTable.id),
+    )
+    .innerJoin(
+      trackWorkoutsTable,
+      eq(competitionHeatsTable.trackWorkoutId, trackWorkoutsTable.id),
+    )
+    .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+    .where(eq(competitionHeatsTable.competitionId, eventId))
+    .orderBy(
+      asc(competitionHeatsTable.scheduledTime),
+      asc(competitionHeatsTable.heatNumber),
+    )
+
+  return assignments.flatMap((assignment) => {
+    const assigneeId = assignment.membershipId ?? assignment.invitationId
+    return assigneeId ? [{ ...assignment, assigneeId }] : []
+  })
 }
 
 export async function getCrewEventRosterShiftSummary(data: CrewEventInput) {

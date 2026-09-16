@@ -6,6 +6,7 @@ import {
   unassignVolunteerFromShiftFn,
   getVolunteerShiftsFn,
   getCompetitionShiftsFn,
+  getCompetitionJudgeAssignmentsForShiftsFn,
   getShiftAssignmentsFn,
   deleteShiftFn,
   updateShiftFn,
@@ -125,6 +126,11 @@ describe('Volunteer Shift Server Functions', () => {
     mockDb.registerTable('volunteerShiftsTable')
     mockDb.registerTable('volunteerShiftAssignmentsTable')
     mockDb.registerTable('teamMembershipTable')
+    mockDb.registerTable('judgeHeatAssignmentsTable')
+    mockDb.registerTable('judgeAssignmentVersionsTable')
+    mockDb.registerTable('competitionHeatsTable')
+    mockDb.registerTable('trackWorkoutsTable')
+    mockDb.registerTable('workouts')
     // Reset to default session
     setMockSession(mockOrganizerSession)
   })
@@ -727,6 +733,66 @@ describe('Volunteer Shift Server Functions', () => {
         data: {
           competitionId: 'comp_test123',
         },
+      })
+
+      expect(result).toEqual([])
+    })
+  })
+
+  describe('getCompetitionJudgeAssignmentsForShiftsFn', () => {
+    it('returns active judge commitments for the shift assignment panel', async () => {
+      const mockCompetition = createMockCompetition()
+      const scheduledTime = new Date('2025-01-15T10:00:00Z')
+
+      mockDb.setMockSingleValue(mockCompetition)
+      mockDb.setMockReturnValue([
+        {
+          id: 'hvol_assignment123',
+          membershipId: 'tmem_volunteer123',
+          heatId: 'cheat_test123',
+          trackWorkoutId: 'trwk_test123',
+          eventName: 'Event 1',
+          heatNumber: 2,
+          scheduledTime,
+          durationMinutes: 12,
+          laneNumber: 4,
+          position: 'judge',
+        },
+      ])
+
+      const result = await getCompetitionJudgeAssignmentsForShiftsFn({
+        data: {competitionId: 'comp_test123'},
+      })
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          membershipId: 'tmem_volunteer123',
+          eventName: 'Event 1',
+          heatNumber: 2,
+          laneNumber: 4,
+        }),
+      ])
+    })
+
+    it('ignores invitation-only assignments on the membership roster', async () => {
+      mockDb.setMockSingleValue(createMockCompetition())
+      mockDb.setMockReturnValue([
+        {
+          id: 'hvol_invitation123',
+          membershipId: null,
+          heatId: 'cheat_test123',
+          trackWorkoutId: 'trwk_test123',
+          eventName: 'Event 1',
+          heatNumber: 2,
+          scheduledTime: null,
+          durationMinutes: 12,
+          laneNumber: 4,
+          position: 'judge',
+        },
+      ])
+
+      const result = await getCompetitionJudgeAssignmentsForShiftsFn({
+        data: {competitionId: 'comp_test123'},
       })
 
       expect(result).toEqual([])

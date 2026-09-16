@@ -2,7 +2,16 @@
 
 import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Calendar, Clock, MapPin, Minus, Plus, User, Users } from "lucide-react"
+import {
+  Calendar,
+  Clock,
+  Gavel,
+  MapPin,
+  Minus,
+  Plus,
+  User,
+  Users,
+} from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -26,7 +35,10 @@ import {
   isCrewRosterVolunteerStaffable,
   isVolunteerCompatibleWithShift,
 } from "@/lib/crew/roster-shifts"
-import type { CrewShiftBoardItem } from "@/server-fns/crew-roster-shift-fns"
+import type {
+  CrewShiftBoardItem,
+  CrewShiftJudgeAssignment,
+} from "@/server-fns/crew-roster-shift-fns"
 import {
   assignCrewVolunteerToShiftFn,
   removeCrewVolunteerShiftAssignmentFn,
@@ -60,6 +72,29 @@ function formatShiftTimeCompact(
   return `${datePart} ${startPart.toLowerCase()}-${endPart.toLowerCase()}`
 }
 
+function formatJudgeAssignmentTimeCompact(
+  scheduledTime: Date | null,
+  durationMinutes: number | null,
+  timezone: string,
+): string | null {
+  if (!scheduledTime) return null
+  const datePart = formatDateTimeInTimezone(scheduledTime, timezone, "MMM d")
+  const startPart = formatDateTimeInTimezone(
+    scheduledTime,
+    timezone,
+    "h:mma",
+  ).toLowerCase()
+  if (!durationMinutes) return `${datePart} ${startPart}`
+
+  const endTime = new Date(scheduledTime.getTime() + durationMinutes * 60_000)
+  const endPart = formatDateTimeInTimezone(
+    endTime,
+    timezone,
+    "h:mma",
+  ).toLowerCase()
+  return `${datePart} ${startPart}-${endPart}`
+}
+
 interface ShiftAssignmentPanelProps {
   shift: CrewShiftBoardItem | null
   allShifts: CrewShiftBoardItem[]
@@ -67,6 +102,7 @@ interface ShiftAssignmentPanelProps {
   timezone: string
   /** Assignable roster volunteers (active memberships) from the shift board. */
   roster: CrewRosterVolunteer[]
+  judgeAssignments: CrewShiftJudgeAssignment[]
   eventId: string
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -85,6 +121,7 @@ export function ShiftAssignmentPanel({
   allShifts,
   timezone,
   roster,
+  judgeAssignments,
   eventId,
   open,
   onOpenChange,
@@ -137,6 +174,16 @@ export function ShiftAssignmentPanel({
     }
     return map
   }, [allShifts, shift])
+
+  const judgeAssignmentsByAssigneeId = useMemo(() => {
+    const map = new Map<string, CrewShiftJudgeAssignment[]>()
+    for (const assignment of judgeAssignments) {
+      const existing = map.get(assignment.assigneeId) ?? []
+      existing.push(assignment)
+      map.set(assignment.assigneeId, existing)
+    }
+    return map
+  }, [judgeAssignments])
 
   // Calculate capacity info
   const assignedCount = shift?.assignments.length ?? 0
@@ -297,6 +344,9 @@ export function ShiftAssignmentPanel({
                   const otherShifts = assigneeId
                     ? (volunteerOtherShifts.get(assigneeId) ?? [])
                     : []
+                  const volunteerJudgeAssignments = assigneeId
+                    ? (judgeAssignmentsByAssigneeId.get(assigneeId) ?? [])
+                    : []
 
                   return (
                     <div
@@ -348,6 +398,66 @@ export function ShiftAssignmentPanel({
                                       </p>
                                     </div>
                                   ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                          {volunteerJudgeAssignments.length > 0 && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                >
+                                  <Gavel className="h-3 w-3 shrink-0" />
+                                  <span className="underline decoration-dotted">
+                                    {volunteerJudgeAssignments.length} judge
+                                    assignment
+                                    {volunteerJudgeAssignments.length !== 1
+                                      ? "s"
+                                      : ""}
+                                  </span>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="max-h-72 w-72 overflow-y-auto p-2"
+                                align="start"
+                              >
+                                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                                  Judge Assignments
+                                </p>
+                                <div className="space-y-2">
+                                  {volunteerJudgeAssignments.map(
+                                    (assignment) => {
+                                      const scheduledTime =
+                                        formatJudgeAssignmentTimeCompact(
+                                          assignment.scheduledTime,
+                                          assignment.durationMinutes,
+                                          timezone,
+                                        )
+                                      return (
+                                        <div
+                                          key={assignment.id}
+                                          className="text-sm"
+                                        >
+                                          <p className="font-medium">
+                                            {assignment.eventName}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            Heat {assignment.heatNumber}
+                                            {assignment.laneNumber
+                                              ? ` · Lane ${assignment.laneNumber}`
+                                              : ""}
+                                          </p>
+                                          {scheduledTime && (
+                                            <p className="text-xs text-muted-foreground">
+                                              {scheduledTime}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )
+                                    },
+                                  )}
                                 </div>
                               </PopoverContent>
                             </Popover>

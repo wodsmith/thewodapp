@@ -7,7 +7,10 @@
 
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import { competitionCan } from "@/lib/competitions/capabilities"
-import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
+import {
+  getCompetitionJudgeAssignmentsForShiftsFn,
+  getCompetitionShiftsFn,
+} from "@/server-fns/volunteer-shift-fns"
 import { ShiftList } from "../-components/shifts/shift-list"
 
 export const Route = createFileRoute(
@@ -34,27 +37,35 @@ export const Route = createFileRoute(
       throw new Error("Competition team not found")
     }
 
-    const shifts = await getCompetitionShiftsFn({
-      data: { competitionId: competition.id },
-    })
+    const [shifts, judgeAssignments] = await Promise.all([
+      getCompetitionShiftsFn({
+        data: { competitionId: competition.id },
+      }),
+      getCompetitionJudgeAssignmentsForShiftsFn({
+        data: { competitionId: competition.id },
+      }),
+    ])
 
     return {
       competition,
       competitionTeamId: competition.competitionTeamId,
       shifts,
+      judgeAssignments,
     }
   },
   component: VolunteerShiftsPage,
 })
 
 function VolunteerShiftsPage() {
-  const { competition, competitionTeamId, shifts } = Route.useLoaderData()
+  const { competition, competitionTeamId, shifts, judgeAssignments } =
+    Route.useLoaderData()
 
   return (
     <ShiftList
       competitionId={competition.id}
       competitionTeamId={competitionTeamId}
       shifts={shifts}
+      judgeAssignments={judgeAssignments}
     />
   )
 }
