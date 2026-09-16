@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, or } from "drizzle-orm"
+import { and, eq, inArray, isNull, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { ROLES_ENUM } from "@/db/schema"
@@ -560,6 +560,7 @@ export const addWorkoutToTrackFn = createServerFn({ method: "POST" })
     const workout = await db.query.workouts.findFirst({
       where: and(
         eq(workoutsTable.id, data.workoutId),
+        isNull(workoutsTable.archivedAt),
         or(
           eq(workoutsTable.teamId, track.ownerTeamId),
           eq(workoutsTable.scope, "public"),

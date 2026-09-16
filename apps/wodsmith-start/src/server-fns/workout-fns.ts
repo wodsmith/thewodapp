@@ -170,7 +170,7 @@ export const getWorkoutsFn = createServerFn({ method: "GET" })
       validatedData.movementIds && validatedData.movementIds.length > 0
 
     // Build base query conditions
-    const conditions: ReturnType<typeof eq>[] = []
+    const conditions: ReturnType<typeof eq>[] = [isNull(workouts.archivedAt)]
 
     // Base condition: team-owned or public workouts
     const teamOrPublicCondition = or(
@@ -500,10 +500,9 @@ export const updateWorkoutFn = createServerFn({ method: "POST" })
     }
 
     const updatedWorkout = await db.transaction(async (tx) => {
-      const existing = await tx.query.workouts.findFirst({
-        where: eq(workouts.id, data.id),
-      })
+      const [existing] = await tx.select().from(workouts).where(eq(workouts.id,data.id)).for("update")
       if (!existing) throw new Error("Workout not found")
+      if (existing.archivedAt) throw new Error("Workout is archived or unavailable")
       if (!existing.teamId)
         throw new Error("Workout has no editable owner team")
       await requireWorkoutTeamWrite(
@@ -608,6 +607,7 @@ export const scheduleWorkoutFn = createServerFn({ method: "POST" })
     const workout = await db.query.workouts.findFirst({
       where: and(
         eq(workouts.id, data.workoutId),
+        isNull(workouts.archivedAt),
         or(eq(workouts.teamId, data.teamId), eq(workouts.scope, "public")),
       ),
     })

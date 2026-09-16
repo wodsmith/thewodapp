@@ -8,9 +8,7 @@ import {
   planDeleteInputSchema,
   planGetInputSchema,
   planListInputSchema,
-  type PlanningTransaction,
 } from "@repo/wodsmith-training/plans/service"
-import type { WodsmithDb } from "@repo/wodsmith-db/mysql"
 import { z } from "zod"
 import { createPersonalTrainingService } from "./training-personal-service"
 import { personalTrainingItemSchema } from "./training-personal-validation"
@@ -42,15 +40,7 @@ export const trainingPlanOperationSchemas = {
   commit_training_plan: planCommitInputSchema,
 }
 
-export interface TrainingPlanningDependencies
-  extends TrainingServiceDependencies {
-  /** OAuth adapters must revalidate the live SQL grant using this connection. */
-  authorizeActor?: (
-    db: WodsmithDb | PlanningTransaction,
-    actor: TrainingActor,
-    permission: "training:read" | "training:write",
-  ) => Promise<void>
-}
+export type TrainingPlanningDependencies = TrainingServiceDependencies
 
 // @lat: [[training-plans#Canonical Adapter]]
 export function createTrainingPlanningService(

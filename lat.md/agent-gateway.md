@@ -1,0 +1,102 @@
+# Agent gateway
+
+The training MCP gateway delegates named tools through a private Worker binding. WodSmith remains the authority for login, grants, workspace access and all domain operations.
+
+## OAuth and consent
+
+Consent stays on the existing login origin. The gateway accepts OAuth access tokens only, with no browser-session fallback or caller-supplied actor fields.
+
+[[apps/wodsmith-start/src/agent/consent.ts#handleAgentOAuth]] hosts consent at `/agent/authorize`, token and registration endpoints under `/agent`, and connected-app management at `/agent/connections`, linked from Settings. An unset resource disables these routes. Alchemy enables the canonical demo resource after the demo schema push. Other stages keep it empty unless explicitly configured.
+
+The shipped `@cloudflare/workers-oauth-provider` 0.10.3 owns code exchange, refresh, S256 PKCE, CIMD and DCR. Its installed API differs from the newer split-provider API on the upstream main branch. An omitted scope defaults to `training:read` only. All resource scopes are discoverable; consent initially checks only the requested read scope. Deletion and publication require separate selections.
+
+Consent uses a ten-minute database ticket bound to the authenticated user and browser cookie digest. Approval validates the same origin, consumes the ticket once under a row lock, reparses the stored authorization URL, and intersects requested permissions with explicit selections. Workspace choices are checked against current active, unexpired memberships. Client text is escaped; the page cannot be framed.
+
+## Live grants
+
+SQL grants govern immediate application revocation independently of the OAuth library's eventually consistent KV protocol records.
+
+[[apps/wodsmith-start/src/agent/grants.ts#resolveAgentActor]] requires the exact resource URL, unexpired provider token, matching user/client identity, and a live SQL grant. Token scopes intersect the SQL grant. Allowed teams intersect current memberships. Password hash changes, authentication generation changes and account deletion invalidate old grants; browser recovery does not silently renew an agent connection.
+
+[[apps/wodsmith-start/src/agent/grants.ts#assertLiveAgentGrant]] checks grants and memberships on the domain transaction connection. Shared row locks serialize an in-flight commit with grant revocation. Consent created before password recovery cannot be completed afterward using a stale browser proof. Hyperdrive caching remains disabled.
+
+## Transport and domain boundary
+
+A fresh SDK server handles each request, with modern MCP envelopes and stateless compatibility for 2025 clients. The gateway has no SQL connection or domain mutation implementation.
+
+[[apps/wodsmith-agent/src/index.ts#handleGateway]] returns a real HTTP 401 and protected-resource discovery for missing or invalid tokens. Authorization storage failure returns a sanitized 503. Exact origin, resource path and query checks prevent token use on another resource. The protocol implementation uses `agents` 0.23.0 and MCP server 2.0.0, verified from installed package types and runtime.
+
+[[apps/wodsmith-start/src/agent/service.ts#AgentTrainingService]] exposes only private RPC methods. Each invocation resolves its actor again and delegates the catalogue and execution to [[training-agent-services]]. Structured outcomes retain domain error codes and MCP `isError`; reads, writes, deletes and publication use their domain catalogue annotations. No unimplemented operation is advertised.
+
+## Local validation and rollout
+
+Local tests use the shipped OAuth provider in workerd and isolated MySQL grant tables. Real ChatGPT and Claude account connections remain a deployment acceptance gate.
+
+Gateway tests cover discovery, actual URL client metadata resolution, exact audiences, S256, registered redirects, scope narrowing, refresh identity, token tampering, legacy initialization and modern envelopes. Alchemy explicitly enables `global_fetch_strictly_public`; the custom-entrypoint build check guards that deployment setting. SQL tests cover cross-user revoke, scope/workspace tampering, ticket concurrency, live membership changes, expiry, deletion and password recovery. OAuth protocol tests use real provider KV; SQL boundary tests replace token parsing with controlled validated-token fixtures.
+
+The Vitest 3-compatible Worker pool currently runs a March 2026 workerd and reports a compatibility-date fallback. This is not evidence of production or live-host interoperability. Gateway CI runs tests, generated binding types, TypeScript and a Wrangler dry-run build. Its path filters include the private service, Start entrypoint, Alchemy configuration and canonical training catalog/planning sources. The Start database integration workflow runs the grant tests against MySQL.
+
+Migration `0012_agent_oauth_grants.sql` creates grants and consent tickets. Merged GameDay migration 0011 remains unchanged. The OAuth snapshot and journal timestamp follow that migration; independent Worker consent, HTTP, push cron and queue behavior are preserved. Database CI runs `db:check-migrations` to validate increasing timestamps, consecutive indices, SQL files and snapshot ancestry. Apply schema through the normal reviewed database workflow before explicitly configuring matching authorization/resource URLs and the actual Start Worker service name. No production migration or deployment is part of this change.
+
+## Planning adapter
+
+The gateway advertises eight canonical planning operations with explicit read/write scopes. Draft creation is distinct from an idempotent commit, and stale previews remain actionable errors.
+
+[[apps/wodsmith-start/src/agent/planning-operations.ts#executePlanningOperation]] uses the schemas and service from [[training-plans#Canonical Adapter]]. It requires live grant authorization even for the versioned blueprint, preserves planning error details under stable validation/conflict categories, and sanitizes unknown failures. Canonical SQL tests cover the domain lifecycle; gateway adapter tests cover scope-filtered discovery, blueprint versions, annotations and error mapping.
+
+## Successful service integration
+
+A composed service test exercises successful authorization, discovery, canonical reads, plan creation, preview, commit retry and revocation against isolated MySQL.
+
+This test runs the real private service methods, SQL grants, entitlement checks and A/B domain implementations. It substitutes validated provider-token input and the WorkerEntrypoint host base; separate workerd tests verify real OAuth parsing and the compiled named binding. These seams do not claim a live client connection.
+
+
+## Canonical mutation integration
+
+The private service passes live SQL grant authorization into canonical mutation transactions. All 27 tools retain their domain scopes and annotations.
+
+The composed SQL service test exercises workout creation, retry, edit and archive; result rounds through creation, edit and deletion; personal composition; programming draft and publication; receipt provenance; and scope-filtered discovery. A controlled callback interleaving revokes the grant after token resolution but before the real transaction grant check, verifying that neither a workout nor a receipt is saved. OAuth parsing and Worker hosting retain the separate runtime-test coverage described above.
+
+## Browser consent origin
+
+Consent and connection pages preserve same-origin form Origin headers while withholding referrers from other origins. This allows the existing strict POST origin check to accept normal browser submissions.
+
+The page response uses `Referrer-Policy: same-origin`. Chromium sends `Origin: null` for native form POSTs under `no-referrer`, so that policy breaks consent and disconnection. SQL consent tests pin the policy; the local Inspector walkthrough verifies real browser submission, PKCE exchange and private Worker RPC.
+
+Chromium also enforces `form-action` against redirects after a POST. Only the consent page adds the origin of its provider-validated registered callback to that directive; connection-management pages retain self-only form actions. The callback is never taken directly from an unvalidated query string.
+
+## Plain JSON tool results
+
+The gateway materializes private Worker RPC outcomes as plain JSON before handing structuredContent to the MCP SDK. This removes internal symbol metadata without changing the domain payload.
+
+The text and structured output share the same JSON serialization. A gateway regression test reproduces the SDK invalid-key failure with symbol-bearing outcomes, then asserts equivalent successful text and structured data.
+
+## Sign-in handoff to consent
+
+After password login, agent endpoint redirects load a new document because consent is served directly by the Worker and is absent from the client route tree.
+
+The sign-in submit handler uses a document navigation for local `/agent/` destinations. Other login destinations retain client routing. A fresh-browser LAN Inspector walkthrough verifies login resumes consent without a client-side 404.
+
+## Sign-in hydration
+
+The sign-in submit button stays disabled until the client handler is ready, preventing an early native submission from losing the OAuth destination.
+
+The form also declares POST so a native fallback cannot place credentials in a URL. Browser acceptance checks the initial disabled form and the enabled, hydrated login-to-consent flow.
+
+## Demo deployment defaults
+
+Alchemy deploys the demo gateway with the demo app and binds its named training entrypoint directly. Production agent access remains disabled unless explicitly configured.
+
+[[apps/wodsmith-start/infra/agent-deployment.ts#resolveAgentDeployment]] selects `https://mcp-demo.wodsmith.com/mcp` for demo. The existing Deploy workflow pushes the demo database schema before Alchemy deploys the app and gateway. The gateway receives only the private service and public OAuth URLs; Alchemy manages its custom domain and TLS. See `docs/guides/agent-demo-deployment.md` for deployment and connection steps.
+
+## Deployment origin isolation
+
+Deployment configuration rejects mismatched application origins and MCP resources, preventing a demo gateway from accepting production authorization.
+
+Only the exact canonical demo or explicitly enabled production URL pair is accepted. An empty resource disables the gateway. Development uses the separate local launcher. The post-deploy smoke check verifies public resource discovery, authorization discovery, PKCE and rejection of missing and invalid tokens. Invalid-token requests exercise the private binding; failure output includes response diagnostics for edge-layer blocks.
+
+## Hosted client reachability
+
+A hosted MCP client must receive an OAuth challenge from the gateway, not a Cloudflare browser challenge. Deployment success alone does not establish this property.
+
+The initial demo rollout reached the private service successfully from a direct client, but CI received `403` with `cf-mitigated: challenge`. Resolve the responsible edge rule before accepting hosted-client compatibility; retain production protection and OAuth authorization. The demo deployment guide records how to distinguish and investigate this condition.

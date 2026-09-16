@@ -17,7 +17,11 @@
 		"db:migrate:dev": "turbo db:migrate:dev",
 		"db:migrate:prod": "turbo db:migrate:prod",
 		"email:dev": "turbo email:dev",
-		"ts:clean": "find . -name '.tsbuildinfo' -type f -delete"
+		"ts:clean": "find . -name '.tsbuildinfo' -type f -delete",
+		"agent:ensure": "node scripts/agent-local/dev.mjs ensure",
+		"agent:status": "node scripts/agent-local/dev.mjs status",
+		"agent:stop": "node scripts/agent-local/dev.mjs stop",
+		"test:agent-local": "node --test scripts/agent-local/*.test.mjs"
 	},
 	"devDependencies": {
 		"turbo": "^2.5.8"

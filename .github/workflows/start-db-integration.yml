@@ -51,4 +51,5 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @repo/wodsmith-db db:check-migrations
       - run: pnpm --filter wodsmith-start test:db-integration

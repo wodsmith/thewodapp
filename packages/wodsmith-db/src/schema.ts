@@ -52,4 +52,7 @@ export * from "./schemas/workouts"
 // teamTable relations (including programmingTracks) are in schemas/teams.ts
 export * from "./schemas/workout-import"
 export * from "./schemas/volunteer-signup-intents"
+
+export * from "./schemas/training-mutations"
+export * from "./schemas/agent-oauth"
 export * from "./schemas/gameday-push"

@@ -29,16 +29,23 @@ export function createTrainingReadAccess(
   }
 
   // @lat: [[training-access#Training Access#Private reads]]
-  async function workoutVisibilityCondition() {
-    if (!userId) return eq(workouts.scope, "public")
-    return or(
-      eq(workouts.scope, "public"),
-      inArray(
-        workouts.teamId,
-        db
-          .select({ teamId: teamMembershipTable.teamId })
-          .from(teamMembershipTable)
-          .where(activeMembership(userId)),
+  async function workoutVisibilityCondition(includeArchived = false) {
+    if (!userId)
+      return and(
+        includeArchived ? undefined : isNull(workouts.archivedAt),
+        eq(workouts.scope, "public"),
+      )
+    return and(
+      includeArchived ? undefined : isNull(workouts.archivedAt),
+      or(
+        eq(workouts.scope, "public"),
+        inArray(
+          workouts.teamId,
+          db
+            .select({ teamId: teamMembershipTable.teamId })
+            .from(teamMembershipTable)
+            .where(activeMembership(userId)),
+        ),
       ),
     )
   }
