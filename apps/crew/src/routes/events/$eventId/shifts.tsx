@@ -28,6 +28,7 @@ function VolunteerShiftsPage() {
       defaultDate={shiftBoard.event.startDate}
       shifts={shiftBoard.shifts}
       roster={shiftBoard.roster}
+      judgeAssignments={shiftBoard.judgeAssignments}
     />
   )
 }

@@ -268,6 +268,8 @@ The Volunteer Shifts page is a focused shift-management surface ported from the 
 
 [[apps/crew/src/routes/events/$eventId/shifts.tsx]] loads the shift board through [[apps/crew/src/server-fns/crew-roster-shift-fns.ts#getCrewShiftBoardFn]] and renders the ported [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-list.tsx|ShiftList]]. Shifts group by event-timezone calendar day in cards; each row opens a [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-assignment-panel.tsx|assignment sheet]] that assigns or removes roster volunteers compatible with the shift role, and an add/edit [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-form-dialog.tsx|dialog]] creates and updates shifts.
 
+The assignment sheet shows every available volunteer's other shift commitments and active published judge assignments. Judge commitments support both account-backed memberships and invitation-backed imported volunteers, with event, heat, lane, and event-timezone schedule details.
+
 All create, update, delete, assign, and remove actions reuse Crew's existing event-scoped server functions in [[apps/crew/src/server-fns/crew-roster-shift-fns.ts]] (eventId plus `YYYY-MM-DD`/`HH:mm` strings normalized server-side in the event timezone), so the page shares the same auth, capacity, and role-compatibility rules as the assignments shift board. The "Volunteer Shifts" sidebar item is registered in [[apps/crew/src/lib/crew/navigation.ts]] and allow-listed in [[apps/crew/src/components/crew-event-sidebar.tsx]].
 
 ## Judge Assignment Version Publishing

@@ -13,6 +13,7 @@ export type {
   CrewRosterPageData,
   CrewShiftBoardData,
   CrewShiftBoardItem,
+  CrewShiftJudgeAssignment,
   CrewShiftSummary,
   ManualCrewVolunteerMutationResult,
 } from "../server/crew-roster-shift.server"

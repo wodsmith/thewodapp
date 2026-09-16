@@ -41,7 +41,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { CrewRosterVolunteer } from "@/lib/crew/roster-shifts"
-import type { CrewShiftBoardItem } from "@/server-fns/crew-roster-shift-fns"
+import type {
+  CrewShiftBoardItem,
+  CrewShiftJudgeAssignment,
+} from "@/server-fns/crew-roster-shift-fns"
 import { deleteCrewShiftFn } from "@/server-fns/crew-roster-shift-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 import { ShiftAssignmentPanel } from "./shift-assignment-panel"
@@ -72,6 +75,7 @@ interface ShiftListProps {
   shifts: CrewShiftBoardItem[]
   /** Roster volunteers (from the shift board) used by the assignment panel. */
   roster: CrewRosterVolunteer[]
+  judgeAssignments: CrewShiftJudgeAssignment[]
 }
 
 /**
@@ -88,6 +92,7 @@ export function ShiftList({
   defaultDate,
   shifts,
   roster,
+  judgeAssignments,
 }: ShiftListProps) {
   const router = useRouter()
 
@@ -397,6 +402,7 @@ export function ShiftList({
         allShifts={shifts}
         timezone={timezone}
         roster={roster}
+        judgeAssignments={judgeAssignments}
         eventId={eventId}
         open={assignmentPanelOpen}
         onOpenChange={setAssignmentPanelOpen}
