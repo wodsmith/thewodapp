@@ -7,7 +7,11 @@ import { requireTeamPermission } from "@/utils/team-auth"
 
 type QueryResult = unknown[]
 
-function createSelectChain(result: QueryResult, whereCalls: unknown[] = []) {
+function createSelectChain(
+  result: QueryResult,
+  whereCalls: unknown[] = [],
+  leftJoinCalls: unknown[][] = [],
+) {
   const chain: Record<string, ReturnType<typeof vi.fn>> & {
     then?: (
       resolve: (value: QueryResult) => void,
@@ -16,12 +20,17 @@ function createSelectChain(result: QueryResult, whereCalls: unknown[] = []) {
   } = {
     from: vi.fn(),
     innerJoin: vi.fn(),
+    leftJoin: vi.fn(),
     where: vi.fn(),
     limit: vi.fn(),
   }
 
   chain.from.mockReturnValue(chain)
   chain.innerJoin.mockReturnValue(chain)
+  chain.leftJoin.mockImplementation((...args: unknown[]) => {
+    leftJoinCalls.push(args)
+    return chain
+  })
   chain.where.mockImplementation((condition: unknown) => {
     whereCalls.push(condition)
     return chain
@@ -36,11 +45,16 @@ function createSelectChain(result: QueryResult, whereCalls: unknown[] = []) {
 function createDbMock(selectResults: QueryResult[]) {
   const pendingResults = [...selectResults]
   const deleteCalls: unknown[] = []
+  const txSelectLeftJoinCalls: unknown[][] = []
   const txSelectWhereCalls: unknown[] = []
   const deleteWhere = vi.fn().mockResolvedValue(undefined)
   const tx = {
     select: vi.fn(() =>
-      createSelectChain(pendingResults.shift() ?? [], txSelectWhereCalls),
+      createSelectChain(
+        pendingResults.shift() ?? [],
+        txSelectWhereCalls,
+        txSelectLeftJoinCalls,
+      ),
     ),
     delete: vi.fn((table: unknown) => {
       deleteCalls.push(table)
@@ -55,7 +69,14 @@ function createDbMock(selectResults: QueryResult[]) {
     ),
   }
 
-  return { db, deleteCalls, deleteWhere, tx, txSelectWhereCalls }
+  return {
+    db,
+    deleteCalls,
+    deleteWhere,
+    tx,
+    txSelectLeftJoinCalls,
+    txSelectWhereCalls,
+  }
 }
 
 function renderCondition(condition: unknown) {
@@ -165,9 +186,10 @@ describe("deleteCompetitionScoreFn", () => {
     ])
     expect(renderCondition(txSelectWhereCalls[2]).params).toEqual([
       "comp-1",
-      "user-1",
       "active",
       "division-1",
+      "user-1",
+      "user-1",
     ])
     const selectionWhere = renderCondition(txSelectWhereCalls[3])
     expect(selectionWhere.sql).toContain("`scores`.`competitionEventId` = ?")
@@ -182,6 +204,66 @@ describe("deleteCompetitionScoreFn", () => {
     const scoreDeleteWhere = renderCondition(deleteWhere.mock.calls[1]?.[0])
     expect(scoreDeleteWhere.sql).toBe("`scores`.`id` in (?)")
     expect(scoreDeleteWhere.params).toEqual(["score-1"])
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Deletes a non-captain team member score]]
+  it("deletes a score owned by an active non-captain team member", async () => {
+    const {
+      db,
+      deleteWhere,
+      txSelectLeftJoinCalls,
+      txSelectWhereCalls,
+    } = createDbMock(
+      successfulRemovalResults({
+        divisionId: "division-1",
+        scoreRows: [{ id: "member-score" }],
+        userId: "captain-user",
+      }),
+    )
+    mockDb = db
+
+    const result = await deleteCompetitionScoreFn({
+      data: {
+        organizingTeamId: "team-1",
+        competitionId: "comp-1",
+        trackWorkoutId: "tw-1",
+        userId: "member-user",
+        divisionId: "division-1",
+      },
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(txSelectLeftJoinCalls).toHaveLength(1)
+    const membershipJoin = renderCondition(txSelectLeftJoinCalls[0]?.[1])
+    expect(membershipJoin.sql).toContain(
+      "`team_memberships`.`teamId` = `competition_registrations`.`athleteTeamId`",
+    )
+    expect(membershipJoin.sql).toContain("`team_memberships`.`userId` = ?")
+    expect(membershipJoin.sql).toContain("`team_memberships`.`isActive` = ?")
+    expect(membershipJoin.params).toEqual(["member-user", true])
+
+    const participationWhere = renderCondition(txSelectWhereCalls[2])
+    expect(participationWhere.sql).toContain(
+      "`competition_registrations`.`userId` = ? or `team_memberships`.`userId` = ?",
+    )
+    expect(participationWhere.params).toEqual([
+      "comp-1",
+      "active",
+      "division-1",
+      "member-user",
+      "member-user",
+    ])
+    expect(renderCondition(txSelectWhereCalls[3]).params).toEqual([
+      "tw-1",
+      "member-user",
+      "division-1",
+    ])
+    expect(renderCondition(deleteWhere.mock.calls[0]?.[0]).params).toEqual([
+      "member-score",
+    ])
+    expect(renderCondition(deleteWhere.mock.calls[1]?.[0]).params).toEqual([
+      "member-score",
+    ])
   })
 
   // @lat: [[organizer-dashboard#Results Entry#Clear Results#Rejects event outside competition]]

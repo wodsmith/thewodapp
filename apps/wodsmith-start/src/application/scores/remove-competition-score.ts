@@ -17,7 +17,7 @@ import {
   type ScoreRemovalTransaction,
   type ScoreResultId,
 } from "@repo/wodsmith-application/scores"
-import { and, eq, inArray, isNull } from "drizzle-orm"
+import { and, eq, inArray, isNull, or } from "drizzle-orm"
 import type { Database } from "@/db"
 import {
   competitionRegistrationsTable,
@@ -29,6 +29,7 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
+import { teamMembershipTable } from "@/db/schemas/teams"
 
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
 
@@ -119,19 +120,32 @@ function createTransactionAdapter(tx: Transaction): ScoreRemovalTransaction {
         .select({
           id: competitionRegistrationsTable.id,
           competitionId: competitionRegistrationsTable.eventId,
-          athleteId: competitionRegistrationsTable.userId,
           divisionId: competitionRegistrationsTable.divisionId,
         })
         .from(competitionRegistrationsTable)
+        .leftJoin(
+          teamMembershipTable,
+          and(
+            eq(
+              teamMembershipTable.teamId,
+              competitionRegistrationsTable.athleteTeamId,
+            ),
+            eq(teamMembershipTable.userId, command.athleteId),
+            eq(teamMembershipTable.isActive, true),
+          ),
+        )
         .where(
           and(
             eq(competitionRegistrationsTable.eventId, command.competitionId),
-            eq(competitionRegistrationsTable.userId, command.athleteId),
             eq(
               competitionRegistrationsTable.status,
               REGISTRATION_STATUS.ACTIVE,
             ),
             divisionCondition(command.division),
+            or(
+              eq(competitionRegistrationsTable.userId, command.athleteId),
+              eq(teamMembershipTable.userId, command.athleteId),
+            ),
           ),
         )
 
@@ -147,7 +161,7 @@ function createTransactionAdapter(tx: Transaction): ScoreRemovalTransaction {
         competitionId: registration.competitionId as CompetitionId,
         organizationId: competition.organizingTeamId as OrganizationId,
         competitionEventId: event.id as CompetitionEventId,
-        athleteId: registration.athleteId as UserId,
+        athleteId: command.athleteId,
         division: registration.divisionId
           ? {
               kind: "division",
