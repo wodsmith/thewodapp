@@ -30,7 +30,7 @@ const tables = [
   workouts,
   workoutMovements,
 ]
-const timeScore = { scheme: "time", scoreType: "min", evidence: "for time", timeCap: null, roundsToScore: 1 }
+const timeScore = { scheme: "time", scoreType: "min", evidence: "For time", timeCap: null, roundsToScore: 1 }
 const conversion = { kind: "workout", structure: "single", score: timeScore }
 
 async function source(date = "2026-09-05", markdown = "For time: 100 air squats. Post time to comments.") {

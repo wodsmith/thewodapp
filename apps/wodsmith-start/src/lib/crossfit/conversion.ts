@@ -129,6 +129,16 @@ export function validateCrossFitConversion(
   }
   const prescription = crossFitPrescription(source.markdown)
   const durationCandidates = crossFitDurationCandidates(prescription)
+  const explicitlyNotForTime =
+    /\b(?:not|never)(?:\s+\w+){0,4}\s+for\s+time\b/i.test(prescription)
+  if (
+    /\bfor\s+time\b/i.test(prescription) &&
+    !explicitlyNotForTime &&
+    !scores.some(
+      (score) => score.scheme === "time" || score.scheme === "time-with-cap",
+    )
+  )
+    throw new Error("An explicit for-time prescription requires a time score")
   for (const component of scores) {
     if (!prescription.includes(component.evidence))
       throw new Error("Scoring evidence is not in the source prescription")

@@ -24,6 +24,8 @@ Each scoring question evaluates only its category; a combined instruction such a
 
 A second TypeSafe pass selects exact source evidence and classifies repeated result values, sum and average aggregation, and each extracted duration's role as a hard cap. Local code only enumerates literal evidence, durations, and counts and enforces domain invariants such as timed scores minimizing time. It does not infer their semantic role. Explicit part headings become sub-event labels; otherwise labels come from the classified score scheme.
 
+An explicit, non-negated “for time” phrase is a publication invariant: Jev still chooses the structure and score details, but a conversion that omits every time score stays private for review instead of silently publishing only another score.
+
 The Workflow durably loads every current movement ID, name, and type from the catalog. A third TypeSafe pass asks one atomic question per scoreable event and catalog movement, preferring the most specific canonical match and keeping movements isolated to their actual sub-event. An event without a high-confidence catalog movement stays private for review. The normalized result stores movement IDs on a single workout or on each sub-event; dry runs include all score and movement probabilities. Scaling remains in the preserved description rather than creating new levels. `TYPESAFE_API_KEY` is an encrypted Worker secret supplied locally through `.dev.vars` and in deployments through GitHub Actions.
 
 ## Durable Execution
@@ -156,7 +158,7 @@ The dated feed attributes its source and links each scoreable component while sh
 
 ### Scoring review regressions
 
-Reject invented score counts, reversed non-time scoring, and unsupported aggregation. Preserve separately requested strength and metcon scores, and parse cap units without case sensitivity.
+Reject invented score counts, reversed non-time scoring, unsupported aggregation, and conversions that drop an explicit for-time result. Preserve separately requested strength and metcon scores, and parse cap units without case sensitivity.
 
 ### Storage bytes and transient timeouts
 
