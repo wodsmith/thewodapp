@@ -1,12 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
-  fetch: vi.fn(), convert: vi.fn(), begin: vi.fn(), snapshot: vi.fn(), publish: vi.fn(), fail: vi.fn(),
+  fetch: vi.fn(),
+  convert: vi.fn(),
+  begin: vi.fn(),
+  snapshot: vi.fn(),
+  publish: vi.fn(),
+  fail: vi.fn(),
+  orderBy: vi.fn(),
 }))
+const movementCatalog = [
+  { id: "mov_air_squat", name: "Air Squat", type: "weightlifting" },
+]
 vi.mock("cloudflare:workers", () => ({ WorkflowEntrypoint: class { env = {} } }))
 vi.mock("@sentry/cloudflare", () => ({ instrumentWorkflowWithSentry: (_: unknown, cls: unknown) => cls }))
 vi.mock("@/lib/sentry/server", () => ({ getSentryOptions: vi.fn() }))
-vi.mock("@/db", () => ({ getDb: () => ({}) }))
+vi.mock("@/db", () => ({
+  getDb: () => ({
+    select: () => ({ from: () => ({ orderBy: mocks.orderBy }) }),
+  }),
+}))
 vi.mock("@/server/crossfit-converter", () => ({ convertCrossFitSource: mocks.convert }))
 vi.mock("@/server/crossfit-import", () => ({ beginCrossFitImport: mocks.begin, snapshotCrossFitImport: mocks.snapshot, publishCrossFitImport: mocks.publish, failCrossFitImport: mocks.fail, getCrossFitImport: vi.fn() }))
 vi.mock("@/lib/crossfit/source", async (actual) => ({ ...await actual<object>(), fetchCrossFitSource: mocks.fetch }))
@@ -22,9 +35,10 @@ function step() {
 }
 const event = (mode: "publish" | "dry-run" = "publish") => ({ payload: { sourceDate: "2026-09-06", mode }, timestamp: new Date(), instanceId: "crossfit-2026-09-06" })
 const snapshot = { date: "2026-09-06", markdown: "**Rest Day**", hash: "a", sourceId: "w20260906", modified: "now", url: "https://www.crossfit.com/260906" }
-const normalized = { kind: "rest", components: [] }
+const normalized = { kind: "rest" }
 
 beforeEach(() => {
+  mocks.orderBy.mockResolvedValue(movementCatalog)
   mocks.begin.mockResolvedValue({ id: "cf-import-2026-09-06", status: "pending" })
   mocks.fetch.mockResolvedValue(snapshot)
   mocks.convert.mockResolvedValue({ normalized, model: null, tokens: 0 })
@@ -36,6 +50,12 @@ describe("CrossFit durable orchestration", () => {
     const workflow = new CrossFitDailyImportWorkflowBase({} as never, {} as never)
     expect(await workflow.run(event("dry-run") as never, step() as never)).toMatchObject({ status: "dry-run", normalized })
     for (const fn of [mocks.begin, mocks.snapshot, mocks.publish, mocks.fail]) expect(fn).not.toHaveBeenCalled()
+    expect(mocks.orderBy).toHaveBeenCalledOnce()
+    expect(mocks.convert).toHaveBeenCalledWith(
+      snapshot,
+      movementCatalog,
+      expect.anything(),
+    )
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Completed workflow replay]]
   it("does not fetch or convert an already-published date", async () => {
@@ -59,7 +79,7 @@ describe("CrossFit durable orchestration", () => {
     mocks.convert.mockRejectedValue(new Error("unsupported score"))
     const workflow = new CrossFitDailyImportWorkflowBase({} as never, {} as never)
     await expect(workflow.run(event() as never, step() as never)).rejects.toThrow("unsupported score")
-    expect(mocks.fail).toHaveBeenCalledWith({}, "2026-09-06", "needs_review", "unsupported score")
+    expect(mocks.fail).toHaveBeenCalledWith(expect.anything(), "2026-09-06", "needs_review", "unsupported score")
     expect(mocks.publish).not.toHaveBeenCalled()
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Permanent fetch failure]]
@@ -70,14 +90,14 @@ describe("CrossFit durable orchestration", () => {
     await expect(workflow.run(event() as never, steps as never)).rejects.toThrow("wrong date")
     expect(steps.sleep).not.toHaveBeenCalled()
     expect(mocks.publish).not.toHaveBeenCalled()
-    expect(mocks.fail).toHaveBeenCalledWith({}, "2026-09-06", "failed", "wrong date")
+    expect(mocks.fail).toHaveBeenCalledWith(expect.anything(), "2026-09-06", "failed", "wrong date")
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Source revision review]]
   it("holds a source revision detected during publication for review", async () => {
     mocks.publish.mockRejectedValue(new CrossFitImportReviewError("Source changed during import; restart for review"))
     const workflow = new CrossFitDailyImportWorkflowBase({} as never, {} as never)
     await expect(workflow.run(event() as never, step() as never)).rejects.toThrow("Source changed")
-    expect(mocks.fail).toHaveBeenCalledWith({}, "2026-09-06", "needs_review", "Source changed during import; restart for review")
+    expect(mocks.fail).toHaveBeenCalledWith(expect.anything(), "2026-09-06", "needs_review", "Source changed during import; restart for review")
   })
 
 })
@@ -98,7 +118,7 @@ it("holds changed source content before snapshot or publication", async () => {
   expect(mocks.snapshot).not.toHaveBeenCalled()
   expect(mocks.publish).not.toHaveBeenCalled()
   expect(mocks.fail).toHaveBeenCalledWith(
-    {},
+    expect.anything(),
     "2026-09-06",
     "needs_review",
     expect.any(String),

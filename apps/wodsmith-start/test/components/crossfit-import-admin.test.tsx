@@ -29,20 +29,27 @@ beforeEach(() => {
       source: { hash: "a".repeat(64), markdown: "For time" },
       normalized: {
         kind: "workout",
-        components: [
+        structure: "multi-part",
+        subEvents: [
           {
-            scheme: "time-with-cap",
-            scoreType: "min",
-            evidence: "For time",
-            timeCap: 180,
-            roundsToScore: 1,
+            label: "Part A",
+            score: {
+              scheme: "time-with-cap",
+              scoreType: "min",
+              evidence: "For time",
+              timeCap: 180,
+              roundsToScore: 1,
+            },
           },
           {
-            scheme: "load",
-            scoreType: "max",
-            evidence: "Lift",
-            timeCap: null,
-            roundsToScore: 3,
+            label: "Part B",
+            score: {
+              scheme: "load",
+              scoreType: "max",
+              evidence: "Lift",
+              timeCap: null,
+              roundsToScore: 3,
+            },
           },
         ],
       },

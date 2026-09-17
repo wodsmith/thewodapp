@@ -10,6 +10,7 @@
     "serve": "vite preview",
     "test": "vitest run && pnpm test:workout-import-runtime",
     "test:db-integration": "node scripts/test-db-integration.mjs",
+    "eval:crossfit": "tsx scripts/eval-crossfit-converter.ts",
     "preview": "pnpm run build && vite preview",
     "lint": "biome lint .",
     "format": "biome format --write . --no-errors-on-unmatched .",

@@ -16,9 +16,17 @@ Requests have a 30-second timeout, disallow redirects, and stream at most 256 KB
 
 ## Scoring Conversion
 
-Explicit rest days, narrow timed or rep-count workouts, and simple load-set prescriptions convert deterministically. Other formats use bounded structured output through Workers AI Gateway, followed by source-based validation.
+Only explicit rest days convert deterministically. Every workout asks TypeSafe to classify its structure, score semantics, source evidence, repeated results, aggregation, time caps, and canonical movements.
 
-The converter cannot choose track IDs or publish. The gateway adapter sends the JSON schema to Workers AI, and local validation checks the result independently. Evidence must appear in the main prescription and support the chosen scheme, including explicit movement-count scoring. Caps must be explicit; timed components minimize time. Score counts require explicit source requests, with one score by default and a score per prescribed load set. Non-timed scores reject minimum aggregation; sums and averages require explicit scoring instructions. A source requesting time and load requires both components. Unsupported conversion stays private for review. Source scaling remains in the preserved description rather than creating new scaling levels.
+The converter cannot choose track IDs or publish. Its first TypeSafe pass uses atomic binary questions for structure plus time, rounds-reps, reps, load, calories, and distance. A structure probability of at least 0.65 creates a parent with scored sub-events; at or below 0.35 creates a standalone event; the middle band stays private for review. Multiple measurements from one indivisible effort do not imply multiple parts. Because one canonical workout currently has one scoring scheme, a single-part prescription requiring multiple scores also stays private rather than inventing sub-events or dropping data.
+
+Each scoring question evaluates only its category; a combined instruction such as “Post time and load” counts for both named scores and none of the unnamed categories. A probability of at least 0.65 records a category, 0.35 or below omits it, and the middle band stays private for review.
+
+A second TypeSafe pass selects exact source evidence and classifies repeated result values, sum and average aggregation, and each extracted duration's role as a hard cap. Local code only enumerates literal evidence, durations, and counts and enforces domain invariants such as timed scores minimizing time. It does not infer their semantic role. Explicit part headings become sub-event labels; otherwise labels come from the classified score scheme.
+
+An explicit, non-negated “for time” phrase is a publication invariant: Jev still chooses the structure and score details, but a conversion that omits every time score stays private for review instead of silently publishing only another score.
+
+The Workflow durably loads every current movement ID, name, and type from the catalog. A third TypeSafe pass asks one atomic question per scoreable event and catalog movement, preferring the most specific canonical match and keeping movements isolated to their actual sub-event. An event without a high-confidence catalog movement stays private for review. The normalized result stores movement IDs on a single workout or on each sub-event; dry runs include all score and movement probabilities. Scaling remains in the preserved description rather than creating new levels. `TYPESAFE_API_KEY` is an encrypted Worker secret supplied locally through `.dev.vars` and in deployments through GitHub Actions.
 
 ## Durable Execution
 
@@ -32,7 +40,9 @@ Two additive MySQL tables store one source-date import and its scoreable items. 
 
 The unique provider/track/date constraint and deterministic identities protect retries after commit. The publisher verifies `ptrk_crossfit_dotcom` remains public, third-party, owned by its configured team, and unrelated to a competition. Manual additions verify the workout exists and allocate order under the same track lock; caller-supplied CrossFit order is rejected. All track edits, visibility changes, removals, and deletions require site administration. Published editorial changes remain intact on replay.
 
-Rest imports contain zero scoreable items. Pending and failed imports have no public workout rows; competition-oriented `eventStatus` cannot hide an uncertain import from existing library readers. Apply the additive migration before deploying code that reads the import tables. Production schema changes use the existing PlanetScale deploy-request process.
+Rest imports contain zero scoreable items. TypeSafe-confirmed single-part days publish as one standalone workout and never receive sub-events. TypeSafe-confirmed multi-part days use the same hierarchy as Compete: one unscored parent at the day's integer track position and one independently scored child per normalized sub-event at decimal positions beneath it. The publisher switches on the explicit normalized structure and never infers hierarchy from the number of scores. Only scored children are import items, so the dated feed does not expose the grouping parent as a score action. Pending and failed imports have no public workout rows; competition-oriented `eventStatus` cannot hide an uncertain import from existing library readers. Apply the additive migration before deploying code that reads the import tables. Production schema changes use the existing PlanetScale deploy-request process.
+
+Each scored workout receives its classified movement junctions. A multi-part parent receives the union of its children's movement IDs so library, programming, and session readers retain the same data-rich parent summary. Publication verifies every classified ID still exists in the current catalog inside the transaction; catalog drift rolls back and requires review.
 
 ## Dated Track Feed
 
@@ -60,19 +70,55 @@ Schedule date derivation remains fixed at UTC−8 across daylight-saving changes
 
 ### Rest and simple timed workouts
 
-Explicit rest, timed and rep-count instructions, and load sets convert without inference while preserving scaling. Load-set scores retain every prescribed set; an ordinary workout cannot be reclassified as rest.
+Explicit rest converts without inference. Workouts receive no deterministic score classification; structural validation preserves source evidence and score invariants without reclassifying model output.
 
 ### Composite scores and caps
 
-Time-and-load programming requires both scores, and a transition at twenty minutes cannot become a time cap unless the source explicitly prescribes a cap.
+Structural validation accepts model-classified composite scores and source-backed caps while rejecting mismatched source evidence or invalid score direction.
 
 ### Unsupported model claims
 
 Scoring validation rejects invented evidence and invalid score direction while accepting source-backed AMRAP and load schemes.
 
+### TypeSafe confidence and evidence
+
+TypeSafe conversion publishes only high-confidence model classifications. Literal candidates are locally bounded, while Jev decides their roles; missing credentials, uncertain choices, and API failures remain review outcomes.
+
+### Historical TypeSafe regressions
+
+Historical transition-time and fixed-clock rep formats produce source-backed components without inventing a cap or turning an irrelevant low-confidence omission into a failure.
+
+### Implicit TypeSafe caps
+
+Jev distinguishes a scoreable phase window from an overall session clock or another part's transition clock, producing the source-backed cap for only the affected timed sub-event.
+
+### Combined TypeSafe evidence
+
+Combined load-and-time evidence is valid for both score candidates, including when the source phrases load before time. A single-part result stays in review instead of manufacturing sub-events.
+
+### Explicit TypeSafe caps
+
+TypeSafe-backed time scoring becomes capped only when the prescription contains an explicit time-cap duration that local extraction can verify.
+
+### Model-classified score details
+
+Atomic Jev questions classify totals, averages, and repeated results. A plural seven-set load submission produces seven score rounds, while uncertain aggregation remains in review.
+
+### Multi-part structure confidence
+
+Uncertain structure and multi-part prescriptions without at least two supported scores remain private for review instead of producing incomplete or invented sub-events.
+
 ### Atomic replay and concurrency
 
 Concurrent publication and retry after commit create exactly one set of workout rows and preserve later editorial changes.
+
+### Composite parent and sub-events
+
+A TypeSafe-confirmed multi-part day publishes one unscored parent event and independently scored child events with decimal ordering, while a single-part day never creates a parent or children.
+
+### Movement catalog tagging
+
+The Workflow supplies the current catalog to conversion. Publication persists child-specific movement IDs and their parent union, and catalog drift rolls back all public rows for review.
 
 ### Rest publication
 
@@ -112,7 +158,7 @@ The dated feed attributes its source and links each scoreable component while sh
 
 ### Scoring review regressions
 
-Reject invented score counts, reversed non-time scoring, and unsupported aggregation. Preserve separately requested strength and metcon scores, and parse cap units without case sensitivity.
+Reject invented score counts, reversed non-time scoring, unsupported aggregation, and conversions that drop an explicit for-time result. Preserve separately requested strength and metcon scores, and parse cap units without case sensitivity.
 
 ### Storage bytes and transient timeouts
 
