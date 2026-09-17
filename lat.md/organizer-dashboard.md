@@ -218,6 +218,26 @@ Clearing a valid athlete, event, and division scope with no matching score succe
 
 A required `null` division explicitly targets an open score through the null scaling-level scope and deletes its rounds and parent score.
 
+#### Deletes duplicate legacy rows in scope
+
+If legacy storage contains multiple score projections for one proven open-division scope, clear removes every matching row and its rounds instead of selecting one by row order.
+
+#### Authorization precedes mutation
+
+Failed organizer authorization stops the clear operation before its score transaction begins.
+
+#### Transaction failure is not success
+
+A failed removal transaction propagates failure to the organizer adapter and never returns a successful clear receipt.
+
+#### Requires a proven participation
+
+The removal transaction must resolve an active registration for the exact athlete and division before it can query or delete score projections.
+
+#### Rejects ambiguous participation
+
+Multiple active registrations for the same athlete and division are treated as identity corruption and rejected without deleting any score.
+
 ### Division Results Publish Gate
 
 Controls whether scores for a given (event, division) pair are visible on the public leaderboard. Organizers toggle publish state per event-division from the results entry UI.
