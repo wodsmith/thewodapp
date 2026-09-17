@@ -16,9 +16,9 @@ Requests have a 30-second timeout, disallow redirects, and stream at most 256 KB
 
 ## Scoring Conversion
 
-Explicit rest days, narrow timed or rep-count workouts, and simple load-set prescriptions convert deterministically. Other formats use bounded structured output through Workers AI Gateway, followed by source-based validation.
+Explicit rest days and narrow timed, rep-count, or load-set prescriptions convert deterministically. Other formats use TypeSafe choices followed by source-based validation.
 
-The converter cannot choose track IDs or publish. The gateway adapter sends the JSON schema to Workers AI, and local validation checks the result independently. Evidence must appear in the main prescription and support the chosen scheme, including explicit movement-count scoring. Caps must be explicit; timed components minimize time. Score counts require explicit source requests, with one score by default and a score per prescribed load set. Non-timed scores reject minimum aggregation; sums and averages require explicit scoring instructions. A source requesting time and load requires both components. Unsupported conversion stays private for review. Source scaling remains in the preserved description rather than creating new scaling levels.
+The converter cannot choose track IDs or publish. Explicit score requests are deterministic requirements. TypeSafe classifies time, rounds-reps, reps, load, calories, and distance for other formats with one binary question per category. Each question evaluates only its category; a combined instruction such as “Post time and load” counts for both named scores and none of the unnamed categories. A TypeSafe probability of at least 0.65 records a category when exact local evidence also exists. A source-backed probability between 0.35 and 0.65 stays private for review; a probability at or below 0.35 may be omitted. TypeSafe never supplies evidence, caps, score counts, or aggregation. Those values are extracted from the prescription and checked locally, so clock and transition durations cannot become invented caps. Timed components minimize time. Score counts require explicit source requests, with one score by default and a score per prescribed load set. Non-timed scores reject minimum aggregation; sums and averages require explicit scoring instructions. A source requesting time and load requires both components. Scaling remains in the preserved description rather than creating new levels. `TYPESAFE_API_KEY` is an encrypted Worker secret supplied locally through `.dev.vars` and in deployments through GitHub Actions.
 
 ## Durable Execution
 
@@ -32,7 +32,7 @@ Two additive MySQL tables store one source-date import and its scoreable items. 
 
 The unique provider/track/date constraint and deterministic identities protect retries after commit. The publisher verifies `ptrk_crossfit_dotcom` remains public, third-party, owned by its configured team, and unrelated to a competition. Manual additions verify the workout exists and allocate order under the same track lock; caller-supplied CrossFit order is rejected. All track edits, visibility changes, removals, and deletions require site administration. Published editorial changes remain intact on replay.
 
-Rest imports contain zero scoreable items. Pending and failed imports have no public workout rows; competition-oriented `eventStatus` cannot hide an uncertain import from existing library readers. Apply the additive migration before deploying code that reads the import tables. Production schema changes use the existing PlanetScale deploy-request process.
+Rest imports contain zero scoreable items. Single-score days publish as standalone workouts. Multi-score days use the same hierarchy as Compete: one unscored parent at the day's integer track position and one independently scored child per component at decimal positions beneath it. Only scored children are import items, so the dated feed does not expose the grouping parent as a score action. Pending and failed imports have no public workout rows; competition-oriented `eventStatus` cannot hide an uncertain import from existing library readers. Apply the additive migration before deploying code that reads the import tables. Production schema changes use the existing PlanetScale deploy-request process.
 
 ## Dated Track Feed
 
@@ -70,9 +70,29 @@ Time-and-load programming requires both scores, and a transition at twenty minut
 
 Scoring validation rejects invented evidence and invalid score direction while accepting source-backed AMRAP and load schemes.
 
+### TypeSafe confidence and evidence
+
+TypeSafe conversion publishes only high-confidence score choices and derives evidence, caps, counts, and aggregation locally; missing credentials, uncertain choices, and API failures remain review outcomes.
+
+### Historical TypeSafe regressions
+
+Historical transition-time and fixed-clock rep formats produce source-backed components without inventing a cap or turning an irrelevant low-confidence omission into a failure.
+
+### Combined TypeSafe evidence
+
+Combined load-and-time evidence is valid for both score components, including when the source phrases load before time.
+
+### Explicit TypeSafe caps
+
+TypeSafe-backed time scoring becomes capped only when the prescription contains an explicit time-cap duration that local extraction can verify.
+
 ### Atomic replay and concurrency
 
 Concurrent publication and retry after commit create exactly one set of workout rows and preserve later editorial changes.
+
+### Composite parent and sub-events
+
+A multi-score day publishes one unscored parent event and independently scored child events with decimal ordering, while the dated feed returns only the scored children.
 
 ### Rest publication
 

@@ -23,6 +23,8 @@ declare global {
       CF_ACCOUNT_ID: string
       /** AI Gateway name from alchemy.run.ts */
       CF_AIG_GATEWAY: string
+      /** TypeSafe API credential for CrossFit scoring inference */
+      TYPESAFE_API_KEY?: string
     }
   }
 }

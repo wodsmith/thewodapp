@@ -135,8 +135,32 @@ export async function publishCrossFitImport(
       .from(links)
       .where(eq(links.trackId, track.id))
     const nextOrder = Math.floor(Number(last?.order ?? 0)) + 1
-    if (nextOrder + normalized.components.length - 1 > 9999)
-      throw new Error("Track order capacity reached")
+    if (nextOrder > 9999) throw new Error("Track order capacity reached")
+    const hasSubEvents = normalized.components.length > 1
+    const parentTrackWorkoutId = hasSubEvents
+      ? `cf-track-${source.date}-parent`
+      : null
+    const parentComponent = normalized.components[0]
+    if (parentTrackWorkoutId && parentComponent) {
+      await tx.insert(workouts).values({
+        id: `cf-${source.date}-parent`,
+        name: `CrossFit.com ${source.date}`,
+        description: `${source.markdown}\n\n[Source: CrossFit.com](${source.url})`,
+        scope: "public",
+        scheme: parentComponent.scheme,
+        scoreType: null,
+        sourceTrackId: track.id,
+        teamId: track.ownerTeamId,
+      })
+      await tx.insert(links).values({
+        id: parentTrackWorkoutId,
+        trackId: track.id,
+        workoutId: `cf-${source.date}-parent`,
+        trackOrder: nextOrder,
+        notes: `CrossFit.com WOD for ${source.date}`,
+        eventStatus: "published",
+      })
+    }
     for (const [index, component] of normalized.components.entries()) {
       const workoutId = `cf-${source.date}-${index + 1}`
       const trackWorkoutId = `cf-track-${source.date}-${index + 1}`
@@ -148,8 +172,8 @@ export async function publishCrossFitImport(
             : component.scheme
       await tx.insert(workouts).values({
         id: workoutId,
-        name: `CrossFit.com ${source.date}${normalized.components.length > 1 ? ` · ${index + 1}: ${scoreLabel}` : ""}`,
-        description: `${normalized.components.length > 1 ? `**Score for this entry: ${scoreLabel}.**\n\n` : ""}${source.markdown}\n\n[Source: CrossFit.com](${source.url})`,
+        name: `CrossFit.com ${source.date}${hasSubEvents ? ` · Part ${String.fromCharCode(65 + index)}: ${scoreLabel}` : ""}`,
+        description: `${hasSubEvents ? `**Score for this sub-event: ${scoreLabel}.**\n\n` : ""}${source.markdown}\n\n[Source: CrossFit.com](${source.url})`,
         scope: "public",
         scheme: component.scheme,
         scoreType: component.scoreType,
@@ -162,7 +186,10 @@ export async function publishCrossFitImport(
         id: trackWorkoutId,
         trackId: track.id,
         workoutId,
-        trackOrder: nextOrder + index,
+        parentEventId: parentTrackWorkoutId,
+        trackOrder: hasSubEvents
+          ? Number((nextOrder + 0.01 * (index + 1)).toFixed(2))
+          : nextOrder,
         notes: `CrossFit.com WOD for ${source.date}`,
         eventStatus: "published",
       })

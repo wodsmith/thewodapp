@@ -61,6 +61,55 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
     expect(await publishCrossFitImport(db, snapshot, conversion, null)).toMatchObject({ alreadyPublished: true })
     expect((await db.select().from(workouts))[0].description).toBe("Coach edited")
   })
+  // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Composite parent and sub-events]]
+  it("groups a multi-score day under an unscored parent with scored sub-events", async () => {
+    const snapshot = await source(
+      "2026-09-16",
+      "**Part A**\n\nFor time: 20 squats.\n\n**Part B**\n\nBuild to a heavy single. Post time and heaviest lift to comments.",
+    )
+    await beginCrossFitImport(db, snapshot.date, "sub-events")
+    await snapshotCrossFitImport(db, snapshot)
+    await publishCrossFitImport(
+      db,
+      snapshot,
+      {
+        kind: "workout",
+        components: [
+          ...conversion.components,
+          {
+            scheme: "load",
+            scoreType: "max",
+            evidence: "heavy single",
+            timeCap: null,
+            roundsToScore: 1,
+          },
+        ],
+      },
+      null,
+    )
+
+    const workoutRows = await db.select().from(workouts)
+    const linkRows = await db.select().from(trackWorkoutsTable)
+    const parent = linkRows.find(
+      (row) => row.id === "cf-track-2026-09-16-parent",
+    )
+    expect(workoutRows).toHaveLength(3)
+    expect(
+      workoutRows.find((row) => row.id === "cf-2026-09-16-parent"),
+    ).toMatchObject({ scoreType: null, name: "CrossFit.com 2026-09-16" })
+    expect(parent).toMatchObject({ parentEventId: null })
+    expect(Number(parent?.trackOrder)).toBe(1)
+    expect(
+      linkRows
+        .filter((row) => row.parentEventId === parent?.id)
+        .map((row) => Number(row.trackOrder))
+        .sort(),
+    ).toEqual([1.01, 1.02])
+    expect(await db.select().from(items)).toHaveLength(2)
+    expect(
+      (await getPublishedCrossFitDays(db, CROSSFIT_TRACK_ID))[0]?.workouts,
+    ).toHaveLength(2)
+  })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Rest publication]]
   it("publishes a visible rest day without scoreable workouts and replays safely", async () => {
     const snapshot = await source("2026-09-06", "**Rest Day**")

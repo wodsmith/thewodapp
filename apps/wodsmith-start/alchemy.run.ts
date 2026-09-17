@@ -780,6 +780,9 @@ const website = await TanStackStart("app", {
     ...(process.env.BRAINTRUST_API_KEY && {
       BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
     }),
+    ...(process.env.TYPESAFE_API_KEY && {
+      TYPESAFE_API_KEY: alchemy.secret(process.env.TYPESAFE_API_KEY),
+    }),
 
     // Stripe env vars are populated for all environments when available
     ...(hasStripeEnv && {

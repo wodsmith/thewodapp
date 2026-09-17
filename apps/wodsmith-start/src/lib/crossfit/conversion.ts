@@ -34,24 +34,40 @@ const scoreNouns = {
   "time-with-cap": "times?",
   "rounds-reps": "rounds?(?: and reps)?",
   reps: "(?:reps?|rep counts?)",
-  load: "loads?",
+  load: "(?:loads?|weights?|lifts?)",
   calories: "calories?",
   meters: "(?:meters?|metres?|distances?)",
 }
 
-function requestedScoreSchemes(prescription: string) {
+export function requestedScoreSchemes(prescription: string) {
   const requests = new Set<string>()
   for (const [scheme, noun] of Object.entries(scoreNouns)) {
     if (scheme === "time-with-cap") continue
     if (
       new RegExp(
-        `(?:post|record|log)\\s+(?:(?:your|the|all|best|top|total|sum|average|mean|combined|separate|of|\\d+)\\s+)*${noun}\\b`,
+        `(?:post|record|log)\\s+(?:(?:your|the|all|best|top|heaviest|total|sum|average|mean|combined|separate|of|\\d+)\\s+)*${noun}\\b`,
         "i",
       ).test(prescription)
     )
       requests.add(scheme)
   }
-  if (/for time/i.test(prescription)) requests.add("time")
+  for (const instruction of prescription.matchAll(
+    /(?:post|record|log)\b[^.\n]*/gi,
+  ))
+    for (const [scheme, noun] of Object.entries(scoreNouns))
+      if (
+        scheme !== "time-with-cap" &&
+        !(
+          scheme === "reps" &&
+          /\brounds?(?: and reps?)?\b/i.test(instruction[0])
+        ) &&
+        new RegExp(`\\b${noun}\\b`, "i").test(instruction[0])
+      )
+        requests.add(scheme)
+  if (/for (?:load and time|time(?: and load)?)/i.test(prescription))
+    requests.add("time")
+  if (/for (?:load and time|time and load)/i.test(prescription))
+    requests.add("load")
   if (!requests.has("reps") && /as many rounds|\bamrap\b/i.test(prescription))
     requests.add("rounds-reps")
   return requests
@@ -193,7 +209,7 @@ export function validateCrossFitConversion(
     if (!lower.includes(component.evidence.toLowerCase()))
       throw new Error("Scoring evidence is not in the source prescription")
     const evidencePatterns = {
-      time: /for time|post (?:your )?time/i,
+      time: /for (?:load and time|time(?: and load)?)|(?:post|record|log)\b[^.\n]{0,120}\btime/i,
       "time-with-cap": /cap/i,
       "rounds-reps": /as many rounds|amrap|rounds and reps/i,
       reps: /as many reps|total reps|post (?:your )?reps|score is the number of (?![^.\n]*(?:rounds|meters|metres|calories))[^.\n]+ completed/i,
@@ -259,17 +275,17 @@ export function validateCrossFitConversion(
     } else if (component.timeCap !== null)
       throw new Error("Only capped workouts may have a time cap")
   }
-  // A common mainsite composite: preserve both scores, and never turn its transition time into a cap.
-  if (
-    (/post (?:your )?time and load/i.test(prescription) ||
-      (/post (?:your )?loads? to (?:the )?comments/i.test(prescription) &&
-        /post (?:your )?time to (?:the )?comments/i.test(prescription))) &&
-    (!result.components.some(
-      (c) => c.scheme === "time" || c.scheme === "time-with-cap",
-    ) ||
-      !result.components.some((c) => c.scheme === "load"))
-  ) {
-    throw new Error("Source requires both time and load scores")
+  const required = requestedScoreSchemes(prescription)
+  const actual = new Set<string>(
+    result.components.map((component) =>
+      component.scheme === "time-with-cap" ? "time" : component.scheme,
+    ),
+  )
+  for (const scheme of required) {
+    if (actual.has(scheme)) continue
+    if (required.has("time") && required.has("load"))
+      throw new Error("Source requires both time and load scores")
+    throw new Error(`Source requires a ${scheme} score`)
   }
   return result
 }
