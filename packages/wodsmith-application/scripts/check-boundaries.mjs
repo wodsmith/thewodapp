@@ -3,9 +3,18 @@ import { readFileSync, readdirSync } from "node:fs"
 import { dirname, extname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import {
+  clientSafeImportViolations,
+  isForbiddenServerBoundaryImport,
+  staticImports,
+} from "./boundary-rules.mjs"
+
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const repositoryRoot = resolve(packageRoot, "../..")
-const baselinePath = join(packageRoot, "guardrails/server-boundary-baseline.json")
+const baselinePath = join(
+  packageRoot,
+  "guardrails/server-boundary-baseline.json",
+)
 
 function fingerprint(violation) {
   return createHash("sha256").update(violation).digest("hex").slice(0, 20)
@@ -21,82 +30,19 @@ function sourceFiles(root, directory = root) {
     .sort()
 }
 
-function staticImports(source) {
-  const declaration =
-    /\b(?:import|export)\s+(?:type\s+)?(?:[^"'`;]*?\s+from\s+)?["']([^"']+)["']/g
-  return [...source.matchAll(declaration)].map((match) => match[1])
-}
-
-function allImports(source) {
-  const dynamicImport = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g
-  return [
-    ...staticImports(source),
-    ...[...source.matchAll(dynamicImport)].map((match) => match[1]),
-  ]
-}
-
-function isForbiddenCoreImport(specifier) {
-  return (
-    specifier.startsWith("@/") ||
-    specifier.startsWith("apps/") ||
-    specifier.includes("/apps/") ||
-    specifier.startsWith("@tanstack/") ||
-    specifier === "react" ||
-    specifier.startsWith("react/") ||
-    specifier === "react-dom" ||
-    specifier.startsWith("react-dom/") ||
-    specifier.startsWith("@cloudflare/") ||
-    specifier.startsWith("cloudflare:") ||
-    specifier.startsWith("alchemy") ||
-    specifier.startsWith("node:") ||
-    specifier === "cookie" ||
-    specifier.includes("/cookie") ||
-    specifier.includes("wodsmith-db") ||
-    specifier.includes("drizzle") ||
-    specifier.includes("mysql") ||
-    specifier.includes("stripe") ||
-    specifier === "postmark" ||
-    specifier === "resend"
-  )
-}
-
-function isForbiddenServerBoundaryImport(specifier) {
-  return (
-    specifier === "cloudflare:workers" ||
-    specifier.startsWith("node:") ||
-    specifier.includes("@tanstack/react-start/server") ||
-    /(^|\/)db(?:\/|$)/.test(specifier) ||
-    /(^|\/)server(?:\/|$|\.)/.test(specifier) ||
-    specifier.includes("mysql") ||
-    specifier.includes("stripe")
-  )
-}
-
 const errors = []
-const clientSafePaths = [
+const clientSafeEntries = [
   join(packageRoot, "src/index.ts"),
-  join(packageRoot, "src/core"),
-  join(packageRoot, "src/identity"),
-  join(packageRoot, "src/scores"),
+  join(packageRoot, "src/core/index.ts"),
 ]
 
-for (const candidate of clientSafePaths) {
-  let files = []
-  try {
-    files = extname(candidate) ? [candidate] : sourceFiles(candidate)
-  } catch {
-    continue
-  }
-
-  for (const file of files) {
-    for (const specifier of allImports(readFileSync(file, "utf8"))) {
-      if (isForbiddenCoreImport(specifier)) {
-        errors.push(
-          `client-safe package import ${relative(repositoryRoot, file)} -> ${specifier}`,
-        )
-      }
-    }
-  }
+for (const { file, specifier } of clientSafeImportViolations({
+  entryFiles: clientSafeEntries,
+  sourceRoot: join(packageRoot, "src"),
+})) {
+  errors.push(
+    `client-safe package import ${relative(repositoryRoot, file)} -> ${specifier}`,
+  )
 }
 
 const currentViolations = []

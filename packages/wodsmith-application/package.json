@@ -18,7 +18,7 @@
     "check:guardrails": "pnpm check:drift && pnpm check:boundaries",
     "pretest": "pnpm check:guardrails",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run && node --test scripts/boundary-rules.node-test.mjs"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

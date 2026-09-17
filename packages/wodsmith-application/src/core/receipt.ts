@@ -8,9 +8,9 @@ export type ReceiptOutcome = "accepted" | "rejected" | "failed"
  */
 export interface OperationReceipt<
   TOperation extends string = string,
-  TAggregateIds extends Readonly<Record<string, string | null>> = Readonly<
-    Record<string, string | null>
-  >,
+  TAggregateIds extends {
+    readonly [TKey in keyof TAggregateIds]: string | null
+  } = Readonly<Record<string, string | null>>,
 > {
   readonly operation: TOperation
   readonly aggregateIds: TAggregateIds

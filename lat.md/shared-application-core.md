@@ -16,15 +16,19 @@ Database, queue, payment, email, filesystem, environment, and Worker behavior be
 
 Known differences between same-path Crew and Start server functions are executable migration evidence rather than silent alternate authorities.
 
-`packages/wodsmith-application/guardrails/shared-operation-drift-manifest.json` records every divergent peer. A pending placeholder is allowed before review, while missing classifications and new divergence fail; resolving known drift passes.
+The [[lat.md/shared-application-core#Drift Manifest#Manifest File|drift manifest]] records every divergent peer. A pending placeholder is allowed before review, while missing classifications and new divergence fail; resolving known drift passes.
 
 Each vertical slice must replace its wildcard operation placeholder with reviewed operations and classify differences before moving behavior into the package.
 
+### Manifest File
+
+The [checked-in JSON manifest](../packages/wodsmith-application/guardrails/shared-operation-drift-manifest.json) is the executable inventory consumed by the drift guard.
+
 ## Runtime Boundary Guard
 
-Client-safe package exports have zero tolerance for app aliases, TanStack server APIs, React, Worker bindings, Node built-ins, database libraries, or provider SDKs.
+Client-safe package exports have zero tolerance for app aliases, TanStack server APIs, React, Worker bindings, Node built-ins, database libraries, or provider SDKs. The guard follows the full local re-export graph from every client-safe entry point.
 
-The server-function baseline fingerprints existing direct static imports by file and specifier. Removing an existing violation passes, while adding a new violation fails without forcing a flag-day rewrite of legacy handlers.
+The server-function baseline fingerprints existing direct static imports by file and specifier, including sibling `.server` modules, bare Node built-ins, and database package subpaths. Removing existing debt passes; adding a new violation fails.
 
 ## Cross-App Parity Harness
 
@@ -34,6 +38,6 @@ Domain slices own their golden fixture corpus. The shared harness supplies only 
 
 ## CI And Deployment
 
-CI runs Crew, Start, and shared-package tests, and type-checks the package alongside both applications and the database package.
+CI runs Crew, Start, and shared-package tests, and type-checks the package alongside both applications and the database package. Shared-package test hashes include its scripts, guardrail data, and both scanned server-function trees.
 
 Crew deployment watches `packages/wodsmith-application/**` and verifies the package before building. Start deploys on every main push and verifies the package during manually dispatched deployment tests.
