@@ -28,6 +28,10 @@ The boundary accepts `trwk_*` as `CompetitionEventId`, accepts `cevt_*` only as 
 
 The legacy adapter maps runtime `type=gym` personal rows and seeded `type=personal` rows to the same `PersonalWorkspace` concept when both have an owner and no parent.
 
+### Publishes the identity package subpath
+
+Consumers resolve the boundary through `@repo/wodsmith-application/identity`; package-resolution tests prevent documentation and the export map from drifting apart.
+
 ## Topology invariants
 
 Topology validation rejects cross-context joins before projections or command handlers can treat corrupt storage relationships as domain authority.
@@ -47,3 +51,11 @@ Two registrations for one athlete in separate competition divisions remain disti
 ### Retains access while another registration is active
 
 Removing one registration does not remove derived participant access while another registration for the athlete remains active in the competition.
+
+### Restores removed squads without active captains
+
+A removed squad registration remains loadable after removal deactivates its roster; only active squad registrations require an active captain.
+
+### Rejects a reader snapshot for another competition
+
+The store rejects a valid legacy snapshot when its competition identity differs from the identity requested by the caller.

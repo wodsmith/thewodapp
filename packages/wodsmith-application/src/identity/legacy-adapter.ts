@@ -55,6 +55,7 @@ export type IdentityCorruptionCode =
   | "PARTICIPATION_MODE_MISMATCH"
   | "MISSING_SQUAD"
   | "INVALID_SQUAD"
+  | "SNAPSHOT_COMPETITION_MISMATCH"
   | "CROSS_COMPETITION_SQUAD"
   | "CROSS_DIVISION_SQUAD"
   | "MISSING_SQUAD_CAPTAIN"
@@ -731,13 +732,13 @@ export function resolveLegacyCompetitionTopology(
         members.push({ userId: memberIdResult.value, role })
         if (row.status === "active") participantIds.add(memberIdResult.value)
       }
-      if (!hasCaptain) {
+      if (row.status === "active" && !hasCaptain) {
         return err(
           corrupt(
             "MISSING_SQUAD_CAPTAIN",
             "teams",
             squadRow.id,
-            "The registration owner must be an active captain in the squad roster",
+            "An active squad registration must have its owner as an active captain",
             [row.userId],
           ),
         )

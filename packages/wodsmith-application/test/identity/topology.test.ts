@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  createLegacyCompetitionIdentityAdapter,
+  decodeCompetitionId,
   decodeCompetitionEventId,
   decodeLegacyEventConfigurationId,
   resolveLegacyCompetitionTopology,
@@ -27,6 +29,7 @@ const ids = {
   secondAthlete: "usr_01SECONDATHLETE",
   runtimeWorkspace: "team_01RUNTIMEWORKSPACE",
   seededWorkspace: "team_01SEEDEDWORKSPACE",
+  squad: "team_01SQUAD",
 } as const
 
 function validSnapshot(
@@ -308,5 +311,98 @@ describe("legacy competition identity boundary", () => {
       registrations.find((registration) => registration.id === ids.registrationB),
     ).toMatchObject({ state: { kind: "active" } })
     expect([...result.value.access.participantIds]).toEqual([ids.athlete])
+  })
+
+  // @lat: [[identity#Topology invariants#Restores removed squads without active captains]]
+  it("restores a removed squad after its captain membership is deactivated", () => {
+    const baseline = validSnapshot()
+    const result = resolveLegacyCompetitionTopology({
+      ...baseline,
+      teams: [
+        ...baseline.teams,
+        {
+          id: ids.squad,
+          name: "Retired squad",
+          type: "competition_team",
+          isPersonalTeam: false,
+          personalTeamOwnerId: null,
+          parentOrganizationId: ids.accessTeam,
+          competitionMetadata: JSON.stringify({
+            competitionId: ids.competitionA,
+            divisionId: ids.divisionA,
+          }),
+        },
+      ],
+      scalingLevels: [
+        {
+          id: ids.divisionA,
+          scalingGroupId: ids.scalingGroup,
+          label: "Pairs",
+          position: 0,
+          teamSize: 2,
+        },
+      ],
+      registrations: [
+        {
+          id: ids.registrationA,
+          eventId: ids.competitionA,
+          userId: ids.athlete,
+          divisionId: ids.divisionA,
+          status: "removed",
+          athleteTeamId: ids.squad,
+        },
+      ],
+      memberships: [
+        {
+          teamId: ids.squad,
+          userId: ids.athlete,
+          roleId: "captain",
+          isActive: false,
+        },
+      ],
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect([...result.value.registrations.values()]).toMatchObject([
+      {
+        state: { kind: "removed" },
+        participation: { kind: "squad", squadId: ids.squad },
+      },
+    ])
+    expect([...result.value.squads.values()]).toMatchObject([
+      {
+        captainId: ids.athlete,
+        members: [],
+      },
+    ])
+    expect([...result.value.access.participantIds]).toEqual([])
+  })
+
+  // @lat: [[identity#Topology invariants#Rejects a reader snapshot for another competition]]
+  it("rejects a reader snapshot for a competition other than the requested one", async () => {
+    const requestedCompetitionId = decodeCompetitionId(ids.competitionA)
+    expect(requestedCompetitionId.ok).toBe(true)
+    if (!requestedCompetitionId.ok) return
+
+    const store = createLegacyCompetitionIdentityAdapter({
+      readSnapshot: async () =>
+        validSnapshot({
+          competition: {
+            ...validSnapshot().competition,
+            id: ids.competitionB,
+          },
+        }),
+    })
+
+    await expect(store.load(requestedCompetitionId.value)).resolves.toMatchObject({
+      ok: false,
+      error: {
+        kind: "IdentityCorruption",
+        code: "SNAPSHOT_COMPETITION_MISMATCH",
+        source: { table: "competitions", rowId: ids.competitionB },
+      },
+    })
   })
 })

@@ -49,6 +49,19 @@ export function createLegacyCompetitionIdentityAdapter(
         if (snapshot === null) {
           return err({ kind: "CompetitionNotFound", competitionId })
         }
+        if (snapshot.competition.id !== competitionId) {
+          return err({
+            kind: "IdentityCorruption",
+            code: "SNAPSHOT_COMPETITION_MISMATCH",
+            source: {
+              table: "competitions",
+              rowId: snapshot.competition.id,
+            },
+            invariant:
+              "The legacy reader must return the competition requested by the caller",
+            relatedIds: [competitionId, snapshot.competition.id],
+          })
+        }
         return resolveLegacyCompetitionTopology(snapshot)
       } catch (cause) {
         return err({ kind: "IdentityReadFailure", competitionId, cause })
