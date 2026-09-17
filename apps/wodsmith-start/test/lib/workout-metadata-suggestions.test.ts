@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   hasWorkoutMetadataSuggestion,
+  resolveWorkoutMetadataTransition,
   selectWorkoutMetadataSuggestion,
 } from "@/lib/workout-metadata-suggestions"
 
@@ -48,5 +49,25 @@ describe("selectWorkoutMetadataSuggestion", () => {
 
     expect(suggestion).toEqual({ movements: [] })
     expect(hasWorkoutMetadataSuggestion(suggestion)).toBe(false)
+  })
+})
+
+describe("resolveWorkoutMetadataTransition", () => {
+  it("uses canonical defaults and clears fields made invalid by the scheme", () => {
+    expect(resolveWorkoutMetadataTransition("pass-fail", undefined)).toEqual({
+      scheme: "pass-fail",
+      scoreType: "first",
+      clearTimeCap: true,
+      clearTiebreak: true,
+    })
+  })
+
+  it("preserves the reviewed score type and a compatible cap", () => {
+    expect(resolveWorkoutMetadataTransition("time-with-cap", "sum")).toEqual({
+      scheme: "time-with-cap",
+      scoreType: "sum",
+      clearTimeCap: false,
+      clearTiebreak: false,
+    })
   })
 })

@@ -1,7 +1,17 @@
+import { DEFAULT_SCORE_TYPES } from "@/lib/scoring/constants"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring/types"
 
 export const WORKOUT_METADATA_MODEL = "jev-latest"
 export const WORKOUT_METADATA_MIN_DESCRIPTION_LENGTH = 12
+export const WORKOUT_METADATA_WRITE_PERMISSIONS = [
+  "create_components",
+  "edit_components",
+  "manage_competitions",
+  "manage_programming",
+] as const
+
+export type WorkoutMetadataWritePermission =
+  (typeof WORKOUT_METADATA_WRITE_PERMISSIONS)[number]
 
 export type MovementCandidate = {
   id: string
@@ -61,4 +71,30 @@ export function hasWorkoutMetadataSuggestion(
       suggestion.scoreType ||
       suggestion.movements.length > 0,
   )
+}
+
+/** Describe the state resets required when an accepted suggestion changes scheme. */
+export function resolveWorkoutMetadataTransition(
+  scheme: WorkoutScheme | undefined,
+  scoreType: ScoreType | undefined,
+): {
+  scheme?: WorkoutScheme
+  scoreType?: ScoreType
+  clearTimeCap: boolean
+  clearTiebreak: boolean
+} {
+  if (!scheme) {
+    return {
+      ...(scoreType ? { scoreType } : {}),
+      clearTimeCap: false,
+      clearTiebreak: false,
+    }
+  }
+
+  return {
+    scheme,
+    scoreType: scoreType ?? DEFAULT_SCORE_TYPES[scheme],
+    clearTimeCap: scheme !== "time-with-cap",
+    clearTiebreak: scheme === "pass-fail",
+  }
 }

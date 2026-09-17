@@ -136,7 +136,10 @@ export function TrainingWorkoutDialog({
         </DialogHeader>
         <form onSubmit={submit} className="min-w-0 space-y-6">
           <WorkoutDefinitionFields
-            metadataSuggestions={{ teamId }}
+            metadataSuggestions={{
+              teamId,
+              writePermission: "manage_programming",
+            }}
             value={value}
             onChange={(patch) => {
               setValue((current) => ({ ...current, ...patch }))

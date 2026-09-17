@@ -17,6 +17,7 @@ import type {
   TiebreakScheme,
   WorkoutScheme,
 } from "@/db/schemas/workouts"
+import type { WorkoutMetadataWritePermission } from "@/lib/workout-metadata-suggestions"
 
 export type WorkoutFormData = {
   name: string
@@ -37,6 +38,7 @@ type MovementData = Pick<Movement, "id" | "name" | "type">
 
 type WorkoutFormProps = {
   teamId?: string | null
+  metadataWritePermission?: WorkoutMetadataWritePermission
   mode: "create" | "edit"
   initialData?: Partial<WorkoutFormData>
   onSubmit: (data: WorkoutFormData) => Promise<void>
@@ -59,6 +61,7 @@ type WorkoutFormProps = {
 
 export function WorkoutForm({
   teamId,
+  metadataWritePermission,
   mode,
   initialData,
   onSubmit,
@@ -217,7 +220,16 @@ export function WorkoutForm({
           disabled={isSubmitting}
           required
           errors={{ ...fieldMessages, timeCapSeconds: fieldMessages.timeCap }}
-          metadataSuggestions={teamId ? { teamId } : undefined}
+          metadataSuggestions={
+            teamId
+              ? {
+                  teamId,
+                  writePermission:
+                    metadataWritePermission ??
+                    (mode === "edit" ? "edit_components" : "create_components"),
+                }
+              : undefined
+          }
         />
 
         {/* Scope */}

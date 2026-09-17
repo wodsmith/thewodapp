@@ -686,10 +686,14 @@ export function OrganizerEventManager({
       )}
 
       <CreateEventDialog
-        metadataSuggestions={{
-          teamId: organizingTeamId,
-          ...(competitionTeamId ? { competitionId, competitionTeamId } : {}),
-        }}
+        metadataSuggestions={
+          competitionTeamId
+            ? { teamId: organizingTeamId, competitionId, competitionTeamId }
+            : {
+                teamId: organizingTeamId,
+                writePermission: "manage_competitions",
+              }
+        }
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)

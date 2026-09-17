@@ -7,13 +7,22 @@ import {
   hasWorkoutMetadataSuggestion,
   WORKOUT_METADATA_MIN_DESCRIPTION_LENGTH,
   type WorkoutMetadataSuggestion,
+  type WorkoutMetadataWritePermission,
 } from "@/lib/workout-metadata-suggestions"
 
-export type WorkoutMetadataSuggestionContext = {
-  teamId: string
-  competitionId?: string
-  competitionTeamId?: string
-}
+export type WorkoutMetadataSuggestionContext =
+  | {
+      teamId: string
+      writePermission: WorkoutMetadataWritePermission
+      competitionId?: never
+      competitionTeamId?: never
+    }
+  | {
+      teamId: string
+      writePermission?: never
+      competitionId: string
+      competitionTeamId: string
+    }
 
 export function WorkoutMetadataSuggestions({
   context,
@@ -33,8 +42,9 @@ export function WorkoutMetadataSuggestions({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(false)
   const requestId = useRef(0)
-  const accessDenied = useRef(false)
-  const { teamId, competitionId, competitionTeamId } = context
+  const deniedContext = useRef<string | null>(null)
+  const { teamId, competitionId, competitionTeamId, writePermission } = context
+  const contextKey = `${teamId}:${writePermission ?? ""}:${competitionId ?? ""}:${competitionTeamId ?? ""}`
 
   useEffect(() => {
     const normalizedDescription = description.trim()
@@ -42,7 +52,7 @@ export function WorkoutMetadataSuggestions({
     setSuggestion(null)
     setError(false)
     if (
-      accessDenied.current ||
+      deniedContext.current === contextKey ||
       normalizedDescription.length < WORKOUT_METADATA_MIN_DESCRIPTION_LENGTH
     ) {
       setIsLoading(false)
@@ -58,6 +68,7 @@ export function WorkoutMetadataSuggestions({
         const result = await suggestWorkoutMetadataFn({
           data: {
             teamId,
+            writePermission,
             description: normalizedDescription,
             competitionAccess:
               competitionId && competitionTeamId
@@ -66,7 +77,7 @@ export function WorkoutMetadataSuggestions({
           },
         })
         if (currentRequestId !== requestId.current) return
-        accessDenied.current = !result.hasAccess
+        deniedContext.current = result.hasAccess ? null : contextKey
         if (
           result.hasAccess &&
           hasWorkoutMetadataSuggestion(result.suggestion)
@@ -80,9 +91,16 @@ export function WorkoutMetadataSuggestions({
       }
     }, 700)
     return () => window.clearTimeout(timeout)
-  }, [competitionId, competitionTeamId, description, teamId])
+  }, [
+    competitionId,
+    competitionTeamId,
+    contextKey,
+    description,
+    teamId,
+    writePermission,
+  ])
 
-  if (accessDenied.current) return null
+  if (deniedContext.current === contextKey) return null
   if (!isLoading && !suggestion && !error) return null
 
   return (

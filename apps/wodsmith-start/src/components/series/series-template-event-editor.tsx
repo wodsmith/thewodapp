@@ -461,7 +461,12 @@ export function SeriesTemplateEventEditor({
       {/* Create event dialog */}
       <CreateEventDialog
         metadataSuggestions={
-          organizingTeamId ? { teamId: organizingTeamId } : undefined
+          organizingTeamId
+            ? {
+                teamId: organizingTeamId,
+                writePermission: "manage_programming",
+              }
+            : undefined
         }
         open={showCreateDialog}
         onOpenChange={(open) => {

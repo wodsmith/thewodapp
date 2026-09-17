@@ -1,18 +1,22 @@
 import "server-only"
 
 import { env } from "cloudflare:workers"
-import { and, eq } from "drizzle-orm"
+import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { movements } from "@/db/schemas/workouts"
+import {
+  SCORE_TYPES as SCORE_TYPE_VALUES,
+  WORKOUT_SCHEMES as WORKOUT_SCHEME_VALUES,
+} from "@/lib/scoring/types"
 import {
   type MovementCandidate,
   selectWorkoutMetadataSuggestion,
   WORKOUT_METADATA_MODEL,
   type WorkoutMetadataSuggestion,
+  type WorkoutMetadataWritePermission,
 } from "@/lib/workout-metadata-suggestions"
 import { hasFeature } from "@/server/entitlements"
 import { requireWorkoutTeamWrite } from "@/server/workout-import/access"
@@ -29,6 +33,7 @@ type CompetitionAccess = {
 
 export type SuggestWorkoutMetadataInput = {
   teamId: string
+  writePermission?: WorkoutMetadataWritePermission
   description: string
   competitionAccess?: CompetitionAccess
 }
@@ -76,6 +81,10 @@ const SCORE_TYPE_CRITERIA = {
   last: "Only the last recorded result counts.",
 } as const
 
+const schemeChoiceSchema = z.enum(WORKOUT_SCHEME_VALUES)
+const scoreTypeChoiceSchema = z.enum(SCORE_TYPE_VALUES)
+const MAX_MOVEMENT_CANDIDATES = 100
+
 export async function suggestWorkoutMetadata(
   input: SuggestWorkoutMetadataInput,
 ): Promise<SuggestWorkoutMetadataResult> {
@@ -92,6 +101,8 @@ export async function suggestWorkoutMetadata(
   const movementCandidates: MovementCandidate[] = await db
     .select({ id: movements.id, name: movements.name, type: movements.type })
     .from(movements)
+    .orderBy(asc(movements.name))
+    .limit(MAX_MOVEMENT_CANDIDATES)
 
   const movementQuestions = Object.fromEntries(
     movementCandidates.map((movement, index) => [
@@ -141,13 +152,15 @@ export async function suggestWorkoutMetadata(
   }
 
   const result = responseSchema.parse(await response.json())
-  const scheme = choiceAnswerSchema.parse(result.answers.scheme)
-  const scoreType = choiceAnswerSchema.parse(result.answers.scoreType)
-  if (!(scheme.choice in SCHEME_CRITERIA)) {
-    throw new Error("TypeSafe returned an unknown workout scheme")
+  const scheme = choiceAnswerSchema.safeParse(result.answers.scheme)
+  const scoreType = choiceAnswerSchema.safeParse(result.answers.scoreType)
+  if (!scheme.success || !scoreType.success) {
+    return { hasAccess: true, suggestion: { movements: [] } }
   }
-  if (!(scoreType.choice in SCORE_TYPE_CRITERIA)) {
-    throw new Error("TypeSafe returned an unknown score type")
+  const schemeChoice = schemeChoiceSchema.safeParse(scheme.data.choice)
+  const scoreTypeChoice = scoreTypeChoiceSchema.safeParse(scoreType.data.choice)
+  if (!schemeChoice.success || !scoreTypeChoice.success) {
+    return { hasAccess: true, suggestion: { movements: [] } }
   }
 
   return {
@@ -155,12 +168,12 @@ export async function suggestWorkoutMetadata(
     suggestion: selectWorkoutMetadataSuggestion(
       {
         scheme: {
-          choice: scheme.choice as keyof typeof SCHEME_CRITERIA,
-          confidence: scheme.confidence,
+          choice: schemeChoice.data,
+          confidence: scheme.data.confidence,
         },
         scoreType: {
-          choice: scoreType.choice as keyof typeof SCORE_TYPE_CRITERIA,
-          confidence: scoreType.confidence,
+          choice: scoreTypeChoice.data,
+          confidence: scoreType.data.confidence,
         },
         movementProbabilities: Object.fromEntries(
           movementCandidates.map((movement, index) => {
@@ -180,10 +193,12 @@ async function requireSuggestionAccess(
   if (!input.competitionAccess) {
     const session = await getSessionFromCookie()
     if (!session?.userId) throw new Error("NOT_AUTHORIZED: Not authenticated")
+    if (!input.writePermission)
+      throw new Error("NOT_AUTHORIZED: Missing write permission")
     await requireWorkoutTeamWrite(
       session.userId,
       input.teamId,
-      TEAM_PERMISSIONS.CREATE_COMPONENTS,
+      input.writePermission,
     )
     return
   }

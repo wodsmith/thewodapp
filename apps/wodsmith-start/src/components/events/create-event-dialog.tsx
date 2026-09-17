@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import type { WorkoutMetadataSuggestionContext } from "@/components/workout-metadata-suggestions"
 import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import type { Movement } from "@/db/schemas/workouts"
 import type {
@@ -20,11 +21,7 @@ import type {
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
 interface CreateEventDialogProps {
-  metadataSuggestions?: {
-    teamId: string
-    competitionId?: string
-    competitionTeamId?: string
-  }
+  metadataSuggestions?: WorkoutMetadataSuggestionContext
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreateEvent: (data: {

@@ -45,6 +45,7 @@ import {
   TIEBREAK_SCHEME_VALUES,
   WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
+import { resolveWorkoutMetadataTransition } from "@/lib/workout-metadata-suggestions"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 import {
   getWorkoutDivisionDescriptionsFn,
@@ -285,12 +286,20 @@ function SeriesSingleEventEditPage() {
     scoreType?: ScoreType
     movementIds: string[]
   }) => {
-    if (suggestion.scheme) {
-      setValue("scheme", suggestion.scheme, { shouldDirty: true })
+    const transition = resolveWorkoutMetadataTransition(
+      suggestion.scheme,
+      suggestion.scoreType,
+    )
+    if (transition.scheme) {
+      setValue("scheme", transition.scheme, { shouldDirty: true })
     }
-    if (suggestion.scoreType) {
-      setValue("scoreType", suggestion.scoreType, { shouldDirty: true })
+    if (transition.scoreType) {
+      setValue("scoreType", transition.scoreType, { shouldDirty: true })
     }
+    if (transition.clearTimeCap)
+      setValue("timeCap", null, { shouldDirty: true })
+    if (transition.clearTiebreak)
+      setValue("tiebreakScheme", null, { shouldDirty: true })
     setValue(
       "selectedMovements",
       [...new Set([...selectedMovements, ...suggestion.movementIds])],
@@ -603,7 +612,10 @@ function SeriesSingleEventEditPage() {
                       )}
                     />
                     <WorkoutMetadataSuggestions
-                      context={{ teamId: organizingTeamId }}
+                      context={{
+                        teamId: organizingTeamId,
+                        writePermission: "manage_programming",
+                      }}
                       description={description}
                       onApply={applyMetadataSuggestion}
                     />
@@ -1087,12 +1099,20 @@ function SubEventForm({
     scoreType?: ScoreType
     movementIds: string[]
   }) => {
-    if (suggestion.scheme) {
-      form.setValue("scheme", suggestion.scheme, { shouldDirty: true })
+    const transition = resolveWorkoutMetadataTransition(
+      suggestion.scheme,
+      suggestion.scoreType,
+    )
+    if (transition.scheme) {
+      form.setValue("scheme", transition.scheme, { shouldDirty: true })
     }
-    if (suggestion.scoreType) {
-      form.setValue("scoreType", suggestion.scoreType, { shouldDirty: true })
+    if (transition.scoreType) {
+      form.setValue("scoreType", transition.scoreType, { shouldDirty: true })
     }
+    if (transition.clearTimeCap)
+      form.setValue("timeCap", null, { shouldDirty: true })
+    if (transition.clearTiebreak)
+      form.setValue("tiebreakScheme", null, { shouldDirty: true })
     form.setValue(
       "selectedMovements",
       [...new Set([...selectedMovements, ...suggestion.movementIds])],
@@ -1332,7 +1352,10 @@ function SubEventForm({
               )}
             />
             <WorkoutMetadataSuggestions
-              context={{ teamId: organizingTeamId }}
+              context={{
+                teamId: organizingTeamId,
+                writePermission: "manage_programming",
+              }}
               description={description}
               onApply={applyMetadataSuggestion}
             />

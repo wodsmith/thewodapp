@@ -39,7 +39,10 @@ export function PersonalWorkoutDefinition({
   return (
     <div className="space-y-5">
       <WorkoutDefinitionFields
-        metadataSuggestions={{ teamId }}
+        metadataSuggestions={{
+          teamId,
+          writePermission: "manage_programming",
+        }}
         value={value}
         onChange={onChange}
         nameLabel="Workout name"

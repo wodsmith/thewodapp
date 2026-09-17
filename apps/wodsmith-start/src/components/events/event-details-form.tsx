@@ -310,12 +310,16 @@ export function EventDetailsForm({
                   metadataSuggestions={
                     isParentEvent
                       ? undefined
-                      : {
-                          teamId: organizingTeamId,
-                          ...(competitionTeamId
-                            ? { competitionId, competitionTeamId }
-                            : {}),
-                        }
+                      : competitionTeamId
+                        ? {
+                            teamId: organizingTeamId,
+                            competitionId,
+                            competitionTeamId,
+                          }
+                        : {
+                            teamId: organizingTeamId,
+                            writePermission: "manage_programming",
+                          }
                   }
                   value={{
                     ...watch(),
@@ -323,7 +327,7 @@ export function EventDetailsForm({
                     movementIds: watch("selectedMovements"),
                     roundsToScore: watch("roundsToScore") ?? undefined,
                   }}
-                  onChange={(patch) => {
+                  onChange={(patch, source) => {
                     const options = { shouldDirty: true, shouldValidate: true }
                     if (patch.name !== undefined)
                       setValue("name", patch.name, options)
@@ -333,7 +337,9 @@ export function EventDetailsForm({
                       setValue("scheme", patch.scheme, options)
                     if (
                       patch.scoreType !== undefined &&
-                      (patch.scheme === undefined || scoreType == null)
+                      (source === "suggestion" ||
+                        patch.scheme === undefined ||
+                        scoreType == null)
                     )
                       setValue("scoreType", patch.scoreType, options)
                     if ("roundsToScore" in patch)
