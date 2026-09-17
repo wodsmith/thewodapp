@@ -30,6 +30,8 @@ import {
   scheduledWorkoutInstancesTable,
   scoresTable,
   scalingLevelsTable,
+  externalWorkoutImportItemsTable,
+  externalWorkoutImportsTable,
 } from "@/db/schema"
 import { mysqlTestConfig } from "./mysql-test-config"
 const fixture = vi.hoisted(() => ({
@@ -91,6 +93,8 @@ import {
   getRemixCountFn,
 } from "@/server-fns/workout-remix-fns"
 const tables = [
+  externalWorkoutImportItemsTable,
+  externalWorkoutImportsTable,
   movements,
   tags,
   workoutTags,
@@ -322,6 +326,8 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       ["group-parent", "Two-part workout"],
       ["group-time", "Part A"],
       ["group-load", "Part B"],
+      ["reused-parent", "Reusable scored workout"],
+      ["reused-child", "Nested score"],
     ] as const)
       await seed(workouts, {
         id,
@@ -351,6 +357,25 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       workoutId: "group-load",
       parentEventId: "group-parent-link",
       trackOrder: 2.02,
+    })
+    await seed(trackWorkoutsTable, {
+      id: "reused-parent-link",
+      trackId: "public-track",
+      workoutId: "reused-parent",
+      trackOrder: 3,
+    })
+    await seed(trackWorkoutsTable, {
+      id: "reused-child-link",
+      trackId: "public-track",
+      workoutId: "reused-child",
+      parentEventId: "reused-parent-link",
+      trackOrder: 3.01,
+    })
+    await seed(trackWorkoutsTable, {
+      id: "reused-standalone-link",
+      trackId: "private-track",
+      workoutId: "reused-parent",
+      trackOrder: 2,
     })
 
     fixture.userId = "owner"
@@ -388,7 +413,7 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       "group-parent",
     )
     expect(workoutLibrary.workouts.map((workout) => workout.id)).toEqual(
-      expect.arrayContaining(["group-time", "group-load"]),
+      expect.arrayContaining(["group-time", "group-load", "reused-parent"]),
     )
 
     const training = createPersonalTrainingService({
@@ -401,6 +426,11 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
         (workout) => workout.id,
       ),
     ).not.toContain("group-parent")
+    expect(
+      (await training.listTrainingLibraryWorkouts({ teamId: "a" })).map(
+        (workout) => workout.id,
+      ),
+    ).toContain("reused-parent")
     await expect(
       training.getTrainingLibraryWorkout({
         teamId: "a",
@@ -413,6 +443,12 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
         workoutId: "group-time",
       }),
     ).resolves.toMatchObject({ id: "group-time" })
+    await expect(
+      training.getTrainingLibraryWorkout({
+        teamId: "a",
+        workoutId: "reused-parent",
+      }),
+    ).resolves.toMatchObject({ id: "reused-parent" })
   })
   const mutations = [
     () =>

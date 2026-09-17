@@ -150,7 +150,7 @@ The workout library keeps reusable workout identities, editing, remixes, and ear
 
 Library search runs across the catalog before pagination. Old schedule bookmarks open a personal-session preview without writing a legacy schedule. Coaches copy canonical library definitions into independent workout sections, preserving all eleven scoring schemes, round aggregation, caps, tiebreaks, movement IDs, and scaling group references.
 
-Grouping-only parent workouts are omitted from scoreable library results. Their child sub-events remain reusable and independently scoreable, while programming views retain the parent/child structure.
+Workout identities used only as grouping parents are omitted from scoreable library results. Child sub-events remain reusable and independently scoreable; an identity reused in any standalone or child occurrence remains available.
 
 Switching gyms clears track, tag, and movement filters from the previous gym. Search text stays local until Search or Enter submits it. Library date parameters use the same valid-calendar-date validation as Training; invalid dates fall back to the gym's current date.
 

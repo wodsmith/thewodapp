@@ -20,7 +20,7 @@ Private track detail, contents and team lists require membership; public track r
 
 ## Grouping containers are not scoreable
 
-Generic track reads retain parent/child structure, while workout and training libraries omit unscored grouping parents and keep scored child sub-events available.
+Generic track reads retain parent/child structure. Libraries omit container-only workout identities, keep scored children, and retain an identity reused in a standalone or child occurrence.
 
 ## Track writes
 
