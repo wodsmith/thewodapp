@@ -36,6 +36,7 @@ export type WorkoutFormData = {
 type MovementData = Pick<Movement, "id" | "name" | "type">
 
 type WorkoutFormProps = {
+  teamId?: string | null
   mode: "create" | "edit"
   initialData?: Partial<WorkoutFormData>
   onSubmit: (data: WorkoutFormData) => Promise<void>
@@ -57,6 +58,7 @@ type WorkoutFormProps = {
 }
 
 export function WorkoutForm({
+  teamId,
   mode,
   initialData,
   onSubmit,
@@ -215,6 +217,7 @@ export function WorkoutForm({
           disabled={isSubmitting}
           required
           errors={{ ...fieldMessages, timeCapSeconds: fieldMessages.timeCap }}
+          metadataSuggestions={teamId ? { teamId } : undefined}
         />
 
         {/* Scope */}

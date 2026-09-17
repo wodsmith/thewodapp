@@ -20,6 +20,11 @@ import type {
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
 interface CreateEventDialogProps {
+  metadataSuggestions?: {
+    teamId: string
+    competitionId?: string
+    competitionTeamId?: string
+  }
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreateEvent: (data: {
@@ -36,6 +41,7 @@ interface CreateEventDialogProps {
 }
 
 export function CreateEventDialog({
+  metadataSuggestions,
   open,
   onOpenChange,
   onCreateEvent,
@@ -109,6 +115,7 @@ export function CreateEventDialog({
           </DialogHeader>
           <div className="py-4">
             <WorkoutDefinitionFields
+              metadataSuggestions={metadataSuggestions}
               allowEmptyScoreType={false}
               value={value}
               onChange={(patch) =>

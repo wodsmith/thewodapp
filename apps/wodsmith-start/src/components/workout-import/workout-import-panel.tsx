@@ -296,6 +296,9 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
         />
       )}
       <WorkoutImportWorkspace
+        teamId={
+          access.result?.hasAccess ? access.result.scope.teamId : undefined
+        }
         destinationLabel={label}
         saveLabel={props.saveLabel}
         track={props.track}

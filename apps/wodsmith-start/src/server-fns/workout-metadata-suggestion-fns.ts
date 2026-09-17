@@ -1,0 +1,27 @@
+import { createServerFn } from "@tanstack/react-start"
+import { z } from "zod"
+import { WORKOUT_METADATA_MIN_DESCRIPTION_LENGTH } from "@/lib/workout-metadata-suggestions"
+
+const inputSchema = z.object({
+  teamId: z.string().min(1),
+  description: z
+    .string()
+    .trim()
+    .min(WORKOUT_METADATA_MIN_DESCRIPTION_LENGTH)
+    .max(20_000),
+  competitionAccess: z
+    .object({
+      competitionId: z.string().min(1),
+      competitionTeamId: z.string().min(1),
+    })
+    .optional(),
+})
+
+export const suggestWorkoutMetadataFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => inputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { suggestWorkoutMetadata } = await import(
+      "@/server/workout-metadata-suggestions.server"
+    )
+    return suggestWorkoutMetadata(data)
+  })

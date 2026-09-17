@@ -127,6 +127,7 @@ function CreateWorkoutPage() {
         </div>
       )}
       <WorkoutForm
+        teamId={teamId}
         mode="create"
         movements={movements}
         onSubmit={handleSubmit}

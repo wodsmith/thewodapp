@@ -128,6 +128,7 @@ interface EventDetailsFormProps {
   event: CompetitionWorkout
   competitionId: string
   organizingTeamId: string
+  competitionTeamId?: string
   divisions: Division[]
   divisionDescriptions: DivisionDescriptionData[]
   movements: Movement[]
@@ -156,6 +157,7 @@ export function EventDetailsForm({
   event,
   competitionId,
   organizingTeamId,
+  competitionTeamId,
   divisions,
   divisionDescriptions,
   movements,
@@ -305,6 +307,16 @@ export function EventDetailsForm({
               </CardHeader>
               <CardContent className="space-y-4">
                 <WorkoutDefinitionFields
+                  metadataSuggestions={
+                    isParentEvent
+                      ? undefined
+                      : {
+                          teamId: organizingTeamId,
+                          ...(competitionTeamId
+                            ? { competitionId, competitionTeamId }
+                            : {}),
+                        }
+                  }
                   value={{
                     ...watch(),
                     timeCapSeconds: watch("timeCap"),

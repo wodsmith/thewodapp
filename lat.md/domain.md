@@ -95,6 +95,14 @@ Exercises that make up workouts. Categorized as `weightlifting`, `gymnastic`, or
 
 Stored in the `movements` table with tags for filtering and search.
 
+### AI Metadata Suggestions
+
+Teams with the AI workout entitlement can ask Jev to propose scoring metadata and movement tags from a description without making model output authoritative.
+
+[[apps/wodsmith-start/src/server-fns/workout-metadata-suggestion-fns.ts#suggestWorkoutMetadataFn]] is the validated request boundary. [[apps/wodsmith-start/src/server/workout-metadata-suggestions.server.ts#suggestWorkoutMetadata]] authorizes the writer, checks `AI_WORKOUT_GENERATION`, and sends one `jev-latest` batch outside workout writes and transactions.
+
+[[apps/wodsmith-start/src/lib/workout-metadata-suggestions.ts#selectWorkoutMetadataSuggestion]] owns confidence policy as a pure function. [[apps/wodsmith-start/src/components/workouts/workout-definition-fields.tsx#WorkoutDefinitionFields]] renders the optional, reviewable proposal across workout forms; applying merges movement IDs and never saves automatically.
+
 ## Scoring
 
 The unified scoring system stores competition results in `scoresTable`, replacing a legacy results + sets approach.

@@ -10,6 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  type WorkoutMetadataSuggestionContext,
+  WorkoutMetadataSuggestions,
+} from "@/components/workout-metadata-suggestions"
 import { SCORE_TYPES, TIEBREAK_SCHEMES, WORKOUT_SCHEMES } from "@/constants"
 import type { Movement, WorkoutScheme } from "@/db/schemas/workouts"
 import { DEFAULT_SCORE_TYPES } from "@/lib/scoring/constants"
@@ -34,6 +38,7 @@ export function WorkoutDefinitionFields({
   autoFocus = false,
   required = false,
   allowEmptyScoreType = true,
+  metadataSuggestions,
 }: {
   value: Partial<NormalizedWorkoutSave>
   onChange: (patch: Partial<NormalizedWorkoutSave>) => void
@@ -47,6 +52,7 @@ export function WorkoutDefinitionFields({
   autoFocus?: boolean
   required?: boolean
   allowEmptyScoreType?: boolean
+  metadataSuggestions?: WorkoutMetadataSuggestionContext
 }) {
   const prefix = useId()
   const id = (field: WorkoutDefinitionField) => `${prefix}-${field}`
@@ -273,6 +279,26 @@ export function WorkoutDefinitionFields({
           required={required}
         />,
         descriptionHint,
+      )}
+      {metadataSuggestions && visible("description") && (
+        <WorkoutMetadataSuggestions
+          context={metadataSuggestions}
+          description={value.description ?? ""}
+          onApply={(suggestion) =>
+            onChange({
+              ...(suggestion.scheme ? { scheme: suggestion.scheme } : {}),
+              ...(suggestion.scoreType
+                ? { scoreType: suggestion.scoreType }
+                : {}),
+              movementIds: [
+                ...new Set([
+                  ...(value.movementIds ?? []),
+                  ...suggestion.movementIds,
+                ]),
+              ],
+            })
+          }
+        />
       )}
       {field(
         "movementIds",

@@ -26,6 +26,7 @@ import {
 import { WorkoutImportSource } from "./source-input"
 
 export interface WorkoutImportWorkspaceProps {
+  teamId?: string
   destinationLabel: string
   saveLabel: string
   draft: WorkoutImportDraft | null
@@ -527,6 +528,7 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
           <fieldset disabled={saving} className="min-w-0 space-y-5">
             <legend className="mb-3 font-semibold">Workout and scoring</legend>
             <WorkoutForm
+              teamId={props.teamId}
               mode="create"
               embedded
               editor={{
