@@ -5,7 +5,15 @@ import { getTableColumns, getTableName, eq } from "drizzle-orm"
 import { CasingCache } from "drizzle-orm/casing"
 import mysql, { type Pool } from "mysql2"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
-import { externalWorkoutImportsTable as imports, externalWorkoutImportItemsTable as items, programmingTracksTable, trackWorkoutsTable, workouts } from "@/db/schema"
+import {
+  externalWorkoutImportsTable as imports,
+  externalWorkoutImportItemsTable as items,
+  movements,
+  programmingTracksTable,
+  trackWorkoutsTable,
+  workoutMovements,
+  workouts,
+} from "@/db/schema"
 import { appendCrossFitWorkout } from "@/server/append-crossfit-workout"
 import { beginCrossFitImport, getPublishedCrossFitDays, publishCrossFitImport, snapshotCrossFitImport } from "@/server/crossfit-import"
 import { CROSSFIT_OWNER_TEAM_ID, CROSSFIT_TRACK_ID, parseCrossFitResponse } from "@/lib/crossfit/source"
@@ -15,7 +23,13 @@ const databaseName = `crossfit_test_${Date.now()}`
 let admin: Pool
 let pool: Pool
 let db: WodsmithDb
-const tables = [programmingTracksTable, trackWorkoutsTable, workouts]
+const tables = [
+  movements,
+  programmingTracksTable,
+  trackWorkoutsTable,
+  workouts,
+  workoutMovements,
+]
 const timeScore = { scheme: "time", scoreType: "min", evidence: "for time", timeCap: null, roundsToScore: 1 }
 const conversion = { kind: "workout", structure: "single", score: timeScore }
 
@@ -43,8 +57,13 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
     for (const statement of migration.split("--> statement-breakpoint")) if (statement.trim()) await pool.promise().query(statement)
   })
   beforeEach(async () => {
-    for (const table of [items, imports, trackWorkoutsTable, workouts, programmingTracksTable]) await db.delete(table)
+    for (const table of [items, imports, workoutMovements, trackWorkoutsTable, workouts, programmingTracksTable, movements]) await db.delete(table)
     await db.insert(programmingTracksTable).values({ id: CROSSFIT_TRACK_ID, name: "CrossFit.com", type: "official_3rd_party", ownerTeamId: CROSSFIT_OWNER_TEAM_ID, isPublic: 1 })
+    await db.insert(movements).values([
+      { id: "mov_air_squat", name: "Air Squat", type: "weightlifting" },
+      { id: "mov_back_squat", name: "Back Squat", type: "weightlifting" },
+      { id: "mov_run", name: "Run", type: "monostructural" },
+    ])
   })
   afterAll(async () => {
     await pool?.promise().end()
@@ -77,9 +96,14 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
         kind: "workout",
         structure: "multi-part",
         subEvents: [
-          { label: "Part A", score: timeScore },
+          {
+            label: "Part A",
+            score: timeScore,
+            movementIds: ["mov_run"],
+          },
           {
             label: "Part B",
+            movementIds: ["mov_back_squat"],
             score: {
               scheme: "load",
               scoreType: "max",
@@ -112,8 +136,38 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
     ).toEqual([1.01, 1.02])
     expect(await db.select().from(items)).toHaveLength(2)
     expect(
+      (await db.select().from(workoutMovements))
+        .map((row) => `${row.workoutId}:${row.movementId}`)
+        .sort(),
+    ).toEqual([
+      "cf-2026-09-16-1:mov_run",
+      "cf-2026-09-16-2:mov_back_squat",
+      "cf-2026-09-16-parent:mov_back_squat",
+      "cf-2026-09-16-parent:mov_run",
+    ])
+    expect(
       (await getPublishedCrossFitDays(db, CROSSFIT_TRACK_ID))[0]?.workouts,
     ).toHaveLength(2)
+  })
+  // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Movement catalog tagging]]
+  it("holds publication if a classified movement has left the catalog", async () => {
+    const snapshot = await source("2026-09-03")
+    await beginCrossFitImport(db, snapshot.date, "stale-movement")
+    await snapshotCrossFitImport(db, snapshot)
+
+    await expect(
+      publishCrossFitImport(
+        db,
+        snapshot,
+        {
+          ...conversion,
+          movementIds: ["mov_removed"],
+        },
+        "jev-latest",
+      ),
+    ).rejects.toThrow("Movement catalog changed")
+    expect(await db.select().from(workouts)).toHaveLength(0)
+    expect(await db.select().from(workoutMovements)).toHaveLength(0)
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Rest publication]]
   it("publishes a visible rest day without scoreable workouts and replays safely", async () => {

@@ -4,8 +4,10 @@ import {
   type WorkflowStep,
 } from "cloudflare:workers"
 import * as Sentry from "@sentry/cloudflare"
+import { asc } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { movements } from "@/db/schema"
 import { CrossFitImportReviewError } from "@/lib/crossfit/errors"
 import {
   CrossFitSourceError,
@@ -116,13 +118,23 @@ export class CrossFitDailyImportWorkflowBase extends WorkflowEntrypoint<
           snapshotCrossFitImport(getDb(), snapshot),
         )
       phase = "conversion"
+      const movementCatalog = await step.do("load-movements", () =>
+        getDb()
+          .select({
+            id: movements.id,
+            name: movements.name,
+            type: movements.type,
+          })
+          .from(movements)
+          .orderBy(asc(movements.name)),
+      )
       const conversion = await step.do(
         "convert",
         {
           retries: { limit: 1, delay: "30 seconds", backoff: "constant" },
           timeout: "90 seconds",
         },
-        () => convertCrossFitSource(snapshot, this.env),
+        () => convertCrossFitSource(snapshot, movementCatalog, this.env),
       )
       if (!publish)
         return {

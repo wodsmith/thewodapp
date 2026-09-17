@@ -4,7 +4,9 @@ import {
   externalWorkoutImportsTable as imports,
   externalWorkoutImportItemsTable as items,
   trackWorkoutsTable as links,
+  movements,
   programmingTracksTable as tracks,
+  workoutMovements,
   workouts,
 } from "@/db/schema"
 import {
@@ -140,6 +142,19 @@ export async function publishCrossFitImport(
     const nextOrder = Math.floor(Number(last?.order ?? 0)) + 1
     if (nextOrder > 9999) throw new Error("Track order capacity reached")
     const scoredEvents = crossFitScoredEvents(normalized)
+    const movementIds = [
+      ...new Set(scoredEvents.flatMap((event) => event.movementIds)),
+    ]
+    if (movementIds.length) {
+      const currentMovements = await tx
+        .select({ id: movements.id })
+        .from(movements)
+        .where(inArray(movements.id, movementIds))
+      if (currentMovements.length !== movementIds.length)
+        throw new CrossFitImportReviewError(
+          "Movement catalog changed during import; restart for review",
+        )
+    }
     const hasSubEvents =
       normalized.kind === "workout" && normalized.structure === "multi-part"
     const parentTrackWorkoutId = hasSubEvents
@@ -165,6 +180,14 @@ export async function publishCrossFitImport(
         notes: `CrossFit.com WOD for ${source.date}`,
         eventStatus: "published",
       })
+      if (movementIds.length)
+        await tx.insert(workoutMovements).values(
+          movementIds.map((movementId, index) => ({
+            id: `cf-wm-${source.date}-parent-${index + 1}`,
+            workoutId: `cf-${source.date}-parent`,
+            movementId,
+          })),
+        )
     }
     for (const [index, scoredEvent] of scoredEvents.entries()) {
       const component = scoredEvent.score
@@ -199,6 +222,14 @@ export async function publishCrossFitImport(
         notes: `CrossFit.com WOD for ${source.date}`,
         eventStatus: "published",
       })
+      if (scoredEvent.movementIds.length)
+        await tx.insert(workoutMovements).values(
+          scoredEvent.movementIds.map((movementId, movementIndex) => ({
+            id: `cf-wm-${source.date}-${index + 1}-${movementIndex + 1}`,
+            workoutId,
+            movementId,
+          })),
+        )
       await tx.insert(items).values({
         id: `${entry.id}-${index}`,
         importId: entry.id,

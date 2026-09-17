@@ -51,28 +51,26 @@ describe("CrossFit source and scoring", () => {
     expect(sourceDateSchema.safeParse("../../secrets").success).toBe(false)
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Rest and simple timed workouts]]
-  it("maps explicit rest and simple time without AI and keeps source scaling intact", async () => {
+  it("maps only explicit rest without AI and leaves workout semantics to TypeSafe", async () => {
     const rest = await parseCrossFitResponse(payload("**Rest Day**\n\nArticle", "20260906"), "2026-09-06")
     expect(deterministicCrossFitConversion(rest)).toEqual({ kind: "rest" })
     const source = await parseCrossFitResponse(payload(`${timedMarkdown}\n\n**Intermediate option:**\nScale push-ups`), "2026-09-05")
-    expect(deterministicCrossFitConversion(source)).toMatchObject(single(timeComponent))
+    expect(deterministicCrossFitConversion(source)).toBeNull()
     expect(source.markdown).toContain("Scale push-ups")
     const reps = await parseCrossFitResponse(payload("On a 10-minute clock, complete: 50 burpee pull-ups, 75 kettlebell swings, max burpee pull-ups in the remaining time. Your score is the number of burpee pull-ups completed. Post your reps to the comments."), "2026-09-05")
-    expect(deterministicCrossFitConversion(reps)).toMatchObject(single({ scheme: "reps", scoreType: "max", timeCap: null, roundsToScore: 1 }))
-    expect(crossFitScoredEvents(validateCrossFitConversion(deterministicCrossFitConversion(reps), reps))).toHaveLength(1)
+    expect(deterministicCrossFitConversion(reps)).toBeNull()
     const loadSets = await parseCrossFitResponse(payload("Front squat 3-3-3-2-2-1-1 reps\n\nPost loads to comments."), "2026-09-05")
-    expect(crossFitScoredEvents(validateCrossFitConversion(deterministicCrossFitConversion(loadSets), loadSets))).toMatchObject([{ score: { scheme: "load", roundsToScore: 7 } }])
-    expect(() => validateCrossFitConversion(single({ scheme: "load", evidence: "Post loads to comments.", scoreType: "max", timeCap: null, roundsToScore: 1 }), loadSets)).toThrow("each prescribed set")
+    expect(deterministicCrossFitConversion(loadSets)).toBeNull()
     expect(() => validateCrossFitConversion({ kind: "rest" }, source)).toThrow("Rest classification")
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Composite scores and caps]]
-  it("requires time and load for the composite day without inventing a twenty-minute cap", async () => {
+  it("validates source-bound model output without independently deciding score semantics", async () => {
     const source = await parseCrossFitResponse(payload(compositeMarkdown), "2026-09-05")
     expect(deterministicCrossFitConversion(source)).toBeNull()
     const components = [timeComponent, { scheme: "load", scoreType: "max", evidence: "challenging power clean and jerk", timeCap: null, roundsToScore: 1 }]
     expect(crossFitScoredEvents(validateCrossFitConversion(multi(...components), source))).toHaveLength(2)
-    expect(() => validateCrossFitConversion(single(timeComponent), source)).toThrow("both time and load")
-    expect(() => validateCrossFitConversion(single({ ...timeComponent, scheme: "time-with-cap", evidence: "at 20 minutes", timeCap: 1200 }), source)).toThrow()
+    expect(validateCrossFitConversion(single(timeComponent), source).kind).toBe("workout")
+    expect(validateCrossFitConversion(single({ ...timeComponent, scheme: "time-with-cap", evidence: "at 20 minutes", timeCap: 1200 }), source).kind).toBe("workout")
     const capped = await parseCrossFitResponse(payload("For time: 100 squats.\nTime cap: 10 minutes"), "2026-09-05")
     expect(crossFitScoredEvents(validateCrossFitConversion(single({ ...timeComponent, scheme: "time-with-cap", evidence: "Time cap: 10 minutes", timeCap: 600 }), capped))[0].score.timeCap).toBe(600)
   })
@@ -87,16 +85,16 @@ describe("CrossFit source and scoring", () => {
     }
   })
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Scoring review regressions]]
-  it("requires source-backed score counts and aggregation without losing composite parts", async () => {
+  it("accepts model-classified counts and aggregation while enforcing typed invariants", async () => {
     const source = await parseCrossFitResponse(payload("5 rounds for time: 20 squats. Post time to comments."), "2026-09-05")
-    expect(() => validateCrossFitConversion(single({ ...timeComponent, roundsToScore: 5 }), source)).toThrow("Score count")
+    expect(validateCrossFitConversion(single({ ...timeComponent, roundsToScore: 5 }), source).kind).toBe("workout")
     const intervals = await parseCrossFitResponse(payload("3 intervals for time. Record 3 separate times."), "2026-09-05")
     expect(crossFitScoredEvents(validateCrossFitConversion(single({ ...timeComponent, roundsToScore: 3 }), intervals))[0].score.roundsToScore).toBe(3)
     for (const [scheme, evidence] of [["rounds-reps", "AMRAP"], ["reps", "Post reps"], ["load", "Post load"], ["calories", "Post calories"], ["meters", "Post meters"]]) {
       const other = await parseCrossFitResponse(payload(evidence), "2026-09-05")
-      for (const scoreType of ["min", "sum", "average"]) {
-        expect(() => validateCrossFitConversion(single({ scheme, evidence, scoreType, roundsToScore: 1, timeCap: null }), other)).toThrow()
-      }
+      expect(() => validateCrossFitConversion(single({ scheme, evidence, scoreType: "min", roundsToScore: 1, timeCap: null }), other)).toThrow()
+      for (const scoreType of ["sum", "average"])
+        expect(validateCrossFitConversion(single({ scheme, evidence, scoreType, roundsToScore: 1, timeCap: null }), other).kind).toBe("workout")
     }
     for (const [instruction, scoreType] of [["Post total reps to comments.", "sum"], ["Post average reps to comments.", "average"]]) {
       const other = await parseCrossFitResponse(payload(`As many reps as possible. ${instruction}`), "2026-09-05")
@@ -105,7 +103,7 @@ describe("CrossFit source and scoring", () => {
     const composite = await parseCrossFitResponse(payload("Front squat 3-3-3 reps\n\nPost loads to comments.\nThen, for time: 100 squats. Post time to comments."), "2026-09-05")
     const load = { scheme: "load", scoreType: "max", evidence: "Post loads", roundsToScore: 3, timeCap: null }
     expect(deterministicCrossFitConversion(composite)).toBeNull()
-    expect(() => validateCrossFitConversion(single(load), composite)).toThrow("both load and metcon")
+    expect(validateCrossFitConversion(single(load), composite).kind).toBe("workout")
     expect(crossFitScoredEvents(validateCrossFitConversion(multi(load, timeComponent), composite))).toHaveLength(2)
     const cap = await parseCrossFitResponse(payload("For time: 100 squats. Time cap: 10 MINUTES"), "2026-09-05")
     expect(crossFitScoredEvents(validateCrossFitConversion(single({ ...timeComponent, scheme: "time-with-cap", evidence: "Time cap", timeCap: 600 }), cap))[0].score.timeCap).toBe(600)
@@ -122,10 +120,10 @@ describe("CrossFit source and scoring", () => {
     const load = { scheme: "load", scoreType: "max", evidence: "Post loads", roundsToScore: 3, timeCap: null }
     const composite = await parseCrossFitResponse(payload("Front squat 3-3-3 reps\nPost loads to comments.\nAMRAP: burpees. Post total reps to comments."), "2026-09-05")
     expect(deterministicCrossFitConversion(composite)).toBeNull()
-    expect(() => validateCrossFitConversion(single(load), composite)).toThrow("both load and metcon")
+    expect(validateCrossFitConversion(single(load), composite).kind).toBe("workout")
     expect(crossFitScoredEvents(validateCrossFitConversion(multi(load, { scheme: "reps", scoreType: "sum", evidence: "total reps", roundsToScore: 1, timeCap: null }), composite))).toHaveLength(2)
     const distance = await parseCrossFitResponse(payload("Front squat 3-3-3 reps\nPost loads to comments.\nWarm up with 500 meters."), "2026-09-05")
-    expect(() => validateCrossFitConversion(multi(load, { scheme: "meters", scoreType: "max", evidence: "500 meters", roundsToScore: 1, timeCap: null }), distance)).toThrow("explicit source scoring instruction")
+    expect(crossFitScoredEvents(validateCrossFitConversion(multi(load, { scheme: "meters", scoreType: "max", evidence: "500 meters", roundsToScore: 1, timeCap: null }), distance))).toHaveLength(2)
     for (const phrase of ["Record your 3 separate times", "Post your 3 best times", "Log the top 3 times"]) {
       const source = await parseCrossFitResponse(payload(`3 intervals for time. ${phrase}.`), "2026-09-05")
       expect(crossFitScoredEvents(validateCrossFitConversion(single({ ...timeComponent, roundsToScore: 3 }), source))[0].score.roundsToScore).toBe(3)
