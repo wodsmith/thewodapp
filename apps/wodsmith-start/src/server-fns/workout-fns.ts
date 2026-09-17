@@ -42,6 +42,7 @@ import {
 } from "@/db/schemas/workouts"
 import { DEFAULT_SCORE_TYPES } from "@/lib/scoring/constants"
 import { normalizedWorkoutSaveSchema } from "@/lib/workout-import"
+import { scoreableWorkoutCondition } from "@/server/scoreable-workouts"
 import {
   canReadWorkout,
   requireTrackRead,
@@ -180,6 +181,7 @@ export const getWorkoutsFn = createServerFn({ method: "GET" })
     if (teamOrPublicCondition) {
       conditions.push(teamOrPublicCondition)
     }
+    conditions.push(scoreableWorkoutCondition())
 
     // Search filter
     if (validatedData.search) {

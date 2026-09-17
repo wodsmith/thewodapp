@@ -150,6 +150,8 @@ The workout library keeps reusable workout identities, editing, remixes, and ear
 
 Library search runs across the catalog before pagination. Old schedule bookmarks open a personal-session preview without writing a legacy schedule. Coaches copy canonical library definitions into independent workout sections, preserving all eleven scoring schemes, round aggregation, caps, tiebreaks, movement IDs, and scaling group references.
 
+Grouping-only parent workouts are omitted from scoreable library results. Their child sub-events remain reusable and independently scoreable, while programming views retain the parent/child structure.
+
 Switching gyms clears track, tag, and movement filters from the previous gym. Search text stays local until Search or Enter submits it. Library date parameters use the same valid-calendar-date validation as Training; invalid dates fall back to the gym's current date.
 
 ### Library Reuse Tests
@@ -243,6 +245,8 @@ Legacy dashboard and scheduled workout actions explicitly add work to Training, 
 ## Dated Provider Programming
 
 Published provider days project into the Training calendar without creating coached sessions or athlete compositions. The weekly and daily reads share the same calendar identity and publication precedence.
+
+A multi-part provider day renders once as a day group with scored sub-events. Each child keeps its own workout detail and score action; the unscored grouping parent is never presented as a score target.
 
 [[apps/wodsmith-start/src/server/training.ts#getTrainingWeek]] batches one provider range read. Published coach sessions take precedence for their gym, track, and date; drafts never suppress provider programming for athletes. Explicit rest differs from missing publication. The day union distinguishes coach-session, provider-day, and unavailable. Existing personal items render before browsed source programming.
 

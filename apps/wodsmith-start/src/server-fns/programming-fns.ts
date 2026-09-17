@@ -84,6 +84,7 @@ export interface TrackWorkoutWithDetails {
   id: string
   trackId: string
   workoutId: string
+  parentEventId: string | null
   trackOrder: number
   notes: string | null
   pointsMultiplier: number | null

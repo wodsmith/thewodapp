@@ -39,6 +39,7 @@ import type {
 } from "@/lib/training/personal-types"
 import type { OwnTrainingResult, TrainingSession } from "@/lib/training/types"
 import { getPublishedCrossFitDays } from "./crossfit-import"
+import { scoreableWorkoutCondition } from "./scoreable-workouts"
 import { writeWorkoutResultRounds } from "./training-logs/rounds"
 import { normalizePersonalLibraryScore } from "./training-personal-scoring"
 import {
@@ -384,6 +385,7 @@ function createPersonalTrainingOperations(
       .where(
         and(
           visibility,
+          scoreableWorkoutCondition(),
           data.search ? like(workouts.name, `%${data.search}%`) : undefined,
         ),
       )
@@ -410,7 +412,13 @@ function createPersonalTrainingOperations(
     const [workout] = await getDb()
       .select(libraryFields)
       .from(workouts)
-      .where(and(eq(workouts.id, data.workoutId), visibility))
+      .where(
+        and(
+          eq(workouts.id, data.workoutId),
+          visibility,
+          scoreableWorkoutCondition(),
+        ),
+      )
     if (!workout) throw new Error("FORBIDDEN: Workout is not available to you")
     if (data.sourceTrackId) await requireTrackRead(data.sourceTrackId)
     const [provenance] = await getDb()

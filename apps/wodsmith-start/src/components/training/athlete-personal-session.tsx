@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
-import { libraryOccurrence } from "@/lib/training/library-occurrence"
 import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
+import { libraryOccurrence } from "@/lib/training/library-occurrence"
 import type {
   PersonalTrainingDay,
   PersonalTrainingItem,
@@ -16,9 +16,9 @@ import type {
 import type {
   OwnTrainingResult,
   TrainingBlock,
+  TrainingProviderDay,
   TrainingSession,
   TrainingTeam,
-  TrainingProviderDay,
 } from "@/lib/training/types"
 import { normalizedWorkoutSaveSchema } from "@/lib/workout-import/schemas"
 import { getTrainingWeekFn } from "@/server-fns/training-fns"
@@ -29,8 +29,8 @@ import {
   savePersonalTrainingSessionFn,
 } from "@/server-fns/training-personal-fns"
 import { AthleteSessionBlock } from "./athlete-session-block"
-import { SessionWorkoutActions } from "./session-workout-actions"
 import { PersonalWorkoutDefinition } from "./personal-workout-definition"
+import { SessionWorkoutActions } from "./session-workout-actions"
 
 function itemInput(item: PersonalTrainingItem): PersonalTrainingItemInput {
   if (item.kind === "source")
@@ -50,6 +50,13 @@ function itemInput(item: PersonalTrainingItem): PersonalTrainingItemInput {
       sourceDate: libraryOccurrence(item).sourceDate,
     }
   return item
+}
+
+function librarySourceGroupKey(item: PersonalTrainingItem | undefined) {
+  if (item?.kind !== "library") return null
+  if (item.provenance) return `import:${item.provenance.importId}`
+  const { trackId, sourceDate } = item.occurrence ?? {}
+  return trackId && sourceDate ? `occurrence:${trackId}:${sourceDate}` : null
 }
 
 export function AthletePersonalSession({
@@ -695,6 +702,16 @@ ${workout.provenance ? "" : workout.description}`,
         </div>
       ) : null}
       {items.map((item, index) => {
+        const sourceGroupKey = librarySourceGroupKey(item)
+        const startsSourceGroup =
+          sourceGroupKey !== null &&
+          sourceGroupKey !== librarySourceGroupKey(items[index - 1])
+        let sourceGroupSize = 0
+        if (startsSourceGroup)
+          for (let cursor = index; cursor < items.length; cursor += 1) {
+            if (librarySourceGroupKey(items[cursor]) !== sourceGroupKey) break
+            sourceGroupSize += 1
+          }
         const personalResult =
           item.kind === "personal" ||
           (item.kind === "source" &&
@@ -761,9 +778,13 @@ ${workout.provenance ? "" : workout.description}`,
             className="focus-visible:outline-2 focus-visible:outline-ring"
           >
             <div className="flex flex-wrap items-center justify-between gap-x-4">
-              {personal || editing ? (
+              {(personal || editing) &&
+              (!sourceGroupKey || startsSourceGroup) ? (
                 <p className="py-3 text-sm text-muted-foreground">
                   {sourceLabel}
+                  {sourceGroupSize > 1
+                    ? ` · ${sourceGroupSize} scored sub-events`
+                    : ""}
                   {item.kind === "source" && item.sourceIsCurrent === false
                     ? readOnlySourceResult
                       ? " · Earlier prescription"

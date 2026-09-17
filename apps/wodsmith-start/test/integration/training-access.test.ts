@@ -82,6 +82,7 @@ import {
   addWorkoutToTrackFn,
   removeWorkoutFromTrackFn,
 } from "@/server-fns/programming-fns"
+import { createPersonalTrainingService } from "@/server/training-personal-service"
 import {
   createWorkoutRemixFn,
   getRemixedWorkoutsFn,
@@ -171,7 +172,8 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       await pool.promise().query(`DELETE FROM \`${getTableName(table)}\``)
     for (const id of ["outsider", "owner", "member", "expired", "inactive"])
       await seed(userTable, { id })
-    for (const id of ["a", "b"]) await seed(teamTable, { id, name: id })
+    for (const id of ["a", "b"])
+      await seed(teamTable, { id, name: id, type: "gym" })
     for (const [userId, teamId, roleId, isActive, expiresAt] of [
       ["owner", "a", "owner", true, null],
       ["outsider", "b", "owner", true, null],
@@ -313,6 +315,104 @@ describe.skipIf(!mysqlTestConfig)("training server access on MySQL", () => {
       (await getTrackWorkoutsFn({ data: { trackId: "private-track" } }))
         .workouts,
     ).toHaveLength(2)
+  })
+  // @lat: [[training-access-tests#Training Access Tests#Grouping containers are not scoreable]]
+  it("keeps grouping parents in track structure but out of scoreable workout libraries", async () => {
+    for (const [id, name] of [
+      ["group-parent", "Two-part workout"],
+      ["group-time", "Part A"],
+      ["group-load", "Part B"],
+    ] as const)
+      await seed(workouts, {
+        id,
+        name,
+        description: "Grouped programming",
+        scheme: id === "group-load" ? "load" : "time",
+        scope: "public",
+        teamId: "a",
+        roundsToScore: 1,
+      })
+    await seed(trackWorkoutsTable, {
+      id: "group-parent-link",
+      trackId: "public-track",
+      workoutId: "group-parent",
+      trackOrder: 2,
+    })
+    await seed(trackWorkoutsTable, {
+      id: "group-time-link",
+      trackId: "public-track",
+      workoutId: "group-time",
+      parentEventId: "group-parent-link",
+      trackOrder: 2.01,
+    })
+    await seed(trackWorkoutsTable, {
+      id: "group-load-link",
+      trackId: "public-track",
+      workoutId: "group-load",
+      parentEventId: "group-parent-link",
+      trackOrder: 2.02,
+    })
+
+    fixture.userId = "owner"
+    const track = await getTrackWorkoutsFn({
+      data: { trackId: "public-track" },
+    })
+    expect(
+      track.workouts.map(({ id, parentEventId, workout }) => ({
+        id,
+        parentEventId,
+        workoutId: workout.id,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        {
+          id: "group-parent-link",
+          parentEventId: null,
+          workoutId: "group-parent",
+        },
+        {
+          id: "group-time-link",
+          parentEventId: "group-parent-link",
+          workoutId: "group-time",
+        },
+        {
+          id: "group-load-link",
+          parentEventId: "group-parent-link",
+          workoutId: "group-load",
+        },
+      ]),
+    )
+
+    const workoutLibrary = await getWorkoutsFn({ data: { teamId: "a" } })
+    expect(workoutLibrary.workouts.map((workout) => workout.id)).not.toContain(
+      "group-parent",
+    )
+    expect(workoutLibrary.workouts.map((workout) => workout.id)).toEqual(
+      expect.arrayContaining(["group-time", "group-load"]),
+    )
+
+    const training = createPersonalTrainingService({
+      db,
+      actor: { userId: "owner" },
+      hasFeature: async () => true,
+    })
+    expect(
+      (await training.listTrainingLibraryWorkouts({ teamId: "a" })).map(
+        (workout) => workout.id,
+      ),
+    ).not.toContain("group-parent")
+    await expect(
+      training.getTrainingLibraryWorkout({
+        teamId: "a",
+        workoutId: "group-parent",
+      }),
+    ).rejects.toThrow("Workout is not available")
+    await expect(
+      training.getTrainingLibraryWorkout({
+        teamId: "a",
+        workoutId: "group-time",
+      }),
+    ).resolves.toMatchObject({ id: "group-time" })
   })
   const mutations = [
     () =>

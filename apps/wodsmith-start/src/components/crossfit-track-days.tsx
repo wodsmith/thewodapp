@@ -51,6 +51,15 @@ export function CrossFitTrackDays({
                   {crossFitPrescription(day.markdown ?? "")}
                 </ReactMarkdown>
               </div>
+              {day.workouts.length > 1 && (
+                <div className="space-y-1 border-t border-border pt-5">
+                  <h3 className="text-lg font-semibold">Scored sub-events</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Record each part separately. They stay grouped under this
+                    day's workout.
+                  </p>
+                </div>
+              )}
               <ul className="divide-y divide-border">
                 {day.workouts.map((workout) => (
                   <li
