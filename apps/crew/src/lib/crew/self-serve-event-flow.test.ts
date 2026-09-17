@@ -79,7 +79,7 @@ describe("Crew self-serve event flow", () => {
     const mappingWrite = buildCrewImportMappingPresetWrite({
       teamId: "team_self_serve",
       competitionId: event.id,
-      sourcePlatform: "Competition Corner",
+      sourcePlatform: "Registration Platform",
       kind: "volunteers",
       headers,
       columnMapping: {
@@ -90,13 +90,13 @@ describe("Crew self-serve event flow", () => {
       },
     })
     expect(mappingWrite).toMatchObject({
-      sourcePlatform: "competition corner",
+      sourcePlatform: "registration platform",
       metadata: { fieldCount: 4, headerCount: 4 },
     })
 
     const suggestion = selectCrewImportMappingSuggestion({
       teamId: "team_self_serve",
-      sourcePlatform: "competition corner",
+      sourcePlatform: "registration platform",
       kind: "volunteers",
       headers,
       candidates: [
@@ -104,8 +104,8 @@ describe("Crew self-serve event flow", () => {
           id: "preset_volunteers",
           teamId: "team_self_serve",
           kind: "volunteers",
-          sourcePlatform: "Competition Corner",
-          name: "Competition Corner volunteers",
+          sourcePlatform: "Registration Platform",
+          name: "Registration platform volunteers",
           headerFingerprint: mappingWrite?.headerFingerprint ?? "",
           headers,
           columnMapping: mappingWrite?.columnMapping ?? {},
@@ -119,7 +119,7 @@ describe("Crew self-serve event flow", () => {
     expect(suggestion).toMatchObject({
       presetId: "preset_volunteers",
       matchedFieldCount: 4,
-      sourcePlatform: "competition corner",
+      sourcePlatform: "registration platform",
     })
 
     const copyPriorPreview = buildCrewCopyPriorEventPreview(copyPriorEventInput)

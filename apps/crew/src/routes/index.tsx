@@ -12,9 +12,9 @@ function HomePage() {
             Give every volunteer a place and a time.
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Keep your competition on Competition Corner. Import your volunteer
-            list, assign shifts and judges, and share a schedule where
-            volunteers find their name. No volunteer login needed.
+            Keep your competition on your existing registration platform. Import
+            your volunteer list, assign shifts and judges, and share a schedule
+            where volunteers find their name. No volunteer login needed.
           </p>
         </div>
         <p className="text-base font-medium">

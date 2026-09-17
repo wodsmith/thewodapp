@@ -221,7 +221,7 @@ describe("buildVolunteerApplyPlan", () => {
           phone: "5551234567",
           phoneCountryCode: "1",
           shirtSize: "L",
-          sourceExternalId: "cc-9001",
+          sourceExternalId: "volunteer-9001",
           sourceCreatedAt: "2026-06-01",
         }),
       ],
@@ -235,7 +235,7 @@ describe("buildVolunteerApplyPlan", () => {
     const metadata = JSON.parse(plan.rows[0]?.metadata ?? "{}")
     expect(metadata.signupPhone).toBe("+1 5551234567")
     expect(metadata.shirtSize).toBe("L")
-    expect(metadata.crewImportExternalId).toBe("cc-9001")
+    expect(metadata.crewImportExternalId).toBe("volunteer-9001")
     expect(metadata.crewImportSourceCreatedAt).toBe("2026-06-01")
   })
 

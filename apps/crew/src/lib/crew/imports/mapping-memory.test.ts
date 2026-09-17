@@ -19,8 +19,8 @@ describe("Crew import mapping memory", () => {
   })
 
   it("normalizes blank source platforms to csv", () => {
-    expect(normalizeImportMappingSourcePlatform(" Competition Corner ")).toBe(
-      "competition corner",
+    expect(normalizeImportMappingSourcePlatform(" Event Platform ")).toBe(
+      "event platform",
     )
     expect(normalizeImportMappingSourcePlatform("")).toBe("csv")
     expect(normalizeImportMappingSourcePlatform(null)).toBe("csv")
@@ -31,14 +31,14 @@ describe("Crew import mapping memory", () => {
     const fingerprint = computeImportHeaderFingerprint(headers)
     const suggestion = selectCrewImportMappingSuggestion({
       teamId: "team_1",
-      sourcePlatform: "Competition Corner",
+      sourcePlatform: "Event Platform",
       kind: "volunteers",
       headers,
       candidates: [
         candidate({
           id: "cimap_wrong_team",
           teamId: "team_2",
-          sourcePlatform: "competition corner",
+          sourcePlatform: "event platform",
           kind: "volunteers",
           headerFingerprint: fingerprint,
         }),
@@ -50,13 +50,13 @@ describe("Crew import mapping memory", () => {
         }),
         candidate({
           id: "cimap_wrong_kind",
-          sourcePlatform: "competition corner",
+          sourcePlatform: "event platform",
           kind: "heat_schedule",
           headerFingerprint: fingerprint,
         }),
         candidate({
           id: "cimap_match",
-          sourcePlatform: "competition corner",
+          sourcePlatform: "event platform",
           kind: "volunteers",
           headerFingerprint: fingerprint,
           lastUsedAt: "2026-06-20T12:00:00.000Z",
@@ -66,7 +66,7 @@ describe("Crew import mapping memory", () => {
 
     expect(suggestion).toMatchObject({
       presetId: "cimap_match",
-      sourcePlatform: "competition corner",
+      sourcePlatform: "event platform",
       kind: "volunteers",
       matchedFieldCount: 3,
       columnMapping: {
