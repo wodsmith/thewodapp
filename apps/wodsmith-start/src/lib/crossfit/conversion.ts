@@ -1,7 +1,7 @@
 import { z } from "zod"
 import type { CrossFitSource } from "./source"
 
-const componentSchema = z.object({
+export const crossFitScoreSchema = z.object({
   scheme: z.enum([
     "time",
     "time-with-cap",
@@ -17,17 +17,35 @@ const componentSchema = z.object({
   roundsToScore: z.number().int().min(1).max(100),
 })
 
-export const crossFitConversionSchema = z.discriminatedUnion("kind", [
+const scoredEventSchema = z.object({
+  label: z.string().trim().min(1).max(120),
+  score: crossFitScoreSchema,
+})
+
+export const crossFitConversionSchema = z.union([
   z.object({
     kind: z.literal("rest"),
-    components: z.array(componentSchema).length(0),
   }),
   z.object({
     kind: z.literal("workout"),
-    components: z.array(componentSchema).min(1).max(6),
+    structure: z.literal("single"),
+    score: crossFitScoreSchema,
+  }),
+  z.object({
+    kind: z.literal("workout"),
+    structure: z.literal("multi-part"),
+    subEvents: z.array(scoredEventSchema).min(2).max(6),
   }),
 ])
 export type CrossFitConversion = z.infer<typeof crossFitConversionSchema>
+export type CrossFitScore = z.infer<typeof crossFitScoreSchema>
+
+export function crossFitScoredEvents(conversion: CrossFitConversion) {
+  if (conversion.kind === "rest") return []
+  if (conversion.structure === "single")
+    return [{ label: null, score: conversion.score }]
+  return conversion.subEvents
+}
 
 const scoreNouns = {
   time: "times?",
@@ -88,8 +106,7 @@ export function isCrossFitRestDay(markdown: string) {
 export function deterministicCrossFitConversion(
   source: CrossFitSource,
 ): CrossFitConversion | null {
-  if (isCrossFitRestDay(source.markdown))
-    return { kind: "rest", components: [] }
+  if (isCrossFitRestDay(source.markdown)) return { kind: "rest" }
   const prescription = crossFitPrescription(source.markdown)
   const loadSets = prescription.match(
     /^[^\n\d]+(\d+(?:-\d+)+) reps\s*(?:\n|$)/i,
@@ -106,15 +123,14 @@ export function deterministicCrossFitConversion(
   ) {
     return {
       kind: "workout",
-      components: [
-        {
-          scheme: "load",
-          scoreType: "max",
-          evidence: loadSets[0].trim(),
-          timeCap: null,
-          roundsToScore: loadSets[1].split("-").length,
-        },
-      ],
+      structure: "single",
+      score: {
+        scheme: "load",
+        scoreType: "max",
+        evidence: loadSets[0].trim(),
+        timeCap: null,
+        roundsToScore: loadSets[1].split("-").length,
+      },
     }
   }
   const repInstruction = prescription.match(
@@ -127,15 +143,14 @@ export function deterministicCrossFitConversion(
   ) {
     return {
       kind: "workout",
-      components: [
-        {
-          scheme: "reps",
-          scoreType: "max",
-          evidence: repInstruction[0],
-          timeCap: null,
-          roundsToScore: 1,
-        },
-      ],
+      structure: "single",
+      score: {
+        scheme: "reps",
+        scoreType: "max",
+        evidence: repInstruction[0],
+        timeCap: null,
+        roundsToScore: 1,
+      },
     }
   }
   // Only classify the narrow, single-score format. Composite days go through validation of AI output.
@@ -148,15 +163,14 @@ export function deterministicCrossFitConversion(
   ) {
     return {
       kind: "workout",
-      components: [
-        {
-          scheme: "time",
-          scoreType: "min",
-          evidence: "for time",
-          timeCap: null,
-          roundsToScore: 1,
-        },
-      ],
+      structure: "single",
+      score: {
+        scheme: "time",
+        scoreType: "min",
+        evidence: "for time",
+        timeCap: null,
+        roundsToScore: 1,
+      },
     }
   }
   return null
@@ -174,15 +188,19 @@ export function validateCrossFitConversion(
       "Rest classification must match the explicit source heading",
     )
   if (result.kind === "rest") return result
+  const scores = crossFitScoredEvents(result).map((event) => event.score)
+  if (result.structure === "multi-part") {
+    const labels = result.subEvents.map((event) => event.label.toLowerCase())
+    if (new Set(labels).size !== labels.length)
+      throw new Error("Multi-part sub-event labels must be unique")
+  }
   const prescription = crossFitPrescription(source.markdown)
   const lower = prescription.toLowerCase()
   const loadSets = prescription.match(
     /^[^\n\d]+(\d+(?:-\d+)+) reps\s*(?:\n|$)/i,
   )
   if (loadSets && /Post loads to comments\.?/i.test(prescription)) {
-    const loads = result.components.filter(
-      (component) => component.scheme === "load",
-    )
+    const loads = scores.filter((component) => component.scheme === "load")
     if (
       loads.length !== 1 ||
       loads[0].roundsToScore !== loadSets[1].split("-").length
@@ -192,7 +210,7 @@ export function validateCrossFitConversion(
       )
     const requested = requestedScoreSchemes(prescription)
     const actual = new Set<string>(
-      result.components.map((component) =>
+      scores.map((component) =>
         component.scheme === "time-with-cap" ? "time" : component.scheme,
       ),
     )
@@ -205,7 +223,7 @@ export function validateCrossFitConversion(
           "Additional components require an explicit source scoring instruction",
         )
   }
-  for (const component of result.components) {
+  for (const component of scores) {
     if (!lower.includes(component.evidence.toLowerCase()))
       throw new Error("Scoring evidence is not in the source prescription")
     const evidencePatterns = {
@@ -277,7 +295,7 @@ export function validateCrossFitConversion(
   }
   const required = requestedScoreSchemes(prescription)
   const actual = new Set<string>(
-    result.components.map((component) =>
+    scores.map((component) =>
       component.scheme === "time-with-cap" ? "time" : component.scheme,
     ),
   )

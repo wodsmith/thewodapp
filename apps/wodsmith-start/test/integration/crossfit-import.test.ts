@@ -16,7 +16,8 @@ let admin: Pool
 let pool: Pool
 let db: WodsmithDb
 const tables = [programmingTracksTable, trackWorkoutsTable, workouts]
-const conversion = { kind: "workout", components: [{ scheme: "time", scoreType: "min", evidence: "for time", timeCap: null, roundsToScore: 1 }] }
+const timeScore = { scheme: "time", scoreType: "min", evidence: "for time", timeCap: null, roundsToScore: 1 }
+const conversion = { kind: "workout", structure: "single", score: timeScore }
 
 async function source(date = "2026-09-05", markdown = "For time: 100 air squats. Post time to comments.") {
   return parseCrossFitResponse({ wods: { id: `w${date.replaceAll("-", "")}`, cleanID: date.replaceAll("-", ""), url: `/${date.replaceAll("-", "").slice(2)}`, language: "en", publishingState: "published", wodRaw: markdown, modified: "2026-09-04T23:55:00Z" } }, date)
@@ -74,14 +75,18 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
       snapshot,
       {
         kind: "workout",
-        components: [
-          ...conversion.components,
+        structure: "multi-part",
+        subEvents: [
+          { label: "Part A", score: timeScore },
           {
-            scheme: "load",
-            scoreType: "max",
-            evidence: "heavy single",
-            timeCap: null,
-            roundsToScore: 1,
+            label: "Part B",
+            score: {
+              scheme: "load",
+              scoreType: "max",
+              evidence: "heavy single",
+              timeCap: null,
+              roundsToScore: 1,
+            },
           },
         ],
       },
@@ -115,8 +120,8 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
     const snapshot = await source("2026-09-06", "**Rest Day**")
     await beginCrossFitImport(db, snapshot.date, "rest")
     await snapshotCrossFitImport(db, snapshot)
-    await publishCrossFitImport(db, snapshot, { kind: "rest", components: [] }, null)
-    await publishCrossFitImport(db, snapshot, { kind: "rest", components: [] }, null)
+    await publishCrossFitImport(db, snapshot, { kind: "rest" }, null)
+    await publishCrossFitImport(db, snapshot, { kind: "rest" }, null)
     expect(await db.select().from(workouts)).toHaveLength(0)
     expect(await getPublishedCrossFitDays(db, CROSSFIT_TRACK_ID)).toMatchObject([{ date: snapshot.date, kind: "rest", workouts: [] }])
   })
@@ -126,7 +131,7 @@ describe.skipIf(!mysqlTestConfig)("CrossFit atomic publication on MySQL", () => 
     await beginCrossFitImport(db, snapshot.date, "composite")
     await snapshotCrossFitImport(db, snapshot)
     await db.insert(workouts).values({ id: "cf-2026-09-04-2", name: "Existing collision", description: "Keep", scheme: "load" })
-    await expect(publishCrossFitImport(db, snapshot, { kind: "workout", components: [...conversion.components, { scheme: "load", scoreType: "max", evidence: "heavy single", timeCap: null, roundsToScore: 1 }] }, null)).rejects.toThrow()
+    await expect(publishCrossFitImport(db, snapshot, { kind: "workout", structure: "multi-part", subEvents: [{ label: "Part A", score: timeScore }, { label: "Part B", score: { scheme: "load", scoreType: "max", evidence: "heavy single", timeCap: null, roundsToScore: 1 } }] }, null)).rejects.toThrow()
     expect(await db.select().from(trackWorkoutsTable)).toHaveLength(0)
     expect(await db.select().from(items)).toHaveLength(0)
     expect(await db.select().from(workouts)).toHaveLength(1)

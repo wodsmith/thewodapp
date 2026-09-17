@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import {
   crossFitConversionSchema,
   crossFitPrescription,
+  crossFitScoredEvents,
 } from "@/lib/crossfit/conversion"
 import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
 import { crossFitScheduledDate, sourceDateSchema } from "@/lib/crossfit/source"
@@ -239,13 +240,15 @@ export function CrossFitImportAdmin({
             <p className="whitespace-pre-wrap">
               {crossFitPrescription(preview.source.markdown)}
             </p>
-            {preview.normalized.components.map((component, index) => (
+            {crossFitScoredEvents(preview.normalized).map((event, index) => (
               <div
-                key={`${component.scheme}-${index}`}
+                key={`${event.score.scheme}-${index}`}
                 className="space-y-2 border-t py-4"
               >
-                <h4 className="font-semibold">{`Score ${index + 1}`}</h4>
-                <p>{workoutScoring(component)}</p>
+                <h4 className="font-semibold">
+                  {event.label ?? `Score ${index + 1}`}
+                </h4>
+                <p>{workoutScoring(event.score)}</p>
               </div>
             ))}
             <p className="text-sm text-muted-foreground">

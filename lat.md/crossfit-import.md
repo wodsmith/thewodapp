@@ -16,9 +16,11 @@ Requests have a 30-second timeout, disallow redirects, and stream at most 256 KB
 
 ## Scoring Conversion
 
-Explicit rest days and narrow timed, rep-count, or load-set prescriptions convert deterministically. Other formats use TypeSafe choices followed by source-based validation.
+Explicit rest days convert deterministically. Every workout asks TypeSafe whether the prescription is single-part or multi-part; narrow timed, rep-count, and load-set scores still come from deterministic extraction.
 
-The converter cannot choose track IDs or publish. Explicit score requests are deterministic requirements. TypeSafe classifies time, rounds-reps, reps, load, calories, and distance for other formats with one binary question per category. Each question evaluates only its category; a combined instruction such as “Post time and load” counts for both named scores and none of the unnamed categories. A TypeSafe probability of at least 0.65 records a category when exact local evidence also exists. A source-backed probability between 0.35 and 0.65 stays private for review; a probability at or below 0.35 may be omitted. TypeSafe never supplies evidence, caps, score counts, or aggregation. Those values are extracted from the prescription and checked locally, so clock and transition durations cannot become invented caps. Timed components minimize time. Score counts require explicit source requests, with one score by default and a score per prescribed load set. Non-timed scores reject minimum aggregation; sums and averages require explicit scoring instructions. A source requesting time and load requires both components. Scaling remains in the preserved description rather than creating new levels. `TYPESAFE_API_KEY` is an encrypted Worker secret supplied locally through `.dev.vars` and in deployments through GitHub Actions.
+The converter cannot choose track IDs or publish. Explicit score requests are deterministic requirements. TypeSafe separately classifies structure plus time, rounds-reps, reps, load, calories, and distance with atomic binary questions. A structure probability of at least 0.65 creates a parent with scored sub-events; at or below 0.35 creates a standalone event; the middle band stays private for review. Multiple measurements from one indivisible effort do not imply multiple parts. Because one canonical workout currently has one scoring scheme, a single-part prescription requiring multiple scores also stays private rather than inventing sub-events or dropping data.
+
+Each scoring question evaluates only its category; a combined instruction such as “Post time and load” counts for both named scores and none of the unnamed categories. A TypeSafe probability of at least 0.65 records a category when exact local evidence also exists. A source-backed probability between 0.35 and 0.65 stays private for review; a probability at or below 0.35 may be omitted. TypeSafe never supplies evidence, caps, score counts, aggregation, or sub-event labels. Those values are extracted from the prescription and checked locally, so clock and transition durations cannot become invented caps. Explicit part headings become sub-event labels; otherwise labels come from the verified score scheme. Timed scores minimize time. Score counts require explicit source requests, with one score by default and a score per prescribed load set. Non-timed scores reject minimum aggregation; sums and averages require explicit scoring instructions. A source requesting time and load requires both scores. Dry runs include the model probabilities and final selections for review. Scaling remains in the preserved description rather than creating new levels. `TYPESAFE_API_KEY` is an encrypted Worker secret supplied locally through `.dev.vars` and in deployments through GitHub Actions.
 
 ## Durable Execution
 
@@ -32,7 +34,7 @@ Two additive MySQL tables store one source-date import and its scoreable items. 
 
 The unique provider/track/date constraint and deterministic identities protect retries after commit. The publisher verifies `ptrk_crossfit_dotcom` remains public, third-party, owned by its configured team, and unrelated to a competition. Manual additions verify the workout exists and allocate order under the same track lock; caller-supplied CrossFit order is rejected. All track edits, visibility changes, removals, and deletions require site administration. Published editorial changes remain intact on replay.
 
-Rest imports contain zero scoreable items. Single-score days publish as standalone workouts. Multi-score days use the same hierarchy as Compete: one unscored parent at the day's integer track position and one independently scored child per component at decimal positions beneath it. Only scored children are import items, so the dated feed does not expose the grouping parent as a score action. Pending and failed imports have no public workout rows; competition-oriented `eventStatus` cannot hide an uncertain import from existing library readers. Apply the additive migration before deploying code that reads the import tables. Production schema changes use the existing PlanetScale deploy-request process.
+Rest imports contain zero scoreable items. TypeSafe-confirmed single-part days publish as one standalone workout and never receive sub-events. TypeSafe-confirmed multi-part days use the same hierarchy as Compete: one unscored parent at the day's integer track position and one independently scored child per normalized sub-event at decimal positions beneath it. The publisher switches on the explicit normalized structure and never infers hierarchy from the number of scores. Only scored children are import items, so the dated feed does not expose the grouping parent as a score action. Pending and failed imports have no public workout rows; competition-oriented `eventStatus` cannot hide an uncertain import from existing library readers. Apply the additive migration before deploying code that reads the import tables. Production schema changes use the existing PlanetScale deploy-request process.
 
 ## Dated Track Feed
 
@@ -60,7 +62,7 @@ Schedule date derivation remains fixed at UTC−8 across daylight-saving changes
 
 ### Rest and simple timed workouts
 
-Explicit rest, timed and rep-count instructions, and load sets convert without inference while preserving scaling. Load-set scores retain every prescribed set; an ordinary workout cannot be reclassified as rest.
+Explicit rest converts without inference. Timed, rep-count, and load-set scoring remains deterministic while TypeSafe decides workout structure; scaling is preserved and an ordinary workout cannot be reclassified as rest.
 
 ### Composite scores and caps
 
@@ -80,11 +82,15 @@ Historical transition-time and fixed-clock rep formats produce source-backed com
 
 ### Combined TypeSafe evidence
 
-Combined load-and-time evidence is valid for both score components, including when the source phrases load before time.
+Combined load-and-time evidence is valid for both score candidates, including when the source phrases load before time. A single-part result stays in review instead of manufacturing sub-events.
 
 ### Explicit TypeSafe caps
 
 TypeSafe-backed time scoring becomes capped only when the prescription contains an explicit time-cap duration that local extraction can verify.
+
+### Multi-part structure confidence
+
+Uncertain structure and multi-part prescriptions without at least two supported scores remain private for review instead of producing incomplete or invented sub-events.
 
 ### Atomic replay and concurrency
 
@@ -92,7 +98,7 @@ Concurrent publication and retry after commit create exactly one set of workout 
 
 ### Composite parent and sub-events
 
-A multi-score day publishes one unscored parent event and independently scored child events with decimal ordering, while the dated feed returns only the scored children.
+A TypeSafe-confirmed multi-part day publishes one unscored parent event and independently scored child events with decimal ordering, while a single-part day never creates a parent or children.
 
 ### Rest publication
 

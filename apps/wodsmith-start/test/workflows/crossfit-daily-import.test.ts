@@ -22,7 +22,7 @@ function step() {
 }
 const event = (mode: "publish" | "dry-run" = "publish") => ({ payload: { sourceDate: "2026-09-06", mode }, timestamp: new Date(), instanceId: "crossfit-2026-09-06" })
 const snapshot = { date: "2026-09-06", markdown: "**Rest Day**", hash: "a", sourceId: "w20260906", modified: "now", url: "https://www.crossfit.com/260906" }
-const normalized = { kind: "rest", components: [] }
+const normalized = { kind: "rest" }
 
 beforeEach(() => {
   mocks.begin.mockResolvedValue({ id: "cf-import-2026-09-06", status: "pending" })

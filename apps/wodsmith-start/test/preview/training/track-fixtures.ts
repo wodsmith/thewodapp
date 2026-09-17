@@ -179,23 +179,30 @@ export async function getCrossFitRunStatusFn() {
             },
             normalized:
               source?.kind === "rest"
-                ? { kind: "rest", components: [] }
+                ? { kind: "rest" }
                 : {
                     kind: "workout",
-                    components: [
+                    structure: "multi-part",
+                    subEvents: [
                       {
-                        scheme: "time-with-cap",
-                        scoreType: "min",
-                        timeCap: 180,
-                        roundsToScore: 1,
-                        evidence: "For time",
+                        label: "Part A",
+                        score: {
+                          scheme: "time-with-cap",
+                          scoreType: "min",
+                          timeCap: 180,
+                          roundsToScore: 1,
+                          evidence: "For time",
+                        },
                       },
                       {
-                        scheme: "load",
-                        scoreType: "max",
-                        timeCap: null,
-                        roundsToScore: 3,
-                        evidence: "3 sets",
+                        label: "Part B",
+                        score: {
+                          scheme: "load",
+                          scoreType: "max",
+                          timeCap: null,
+                          roundsToScore: 3,
+                          evidence: "3 sets",
+                        },
                       },
                     ],
                   },

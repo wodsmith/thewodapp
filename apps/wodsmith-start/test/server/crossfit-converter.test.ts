@@ -31,18 +31,22 @@ function payload(markdown: string) {
 function typeSafeResponse(
   recorded: ReadonlyArray<(typeof schemes)[number]>,
   recordedProbability = 0.95,
+  multiPartProbability = 0.05,
 ) {
   return {
     model: CROSSFIT_MODEL,
-    answers: Object.fromEntries(
-      schemes.map((scheme) => [
-        scheme,
-        {
-          type: "noul",
-          noul: recorded.includes(scheme) ? recordedProbability : 0.05,
-        },
-      ]),
-    ),
+    answers: {
+      multi_part: { type: "noul", noul: multiPartProbability },
+      ...Object.fromEntries(
+        schemes.map((scheme) => [
+          scheme,
+          {
+            type: "noul",
+            noul: recorded.includes(scheme) ? recordedProbability : 0.05,
+          },
+        ]),
+      ),
+    },
     usage: { input_tokens: 100, output_tokens: 20 },
   }
 }
@@ -50,12 +54,15 @@ function typeSafeResponse(
 function typeSafeFetch(
   recorded: ReadonlyArray<(typeof schemes)[number]>,
   recordedProbability = 0.95,
+  multiPartProbability = 0.05,
 ) {
   return vi
     .fn<typeof fetch>()
     .mockResolvedValue(
       new Response(
-        JSON.stringify(typeSafeResponse(recorded, recordedProbability)),
+        JSON.stringify(
+          typeSafeResponse(recorded, recordedProbability, multiPartProbability),
+        ),
       ),
     )
 }
@@ -66,19 +73,22 @@ async function source(markdown: string) {
 
 describe("TypeSafe CrossFit conversion", () => {
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#TypeSafe confidence and evidence]]
-  it("keeps deterministic formats off the API and gates inferred choices by confidence", async () => {
+  it("asks TypeSafe for structure while keeping deterministic scores local", async () => {
     const deterministic = await source(
       "5 rounds for time of:\n20 squats\n\nPost time to comments.",
     )
-    const unused = typeSafeFetch([])
+    const fetcher = typeSafeFetch([])
     await expect(
       convertCrossFitSource(
         deterministic,
         { TYPESAFE_API_KEY: "test-key" },
-        unused,
+        fetcher,
       ),
-    ).resolves.toMatchObject({ model: null, tokens: 0 })
-    expect(unused).not.toHaveBeenCalled()
+    ).resolves.toMatchObject({
+      model: CROSSFIT_MODEL,
+      normalized: { kind: "workout", structure: "single" },
+    })
+    expect(fetcher).toHaveBeenCalledOnce()
 
     const inferred = await source("Build to a challenging power clean.")
     await expect(
@@ -108,7 +118,7 @@ describe("TypeSafe CrossFit conversion", () => {
     const workout = await source(
       "Part A\nOn a 15-minute clock, for time:\n10 shuttle runs\n15 clean and jerks\n\nPart B\nAt 15 minutes, on a 3-minute clock:\nBuild to a 1-rep-max clean and jerk\n\nPost time and heaviest lift to comments.",
     )
-    const fetcher = typeSafeFetch(["time", "load"])
+    const fetcher = typeSafeFetch(["time", "load"], 0.95, 0.95)
     const result = await convertCrossFitSource(
       workout,
       { TYPESAFE_API_KEY: "test-key" },
@@ -116,22 +126,36 @@ describe("TypeSafe CrossFit conversion", () => {
     )
 
     expect(result).toMatchObject({ model: CROSSFIT_MODEL, tokens: 120 })
-    expect(result.normalized.components).toEqual([
-      {
-        scheme: "time",
-        scoreType: "min",
-        evidence: "for time",
-        timeCap: null,
-        roundsToScore: 1,
-      },
-      {
-        scheme: "load",
-        scoreType: "max",
-        evidence: "Post time and heaviest lift to comments",
-        timeCap: null,
-        roundsToScore: 1,
-      },
-    ])
+    expect(result.normalized).toEqual({
+      kind: "workout",
+      structure: "multi-part",
+      subEvents: [
+        {
+          label: "Part A",
+          score: {
+            scheme: "time",
+            scoreType: "min",
+            evidence: "for time",
+            timeCap: null,
+            roundsToScore: 1,
+          },
+        },
+        {
+          label: "Part B",
+          score: {
+            scheme: "load",
+            scoreType: "max",
+            evidence: "Post time and heaviest lift to comments",
+            timeCap: null,
+            roundsToScore: 1,
+          },
+        },
+      ],
+    })
+    expect(result.decisions.multiPart).toEqual({
+      probability: 0.95,
+      selected: true,
+    })
     const [, init] = fetcher.mock.calls[0]
     expect(new Headers(init?.headers).get("authorization")).toBe(
       "Bearer test-key",
@@ -141,6 +165,12 @@ describe("TypeSafe CrossFit conversion", () => {
       model: CROSSFIT_MODEL,
       state: { prescription: expect.not.stringContaining("Scaling") },
       questions: {
+        multi_part: {
+          type: "noul",
+          criteria: {
+            false: expect.stringContaining("indivisible effort"),
+          },
+        },
         time: {
           type: "noul",
           instructions: expect.stringContaining(
@@ -169,7 +199,9 @@ describe("TypeSafe CrossFit conversion", () => {
       "Complete as many reps as possible in 8 minutes of:\n25 pull-ups\nMax bar muscle-ups\n\nPost reps to comments.",
     )
     const response = typeSafeResponse(["reps"])
-    response.answers["rounds-reps"].noul = 0.6
+    ;(
+      response.answers as Record<string, { type: string; noul: number }>
+    )["rounds-reps"].noul = 0.6
     const lowConfidenceOmission = vi
       .fn<typeof fetch>()
       .mockResolvedValue(new Response(JSON.stringify(response)))
@@ -180,12 +212,15 @@ describe("TypeSafe CrossFit conversion", () => {
         lowConfidenceOmission,
       ),
     ).resolves.toMatchObject({
-      normalized: { components: [{ scheme: "reps", scoreType: "max" }] },
+      normalized: {
+        structure: "single",
+        score: { scheme: "reps", scoreType: "max" },
+      },
     })
   })
 
   // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Combined TypeSafe evidence]]
-  it("accepts combined load-and-time evidence", async () => {
+  it("does not invent sub-events when TypeSafe says one effort is single-part", async () => {
     const combined = await source(
       "For load and time:\nComplete 5 heavy cleans, then run 400 meters.\nPost time and load to comments.",
     )
@@ -195,11 +230,20 @@ describe("TypeSafe CrossFit conversion", () => {
         { TYPESAFE_API_KEY: "test-key" },
         typeSafeFetch(["time", "load"]),
       ),
+    ).rejects.toThrow("single-part")
+
+    await expect(
+      convertCrossFitSource(
+        combined,
+        { TYPESAFE_API_KEY: "test-key" },
+        typeSafeFetch(["time", "load"], 0.95, 0.95),
+      ),
     ).resolves.toMatchObject({
       normalized: {
-        components: [
-          { scheme: "time", timeCap: null },
-          { scheme: "load", timeCap: null },
+        structure: "multi-part",
+        subEvents: [
+          { label: "Time", score: { scheme: "time" } },
+          { label: "Load", score: { scheme: "load" } },
         ],
       },
     })
@@ -218,14 +262,38 @@ describe("TypeSafe CrossFit conversion", () => {
       ),
     ).resolves.toMatchObject({
       normalized: {
-        components: [
-          {
-            scheme: "time-with-cap",
-            evidence: "Time cap: 10 minutes",
-            timeCap: 600,
-          },
-        ],
+        structure: "single",
+        score: {
+          scheme: "time-with-cap",
+          evidence: "Time cap: 10 minutes",
+          timeCap: 600,
+        },
       },
     })
+  })
+
+  // @lat: [[crossfit-import#CrossFit Daily Import#Tests#Multi-part structure confidence]]
+  it("holds uncertain or unsupported multi-part decisions for review", async () => {
+    const workout = await source(
+      "Part A\nFor time: 20 squats.\n\nPart B\nBuild to a heavy single. Post time and load to comments.",
+    )
+    await expect(
+      convertCrossFitSource(
+        workout,
+        { TYPESAFE_API_KEY: "test-key" },
+        typeSafeFetch(["time", "load"], 0.95, 0.5),
+      ),
+    ).rejects.toThrow("multi-part probability")
+
+    const oneScore = await source(
+      "Part A\nFor time: 20 squats.\n\nPart B\nRest. Post time to comments.",
+    )
+    await expect(
+      convertCrossFitSource(
+        oneScore,
+        { TYPESAFE_API_KEY: "test-key" },
+        typeSafeFetch(["time"], 0.95, 0.95),
+      ),
+    ).rejects.toThrow("two independently scoreable sub-events")
   })
 })
