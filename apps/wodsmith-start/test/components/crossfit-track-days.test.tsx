@@ -83,6 +83,14 @@ describe("CrossFit dated track feed", () => {
         .getAllByRole("link", { name: "View workout" })
         .map((link) => link.getAttribute("href")),
     ).toEqual(["/workouts/time", "/workouts/load"])
+    expect(
+      screen.getByRole("heading", { name: "Scored sub-events" }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Record each part separately. They stay grouped under this day's workout.",
+      ),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Add all to my day" }))
     expect(add).toHaveBeenCalledWith(["time", "load"])
   })

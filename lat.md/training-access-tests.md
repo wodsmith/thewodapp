@@ -18,6 +18,10 @@ Known private workout IDs stay hidden from anonymous and unrelated users and fro
 
 Private track detail, contents and team lists require membership; public track reads filter private workout children while retaining public content.
 
+## Grouping containers are not scoreable
+
+Generic track reads retain parent/child structure. Libraries omit container-only workout identities, keep scored children, and retain an identity reused in a standalone or child occurrence.
+
 ## Track writes
 
 Track CRUD, visibility and membership reject outsiders and members without management permission, preserve owner changes, and reject foreign private workout associations.

@@ -50,6 +50,13 @@ export function TrackDetailView({
       day.workouts.map((workout) => workout.workoutId),
     ),
   )
+  const groupingParentWorkoutIds = new Set(
+    workouts
+      .filter((candidate) =>
+        workouts.some((child) => child.parentEventId === candidate.id),
+      )
+      .map((candidate) => candidate.workout.id),
+  )
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-8 space-y-8">
       <a
@@ -174,7 +181,11 @@ export function TrackDetailView({
         </summary>
         <ul className="divide-y">
           {workouts
-            .filter((item) => !imported.has(item.workout.id))
+            .filter(
+              (item) =>
+                !imported.has(item.workout.id) &&
+                !groupingParentWorkoutIds.has(item.workout.id),
+            )
             .map((item) => (
               <li key={item.id} className="py-4">
                 <a

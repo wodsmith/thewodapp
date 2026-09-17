@@ -224,6 +224,8 @@ Programming tracks organize workouts into scheduled sequences for gym members.
 
 Tracks (`programmingTracksTable`) can be self-programmed, team-owned, or official third-party. Track workouts (`trackWorkoutsTable`) schedule specific workouts on specific dates within a track. Tracks can optionally be linked to a competition.
 
+Track workouts may form a parent/sub-event hierarchy outside competitions. The parent groups a programmed day and is not scored; ordered children carry the independent workout definitions and score actions.
+
 ## Scaling
 
 Scaling groups define difficulty levels for workouts (e.g., RX, Scaled, Foundations).

@@ -11,6 +11,8 @@ import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface TrackWorkoutRowProps {
   canManage?: boolean
+  childCount?: number
+  isSubEvent?: boolean
   trackWorkout: TrackWorkoutWithDetails
   onRemoved?: () => void
 }
@@ -19,6 +21,8 @@ export function TrackWorkoutRow({
   trackWorkout,
   onRemoved,
   canManage = false,
+  childCount = 0,
+  isSubEvent = false,
 }: TrackWorkoutRowProps) {
   const handleRemove = async () => {
     if (
@@ -50,18 +54,29 @@ export function TrackWorkoutRow({
             </div>
             <div className="flex-1">
               <CardTitle className="text-base font-mono tracking-tight mb-1">
-                <Link
-                  to="/workouts/$workoutId"
-                  params={{ workoutId: trackWorkout.workout.id }}
-                  className="hover:text-primary transition-colors"
-                >
-                  {trackWorkout.workout.name}
-                </Link>
+                {childCount > 0 ? (
+                  trackWorkout.workout.name
+                ) : (
+                  <Link
+                    to="/workouts/$workoutId"
+                    params={{ workoutId: trackWorkout.workout.id }}
+                    className="hover:text-primary transition-colors"
+                  >
+                    {trackWorkout.workout.name}
+                  </Link>
+                )}
               </CardTitle>
               <div className="flex gap-2 items-center">
                 <Badge variant="secondary" className="font-mono text-xs">
-                  {trackWorkout.workout.scheme}
+                  {childCount > 0
+                    ? `${childCount} scored sub-event${childCount === 1 ? "" : "s"}`
+                    : trackWorkout.workout.scheme}
                 </Badge>
+                {isSubEvent && (
+                  <Badge variant="outline" className="font-mono text-xs">
+                    Sub-event
+                  </Badge>
+                )}
               </div>
             </div>
           </div>

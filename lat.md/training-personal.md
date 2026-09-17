@@ -205,6 +205,8 @@ Optional provenance contains the published import ID, source track ID/name, sour
 
 Multiple components remain ordered, with independent full score metadata, caps, round counts, and aggregation. Capacity and optimistic revision checks reject the entire composition rather than adding a subset. Historical result snapshots retain the same provenance after removal from a session.
 
+Items from the same provider import occurrence display under one source label as scored sub-events. Each child retains its own score action and result identity.
+
 ## Track and Personal Surfaces
 
 Training opens the selected track in performance mode. My session is a separate optional composition; switching tracks never substitutes private items for another track's programming or saves a default.

@@ -97,6 +97,9 @@ it("previews all score components in their source order", () => {
   expect(
     screen.getByRole("heading", { name: "Long timed component" }),
   ).toBeInTheDocument()
+  expect(
+    screen.getByRole("heading", { name: "Scored sub-events" }),
+  ).toBeInTheDocument()
   expect(screen.queryByText("Hidden scaling")).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole("button", { name: "Add all to my day" }))
   expect(add).toHaveBeenCalledWith(["time", "load"])
@@ -131,11 +134,32 @@ it("keeps admin controls outside the ordinary reader and legacy library collapse
     workouts: [
       {
         id: "old",
+        parentEventId: null,
         trackOrder: 5,
         workout: {
           id: "old",
           name: "**Chipper**",
           description: "Old prescription",
+        },
+      },
+      {
+        id: "group-parent",
+        parentEventId: null,
+        trackOrder: 6,
+        workout: {
+          id: "group-parent-workout",
+          name: "Grouped day",
+          description: "Container only",
+        },
+      },
+      {
+        id: "group-child",
+        parentEventId: "group-parent",
+        trackOrder: 6.01,
+        workout: {
+          id: "group-child-workout",
+          name: "Scored part",
+          description: "For time",
         },
       },
     ],
@@ -158,6 +182,12 @@ it("keeps admin controls outside the ordinary reader and legacy library collapse
   expect(
     screen.getByRole("link", { name: "Chipper", hidden: true }),
   ).toHaveAttribute("href", "/workouts/old")
+  expect(
+    screen.queryByRole("link", { name: "Grouped day", hidden: true }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole("link", { name: "Scored part", hidden: true }),
+  ).toHaveAttribute("href", "/workouts/group-child-workout")
   rerender(
     <TrackDetailView
       data={{ ...data, canManageImports: true }}

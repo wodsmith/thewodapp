@@ -804,6 +804,76 @@ it.each(["new", "existing", "scored"] as const)(
   },
 )
 
+it("keeps provider sub-events grouped in My session with independent score actions", async () => {
+  const provenance = {
+    importId: "crossfit-2026-09-07",
+    trackId: "compete",
+    trackName: "CrossFit.com",
+    sourceDate: session.trainingDate,
+    sourceUrl: "https://example.com/work",
+  }
+  const items = [
+    {
+      id: "part-a-item",
+      kind: "library" as const,
+      workoutId: "part-a",
+      workout: { name: "Part A", description: "For time", scheme: "time" },
+      provenance,
+      occurrence: {
+        trackId: provenance.trackId,
+        sourceDate: provenance.sourceDate,
+      },
+    },
+    {
+      id: "part-b-item",
+      kind: "library" as const,
+      workoutId: "part-b",
+      workout: { name: "Part B", description: "Heavy lift", scheme: "load" },
+      provenance,
+      occurrence: {
+        trackId: provenance.trackId,
+        sourceDate: provenance.sourceDate,
+      },
+    },
+  ]
+  vi.mocked(getPersonalTrainingDayFn).mockResolvedValue({
+    defaultTrackId: "everyday",
+    selectedTrackId: "compete",
+    sourceSession: null,
+    personalSession: {
+      id: "personal",
+      teamId: "gym",
+      trainingDate: session.trainingDate,
+      revision: 1,
+      compositionState: "customized",
+      items,
+    },
+    items,
+    results: [],
+    libraryResults: [],
+  })
+
+  render(
+    <AthletePersonalSession
+      team={context.teams[0]!}
+      trackId="compete"
+      date={session.trainingDate}
+      sourceResults={[]}
+      onSaved={vi.fn()}
+      surface="session"
+    />,
+  )
+
+  expect(
+    await screen.findByText(
+      /CrossFit\.com · Programmed .* · 2 scored sub-events/,
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByRole("heading", { name: "Part A" })).toBeInTheDocument()
+  expect(screen.getByRole("heading", { name: "Part B" })).toBeInTheDocument()
+  expect(screen.getAllByRole("link", { name: "Log score" })).toHaveLength(2)
+})
+
 function providerPreparationDay() {
   return {
     defaultTrackId: "everyday",
