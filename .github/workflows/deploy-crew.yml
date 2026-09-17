@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'apps/crew/**'
+      - 'packages/wodsmith-application/**'
       - 'packages/wodsmith-db/**'
       - '.github/workflows/deploy-crew.yml'
   workflow_dispatch:
@@ -54,6 +55,9 @@ jobs:
 
       - name: Type-check database package
         run: pnpm --filter @repo/wodsmith-db type-check
+
+      - name: Verify shared application package
+        run: pnpm --filter @repo/wodsmith-application test
 
       - name: Type-check Crew
         run: pnpm --filter crew type-check

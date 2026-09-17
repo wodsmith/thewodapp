@@ -120,6 +120,8 @@ Crew paid launch remains operator-led unless the Checkout flag is explicitly ena
 
 Route and client code import lightweight `createServerFn` wrappers from `apps/crew/src/server-fns`.
 
+Business operations shared with Start follow [[lat.md/shared-application-core#Shared Application Core]]; Crew retains transport and capability adapters while the package owns only reviewed common behavior.
+
 Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules under `apps/crew/src/server` and should be loaded inside the wrapper `handler()`.
 
 This prevents Vite client import analysis from walking through [[apps/crew/src/db/index.ts]] to `cloudflare:workers` while preserving stable server-function import paths.

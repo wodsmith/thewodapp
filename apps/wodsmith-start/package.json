@@ -82,6 +82,7 @@
     "@react-email/components": "0.0.32",
     "@react-email/render": "1.0.4",
     "@react-pdf/renderer": "^4.3.1",
+    "@repo/wodsmith-application": "workspace:*",
     "@repo/wodsmith-db": "workspace:*",
     "@repo/wodsmith-training": "workspace:*",
     "@sentry/cloudflare": "^10.39.0",
