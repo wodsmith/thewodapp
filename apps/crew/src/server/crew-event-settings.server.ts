@@ -1,5 +1,5 @@
 import { createId } from "@paralleldrive/cuid2"
-import { count, desc, eq, inArray, or } from "drizzle-orm"
+import { and, count, desc, eq, inArray, ne, or } from "drizzle-orm"
 import { getDb } from "../db"
 import {
   type Competition,
@@ -19,6 +19,10 @@ import {
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
 } from "../db/schemas/volunteers"
+import {
+  getCrewEventIdentityUpdate,
+  isCrewEventSlugCollisionError,
+} from "../lib/crew/event-slug"
 import type {
   CrewEventNavigationState,
   CrewViewerRole,
@@ -132,6 +136,7 @@ async function requireCrewEventCompetition(competitionId: string) {
     .select({
       organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
+      name: competitionsTable.name,
     })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
@@ -403,7 +408,9 @@ export async function createCrewEvent(
 export async function updateCrewEventSettings(
   data: UpdateCrewEventSettingsInput,
 ): Promise<{ event: CrewEventDetails }> {
-  await requireCrewEventCompetition(data.competitionId)
+  const currentCompetition = await requireCrewEventCompetition(
+    data.competitionId,
+  )
   const eventAccess = await requireCrewDepartmentLeadEventForSettings(
     data.competitionId,
   )
@@ -433,8 +440,9 @@ export async function updateCrewEventSettings(
   }
   if (data.settings !== undefined) updateData.settings = data.settings
 
-  const competitionUpdate: Partial<typeof competitionsTable.$inferInsert> = {}
-  if (data.name !== undefined) competitionUpdate.name = data.name
+  const competitionUpdate: Partial<typeof competitionsTable.$inferInsert> = {
+    ...getCrewEventIdentityUpdate(data.name, currentCompetition.name),
+  }
   if (data.startDate !== undefined) competitionUpdate.startDate = data.startDate
   if (data.endDate !== undefined) competitionUpdate.endDate = data.endDate
   if (data.timezone !== undefined) competitionUpdate.timezone = data.timezone
@@ -448,16 +456,47 @@ export async function updateCrewEventSettings(
   }
 
   const db = getDb()
-  await db
-    .update(crewEventSettingsTable)
-    .set(updateData)
-    .where(eq(crewEventSettingsTable.competitionId, data.competitionId))
+  try {
+    await db.transaction(async (tx) => {
+      if (competitionUpdate.slug !== undefined) {
+        const [slugOwner] = await tx
+          .select({ id: competitionsTable.id })
+          .from(competitionsTable)
+          .where(
+            and(
+              eq(competitionsTable.slug, competitionUpdate.slug),
+              ne(competitionsTable.id, data.competitionId),
+            ),
+          )
+          .limit(1)
+        if (slugOwner) {
+          throw new Error(
+            "Another event already uses this URL name. Choose a different event name.",
+          )
+        }
+      }
+      await tx
+        .update(crewEventSettingsTable)
+        .set(updateData)
+        .where(eq(crewEventSettingsTable.competitionId, data.competitionId))
 
-  if (Object.keys(competitionUpdate).length > 0) {
-    await db
-      .update(competitionsTable)
-      .set(competitionUpdate)
-      .where(eq(competitionsTable.id, data.competitionId))
+      if (Object.keys(competitionUpdate).length > 0) {
+        await tx
+          .update(competitionsTable)
+          .set(competitionUpdate)
+          .where(eq(competitionsTable.id, data.competitionId))
+      }
+    })
+  } catch (error) {
+    if (
+      competitionUpdate.slug !== undefined &&
+      isCrewEventSlugCollisionError(error)
+    ) {
+      throw new Error(
+        "Another event already uses this URL name. Choose a different event name.",
+      )
+    }
+    throw error
   }
 
   const event = await getCrewEventByCompetitionId(data.competitionId)
