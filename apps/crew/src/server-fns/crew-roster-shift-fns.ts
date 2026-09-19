@@ -2,11 +2,12 @@
 // @lat: [[crew#Server Function Runtime Boundary]]
 // @lat: [[crew#Manual Volunteer Intake]]
 // @lat: [[crew#Roster Volunteer Editing]]
-import { createServerFn } from "@tanstack/react-start"
 import {
   VOLUNTEER_AVAILABILITY,
   VOLUNTEER_ROLE_TYPE_VALUES,
+  VOLUNTEER_ROLE_TYPES,
 } from "@repo/wodsmith-db/schemas/volunteers"
+import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 
 export type {
@@ -30,7 +31,9 @@ const assigneeIdSchema = z
     "Invalid membership or invitation ID",
   )
 const rosterSourceSchema = z.enum(["team_invitation", "team_membership"])
-const rosterSourceIdSchema = z.string().min(1, "Roster volunteer ID is required")
+const rosterSourceIdSchema = z
+  .string()
+  .min(1, "Roster volunteer ID is required")
 const roleTypeSchema = z.enum(VOLUNTEER_ROLE_TYPE_VALUES)
 const availabilitySchema = z
   .enum([
@@ -50,7 +53,7 @@ const shiftTimeSchema = z
 const shiftInputSchema = z.object({
   eventId: eventIdSchema,
   name: z.string().trim().min(1, "Name is required").max(200),
-  roleType: roleTypeSchema,
+  roleType: roleTypeSchema.default(VOLUNTEER_ROLE_TYPES.GENERAL),
   date: shiftDateSchema,
   startTime: shiftTimeSchema,
   endTime: shiftTimeSchema,
@@ -137,36 +140,35 @@ const manualVolunteerPasteInputSchema = z.object({
   pasteText: z.string().trim().min(1, "Paste at least one email").max(50000),
 })
 
-const updateRosterVolunteerInputSchema =
-  manualVolunteerMetadataObject
-    .extend({
-      source: rosterSourceSchema,
-      sourceId: rosterSourceIdSchema,
-      credentials: z.string().trim().max(1000).optional(),
-    })
-    .superRefine((data, ctx) => {
-      requireNameOrEmail(data, ctx)
-      if (
-        data.source === "team_invitation" &&
-        !data.sourceId.startsWith("tinv_")
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["sourceId"],
-          message: "Invalid invitation roster ID",
-        })
-      }
-      if (
-        data.source === "team_membership" &&
-        !data.sourceId.startsWith("tmem_")
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["sourceId"],
-          message: "Invalid membership roster ID",
-        })
-      }
-    })
+const updateRosterVolunteerInputSchema = manualVolunteerMetadataObject
+  .extend({
+    source: rosterSourceSchema,
+    sourceId: rosterSourceIdSchema,
+    credentials: z.string().trim().max(1000).optional(),
+  })
+  .superRefine((data, ctx) => {
+    requireNameOrEmail(data, ctx)
+    if (
+      data.source === "team_invitation" &&
+      !data.sourceId.startsWith("tinv_")
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sourceId"],
+        message: "Invalid invitation roster ID",
+      })
+    }
+    if (
+      data.source === "team_membership" &&
+      !data.sourceId.startsWith("tmem_")
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sourceId"],
+        message: "Invalid membership roster ID",
+      })
+    }
+  })
 
 export const getCrewRosterPageFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => eventInputSchema.parse(data))

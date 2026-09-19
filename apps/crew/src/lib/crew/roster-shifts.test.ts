@@ -5,11 +5,13 @@ import {
   buildCrewRoster,
   buildCrewRosterVolunteerMetadataUpdate,
   findCrewRosterVolunteerEmailCollision,
+  formatCrewShiftRolePreference,
   getCrewRosterAssigneeId,
   getCrewRosterRoleTypes,
   isCrewRosterVolunteerStaffable,
   normalizeCrewShiftTimes,
   parseCrewRosterMetadata,
+  partitionVolunteersByShiftRole,
   shouldUpdateCrewRosterInvitationEmail,
   summarizeCrewRoster,
   validateShiftAssignment,
@@ -606,7 +608,7 @@ describe("Crew roster staffability", () => {
 })
 
 describe("Crew shift helpers", () => {
-  it("validates duplicate, capacity, role, and active assignment cases", () => {
+  it("validates duplicate, capacity, and active assignment cases without enforcing role tags", () => {
     expect(
       validateShiftAssignment({
         shiftRoleType: "medical",
@@ -657,7 +659,7 @@ describe("Crew shift helpers", () => {
           isActive: true,
         },
       }),
-    ).toMatchObject({ ok: false, reason: "role_mismatch" })
+    ).toEqual({ ok: true })
 
     expect(
       validateShiftAssignment({
@@ -671,6 +673,25 @@ describe("Crew shift helpers", () => {
         },
       }),
     ).toMatchObject({ ok: false, reason: "inactive_volunteer" })
+  })
+
+  it("prioritizes role matches while keeping every volunteer available", () => {
+    const volunteers = [
+      { id: "medical", roleTypes: ["medical" as const] },
+      { id: "judge", roleTypes: ["judge" as const] },
+      { id: "general", roleTypes: ["general" as const] },
+    ]
+
+    expect(partitionVolunteersByShiftRole("medical", volunteers)).toEqual({
+      recommended: [volunteers[0]],
+      other: [volunteers[1], volunteers[2]],
+    })
+    expect(partitionVolunteersByShiftRole("general", volunteers)).toEqual({
+      recommended: volunteers,
+      other: [],
+    })
+    expect(formatCrewShiftRolePreference("general")).toBe("No role preference")
+    expect(formatCrewShiftRolePreference("medical")).toBe("Medical")
   })
 
   it("normalizes shift date and time in the event timezone", () => {

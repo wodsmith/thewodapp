@@ -135,7 +135,7 @@ test("imports a volunteer registration export, grants pilot access, and publishe
     await page.getByRole("button", { name: "Add shift", exact: true }).click()
     const shiftDialog = page.getByRole("dialog", { name: "Add shift", exact: true })
     await shiftDialog.getByLabel("Shift Name", { exact: true }).fill("Morning judges")
-    await shiftDialog.getByRole("combobox", { name: "Role Type", exact: true }).click()
+    await shiftDialog.getByRole("combobox", { name: "Role type (optional)", exact: true }).click()
     await page.getByRole("option", { name: "Judge", exact: true }).click()
     await shiftDialog.getByLabel("Start time", { exact: true }).fill("08:00")
     await shiftDialog.getByLabel("End Time", { exact: true }).fill("12:00")

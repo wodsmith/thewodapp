@@ -131,7 +131,6 @@ export type ShiftAssignmentValidationResult =
         | "inactive_volunteer"
         | "duplicate"
         | "capacity"
-        | "role_mismatch"
       message: string
     }
 
@@ -462,16 +461,6 @@ export function validateShiftAssignment(
     }
   }
 
-  if (
-    !isVolunteerCompatibleWithShift(input.shiftRoleType, volunteer.roleTypes)
-  ) {
-    return {
-      ok: false,
-      reason: "role_mismatch",
-      message: `Volunteer is not tagged for ${formatVolunteerRole(input.shiftRoleType)}.`,
-    }
-  }
-
   return { ok: true }
 }
 
@@ -498,6 +487,37 @@ export function isVolunteerCompatibleWithShift(
     volunteerRoleTypes.includes(shiftRoleType) ||
     volunteerRoleTypes.includes(VOLUNTEER_ROLE_TYPES.GENERAL)
   )
+}
+
+/**
+ * Split assignable volunteers into a recommended role-matching group and a
+ * remaining group. General shifts have no role preference, so everyone is
+ * recommended and no secondary group is needed.
+ */
+export function partitionVolunteersByShiftRole<
+  T extends Pick<CrewRosterVolunteer, "roleTypes">,
+>(shiftRoleType: VolunteerRoleType, volunteers: T[]) {
+  if (shiftRoleType === VOLUNTEER_ROLE_TYPES.GENERAL) {
+    return { recommended: volunteers, other: [] as T[] }
+  }
+
+  const recommended: T[] = []
+  const other: T[] = []
+  for (const volunteer of volunteers) {
+    if (volunteer.roleTypes.includes(shiftRoleType)) {
+      recommended.push(volunteer)
+    } else {
+      other.push(volunteer)
+    }
+  }
+
+  return { recommended, other }
+}
+
+export function formatCrewShiftRolePreference(roleType: VolunteerRoleType) {
+  return roleType === VOLUNTEER_ROLE_TYPES.GENERAL
+    ? "No role preference"
+    : formatVolunteerRole(roleType)
 }
 
 export function normalizeCrewShiftTimes(
