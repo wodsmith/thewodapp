@@ -133,6 +133,7 @@ async function requireCrewEventCompetition(competitionId: string) {
     .select({
       organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
+      name: competitionsTable.name,
     })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
@@ -404,7 +405,9 @@ export async function createCrewEvent(
 export async function updateCrewEventSettings(
   data: UpdateCrewEventSettingsInput,
 ): Promise<{ event: CrewEventDetails }> {
-  await requireCrewEventCompetition(data.competitionId)
+  const currentCompetition = await requireCrewEventCompetition(
+    data.competitionId,
+  )
   const eventAccess = await requireCrewDepartmentLeadEventForSettings(
     data.competitionId,
   )
@@ -435,7 +438,7 @@ export async function updateCrewEventSettings(
   if (data.settings !== undefined) updateData.settings = data.settings
 
   const competitionUpdate: Partial<typeof competitionsTable.$inferInsert> = {
-    ...getCrewEventIdentityUpdate(data.name),
+    ...getCrewEventIdentityUpdate(data.name, currentCompetition.name),
   }
   if (data.startDate !== undefined) competitionUpdate.startDate = data.startDate
   if (data.endDate !== undefined) competitionUpdate.endDate = data.endDate
