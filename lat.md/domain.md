@@ -124,6 +124,16 @@ Round entry uses explicit CAP controls and reps completed. The parent secondary 
 
 The invariants are covered by [[tests/competition-results#Competition Result Commands]]. Legacy context-specific competition normalizers and persistence adapters were removed after production callers moved to the command boundary.
 
+### Authoritative score removal
+
+Competition score removal proves the full participation-event identity and owns all projection deletes in one transaction.
+
+[[packages/wodsmith-application/src/scores/remove-score.ts#handleRemoveCompetitionScore]] accepts one typed command using canonical identity IDs. [[packages/wodsmith-application/src/scores/remove-score.ts#decideScoreRemoval]] rejects mismatched competition, organization, event, athlete, or division facts before any mutation.
+
+The Start adapter at [[apps/wodsmith-start/src/application/scores/remove-competition-score.ts#removeCompetitionScore]] re-resolves the competition, event, and active registration inside the delete transaction. Participation belongs to either the registration owner or an active member of its athlete team; the proof retains the requested athlete so a teammate's own score is selected. Repeated membership join rows count as one participation when their registration IDs match; distinct registration IDs remain ambiguous. The adapter then deletes round projections before exact-scope score projections. Missing score rows remain idempotent. Duplicate legacy score rows in the same proven scope are removed together; ambiguous registrations are rejected rather than chosen by row order.
+
+Canonical score value types and validation live in [[packages/wodsmith-application/src/scores/canonical-score.ts#canonicalizeScore]]. They keep performance outcomes separate from review lifecycle and derive multi-round aggregates from validated round facts rather than accepting duplicate caller projections.
+
 ### Personal training logs
 
 Personal workout writes use a separate public domain boundary even though their persisted projection shares score tables with competitions.

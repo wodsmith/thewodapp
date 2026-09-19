@@ -42,3 +42,31 @@ Real MySQL tests verify score and round rollback after a later workflow failure,
 ## Organizer cap editing
 
 Organizer score entry reloads cap status and completed reps, saves changes after leaving the row, and distinguishes a finish exactly at the cap from an unfinished round.
+
+## Canonical score variants
+
+Canonical score values preserve the distinctions between completed, capped, quantity, pass/fail, and inactive outcomes without combining lifecycle state with performance data.
+
+## Derived multi-round aggregate
+
+Multi-round canonicalization derives aggregate values and capped-round counts from validated round facts for every supported aggregation policy.
+
+## Large averages retain exact rounding
+
+Average aggregation sums valid safe-integer rounds exactly and rounds fractional means upward at one-half without losing precision near the safe-integer limit.
+
+## Malformed canonical facts are rejected
+
+Malformed numeric values, discontinuous rounds, and contradictory cap metadata are rejected rather than silently repaired into authoritative values.
+
+## Removal identity proof
+
+Score removal refuses a proof whose competition, organization, event, athlete, or division differs from the requested command tuple.
+
+## Atomic score removal
+
+The removal command resolves one participation-event identity and deletes child round projections before all exact-scope parent projections inside one transaction.
+
+## Removal fault rollback
+
+A failure during either removal step returns a typed retryable storage error and leaves the pre-command projection intact through transaction rollback.

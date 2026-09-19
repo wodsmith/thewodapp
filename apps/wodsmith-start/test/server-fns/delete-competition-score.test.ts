@@ -7,7 +7,11 @@ import { requireTeamPermission } from "@/utils/team-auth"
 
 type QueryResult = unknown[]
 
-function createSelectChain(result: QueryResult, whereCalls: unknown[] = []) {
+function createSelectChain(
+  result: QueryResult,
+  whereCalls: unknown[] = [],
+  leftJoinCalls: unknown[][] = [],
+) {
   const chain: Record<string, ReturnType<typeof vi.fn>> & {
     then?: (
       resolve: (value: QueryResult) => void,
@@ -16,12 +20,17 @@ function createSelectChain(result: QueryResult, whereCalls: unknown[] = []) {
   } = {
     from: vi.fn(),
     innerJoin: vi.fn(),
+    leftJoin: vi.fn(),
     where: vi.fn(),
     limit: vi.fn(),
   }
 
   chain.from.mockReturnValue(chain)
   chain.innerJoin.mockReturnValue(chain)
+  chain.leftJoin.mockImplementation((...args: unknown[]) => {
+    leftJoinCalls.push(args)
+    return chain
+  })
   chain.where.mockImplementation((condition: unknown) => {
     whereCalls.push(condition)
     return chain
@@ -36,11 +45,16 @@ function createSelectChain(result: QueryResult, whereCalls: unknown[] = []) {
 function createDbMock(selectResults: QueryResult[]) {
   const pendingResults = [...selectResults]
   const deleteCalls: unknown[] = []
+  const txSelectLeftJoinCalls: unknown[][] = []
   const txSelectWhereCalls: unknown[] = []
   const deleteWhere = vi.fn().mockResolvedValue(undefined)
   const tx = {
     select: vi.fn(() =>
-      createSelectChain(pendingResults.shift() ?? [], txSelectWhereCalls),
+      createSelectChain(
+        pendingResults.shift() ?? [],
+        txSelectWhereCalls,
+        txSelectLeftJoinCalls,
+      ),
     ),
     delete: vi.fn((table: unknown) => {
       deleteCalls.push(table)
@@ -55,11 +69,40 @@ function createDbMock(selectResults: QueryResult[]) {
     ),
   }
 
-  return { db, deleteCalls, deleteWhere, tx, txSelectWhereCalls }
+  return {
+    db,
+    deleteCalls,
+    deleteWhere,
+    tx,
+    txSelectLeftJoinCalls,
+    txSelectWhereCalls,
+  }
 }
 
 function renderCondition(condition: unknown) {
   return new MySqlDialect().sqlToQuery(condition as SQL)
+}
+
+function successfulRemovalResults(input: {
+  divisionId: string | null
+  scoreRows: QueryResult
+  userId?: string
+}) {
+  return [
+    [{ organizingTeamId: "team-1" }],
+    [{ id: "tw-1" }],
+    [{ id: "comp-1", organizingTeamId: "team-1" }],
+    [{ id: "tw-1", competitionId: "comp-1" }],
+    [
+      {
+        id: "registration-1",
+        competitionId: "comp-1",
+        athleteId: input.userId ?? "user-1",
+        divisionId: input.divisionId,
+      },
+    ],
+    input.scoreRows,
+  ]
 }
 
 let mockDb: ReturnType<typeof createDbMock>["db"]
@@ -110,11 +153,12 @@ describe("deleteCompetitionScoreFn", () => {
       deleteWhere,
       tx,
       txSelectWhereCalls,
-    } = createDbMock([
-      [{ organizingTeamId: "team-1" }],
-      [{ id: "tw-1" }],
-      [{ id: "score-1" }],
-    ])
+    } = createDbMock(
+      successfulRemovalResults({
+        divisionId: "division-1",
+        scoreRows: [{ id: "score-1" }],
+      }),
+    )
     mockDb = db
 
     const result = await deleteCompetitionScoreFn({
@@ -134,8 +178,20 @@ describe("deleteCompetitionScoreFn", () => {
     )
     expect(tx.delete).toHaveBeenCalledTimes(2)
     expect(deleteCalls).toEqual([scoreRoundsTable, scoresTable])
-    expect(txSelectWhereCalls).toHaveLength(1)
-    const selectionWhere = renderCondition(txSelectWhereCalls[0])
+    expect(txSelectWhereCalls).toHaveLength(4)
+    expect(renderCondition(txSelectWhereCalls[0]).params).toEqual(["comp-1"])
+    expect(renderCondition(txSelectWhereCalls[1]).params).toEqual([
+      "tw-1",
+      "comp-1",
+    ])
+    expect(renderCondition(txSelectWhereCalls[2]).params).toEqual([
+      "comp-1",
+      "active",
+      "division-1",
+      "user-1",
+      "user-1",
+    ])
+    const selectionWhere = renderCondition(txSelectWhereCalls[3])
     expect(selectionWhere.sql).toContain("`scores`.`competitionEventId` = ?")
     expect(selectionWhere.sql).toContain("`scores`.`userId` = ?")
     expect(selectionWhere.sql).toContain("`scores`.`scalingLevelId` = ?")
@@ -149,6 +205,113 @@ describe("deleteCompetitionScoreFn", () => {
     expect(scoreDeleteWhere.sql).toBe("`scores`.`id` in (?)")
     expect(scoreDeleteWhere.params).toEqual(["score-1"])
   })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Deletes a non-captain team member score]]
+  it("deletes a score owned by an active non-captain team member", async () => {
+    const {
+      db,
+      deleteWhere,
+      txSelectLeftJoinCalls,
+      txSelectWhereCalls,
+    } = createDbMock(
+      successfulRemovalResults({
+        divisionId: "division-1",
+        scoreRows: [{ id: "member-score" }],
+        userId: "captain-user",
+      }),
+    )
+    mockDb = db
+
+    const result = await deleteCompetitionScoreFn({
+      data: {
+        organizingTeamId: "team-1",
+        competitionId: "comp-1",
+        trackWorkoutId: "tw-1",
+        userId: "member-user",
+        divisionId: "division-1",
+      },
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(txSelectLeftJoinCalls).toHaveLength(1)
+    const membershipJoin = renderCondition(txSelectLeftJoinCalls[0]?.[1])
+    expect(membershipJoin.sql).toContain(
+      "`team_memberships`.`teamId` = `competition_registrations`.`athleteTeamId`",
+    )
+    expect(membershipJoin.sql).toContain("`team_memberships`.`userId` = ?")
+    expect(membershipJoin.sql).toContain("`team_memberships`.`isActive` = ?")
+    expect(membershipJoin.params).toEqual(["member-user", true])
+
+    const participationWhere = renderCondition(txSelectWhereCalls[2])
+    expect(participationWhere.sql).toContain(
+      "`competition_registrations`.`userId` = ? or `team_memberships`.`userId` = ?",
+    )
+    expect(participationWhere.params).toEqual([
+      "comp-1",
+      "active",
+      "division-1",
+      "member-user",
+      "member-user",
+    ])
+    expect(renderCondition(txSelectWhereCalls[3]).params).toEqual([
+      "tw-1",
+      "member-user",
+      "division-1",
+    ])
+    expect(renderCondition(deleteWhere.mock.calls[0]?.[0]).params).toEqual([
+      "member-score",
+    ])
+    expect(renderCondition(deleteWhere.mock.calls[1]?.[0]).params).toEqual([
+      "member-score",
+    ])
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Accepts duplicate membership join rows]]
+  it.each(["captain-user", "member-user"])(
+    "clears %s's score when membership joins repeat the same registration",
+    async (userId) => {
+      const results = successfulRemovalResults({
+        divisionId: "division-1",
+        scoreRows: [{ id: "score-1" }],
+        userId: "captain-user",
+      })
+      const registration = {
+        id: "registration-1",
+        competitionId: "comp-1",
+        divisionId: "division-1",
+      }
+      results[4] = [registration, { ...registration }]
+      const { db, deleteCalls, deleteWhere, txSelectWhereCalls } =
+        createDbMock(results)
+      mockDb = db
+
+      await expect(
+        deleteCompetitionScoreFn({
+          data: {
+            organizingTeamId: "team-1",
+            competitionId: "comp-1",
+            trackWorkoutId: "tw-1",
+            userId,
+            divisionId: "division-1",
+          },
+        }),
+      ).resolves.toEqual({ success: true })
+
+      expect(renderCondition(txSelectWhereCalls[3]).params).toEqual([
+        "tw-1",
+        userId,
+        "division-1",
+      ])
+      expect(deleteCalls).toEqual([scoreRoundsTable, scoresTable])
+      expect(deleteWhere).toHaveBeenCalledTimes(2)
+      expect(renderCondition(deleteWhere.mock.calls[0]?.[0]).params).toEqual([
+        "score-1",
+      ])
+      expect(renderCondition(deleteWhere.mock.calls[1]?.[0]).params).toEqual([
+        "score-1",
+      ])
+    },
+  )
 
   // @lat: [[organizer-dashboard#Results Entry#Clear Results#Rejects event outside competition]]
   it("rejects an event outside the competition", async () => {
@@ -198,11 +361,13 @@ describe("deleteCompetitionScoreFn", () => {
 
   // @lat: [[organizer-dashboard#Results Entry#Clear Results#Missing score is idempotent]]
   it("succeeds without deletes when no score matches", async () => {
-    const { db, tx } = createDbMock([
-      [{ organizingTeamId: "team-1" }],
-      [{ id: "tw-1" }],
-      [],
-    ])
+    const { db, tx } = createDbMock(
+      successfulRemovalResults({
+        divisionId: "division-1",
+        scoreRows: [],
+        userId: "user-without-score",
+      }),
+    )
     mockDb = db
 
     const result = await deleteCompetitionScoreFn({
@@ -222,11 +387,12 @@ describe("deleteCompetitionScoreFn", () => {
 
   // @lat: [[organizer-dashboard#Results Entry#Clear Results#Deletes null-division score]]
   it("deletes an open score with a null division", async () => {
-    const { db, deleteCalls, tx } = createDbMock([
-      [{ organizingTeamId: "team-1" }],
-      [{ id: "tw-1" }],
-      [{ id: "score-open" }],
-    ])
+    const { db, deleteCalls, tx } = createDbMock(
+      successfulRemovalResults({
+        divisionId: null,
+        scoreRows: [{ id: "score-open" }],
+      }),
+    )
     mockDb = db
 
     const result = await deleteCompetitionScoreFn({
@@ -240,8 +406,147 @@ describe("deleteCompetitionScoreFn", () => {
     })
 
     expect(result).toEqual({ success: true })
-    expect(tx.select).toHaveBeenCalledOnce()
+    expect(tx.select).toHaveBeenCalledTimes(4)
     expect(tx.delete).toHaveBeenCalledTimes(2)
     expect(deleteCalls).toEqual([scoreRoundsTable, scoresTable])
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Deletes duplicate legacy rows in scope]]
+  it("deletes every legacy duplicate in the selected open-division scope", async () => {
+    const { db, deleteWhere } = createDbMock(
+      successfulRemovalResults({
+        divisionId: null,
+        scoreRows: [{ id: "score-open-1" }, { id: "score-open-2" }],
+      }),
+    )
+    mockDb = db
+
+    await deleteCompetitionScoreFn({
+      data: {
+        organizingTeamId: "team-1",
+        competitionId: "comp-1",
+        trackWorkoutId: "tw-1",
+        userId: "user-1",
+        divisionId: null,
+      },
+    })
+
+    expect(renderCondition(deleteWhere.mock.calls[0]?.[0]).params).toEqual([
+      "score-open-1",
+      "score-open-2",
+    ])
+    expect(renderCondition(deleteWhere.mock.calls[1]?.[0]).params).toEqual([
+      "score-open-1",
+      "score-open-2",
+    ])
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Authorization precedes mutation]]
+  it("does not enter the transaction when authorization fails", async () => {
+    const { db } = createDbMock([[{ organizingTeamId: "team-1" }]])
+    mockDb = db
+    vi.mocked(requireTeamPermission).mockRejectedValueOnce(
+      new Error("Forbidden"),
+    )
+
+    await expect(
+      deleteCompetitionScoreFn({
+        data: {
+          organizingTeamId: "team-1",
+          competitionId: "comp-1",
+          trackWorkoutId: "tw-1",
+          userId: "user-1",
+          divisionId: "division-1",
+        },
+      }),
+    ).rejects.toThrow("Forbidden")
+
+    expect(db.transaction).not.toHaveBeenCalled()
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Transaction failure is not success]]
+  it("does not report success when the score transaction fails", async () => {
+    const { db } = createDbMock([
+      [{ organizingTeamId: "team-1" }],
+      [{ id: "tw-1" }],
+      [{ id: "score-1" }],
+    ])
+    db.transaction.mockRejectedValueOnce(new Error("transaction rolled back"))
+    mockDb = db
+
+    await expect(
+      deleteCompetitionScoreFn({
+        data: {
+          organizingTeamId: "team-1",
+          competitionId: "comp-1",
+          trackWorkoutId: "tw-1",
+          userId: "user-1",
+          divisionId: "division-1",
+        },
+      }),
+    ).rejects.toThrow("transaction rolled back")
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Requires a proven participation]]
+  it("does not delete when the athlete and division have no participation", async () => {
+    const results = successfulRemovalResults({
+      divisionId: "division-1",
+      scoreRows: [{ id: "score-1" }],
+    })
+    results[4] = []
+    const { db, tx } = createDbMock(results)
+    mockDb = db
+
+    await expect(
+      deleteCompetitionScoreFn({
+        data: {
+          organizingTeamId: "team-1",
+          competitionId: "comp-1",
+          trackWorkoutId: "tw-1",
+          userId: "user-1",
+          divisionId: "division-1",
+        },
+      }),
+    ).resolves.toEqual({ success: true })
+
+    expect(tx.delete).not.toHaveBeenCalled()
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Rejects ambiguous participation]]
+  it("rejects rather than choosing between duplicate registrations", async () => {
+    const results = successfulRemovalResults({
+      divisionId: "division-1",
+      scoreRows: [{ id: "score-1" }],
+    })
+    results[4] = [
+      {
+        id: "registration-1",
+        competitionId: "comp-1",
+        athleteId: "user-1",
+        divisionId: "division-1",
+      },
+      {
+        id: "registration-duplicate",
+        competitionId: "comp-1",
+        athleteId: "user-1",
+        divisionId: "division-1",
+      },
+    ]
+    const { db, tx } = createDbMock(results)
+    mockDb = db
+
+    await expect(
+      deleteCompetitionScoreFn({
+        data: {
+          organizingTeamId: "team-1",
+          competitionId: "comp-1",
+          trackWorkoutId: "tw-1",
+          userId: "user-1",
+          divisionId: "division-1",
+        },
+      }),
+    ).rejects.toThrow("Multiple registrations match this score scope")
+
+    expect(tx.delete).not.toHaveBeenCalled()
   })
 })

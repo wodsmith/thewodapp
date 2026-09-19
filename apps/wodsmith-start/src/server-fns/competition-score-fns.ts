@@ -13,6 +13,10 @@
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq, gt, inArray, isNull, ne, or } from "drizzle-orm"
 import { z } from "zod"
+import {
+  legacyRemoveCompetitionScoreCommand,
+  removeCompetitionScore,
+} from "@/application/scores/remove-competition-score"
 import { getDb } from "@/db"
 import {
   type CompetitionHeat,
@@ -1489,30 +1493,29 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
       },
     })
 
-    const deleteConditions = [
-      eq(scoresTable.competitionEventId, data.trackWorkoutId),
-      eq(scoresTable.userId, data.userId),
-      data.divisionId
-        ? eq(scoresTable.scalingLevelId, data.divisionId)
-        : isNull(scoresTable.scalingLevelId),
-    ]
-
-    await db.transaction(async (tx) => {
-      const scoreRows = await tx
-        .select({ id: scoresTable.id })
-        .from(scoresTable)
-        .where(and(...deleteConditions))
-
-      if (scoreRows.length === 0) return
-
-      const scoreIds = scoreRows.map((score) => score.id)
-      // The schema relation has no database cascade, so round breakdowns
-      // must be removed before deleting their parent score.
-      await tx
-        .delete(scoreRoundsTable)
-        .where(inArray(scoreRoundsTable.scoreId, scoreIds))
-      await tx.delete(scoresTable).where(inArray(scoresTable.id, scoreIds))
+    const removal = await removeCompetitionScore({
+      db,
+      command: legacyRemoveCompetitionScoreCommand(data),
     })
+    if (!removal.ok) {
+      switch (removal.error.kind) {
+        case "CompetitionNotFound":
+          throw new Error("Competition not found")
+        case "EventNotFound":
+          throw new Error("Event does not belong to this competition")
+        case "ParticipationNotFound":
+          // Compatibility: clearing an already-removed legacy row is
+          // idempotent, but no unproven tuple is allowed to reach deletion.
+          break
+        case "AmbiguousParticipation":
+          throw new Error("Multiple registrations match this score scope")
+        case "ContextMismatch":
+          throw new Error("Score context does not match the competition")
+        case "StorageUnavailable":
+          if (removal.error.cause instanceof Error) throw removal.error.cause
+          throw new Error("Failed to delete competition score")
+      }
+    }
 
     logEntityDeleted({
       entity: "score",

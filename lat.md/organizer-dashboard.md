@@ -202,6 +202,14 @@ Clearing a saved result resets only its row and preserves partial or invalid dra
 
 An owned score deletion removes its round breakdowns before removing the parent score.
 
+#### Deletes a non-captain team member score
+
+An active athlete-team member proves participation through membership even when another user owns the registration, so clearing targets the member's score rather than returning idempotent success.
+
+#### Accepts duplicate membership join rows
+
+Repeated membership joins for one registration ID still prove one participation. Clearing either the captain's or a teammate's score deletes the requested athlete's exact-scope score and rounds.
+
 #### Rejects event outside competition
 
 The delete action rejects a track workout that does not belong to the requested competition before opening a transaction.
@@ -217,6 +225,26 @@ Clearing a valid athlete, event, and division scope with no matching score succe
 #### Deletes null-division score
 
 A required `null` division explicitly targets an open score through the null scaling-level scope and deletes its rounds and parent score.
+
+#### Deletes duplicate legacy rows in scope
+
+If legacy storage contains multiple score projections for one proven open-division scope, clear removes every matching row and its rounds instead of selecting one by row order.
+
+#### Authorization precedes mutation
+
+Failed organizer authorization stops the clear operation before its score transaction begins.
+
+#### Transaction failure is not success
+
+A failed removal transaction propagates failure to the organizer adapter and never returns a successful clear receipt.
+
+#### Requires a proven participation
+
+The removal transaction must resolve an active registration for the exact athlete and division before it can query or delete score projections.
+
+#### Rejects ambiguous participation
+
+Multiple active registrations for the same athlete and division are treated as identity corruption and rejected without deleting any score.
 
 ### Division Results Publish Gate
 
