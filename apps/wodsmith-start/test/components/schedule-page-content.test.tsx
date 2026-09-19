@@ -155,6 +155,7 @@ describe('SchedulePageContent', () => {
           name: 'Main Floor',
           laneCount: 8,
           transitionMinutes: 3,
+          isDefault: false,
           sortOrder: 0,
           addressId: null,
           createdAt: new Date(),
