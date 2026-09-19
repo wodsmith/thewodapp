@@ -47,11 +47,13 @@ export type IdentityCorruptionCode =
   | "MISSING_EVENT"
   | "CROSS_COMPETITION_EVENT"
   | "CROSS_COMPETITION_PARENT_EVENT"
+  | "DUPLICATE_EVENT"
   | "DUPLICATE_EVENT_CONFIGURATION"
   | "INVALID_DIVISION"
   | "DIVISION_OUTSIDE_COMPETITION"
   | "DUPLICATE_DIVISION_CONFIGURATION"
   | "CROSS_COMPETITION_REGISTRATION"
+  | "DUPLICATE_REGISTRATION"
   | "PARTICIPATION_MODE_MISMATCH"
   | "MISSING_SQUAD"
   | "INVALID_SQUAD"
@@ -422,9 +424,44 @@ export function resolveLegacyCompetitionTopology(
       event.id,
     )
     if (eventIdResult.ok === false) return err(eventIdResult.error)
+    if (events.has(eventIdResult.value)) {
+      return err(
+        corrupt(
+          "DUPLICATE_EVENT",
+          "track_workouts",
+          event.id,
+          "An event occurrence identity may resolve to at most one row",
+          [event.id],
+        ),
+      )
+    }
     let parentEventId: CompetitionEventId | null = null
     if (event.parentEventId !== null) {
-      if (eventOwner(event.parentEventId) !== competitionId) {
+      const parentEvent = rawEventById.get(event.parentEventId)
+      if (!parentEvent) {
+        return err(
+          corrupt(
+            "MISSING_EVENT",
+            "track_workouts",
+            event.id,
+            "A child event must resolve to one parent event occurrence",
+            [event.parentEventId],
+          ),
+        )
+      }
+      const parentOwner = trackOwnerById.get(parentEvent.trackId)
+      if (parentOwner === undefined) {
+        return err(
+          corrupt(
+            "MISSING_TRACK",
+            "track_workouts",
+            event.id,
+            "A parent event occurrence must resolve through a programming track",
+            [event.parentEventId, parentEvent.trackId],
+          ),
+        )
+      }
+      if (parentOwner !== competitionId) {
         return err(
           corrupt(
             "CROSS_COMPETITION_PARENT_EVENT",
@@ -571,6 +608,17 @@ export function resolveLegacyCompetitionTopology(
     )
     if (registrationIdResult.ok === false)
       return err(registrationIdResult.error)
+    if (registrations.has(registrationIdResult.value)) {
+      return err(
+        corrupt(
+          "DUPLICATE_REGISTRATION",
+          "competition_registrations",
+          row.id,
+          "A registration identity may resolve to at most one row",
+          [row.id],
+        ),
+      )
+    }
     const registrationCompetitionIdResult = decodeAt(
       decodeCompetitionId,
       row.eventId,

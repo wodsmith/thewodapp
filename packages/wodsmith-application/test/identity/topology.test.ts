@@ -219,6 +219,71 @@ describe("legacy competition identity boundary", () => {
     })
   })
 
+  // @lat: [[identity#Topology invariants#Rejects duplicate event identities]]
+  it("rejects duplicate decoded event identities", () => {
+    const baseline = validSnapshot()
+    const result = resolveLegacyCompetitionTopology({
+      ...baseline,
+      events: [baseline.events[0]!, { ...baseline.events[0]! }],
+    })
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: "IdentityCorruption",
+        code: "DUPLICATE_EVENT",
+        source: { table: "track_workouts", rowId: ids.eventA },
+      },
+    })
+  })
+
+  // @lat: [[identity#Topology invariants#Classifies missing parent topology]]
+  it.each([
+    {
+      name: "absent event",
+      events: [
+        {
+          id: ids.eventA,
+          trackId: ids.trackA,
+          parentEventId: ids.eventB,
+          name: "Child",
+        },
+      ],
+      code: "MISSING_EVENT",
+    },
+    {
+      name: "absent parent track",
+      events: [
+        {
+          id: ids.eventA,
+          trackId: ids.trackA,
+          parentEventId: ids.eventB,
+          name: "Child",
+        },
+        {
+          id: ids.eventB,
+          trackId: ids.trackB,
+          parentEventId: null,
+          name: "Parent",
+        },
+      ],
+      code: "MISSING_TRACK",
+    },
+  ])("classifies a parent with an $name", ({ events, code }) => {
+    const result = resolveLegacyCompetitionTopology(
+      validSnapshot({ events, eventConfigurations: [] }),
+    )
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: "IdentityCorruption",
+        code,
+        source: { table: "track_workouts", rowId: ids.eventA },
+      },
+    })
+  })
+
   // @lat: [[identity#Topology invariants#Rejects foreign divisions]]
   it("rejects a registration whose division is outside the competition", () => {
     const result = resolveLegacyCompetitionTopology(
@@ -286,6 +351,30 @@ describe("legacy competition identity boundary", () => {
         participation: { kind: "individual", athleteId: ids.athlete },
       },
     ])
+  })
+
+  // @lat: [[identity#Topology invariants#Rejects duplicate registration identities]]
+  it("rejects duplicate decoded registration identities", () => {
+    const baseline = validSnapshot()
+    const result = resolveLegacyCompetitionTopology({
+      ...baseline,
+      registrations: [
+        baseline.registrations[0]!,
+        { ...baseline.registrations[0]!, userId: ids.secondAthlete },
+      ],
+    })
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: "IdentityCorruption",
+        code: "DUPLICATE_REGISTRATION",
+        source: {
+          table: "competition_registrations",
+          rowId: ids.registrationA,
+        },
+      },
+    })
   })
 
   // @lat: [[identity#Topology invariants#Retains access while another registration is active]]

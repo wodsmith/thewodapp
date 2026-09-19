@@ -40,6 +40,14 @@ Topology validation rejects cross-context joins before projections or command ha
 
 A submission-window configuration must name the same competition as the programming track that owns its event occurrence.
 
+### Rejects duplicate event identities
+
+Two decoded event rows cannot claim the same occurrence identity; the boundary reports typed corruption instead of allowing map insertion order to choose authority.
+
+### Classifies missing parent topology
+
+A child naming an absent parent reports a missing event, while a present parent whose programming track is absent reports a missing track before competition ownership is compared.
+
 ### Rejects foreign divisions
 
 A registration or division configuration can only reference a scaling level from the competition's selected scaling group.
@@ -47,6 +55,10 @@ A registration or division configuration can only reference a scaling level from
 ### Preserves independent multi-division participation
 
 Two registrations for one athlete in separate competition divisions remain distinct domain entries instead of collapsing into shared competition membership.
+
+### Rejects duplicate registration identities
+
+Two registration rows cannot claim the same identity; the boundary reports typed corruption before the duplicate can contribute participants or replace the authoritative registration value.
 
 ### Retains access while another registration is active
 
