@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import type { WorkoutMetadataSuggestionContext } from "@/components/workout-metadata-suggestions"
 import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import type { Movement } from "@/db/schemas/workouts"
 import type {
@@ -20,6 +21,7 @@ import type {
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
 interface CreateEventDialogProps {
+  metadataSuggestions?: WorkoutMetadataSuggestionContext
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreateEvent: (data: {
@@ -36,6 +38,7 @@ interface CreateEventDialogProps {
 }
 
 export function CreateEventDialog({
+  metadataSuggestions,
   open,
   onOpenChange,
   onCreateEvent,
@@ -109,6 +112,7 @@ export function CreateEventDialog({
           </DialogHeader>
           <div className="py-4">
             <WorkoutDefinitionFields
+              metadataSuggestions={metadataSuggestions}
               allowEmptyScoreType={false}
               value={value}
               onChange={(patch) =>

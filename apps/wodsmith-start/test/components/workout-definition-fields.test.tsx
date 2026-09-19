@@ -4,6 +4,31 @@ import { describe, expect, it, vi } from "vitest"
 import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
+vi.mock("@/components/workout-metadata-suggestions", () => ({
+  WorkoutMetadataSuggestions: ({
+    onApply,
+  }: {
+    onApply: (suggestion: {
+      scheme: "pass-fail"
+      scoreType: "last"
+      movementIds: string[]
+    }) => void
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        onApply({
+          scheme: "pass-fail",
+          scoreType: "last",
+          movementIds: ["pull-up"],
+        })
+      }
+    >
+      Apply metadata test suggestion
+    </button>
+  ),
+}))
+
 describe("shared workout definition fields", () => {
   // @lat: [[workout-authoring#Scheme changes use canonical defaults]]
   it("selects the canonical pass/fail aggregation and clears an obsolete tiebreak", () => {
@@ -71,6 +96,41 @@ describe("shared workout definition fields", () => {
       scoreType: "max",
       timeCapSeconds: null,
     })
+  })
+
+  it("applies reviewed metadata with canonical resets and an explicit source", () => {
+    const change = vi.fn()
+    render(
+      <WorkoutDefinitionFields
+        value={{
+          description: "A sufficiently detailed workout",
+          scheme: "time-with-cap",
+          scoreType: "sum",
+          timeCapSeconds: 720,
+          tiebreakScheme: "time",
+          movementIds: ["thruster"],
+        }}
+        onChange={change}
+        metadataSuggestions={{
+          teamId: "team-1",
+          writePermission: "create_components",
+        }}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Apply metadata test suggestion" }),
+    )
+    expect(change).toHaveBeenCalledWith(
+      {
+        scheme: "pass-fail",
+        scoreType: "last",
+        timeCapSeconds: null,
+        tiebreakScheme: null,
+        movementIds: ["thruster", "pull-up"],
+      },
+      "suggestion",
+    )
   })
 
   it("lets import review correct reps per round on capped workouts and announces movement selections", () => {

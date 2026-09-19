@@ -128,6 +128,7 @@ interface EventDetailsFormProps {
   event: CompetitionWorkout
   competitionId: string
   organizingTeamId: string
+  competitionTeamId?: string
   divisions: Division[]
   divisionDescriptions: DivisionDescriptionData[]
   movements: Movement[]
@@ -156,6 +157,7 @@ export function EventDetailsForm({
   event,
   competitionId,
   organizingTeamId,
+  competitionTeamId,
   divisions,
   divisionDescriptions,
   movements,
@@ -305,13 +307,27 @@ export function EventDetailsForm({
               </CardHeader>
               <CardContent className="space-y-4">
                 <WorkoutDefinitionFields
+                  metadataSuggestions={
+                    isParentEvent
+                      ? undefined
+                      : competitionTeamId
+                        ? {
+                            teamId: organizingTeamId,
+                            competitionId,
+                            competitionTeamId,
+                          }
+                        : {
+                            teamId: organizingTeamId,
+                            writePermission: "manage_programming",
+                          }
+                  }
                   value={{
                     ...watch(),
                     timeCapSeconds: watch("timeCap"),
                     movementIds: watch("selectedMovements"),
                     roundsToScore: watch("roundsToScore") ?? undefined,
                   }}
-                  onChange={(patch) => {
+                  onChange={(patch, source) => {
                     const options = { shouldDirty: true, shouldValidate: true }
                     if (patch.name !== undefined)
                       setValue("name", patch.name, options)
@@ -321,7 +337,9 @@ export function EventDetailsForm({
                       setValue("scheme", patch.scheme, options)
                     if (
                       patch.scoreType !== undefined &&
-                      (patch.scheme === undefined || scoreType == null)
+                      (source === "suggestion" ||
+                        patch.scheme === undefined ||
+                        scoreType == null)
                     )
                       setValue("scoreType", patch.scoreType, options)
                     if ("roundsToScore" in patch)

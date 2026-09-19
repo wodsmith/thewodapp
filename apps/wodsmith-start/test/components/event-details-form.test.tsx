@@ -19,6 +19,31 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }))
 
+vi.mock("@/components/workout-metadata-suggestions", () => ({
+  WorkoutMetadataSuggestions: ({
+    onApply,
+  }: {
+    onApply: (suggestion: {
+      scheme: "pass-fail"
+      scoreType: "last"
+      movementIds: string[]
+    }) => void
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        onApply({
+          scheme: "pass-fail",
+          scoreType: "last",
+          movementIds: [],
+        })
+      }
+    >
+      Apply metadata test suggestion
+    </button>
+  ),
+}))
+
 function createTestEvent(scheme: WorkoutScheme, tiebreakScheme?: string) {
   return {
     id: "event-1",
@@ -88,6 +113,29 @@ describe("EventDetailsForm", () => {
       )
     },
   )
+
+  it("applies both reviewed scoring values instead of preserving the old aggregation", async () => {
+    render(
+      <EventDetailsForm
+        {...defaultProps}
+        event={createTestEvent("time-with-cap", "time")}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Apply metadata test suggestion" }),
+    )
+    await waitFor(() => {
+      expect(
+        screen.getByRole("combobox", { name: /^Scheme$/ }),
+      ).toHaveTextContent("Pass/Fail")
+      expect(
+        screen.getByRole("combobox", { name: /^Score Type$/ }),
+      ).toHaveTextContent("Last recorded score")
+      expect(screen.queryByLabelText(/time cap/i)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/tiebreak/i)).not.toBeInTheDocument()
+    })
+  })
 
   describe("Tiebreak field visibility", () => {
     it("shows tiebreak field for time scheme", async () => {

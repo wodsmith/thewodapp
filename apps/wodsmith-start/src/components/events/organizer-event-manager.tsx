@@ -60,6 +60,7 @@ interface EventManagerOverrides {
 interface OrganizerEventManagerProps {
   competitionId: string
   organizingTeamId: string
+  competitionTeamId?: string
   events: CompetitionWorkout[]
   movements: Movement[]
   divisions: Division[]
@@ -106,6 +107,7 @@ function EventGroupingCheckbox({
 export function OrganizerEventManager({
   competitionId,
   organizingTeamId,
+  competitionTeamId,
   events: initialEvents,
   movements,
   divisions,
@@ -256,7 +258,9 @@ export function OrganizerEventManager({
       }
     } catch (error) {
       if (created) {
-        toast.error("Event created, but the list could not refresh. Reload to see it.")
+        toast.error(
+          "Event created, but the list could not refresh. Reload to see it.",
+        )
         return
       }
       const message =
@@ -682,6 +686,14 @@ export function OrganizerEventManager({
       )}
 
       <CreateEventDialog
+        metadataSuggestions={
+          competitionTeamId
+            ? { teamId: organizingTeamId, competitionId, competitionTeamId }
+            : {
+                teamId: organizingTeamId,
+                writePermission: "manage_competitions",
+              }
+        }
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)

@@ -74,6 +74,7 @@ function EditWorkoutPage() {
 
   return (
     <WorkoutForm
+      teamId={workout.teamId}
       mode="edit"
       initialData={{
         name: workout.name,

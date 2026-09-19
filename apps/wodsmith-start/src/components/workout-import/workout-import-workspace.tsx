@@ -11,6 +11,7 @@ import {
   type WorkoutImportSaveInput,
   type WorkoutImportWorkout,
 } from "@/lib/workout-import"
+import type { WorkoutMetadataWritePermission } from "@/lib/workout-metadata-suggestions"
 import {
   emptyImportWorkout,
   formToImportWorkout,
@@ -26,6 +27,8 @@ import {
 import { WorkoutImportSource } from "./source-input"
 
 export interface WorkoutImportWorkspaceProps {
+  teamId?: string
+  metadataWritePermission?: WorkoutMetadataWritePermission
   destinationLabel: string
   saveLabel: string
   draft: WorkoutImportDraft | null
@@ -527,6 +530,10 @@ export function WorkoutImportWorkspace(props: WorkoutImportWorkspaceProps) {
           <fieldset disabled={saving} className="min-w-0 space-y-5">
             <legend className="mb-3 font-semibold">Workout and scoring</legend>
             <WorkoutForm
+              teamId={props.teamId}
+              metadataWritePermission={
+                props.metadataWritePermission ?? "create_components"
+              }
               mode="create"
               embedded
               editor={{

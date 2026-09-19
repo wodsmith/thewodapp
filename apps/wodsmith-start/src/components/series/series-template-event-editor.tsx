@@ -47,7 +47,11 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import type { Movement } from "@/db/schemas/workouts"
-import type { ScoreType, TiebreakScheme, WorkoutScheme } from "@/lib/scoring/types"
+import type {
+  ScoreType,
+  TiebreakScheme,
+  WorkoutScheme,
+} from "@/lib/scoring/types"
 import { updateWorkoutDivisionDescriptionsFn } from "@/server-fns/competition-workouts-fns"
 import {
   addEventToSeriesTemplateFn,
@@ -456,6 +460,14 @@ export function SeriesTemplateEventEditor({
 
       {/* Create event dialog */}
       <CreateEventDialog
+        metadataSuggestions={
+          organizingTeamId
+            ? {
+                teamId: organizingTeamId,
+                writePermission: "manage_programming",
+              }
+            : undefined
+        }
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)

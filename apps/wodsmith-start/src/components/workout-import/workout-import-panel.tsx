@@ -296,6 +296,14 @@ export function WorkoutImportPanel(props: WorkoutImportPanelProps) {
         />
       )}
       <WorkoutImportWorkspace
+        teamId={
+          access.result?.hasAccess ? access.result.scope.teamId : undefined
+        }
+        metadataWritePermission={
+          props.destination.kind === "track"
+            ? "manage_programming"
+            : "create_components"
+        }
         destinationLabel={label}
         saveLabel={props.saveLabel}
         track={props.track}

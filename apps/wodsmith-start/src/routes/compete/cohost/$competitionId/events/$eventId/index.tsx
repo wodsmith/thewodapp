@@ -149,6 +149,7 @@ function EventEditPage() {
         event={event}
         competitionId={competition.id}
         organizingTeamId={competition.organizingTeamId}
+        competitionTeamId={competitionTeamId}
         divisions={divisions}
         divisionDescriptions={divisionDescriptions}
         movements={movements}
@@ -331,6 +332,7 @@ function ParentEventEditPage() {
             event={event}
             competitionId={competition.id}
             organizingTeamId={competition.organizingTeamId}
+            competitionTeamId={competitionTeamId}
             divisions={divisions}
             divisionDescriptions={divisionDescriptions}
             movements={movements}
@@ -380,6 +382,7 @@ function ParentEventEditPage() {
                   event={child}
                   competitionId={competition.id}
                   organizingTeamId={competition.organizingTeamId}
+                  competitionTeamId={competitionTeamId}
                   divisions={divisions}
                   divisionDescriptions={
                     childDivisionDescriptions[child.workoutId] ?? []

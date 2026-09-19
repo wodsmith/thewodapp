@@ -9,22 +9,20 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { useMemo } from "react"
 import { OrganizerEventManager } from "@/components/events/organizer-event-manager"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
+import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
 import {
+  cohostCreateWorkoutFn,
   cohostGetBatchDivisionDescriptionsFn,
   cohostGetWorkoutsFn,
-  cohostCreateWorkoutFn,
   cohostGroupEventsFn,
   cohostRemoveWorkoutFn,
   cohostReorderEventsFn,
 } from "@/server-fns/cohost/cohost-workout-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
-import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
 
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/events/",
-)({
+export const Route = createFileRoute("/compete/cohost/$competitionId/events/")({
   staleTime: 10_000,
   component: EventsPage,
   loader: async ({ params, parentMatchPromise }) => {
@@ -119,9 +117,15 @@ function EventsPage() {
             description: args.data.description as string | undefined,
             roundsToScore: args.data.roundsToScore as number | null | undefined,
             repsPerRound: args.data.repsPerRound as number | null | undefined,
-            tiebreakScheme: args.data.tiebreakScheme as string | null | undefined,
+            tiebreakScheme: args.data.tiebreakScheme as
+              | string
+              | null
+              | undefined,
             movementIds: args.data.movementIds as string[] | undefined,
-            sourceWorkoutId: args.data.sourceWorkoutId as string | null | undefined,
+            sourceWorkoutId: args.data.sourceWorkoutId as
+              | string
+              | null
+              | undefined,
             parentEventId: args.data.parentEventId as string | undefined,
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,6 +169,7 @@ function EventsPage() {
     <OrganizerEventManager
       competitionId={competition.id}
       organizingTeamId={competition.organizingTeamId}
+      competitionTeamId={competitionTeamId}
       events={events}
       movements={movements}
       divisions={divisions}

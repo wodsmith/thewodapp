@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -8,7 +8,6 @@ import { z } from "zod"
 import { EventResourcesCard } from "@/components/events/event-resources-card"
 import { MovementsList } from "@/components/movements-list"
 import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
-import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -37,26 +36,29 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { WorkoutMetadataSuggestions } from "@/components/workout-metadata-suggestions"
+import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import { SCORE_TYPES, TIEBREAK_SCHEMES, WORKOUT_SCHEMES } from "@/constants"
+import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import {
   SCORE_TYPE_VALUES,
   TIEBREAK_SCHEME_VALUES,
   WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
-import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
+import { resolveWorkoutMetadataTransition } from "@/lib/workout-metadata-suggestions"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
-import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
-import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
-import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import {
   getWorkoutDivisionDescriptionsFn,
   updateWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
+import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
+import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
+import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getSeriesTemplateDivisionsFn } from "@/server-fns/series-division-mapping-fns"
 import {
-  type SeriesTemplateEvent,
   getSeriesTemplateEventByIdFn,
   getSeriesTemplateEventsFn,
+  type SeriesTemplateEvent,
   updateSeriesTemplateEventFn,
 } from "@/server-fns/series-event-template-fns"
 import { formatTrackOrder } from "@/utils/format-track-order"
@@ -87,21 +89,29 @@ export const Route = createFileRoute(
   validateSearch: searchSchema,
   component: SeriesTemplateEventEditPage,
   loader: async ({ params }) => {
-    const [eventResult, groupResult, divisionsResult, movementsResult] = await Promise.all([
-      getSeriesTemplateEventByIdFn({
-        data: {
-          trackWorkoutId: params.eventId,
-          groupId: params.groupId,
-        },
-      }),
-      getCompetitionGroupByIdFn({
-        data: { groupId: params.groupId },
-      }),
-      getSeriesTemplateDivisionsFn({
-        data: { groupId: params.groupId },
-      }).catch(() => ({ scalingGroupId: null, divisions: [] as Array<{ id: string; label: string; teamSize: number }> })),
-      getAllMovementsFn(),
-    ])
+    const [eventResult, groupResult, divisionsResult, movementsResult] =
+      await Promise.all([
+        getSeriesTemplateEventByIdFn({
+          data: {
+            trackWorkoutId: params.eventId,
+            groupId: params.groupId,
+          },
+        }),
+        getCompetitionGroupByIdFn({
+          data: { groupId: params.groupId },
+        }),
+        getSeriesTemplateDivisionsFn({
+          data: { groupId: params.groupId },
+        }).catch(() => ({
+          scalingGroupId: null,
+          divisions: [] as Array<{
+            id: string
+            label: string
+            teamSize: number
+          }>,
+        })),
+        getAllMovementsFn(),
+      ])
 
     if (!eventResult.event) {
       throw new Error("Event not found")
@@ -113,10 +123,18 @@ export const Route = createFileRoute(
     const [resourcesResult, judgingSheetsResult] = await Promise.all([
       getEventResourcesFn({
         data: { eventId: params.eventId, teamId: organizingTeamId },
-      }).catch(() => ({ resources: [] as Awaited<ReturnType<typeof getEventResourcesFn>>["resources"] })),
+      }).catch(() => ({
+        resources: [] as Awaited<
+          ReturnType<typeof getEventResourcesFn>
+        >["resources"],
+      })),
       getEventJudgingSheetsFn({
         data: { trackWorkoutId: params.eventId },
-      }).catch(() => ({ sheets: [] as Awaited<ReturnType<typeof getEventJudgingSheetsFn>>["sheets"] })),
+      }).catch(() => ({
+        sheets: [] as Awaited<
+          ReturnType<typeof getEventJudgingSheetsFn>
+        >["sheets"],
+      })),
     ])
 
     // Load division descriptions
@@ -176,8 +194,7 @@ export const Route = createFileRoute(
         ),
       )
       for (let i = 0; i < childEvents.length; i++) {
-        childMovementIds[childEvents[i].id] =
-          childEventResults[i].movementIds
+        childMovementIds[childEvents[i].id] = childEventResults[i].movementIds
       }
     }
 
@@ -198,9 +215,7 @@ export const Route = createFileRoute(
 })
 
 function SeriesTemplateEventEditPage() {
-  const {
-    childEvents,
-  } = Route.useLoaderData()
+  const { childEvents } = Route.useLoaderData()
 
   const isParentEvent = childEvents.length > 0
 
@@ -252,14 +267,44 @@ function SeriesSingleEventEditPage() {
 
   const { watch, setValue } = form
   const scheme = watch("scheme")
+  const description = watch("description")
   const selectedMovements = watch("selectedMovements")
 
   const handleMovementToggle = (movementId: string) => {
     if (selectedMovements.includes(movementId)) {
-      setValue("selectedMovements", selectedMovements.filter((id) => id !== movementId))
+      setValue(
+        "selectedMovements",
+        selectedMovements.filter((id) => id !== movementId),
+      )
     } else {
       setValue("selectedMovements", [...selectedMovements, movementId])
     }
+  }
+
+  const applyMetadataSuggestion = (suggestion: {
+    scheme?: WorkoutScheme
+    scoreType?: ScoreType
+    movementIds: string[]
+  }) => {
+    const transition = resolveWorkoutMetadataTransition(
+      suggestion.scheme,
+      suggestion.scoreType,
+    )
+    if (transition.scheme) {
+      setValue("scheme", transition.scheme, { shouldDirty: true })
+    }
+    if (transition.scoreType) {
+      setValue("scoreType", transition.scoreType, { shouldDirty: true })
+    }
+    if (transition.clearTimeCap)
+      setValue("timeCap", null, { shouldDirty: true })
+    if (transition.clearTiebreak)
+      setValue("tiebreakScheme", null, { shouldDirty: true })
+    setValue(
+      "selectedMovements",
+      [...new Set([...selectedMovements, ...suggestion.movementIds])],
+      { shouldDirty: true },
+    )
   }
 
   const onSubmit = async (data: TemplateEventSchema) => {
@@ -276,7 +321,8 @@ function SeriesSingleEventEditPage() {
             scoreType: data.scoreType,
             timeCap: data.timeCap,
             roundsToScore: data.roundsToScore,
-            tiebreakScheme: data.scheme === "pass-fail" ? null : data.tiebreakScheme,
+            tiebreakScheme:
+              data.scheme === "pass-fail" ? null : data.tiebreakScheme,
           },
           movementIds: data.selectedMovements,
           pointsMultiplier: data.pointsMultiplier,
@@ -328,8 +374,7 @@ function SeriesSingleEventEditPage() {
             </div>
             <h1 className="text-3xl font-bold">Edit event</h1>
             <p className="text-muted-foreground mt-1">
-              Event #{formatTrackOrder(event.trackOrder)} -{" "}
-              {event.workout.name}
+              Event #{formatTrackOrder(event.trackOrder)} - {event.workout.name}
             </p>
           </div>
           <Button
@@ -430,8 +475,12 @@ function SeriesSingleEventEditPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="none">None</SelectItem>
-                              <SelectItem value="first">First recorded score</SelectItem>
-                              <SelectItem value="last">Last recorded score</SelectItem>
+                              <SelectItem value="first">
+                                First recorded score
+                              </SelectItem>
+                              <SelectItem value="last">
+                                Last recorded score
+                              </SelectItem>
                               {SCORE_TYPES.map((s) => (
                                 <SelectItem key={s.value} value={s.value}>
                                   {s.label}
@@ -448,12 +497,19 @@ function SeriesSingleEventEditPage() {
                       fields={["roundsToScore"]}
                       value={{ roundsToScore: form.watch("roundsToScore") }}
                       onChange={(patch) =>
-                        form.setValue("roundsToScore", patch.roundsToScore ?? 0, {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        })
+                        form.setValue(
+                          "roundsToScore",
+                          patch.roundsToScore ?? 0,
+                          {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          },
+                        )
                       }
-                      errors={{ roundsToScore: form.formState.errors.roundsToScore?.message }}
+                      errors={{
+                        roundsToScore:
+                          form.formState.errors.roundsToScore?.message,
+                      }}
                       disabled={isSaving}
                     />
                     {scheme === "time-with-cap" && (
@@ -555,6 +611,14 @@ function SeriesSingleEventEditPage() {
                         </FormItem>
                       )}
                     />
+                    <WorkoutMetadataSuggestions
+                      context={{
+                        teamId: organizingTeamId,
+                        writePermission: "manage_programming",
+                      }}
+                      description={description}
+                      onApply={applyMetadataSuggestion}
+                    />
                   </CardContent>
                 </Card>
 
@@ -577,7 +641,9 @@ function SeriesSingleEventEditPage() {
                                 key={movement.id}
                                 variant="default"
                                 className="cursor-pointer"
-                                onClick={() => handleMovementToggle(movement.id)}
+                                onClick={() =>
+                                  handleMovementToggle(movement.id)
+                                }
                               >
                                 {movement.name} ✓
                               </Badge>
@@ -677,7 +743,9 @@ function SeriesSingleEventEditPage() {
                               <div className="flex items-center justify-between">
                                 <FormLabel>{division.label}</FormLabel>
                                 <span className="text-xs text-muted-foreground">
-                                  {field.value?.trim() ? "Custom" : "Using default"}
+                                  {field.value?.trim()
+                                    ? "Custom"
+                                    : "Using default"}
                                 </span>
                               </div>
                               <FormControl>
@@ -758,7 +826,9 @@ function SeriesParentEventEditPage() {
   const router = useRouter()
   const { tab } = Route.useSearch()
 
-  const defaultTab = (tab && childEvents.some((c) => c.id === tab) ? tab : childEvents[0]?.id) ?? ""
+  const defaultTab =
+    (tab && childEvents.some((c) => c.id === tab) ? tab : childEvents[0]?.id) ??
+    ""
   const [activeTab, setActiveTab] = useState(defaultTab)
   const [isSavingParent, setIsSavingParent] = useState(false)
   const [judgingSheets, setJudgingSheets] = useState(initialJudgingSheets)
@@ -795,9 +865,7 @@ function SeriesParentEventEditPage() {
       toast.success("Parent event updated")
       await router.invalidate()
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save",
-      )
+      toast.error(error instanceof Error ? error.message : "Failed to save")
     } finally {
       setIsSavingParent(false)
     }
@@ -851,10 +919,7 @@ function SeriesParentEventEditPage() {
                     <FormItem>
                       <FormLabel>Event Name</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="e.g., Event 1 - Fran"
-                          {...field}
-                        />
+                        <Input placeholder="e.g., Event 1 - Fran" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -981,7 +1046,11 @@ function SubEventForm({
     divisionLabel: string
     description: string | null
   }>
-  movements: Array<{ id: string; name: string; type: "gymnastic" | "monostructural" | "weightlifting" }>
+  movements: Array<{
+    id: string
+    name: string
+    type: "gymnastic" | "monostructural" | "weightlifting"
+  }>
   movementIds: string[]
 }) {
   const router = useRouter()
@@ -1011,14 +1080,44 @@ function SubEventForm({
   })
 
   const scheme = form.watch("scheme")
+  const description = form.watch("description")
   const selectedMovements = form.watch("selectedMovements")
 
   const handleMovementToggle = (movementId: string) => {
     if (selectedMovements.includes(movementId)) {
-      form.setValue("selectedMovements", selectedMovements.filter((id) => id !== movementId))
+      form.setValue(
+        "selectedMovements",
+        selectedMovements.filter((id) => id !== movementId),
+      )
     } else {
       form.setValue("selectedMovements", [...selectedMovements, movementId])
     }
+  }
+
+  const applyMetadataSuggestion = (suggestion: {
+    scheme?: WorkoutScheme
+    scoreType?: ScoreType
+    movementIds: string[]
+  }) => {
+    const transition = resolveWorkoutMetadataTransition(
+      suggestion.scheme,
+      suggestion.scoreType,
+    )
+    if (transition.scheme) {
+      form.setValue("scheme", transition.scheme, { shouldDirty: true })
+    }
+    if (transition.scoreType) {
+      form.setValue("scoreType", transition.scoreType, { shouldDirty: true })
+    }
+    if (transition.clearTimeCap)
+      form.setValue("timeCap", null, { shouldDirty: true })
+    if (transition.clearTiebreak)
+      form.setValue("tiebreakScheme", null, { shouldDirty: true })
+    form.setValue(
+      "selectedMovements",
+      [...new Set([...selectedMovements, ...suggestion.movementIds])],
+      { shouldDirty: true },
+    )
   }
 
   const onSubmit = async (data: TemplateEventSchema) => {
@@ -1035,7 +1134,8 @@ function SubEventForm({
             scoreType: data.scoreType,
             timeCap: data.timeCap,
             roundsToScore: data.roundsToScore,
-            tiebreakScheme: data.scheme === "pass-fail" ? null : data.tiebreakScheme,
+            tiebreakScheme:
+              data.scheme === "pass-fail" ? null : data.tiebreakScheme,
           },
           movementIds: data.selectedMovements,
           pointsMultiplier: data.pointsMultiplier,
@@ -1057,9 +1157,7 @@ function SubEventForm({
       toast.success(`"${data.name}" updated`)
       await router.invalidate()
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save",
-      )
+      toast.error(error instanceof Error ? error.message : "Failed to save")
     } finally {
       setIsSaving(false)
     }
@@ -1142,7 +1240,9 @@ function SubEventForm({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="first">First recorded score</SelectItem>
+                      <SelectItem value="first">
+                        First recorded score
+                      </SelectItem>
                       <SelectItem value="last">Last recorded score</SelectItem>
                       {SCORE_TYPES.map((s) => (
                         <SelectItem key={s.value} value={s.value}>
@@ -1164,7 +1264,9 @@ function SubEventForm({
                   shouldValidate: true,
                 })
               }
-              errors={{ roundsToScore: form.formState.errors.roundsToScore?.message }}
+              errors={{
+                roundsToScore: form.formState.errors.roundsToScore?.message,
+              }}
               disabled={isSaving}
             />
             {scheme === "time-with-cap" && (
@@ -1205,9 +1307,7 @@ function SubEventForm({
                   <FormItem>
                     <FormLabel>
                       Tiebreak{" "}
-                      <span className="text-muted-foreground">
-                        (optional)
-                      </span>
+                      <span className="text-muted-foreground">(optional)</span>
                     </FormLabel>
                     <Select
                       value={field.value ?? "none"}
@@ -1250,6 +1350,14 @@ function SubEventForm({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+            <WorkoutMetadataSuggestions
+              context={{
+                teamId: organizingTeamId,
+                writePermission: "manage_programming",
+              }}
+              description={description}
+              onApply={applyMetadataSuggestion}
             />
 
             {/* Movements */}
@@ -1295,9 +1403,7 @@ function SubEventForm({
                         max={1000}
                         className="w-24"
                         {...field}
-                        onChange={(e) =>
-                          field.onChange(Number(e.target.value))
-                        }
+                        onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
                     <span className="text-sm text-muted-foreground">
