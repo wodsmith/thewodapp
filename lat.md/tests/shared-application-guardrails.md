@@ -15,6 +15,14 @@ The boundary guard follows local re-exports from public client-safe entry points
 
 The boundary predicates reject both `node:` imports and bare Node built-in specifiers without confusing similarly named packages.
 
+## Directory Index Traversal
+
+The boundary guard follows an extensionless directory re-export to its index file and reports forbidden imports without attempting to read the directory itself.
+
+## JavaScript Specifier Source Traversal
+
+The boundary guard maps JavaScript import extensions to their TypeScript sources, even when emitted JavaScript also exists, and reports forbidden imports in those sources.
+
 ## Database Package Boundary Rejection
 
 The boundary predicates reject the exact database workspace package and all of its subpaths while avoiding substring-based false positives.
@@ -30,3 +38,7 @@ The shared-package test hash includes guard scripts, manifests, and the Crew and
 ## Fixed-Shape Operation Receipt Identifiers
 
 An operation receipt accepts a named aggregate-ID interface whose declared properties are strings or null without requiring a string index signature.
+
+## Fixed-Shape Receipt Logging
+
+The application logger accepts and records a receipt with a named aggregate-ID interface, preserving the string-or-null property constraint without requiring an index signature.

@@ -12,6 +12,8 @@ The core uses plain async functions, tagged `Result` values, injected clocks, an
 
 Database, queue, payment, email, filesystem, environment, and Worker behavior belongs in server-only adapters. Operation-specific ports stay beside the operation that consumes them rather than accumulating in a generic service locator.
 
+The logger preserves each receipt's operation and aggregate-ID types. Named ID interfaces with string or null properties can be recorded without adding an index signature or widening their shape.
+
 ## Drift Manifest
 
 Known differences between same-path Crew and Start server functions are executable migration evidence rather than silent alternate authorities.
@@ -27,6 +29,8 @@ The [checked-in JSON manifest](../packages/wodsmith-application/guardrails/share
 ## Runtime Boundary Guard
 
 Client-safe package exports have zero tolerance for app aliases, TanStack server APIs, React, Worker bindings, Node built-ins, database libraries, or provider SDKs. The guard follows the full local re-export graph from every client-safe entry point.
+
+Local traversal selects files, including directory index modules. JavaScript specifiers resolve to corresponding TypeScript sources before emitted JavaScript so forbidden dependencies remain visible in source-only packages.
 
 The server-function baseline fingerprints existing direct static imports by file and specifier, including sibling `.server` modules, bare Node built-ins, and database package subpaths. Removing existing debt passes; adding a new violation fails.
 

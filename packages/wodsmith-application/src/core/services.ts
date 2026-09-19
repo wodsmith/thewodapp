@@ -5,7 +5,12 @@ export interface ApplicationClock {
 }
 
 export interface ApplicationLogger {
-  record(receipt: OperationReceipt): void | Promise<void>
+  record<
+    TOperation extends string,
+    TAggregateIds extends {
+      readonly [TKey in keyof TAggregateIds]: string | null
+    },
+  >(receipt: OperationReceipt<TOperation, TAggregateIds>): void | Promise<void>
 }
 
 /**

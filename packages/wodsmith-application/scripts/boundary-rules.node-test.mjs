@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
@@ -26,6 +26,59 @@ test("follows transitive re-exports from client-safe entry points", () => {
     )
   } finally {
     rmSync(sourceRoot, { recursive: true, force: true })
+  }
+})
+
+// @lat: [[tests/shared-application-guardrails#Directory Index Traversal]]
+test("follows directory index re-exports without reading directories", () => {
+  const sourceRoot = mkdtempSync(join(tmpdir(), "wodsmith-boundaries-"))
+
+  try {
+    const entry = join(sourceRoot, "index.ts")
+    const feature = join(sourceRoot, "feature", "index.ts")
+    mkdirSync(join(sourceRoot, "feature"))
+    writeFileSync(entry, 'export * from "./feature"\n')
+    writeFileSync(feature, 'import "node:fs"\n')
+
+    assert.deepEqual(
+      clientSafeImportViolations({ entryFiles: [entry], sourceRoot }),
+      [{ file: feature, specifier: "node:fs" }],
+    )
+  } finally {
+    rmSync(sourceRoot, { recursive: true, force: true })
+  }
+})
+
+// @lat: [[tests/shared-application-guardrails#JavaScript Specifier Source Traversal]]
+test("follows JavaScript specifiers to TypeScript sources", () => {
+  for (const [specifier, sourceName] of [
+    ["./feature.js", "feature.ts"],
+    ["./feature.js", "feature.tsx"],
+    ["./feature.jsx", "feature.tsx"],
+    ["./feature.mjs", "feature.mts"],
+  ]) {
+    const sourceRoot = mkdtempSync(join(tmpdir(), "wodsmith-boundaries-"))
+
+    try {
+      const entry = join(sourceRoot, "index.ts")
+      const feature = join(sourceRoot, sourceName)
+      writeFileSync(entry, `export * from "${specifier}"\n`)
+      writeFileSync(feature, 'import "node:fs"\n')
+
+      assert.deepEqual(
+        clientSafeImportViolations({ entryFiles: [entry], sourceRoot }),
+        [{ file: feature, specifier: "node:fs" }],
+      )
+
+      writeFileSync(join(sourceRoot, specifier), "export {}\n")
+      assert.deepEqual(
+        clientSafeImportViolations({ entryFiles: [entry], sourceRoot }),
+        [{ file: feature, specifier: "node:fs" }],
+        "TypeScript source takes precedence over emitted JavaScript",
+      )
+    } finally {
+      rmSync(sourceRoot, { recursive: true, force: true })
+    }
   }
 })
 

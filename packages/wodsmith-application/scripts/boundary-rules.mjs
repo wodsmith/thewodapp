@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs"
+import { readFileSync, statSync } from "node:fs"
 import { builtinModules } from "node:module"
 import { dirname, extname, resolve, sep } from "node:path"
 
@@ -77,17 +77,32 @@ function resolveLocalImport(importer, specifier) {
   if (!specifier.startsWith(".")) return null
 
   const target = resolve(dirname(importer), specifier)
-  const candidates = sourceExtensions.includes(extname(target))
-    ? [target]
-    : [
-        target,
-        ...sourceExtensions.map((extension) => `${target}${extension}`),
-        ...sourceExtensions.map((extension) =>
-          resolve(target, `index${extension}`),
-        ),
-      ]
+  const extension = extname(target)
+  const sourceSubstitutions = {
+    ".js": [".ts", ".tsx", ".js", ".jsx"],
+    ".jsx": [".tsx", ".jsx"],
+    ".mjs": [".mts", ".mjs"],
+  }[extension]
+  const candidates = sourceSubstitutions
+    ? sourceSubstitutions.map(
+        (sourceExtension) =>
+          `${target.slice(0, -extension.length)}${sourceExtension}`,
+      )
+    : sourceExtensions.includes(extension)
+      ? [target]
+      : [
+          target,
+          ...sourceExtensions.map((extension) => `${target}${extension}`),
+          ...sourceExtensions.map((extension) =>
+            resolve(target, `index${extension}`),
+          ),
+        ]
 
-  return candidates.find((candidate) => existsSync(candidate)) ?? null
+  return (
+    candidates.find((candidate) =>
+      statSync(candidate, { throwIfNoEntry: false })?.isFile(),
+    ) ?? null
+  )
 }
 
 export function clientSafeImportViolations({ entryFiles, sourceRoot }) {
