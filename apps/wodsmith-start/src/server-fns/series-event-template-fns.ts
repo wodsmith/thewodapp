@@ -40,14 +40,19 @@ import {
 } from "@/db/schemas/series"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
+  movements,
   SCORE_TYPE_VALUES,
   TIEBREAK_SCHEME_VALUES,
   WORKOUT_SCHEME_VALUES,
-  movements,
   workoutMovements,
   workouts,
 } from "@/db/schemas/workouts"
 import { deriveCompetitionEventSyncStatus } from "@/lib/series-event-sync-status"
+import { workoutScalingDescriptionsSchema } from "@/lib/workout-authoring"
+import {
+  insertAuthoringScaling,
+  validateEventAuthoring,
+} from "@/server/workout-authoring-scaling"
 import {
   parseSeriesSettings,
   stringifySeriesSettings,
@@ -247,63 +252,72 @@ export const getSeriesTemplateEventByIdFn = createServerFn({ method: "GET" })
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<{ event: SeriesTemplateEvent | null; movementIds: string[] }> => {
-    const db = getDb()
-    const session = await getSessionFromCookie()
-    if (!session?.userId) throw new Error("Not authenticated")
+  .handler(
+    async ({
+      data,
+    }): Promise<{
+      event: SeriesTemplateEvent | null
+      movementIds: string[]
+    }> => {
+      const db = getDb()
+      const session = await getSessionFromCookie()
+      if (!session?.userId) throw new Error("Not authenticated")
 
-    // Load group to verify auth
-    const [group] = await db
-      .select()
-      .from(competitionGroupsTable)
-      .where(eq(competitionGroupsTable.id, data.groupId))
-    if (!group) throw new Error("Series group not found")
+      // Load group to verify auth
+      const [group] = await db
+        .select()
+        .from(competitionGroupsTable)
+        .where(eq(competitionGroupsTable.id, data.groupId))
+      if (!group) throw new Error("Series group not found")
 
-    await requireTeamPermission(
-      group.organizingTeamId,
-      TEAM_PERMISSIONS.ACCESS_DASHBOARD,
-    )
+      await requireTeamPermission(
+        group.organizingTeamId,
+        TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+      )
 
-    // Load track workout with workout details
-    const [trackWorkout] = await db
-      .select({
-        id: trackWorkoutsTable.id,
-        trackId: trackWorkoutsTable.trackId,
-        workoutId: trackWorkoutsTable.workoutId,
-        trackOrder: trackWorkoutsTable.trackOrder,
-        parentEventId: trackWorkoutsTable.parentEventId,
-        notes: trackWorkoutsTable.notes,
-        pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
-        createdAt: trackWorkoutsTable.createdAt,
-        updatedAt: trackWorkoutsTable.updatedAt,
-        workout: {
-          id: workouts.id,
-          name: workouts.name,
-          description: workouts.description,
-          scheme: workouts.scheme,
-          scoreType: workouts.scoreType,
-          timeCap: workouts.timeCap,
-          roundsToScore: workouts.roundsToScore,
-          tiebreakScheme: workouts.tiebreakScheme,
-        },
-      })
-      .from(trackWorkoutsTable)
-      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+      // Load track workout with workout details
+      const [trackWorkout] = await db
+        .select({
+          id: trackWorkoutsTable.id,
+          trackId: trackWorkoutsTable.trackId,
+          workoutId: trackWorkoutsTable.workoutId,
+          trackOrder: trackWorkoutsTable.trackOrder,
+          parentEventId: trackWorkoutsTable.parentEventId,
+          notes: trackWorkoutsTable.notes,
+          pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+          createdAt: trackWorkoutsTable.createdAt,
+          updatedAt: trackWorkoutsTable.updatedAt,
+          workout: {
+            id: workouts.id,
+            name: workouts.name,
+            description: workouts.description,
+            scheme: workouts.scheme,
+            scoreType: workouts.scoreType,
+            timeCap: workouts.timeCap,
+            roundsToScore: workouts.roundsToScore,
+            tiebreakScheme: workouts.tiebreakScheme,
+          },
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
 
-    if (!trackWorkout) return { event: null, movementIds: [] }
+      if (!trackWorkout) return { event: null, movementIds: [] }
 
-    // Load workout movements
-    const wm = await db
-      .select({ movementId: workoutMovements.movementId })
-      .from(workoutMovements)
-      .where(eq(workoutMovements.workoutId, trackWorkout.workoutId))
+      // Load workout movements
+      const wm = await db
+        .select({ movementId: workoutMovements.movementId })
+        .from(workoutMovements)
+        .where(eq(workoutMovements.workoutId, trackWorkout.workoutId))
 
-    return {
-      event: toSeriesTemplateEvent(trackWorkout),
-      movementIds: wm.map((m) => m.movementId).filter((id): id is string => id !== null),
-    }
-  })
+      return {
+        event: toSeriesTemplateEvent(trackWorkout),
+        movementIds: wm
+          .map((m) => m.movementId)
+          .filter((id): id is string => id !== null),
+      }
+    },
+  )
 
 /**
  * Create the series template programming track.
@@ -499,7 +513,10 @@ export const getSeriesCompetitionEventPublishStatusFn = createServerFn({
                 workoutName: workouts.name,
               })
               .from(trackWorkoutsTable)
-              .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+              .innerJoin(
+                workouts,
+                eq(trackWorkoutsTable.workoutId, workouts.id),
+              )
               .where(inArray(trackWorkoutsTable.trackId, trackIds))
               .orderBy(asc(trackWorkoutsTable.trackOrder))
           : []
@@ -580,7 +597,11 @@ export const bulkUpdateSeriesCompetitionEventStatusFn = createServerFn({
   .handler(
     async ({
       data,
-    }): Promise<{ success: true; parentUpdated: number; childUpdated: number }> => {
+    }): Promise<{
+      success: true
+      parentUpdated: number
+      childUpdated: number
+    }> => {
       const db = getDb()
       const session = await getSessionFromCookie()
       if (!session?.userId) throw new Error("Not authenticated")
@@ -721,7 +742,8 @@ export const copyEventsFromCompetitionFn = createServerFn({ method: "POST" })
       .from(programmingTracksTable)
       .where(eq(programmingTracksTable.competitionId, data.sourceCompetitionId))
 
-    if (!sourceTrack) throw new Error("Source competition has no programming track")
+    if (!sourceTrack)
+      throw new Error("Source competition has no programming track")
 
     // Load source events with workouts
     const sourceEvents = await db
@@ -807,7 +829,7 @@ export const copyEventsFromCompetitionFn = createServerFn({ method: "POST" })
         }
 
         const newParentId = event.parentEventId
-          ? parentIdMap.get(event.parentEventId) ?? null
+          ? (parentIdMap.get(event.parentEventId) ?? null)
           : null
 
         await tx.insert(trackWorkoutsTable).values({
@@ -843,6 +865,10 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
         groupId: z.string().min(1),
         trackId: z.string().min(1),
         workout: z.object({
+          timeCap: z.number().int().positive().optional(),
+          repsPerRound: z.number().int().positive().optional(),
+          scalingGroupId: z.string().min(1).optional(),
+          scalingDescriptions: workoutScalingDescriptionsSchema.optional(),
           name: z.string().min(1).max(200),
           description: z.string().max(5000).optional(),
           scheme: z.enum(WORKOUT_SCHEME_VALUES).optional(),
@@ -956,17 +982,34 @@ export const addEventToSeriesTemplateFn = createServerFn({ method: "POST" })
     const trackWorkoutId = createTrackWorkoutId()
 
     await db.transaction(async (tx) => {
+      // Movement IDs were deduplicated and checked above; validate scaling in the write transaction.
+      await validateEventAuthoring(
+        tx,
+        data.workout,
+        group.organizingTeamId,
+        parseSeriesSettings(group.settings)?.scalingGroupId ?? null,
+      )
       await tx.insert(workouts).values({
         id: workoutId,
         name: data.workout.name,
         description: data.workout.description ?? "",
-        scheme: (data.workout.scheme ?? "time") as (typeof workouts.$inferInsert)["scheme"],
-        scoreType: (data.workout.scoreType ?? null) as (typeof workouts.$inferInsert)["scoreType"],
+        scheme: (data.workout.scheme ??
+          "time") as (typeof workouts.$inferInsert)["scheme"],
+        scoreType: (data.workout.scoreType ??
+          null) as (typeof workouts.$inferInsert)["scoreType"],
         roundsToScore: data.workout.roundsToScore ?? null,
         tiebreakScheme: data.workout.tiebreakScheme ?? null,
+        timeCap: data.workout.timeCap ?? null,
+        repsPerRound: data.workout.repsPerRound ?? null,
+        scalingGroupId: data.workout.scalingGroupId ?? null,
         teamId: group.organizingTeamId,
         scope: "private",
       })
+      await insertAuthoringScaling(
+        tx,
+        workoutId,
+        data.workout.scalingDescriptions,
+      )
 
       await tx.insert(trackWorkoutsTable).values({
         id: trackWorkoutId,
@@ -1035,8 +1078,17 @@ export const updateSeriesTemplateEventFn = createServerFn({ method: "POST" })
             scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
             scoreSortOrder: z.string().optional(),
             timeCap: z.number().int().min(1).nullable().optional(),
-            roundsToScore: z.number().int().min(1).max(1000).nullable().optional(),
-            tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
+            roundsToScore: z
+              .number()
+              .int()
+              .min(1)
+              .max(1000)
+              .nullable()
+              .optional(),
+            tiebreakScheme: z
+              .enum(TIEBREAK_SCHEME_VALUES)
+              .nullable()
+              .optional(),
             reps: z.number().int().min(1).nullable().optional(),
           })
           .optional(),
@@ -1245,9 +1297,7 @@ export const deleteSeriesTemplateEventFn = createServerFn({ method: "POST" })
           .where(inArray(trackWorkoutsTable.id, childIds))
 
         // Delete child workouts
-        await tx
-          .delete(workouts)
-          .where(inArray(workouts.id, childWorkoutIds))
+        await tx.delete(workouts).where(inArray(workouts.id, childWorkoutIds))
       }
 
       // Delete the track_workout
@@ -1256,9 +1306,7 @@ export const deleteSeriesTemplateEventFn = createServerFn({ method: "POST" })
         .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
 
       // Delete the workout
-      await tx
-        .delete(workouts)
-        .where(eq(workouts.id, trackWorkout.workoutId))
+      await tx.delete(workouts).where(eq(workouts.id, trackWorkout.workoutId))
 
       // Reorder remaining siblings if this was a sub-event
       if (trackWorkout.parentEventId) {
@@ -1497,7 +1545,11 @@ function filterTemplateEventsForSync<
 
 function findMatchingCompetitionEvent<
   T extends { id: string; workout: { name: string } },
->(templateEventName: string, candidates: T[], claimedIds: Set<string>): T | null {
+>(
+  templateEventName: string,
+  candidates: T[],
+  claimedIds: Set<string>,
+): T | null {
   const available = candidates.filter((event) => !claimedIds.has(event.id))
   const templateLower = templateEventName.toLowerCase().trim()
 
@@ -1585,8 +1637,7 @@ function autoMapEvents(
     const compSorted = sortedEventKey(compEvent.workoutName)
     const sortedMatch = templateKeys.find(
       (te) =>
-        te.sorted === compSorted &&
-        !claimedTemplateIds.has(te.trackWorkoutId),
+        te.sorted === compSorted && !claimedTemplateIds.has(te.trackWorkoutId),
     )
     if (sortedMatch) {
       claimedTemplateIds.add(sortedMatch.trackWorkoutId)
@@ -1782,9 +1833,7 @@ export const getSeriesEventMappingsFn = createServerFn({ method: "GET" })
               competitionEventId: e.id,
               competitionEventName: e.workoutName,
               templateEventId: existing?.templateEventId ?? null,
-              confidence: existing
-                ? ("exact" as const)
-                : ("none" as const),
+              confidence: existing ? ("exact" as const) : ("none" as const),
               saved: !!existing,
             }
           })
@@ -1981,8 +2030,13 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
                 },
               })
               .from(trackWorkoutsTable)
-              .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-              .where(inArray(trackWorkoutsTable.parentEventId, templateParentIds))
+              .innerJoin(
+                workouts,
+                eq(trackWorkoutsTable.workoutId, workouts.id),
+              )
+              .where(
+                inArray(trackWorkoutsTable.parentEventId, templateParentIds),
+              )
               .orderBy(asc(trackWorkoutsTable.trackOrder))
           : [],
         competitionParentIds.length > 0
@@ -1996,7 +2050,10 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
                 },
               })
               .from(trackWorkoutsTable)
-              .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+              .innerJoin(
+                workouts,
+                eq(trackWorkoutsTable.workoutId, workouts.id),
+              )
               .where(
                 inArray(trackWorkoutsTable.parentEventId, competitionParentIds),
               )
@@ -2372,9 +2429,7 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
       targetCompIds = data.competitionIds
     } else {
       // All competitions that have at least one mapping
-      targetCompIds = [
-        ...new Set(existingMappings.map((m) => m.competitionId)),
-      ]
+      targetCompIds = [...new Set(existingMappings.map((m) => m.competitionId))]
     }
 
     if (targetCompIds.length === 0) {
@@ -2521,14 +2576,8 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
             .from(workoutScalingDescriptionsTable)
             .where(
               and(
-                eq(
-                  workoutScalingDescriptionsTable.workoutId,
-                  compWorkoutId,
-                ),
-                eq(
-                  workoutScalingDescriptionsTable.scalingLevelId,
-                  compDivId,
-                ),
+                eq(workoutScalingDescriptionsTable.workoutId, compWorkoutId),
+                eq(workoutScalingDescriptionsTable.scalingLevelId, compDivId),
               ),
             )
             .limit(1)
@@ -2755,7 +2804,7 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
       // Then sync children, using the parent mapping
       for (const childTw of childTemplates) {
         const compParentId = childTw.parentEventId
-          ? templateParentToCompParent.get(childTw.parentEventId) ?? null
+          ? (templateParentToCompParent.get(childTw.parentEventId) ?? null)
           : null
         await syncEvent(childTw, compParentId)
       }
@@ -3006,7 +3055,12 @@ export const getCompetitionEventSeriesMappingStatusFn = createServerFn({
         .where(eq(competitionsTable.id, data.competitionId))
 
       if (!comp || !comp.groupId) {
-        return { hasTemplate: false, seriesName: null, groupId: null, mappings: [] }
+        return {
+          hasTemplate: false,
+          seriesName: null,
+          groupId: null,
+          mappings: [],
+        }
       }
 
       // Load the series group
@@ -3020,7 +3074,12 @@ export const getCompetitionEventSeriesMappingStatusFn = createServerFn({
         .where(eq(competitionGroupsTable.id, comp.groupId))
 
       if (!group) {
-        return { hasTemplate: false, seriesName: null, groupId: null, mappings: [] }
+        return {
+          hasTemplate: false,
+          seriesName: null,
+          groupId: null,
+          mappings: [],
+        }
       }
 
       const seriesSettings = parseSeriesSettings(group.settings)
@@ -3187,9 +3246,7 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
     if (data.competitionIds && data.competitionIds.length > 0) {
       targetCompIds = data.competitionIds
     } else {
-      targetCompIds = [
-        ...new Set(existingMappings.map((m) => m.competitionId)),
-      ]
+      targetCompIds = [...new Set(existingMappings.map((m) => m.competitionId))]
     }
 
     if (targetCompIds.length === 0) {
@@ -3217,9 +3274,7 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
               competitionId: programmingTracksTable.competitionId,
             })
             .from(programmingTracksTable)
-            .where(
-              inArray(programmingTracksTable.competitionId, targetCompIds),
-            )
+            .where(inArray(programmingTracksTable.competitionId, targetCompIds))
         : []
 
     // Batch-load all competition track_workouts + workouts for those tracks
@@ -3385,7 +3440,9 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
               `scheme: ${previewCompTw.workout.scheme ?? "none"} \u2192 ${templateTw.workout.scheme ?? "none"}`,
             )
           }
-          if (previewCompTw.workout.scoreType !== templateTw.workout.scoreType) {
+          if (
+            previewCompTw.workout.scoreType !== templateTw.workout.scoreType
+          ) {
             changes.push(
               `scoreType: ${previewCompTw.workout.scoreType ?? "none"} \u2192 ${templateTw.workout.scoreType ?? "none"}`,
             )
@@ -3402,21 +3459,24 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
             changes.push(`timeCap: ${fromStr} \u2192 ${toStr}`)
           }
           if (
-            previewCompTw.workout.roundsToScore !== templateTw.workout.roundsToScore
+            previewCompTw.workout.roundsToScore !==
+            templateTw.workout.roundsToScore
           ) {
             changes.push(
               `roundsToScore: ${previewCompTw.workout.roundsToScore ?? "none"} → ${templateTw.workout.roundsToScore ?? "none"}`,
             )
           }
           if (
-            previewCompTw.workout.tiebreakScheme !== templateTw.workout.tiebreakScheme
+            previewCompTw.workout.tiebreakScheme !==
+            templateTw.workout.tiebreakScheme
           ) {
             changes.push(
               `tiebreakScheme: ${previewCompTw.workout.tiebreakScheme ?? "none"} → ${templateTw.workout.tiebreakScheme ?? "none"}`,
             )
           }
           if (
-            previewCompTw.workout.repsPerRound !== templateTw.workout.repsPerRound
+            previewCompTw.workout.repsPerRound !==
+            templateTw.workout.repsPerRound
           ) {
             const fromStr =
               previewCompTw.workout.repsPerRound != null
@@ -3452,7 +3512,8 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
             )
           }
           const tmplMvmts = previewMvmtByWorkout.get(templateTw.workoutId) ?? ""
-          const cmpMvmts = previewMvmtByWorkout.get(previewCompTw.workoutId) ?? ""
+          const cmpMvmts =
+            previewMvmtByWorkout.get(previewCompTw.workoutId) ?? ""
           if (tmplMvmts !== cmpMvmts) {
             changes.push("movements updated")
           }
@@ -3464,7 +3525,9 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
               previewResourcesByEvent.get(previewCompTw.id) ?? new Set()
             const missing = [...tmplRes].filter((t) => !cmpRes.has(t))
             if (missing.length > 0) {
-              changes.push(`${missing.length} resource${missing.length !== 1 ? "s" : ""} to add`)
+              changes.push(
+                `${missing.length} resource${missing.length !== 1 ? "s" : ""} to add`,
+              )
             }
           }
 
@@ -3475,7 +3538,9 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
               previewSheetsByEvent.get(previewCompTw.id) ?? new Set()
             const missing = [...tmplSheets].filter((t) => !cmpSheets.has(t))
             if (missing.length > 0) {
-              changes.push(`${missing.length} judging sheet${missing.length !== 1 ? "s" : ""} to add`)
+              changes.push(
+                `${missing.length} judging sheet${missing.length !== 1 ? "s" : ""} to add`,
+              )
             }
           }
 
@@ -3510,9 +3575,7 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
             changes.push(`tiebreakScheme: ${templateTw.workout.tiebreakScheme}`)
           }
           if (templateTw.pointsMultiplier !== null) {
-            changes.push(
-              `pointsMultiplier: ${templateTw.pointsMultiplier}`,
-            )
+            changes.push(`pointsMultiplier: ${templateTw.pointsMultiplier}`)
           }
 
           events.push({
@@ -3574,450 +3637,463 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<{ competitions: CompetitionEventSyncStatus[] }> => {
-    const db = getDb()
-    const session = await getSessionFromCookie()
-    if (!session?.userId) throw new Error("Not authenticated")
+  .handler(
+    async ({
+      data,
+    }): Promise<{ competitions: CompetitionEventSyncStatus[] }> => {
+      const db = getDb()
+      const session = await getSessionFromCookie()
+      if (!session?.userId) throw new Error("Not authenticated")
 
-    const [group] = await db
-      .select()
-      .from(competitionGroupsTable)
-      .where(eq(competitionGroupsTable.id, data.groupId))
-    if (!group) throw new Error("Series group not found")
+      const [group] = await db
+        .select()
+        .from(competitionGroupsTable)
+        .where(eq(competitionGroupsTable.id, data.groupId))
+      if (!group) throw new Error("Series group not found")
 
-    await requireTeamPermission(
-      group.organizingTeamId,
-      TEAM_PERMISSIONS.ACCESS_DASHBOARD,
-    )
+      await requireTeamPermission(
+        group.organizingTeamId,
+        TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+      )
 
-    const seriesSettings = parseSeriesSettings(group.settings)
-    const templateTrackId = seriesSettings?.templateTrackId
+      const seriesSettings = parseSeriesSettings(group.settings)
+      const templateTrackId = seriesSettings?.templateTrackId
 
-    // Load all competitions in this series
-    const comps = await db
-      .select({ id: competitionsTable.id, name: competitionsTable.name })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.groupId, data.groupId))
+      // Load all competitions in this series
+      const comps = await db
+        .select({ id: competitionsTable.id, name: competitionsTable.name })
+        .from(competitionsTable)
+        .where(eq(competitionsTable.groupId, data.groupId))
 
-    if (comps.length === 0) return { competitions: [] }
+      if (comps.length === 0) return { competitions: [] }
 
-    const compIds = comps.map((c) => c.id)
-    const allCompDivisions =
-      compIds.length > 0
-        ? await db
-            .select({
-              competitionId: competitionDivisionsTable.competitionId,
-              id: scalingLevelsTable.id,
-              label: scalingLevelsTable.label,
-              teamSize: scalingLevelsTable.teamSize,
-            })
-            .from(competitionDivisionsTable)
-            .innerJoin(
-              scalingLevelsTable,
-              eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
-            )
-            .where(inArray(competitionDivisionsTable.competitionId, compIds))
-        : []
-    const divisionsByComp = new Map<
-      string,
-      Array<{ id: string; label: string; teamSize: number }>
-    >()
-    for (const division of allCompDivisions) {
-      const divisions = divisionsByComp.get(division.competitionId) ?? []
-      divisions.push({
-        id: division.id,
-        label: division.label,
-        teamSize: division.teamSize,
-      })
-      divisionsByComp.set(division.competitionId, divisions)
-    }
-
-    // If no template track, all competitions are unmapped
-    if (!templateTrackId) {
-      return {
-        competitions: comps.map((c) => ({
-          competitionId: c.id,
-          competitionName: c.name,
-          status: "unmapped" as const,
-          mappedCount: 0,
-          totalTemplateEvents: 0,
-          divisions: divisionsByComp.get(c.id) ?? [],
-          existingEvents: [],
-          eventStatuses: [],
-        })),
+      const compIds = comps.map((c) => c.id)
+      const allCompDivisions =
+        compIds.length > 0
+          ? await db
+              .select({
+                competitionId: competitionDivisionsTable.competitionId,
+                id: scalingLevelsTable.id,
+                label: scalingLevelsTable.label,
+                teamSize: scalingLevelsTable.teamSize,
+              })
+              .from(competitionDivisionsTable)
+              .innerJoin(
+                scalingLevelsTable,
+                eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
+              )
+              .where(inArray(competitionDivisionsTable.competitionId, compIds))
+          : []
+      const divisionsByComp = new Map<
+        string,
+        Array<{ id: string; label: string; teamSize: number }>
+      >()
+      for (const division of allCompDivisions) {
+        const divisions = divisionsByComp.get(division.competitionId) ?? []
+        divisions.push({
+          id: division.id,
+          label: division.label,
+          teamSize: division.teamSize,
+        })
+        divisionsByComp.set(division.competitionId, divisions)
       }
-    }
 
-    // Load template track_workouts with workouts
-    const templateTrackWorkouts = await db
-      .select({
-        id: trackWorkoutsTable.id,
-        parentEventId: trackWorkoutsTable.parentEventId,
-        trackOrder: trackWorkoutsTable.trackOrder,
-        notes: trackWorkoutsTable.notes,
-        pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
-        workout: {
-          id: workouts.id,
-          name: workouts.name,
-          description: workouts.description,
-          scheme: workouts.scheme,
-          scoreType: workouts.scoreType,
-          timeCap: workouts.timeCap,
-          roundsToScore: workouts.roundsToScore,
-          tiebreakScheme: workouts.tiebreakScheme,
-          repsPerRound: workouts.repsPerRound,
-        },
-      })
-      .from(trackWorkoutsTable)
-      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-      .where(eq(trackWorkoutsTable.trackId, templateTrackId))
-      .orderBy(asc(trackWorkoutsTable.trackOrder))
+      // If no template track, all competitions are unmapped
+      if (!templateTrackId) {
+        return {
+          competitions: comps.map((c) => ({
+            competitionId: c.id,
+            competitionName: c.name,
+            status: "unmapped" as const,
+            mappedCount: 0,
+            totalTemplateEvents: 0,
+            divisions: divisionsByComp.get(c.id) ?? [],
+            existingEvents: [],
+            eventStatuses: [],
+          })),
+        }
+      }
 
-    const filteredTemplateTrackWorkouts = filterTemplateEventsForSync(
-      templateTrackWorkouts,
-      data.templateEventIds,
-    )
-    const totalTemplateEvents = filteredTemplateTrackWorkouts.length
+      // Load template track_workouts with workouts
+      const templateTrackWorkouts = await db
+        .select({
+          id: trackWorkoutsTable.id,
+          parentEventId: trackWorkoutsTable.parentEventId,
+          trackOrder: trackWorkoutsTable.trackOrder,
+          notes: trackWorkoutsTable.notes,
+          pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+          workout: {
+            id: workouts.id,
+            name: workouts.name,
+            description: workouts.description,
+            scheme: workouts.scheme,
+            scoreType: workouts.scoreType,
+            timeCap: workouts.timeCap,
+            roundsToScore: workouts.roundsToScore,
+            tiebreakScheme: workouts.tiebreakScheme,
+            repsPerRound: workouts.repsPerRound,
+          },
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(eq(trackWorkoutsTable.trackId, templateTrackId))
+        .orderBy(asc(trackWorkoutsTable.trackOrder))
 
-    // Load all event mappings for this group
-    const allMappings = await db
-      .select()
-      .from(seriesEventMappingsTable)
-      .where(eq(seriesEventMappingsTable.groupId, data.groupId))
+      const filteredTemplateTrackWorkouts = filterTemplateEventsForSync(
+        templateTrackWorkouts,
+        data.templateEventIds,
+      )
+      const totalTemplateEvents = filteredTemplateTrackWorkouts.length
 
-    // Batch-load all competition programming tracks
-    const compTracks = await db
-      .select({
-        id: programmingTracksTable.id,
-        competitionId: programmingTracksTable.competitionId,
-      })
-      .from(programmingTracksTable)
-      .where(inArray(programmingTracksTable.competitionId, compIds))
-    const compTrackMap = new Map(
-      compTracks
-        .filter((t) => t.competitionId !== null)
-        .map((t) => [t.competitionId, t.id]),
-    )
+      // Load all event mappings for this group
+      const allMappings = await db
+        .select()
+        .from(seriesEventMappingsTable)
+        .where(eq(seriesEventMappingsTable.groupId, data.groupId))
 
-    // Batch-load all competition track_workouts + workouts
-    const trackIds = compTracks.map((t) => t.id)
-    const allCompTrackWorkouts =
-      trackIds.length > 0
-        ? await db
-            .select({
-              id: trackWorkoutsTable.id,
-              trackId: trackWorkoutsTable.trackId,
-              trackOrder: trackWorkoutsTable.trackOrder,
-              notes: trackWorkoutsTable.notes,
-              pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
-              workoutId: trackWorkoutsTable.workoutId,
-              workout: {
-                id: workouts.id,
-                name: workouts.name,
-                description: workouts.description,
-                scheme: workouts.scheme,
-                scoreType: workouts.scoreType,
-                timeCap: workouts.timeCap,
-                roundsToScore: workouts.roundsToScore,
-                tiebreakScheme: workouts.tiebreakScheme,
-                repsPerRound: workouts.repsPerRound,
-              },
-            })
-            .from(trackWorkoutsTable)
-            .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-            .where(inArray(trackWorkoutsTable.trackId, trackIds))
-        : []
+      // Batch-load all competition programming tracks
+      const compTracks = await db
+        .select({
+          id: programmingTracksTable.id,
+          competitionId: programmingTracksTable.competitionId,
+        })
+        .from(programmingTracksTable)
+        .where(inArray(programmingTracksTable.competitionId, compIds))
+      const compTrackMap = new Map(
+        compTracks
+          .filter((t) => t.competitionId !== null)
+          .map((t) => [t.competitionId, t.id]),
+      )
 
-    // Index: trackWorkoutId -> data
-    const compTwMap = new Map(allCompTrackWorkouts.map((tw) => [tw.id, tw]))
+      // Batch-load all competition track_workouts + workouts
+      const trackIds = compTracks.map((t) => t.id)
+      const allCompTrackWorkouts =
+        trackIds.length > 0
+          ? await db
+              .select({
+                id: trackWorkoutsTable.id,
+                trackId: trackWorkoutsTable.trackId,
+                trackOrder: trackWorkoutsTable.trackOrder,
+                notes: trackWorkoutsTable.notes,
+                pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+                workoutId: trackWorkoutsTable.workoutId,
+                workout: {
+                  id: workouts.id,
+                  name: workouts.name,
+                  description: workouts.description,
+                  scheme: workouts.scheme,
+                  scoreType: workouts.scoreType,
+                  timeCap: workouts.timeCap,
+                  roundsToScore: workouts.roundsToScore,
+                  tiebreakScheme: workouts.tiebreakScheme,
+                  repsPerRound: workouts.repsPerRound,
+                },
+              })
+              .from(trackWorkoutsTable)
+              .innerJoin(
+                workouts,
+                eq(trackWorkoutsTable.workoutId, workouts.id),
+              )
+              .where(inArray(trackWorkoutsTable.trackId, trackIds))
+          : []
 
-    // Index: trackId -> set of trackWorkoutIds (for custom event detection)
-    const compTwIdsByTrack = new Map<string, Set<string>>()
-    for (const tw of allCompTrackWorkouts) {
-      const s = compTwIdsByTrack.get(tw.trackId) ?? new Set()
-      s.add(tw.id)
-      compTwIdsByTrack.set(tw.trackId, s)
-    }
+      // Index: trackWorkoutId -> data
+      const compTwMap = new Map(allCompTrackWorkouts.map((tw) => [tw.id, tw]))
 
-    // Group mappings by competition
-    const mappingsByComp = new Map<
-      string,
-      typeof allMappings
-    >()
-    for (const m of allMappings) {
-      const arr = mappingsByComp.get(m.competitionId) ?? []
-      arr.push(m)
-      mappingsByComp.set(m.competitionId, arr)
-    }
+      // Index: trackId -> set of trackWorkoutIds (for custom event detection)
+      const compTwIdsByTrack = new Map<string, Set<string>>()
+      for (const tw of allCompTrackWorkouts) {
+        const s = compTwIdsByTrack.get(tw.trackId) ?? new Set()
+        s.add(tw.id)
+        compTwIdsByTrack.set(tw.trackId, s)
+      }
 
-    // Batch-load movements for all template and competition workouts
-    const allWorkoutIds = [
-      ...filteredTemplateTrackWorkouts.map((tw) => tw.workout.id),
-      ...allCompTrackWorkouts.map((tw) => tw.workout.id),
-    ]
-    const allMovementsData =
-      allWorkoutIds.length > 0
-        ? await db
-            .select({
-              workoutId: workoutMovements.workoutId,
-              movementId: workoutMovements.movementId,
-            })
-            .from(workoutMovements)
-            .where(inArray(workoutMovements.workoutId, allWorkoutIds))
-        : []
-    // Build lookup: workoutId -> sorted movement IDs string (for comparison)
-    const movementsByWorkout = new Map<string, string>()
-    const grouped = new Map<string, string[]>()
-    for (const m of allMovementsData) {
-      if (!m.workoutId || !m.movementId) continue
-      const arr = grouped.get(m.workoutId) ?? []
-      arr.push(m.movementId)
-      grouped.set(m.workoutId, arr)
-    }
-    for (const [wid, mids] of grouped) {
-      movementsByWorkout.set(wid, mids.sort().join(","))
-    }
+      // Group mappings by competition
+      const mappingsByComp = new Map<string, typeof allMappings>()
+      for (const m of allMappings) {
+        const arr = mappingsByComp.get(m.competitionId) ?? []
+        arr.push(m)
+        mappingsByComp.set(m.competitionId, arr)
+      }
 
-    // Batch-load resources and judging sheets counts for comparison
-    const allTrackWorkoutIds = [
-      ...filteredTemplateTrackWorkouts.map((tw) => tw.id),
-      ...allCompTrackWorkouts.map((tw) => tw.id),
-    ]
-    const allResourcesData =
-      allTrackWorkoutIds.length > 0
-        ? await db
-            .select({
-              eventId: eventResourcesTable.eventId,
-              title: eventResourcesTable.title,
-            })
-            .from(eventResourcesTable)
-            .where(inArray(eventResourcesTable.eventId, allTrackWorkoutIds))
-        : []
-    const resourceTitlesByEvent = new Map<string, Set<string>>()
-    for (const r of allResourcesData) {
-      const s = resourceTitlesByEvent.get(r.eventId) ?? new Set()
-      s.add(r.title.toLowerCase().trim())
-      resourceTitlesByEvent.set(r.eventId, s)
-    }
+      // Batch-load movements for all template and competition workouts
+      const allWorkoutIds = [
+        ...filteredTemplateTrackWorkouts.map((tw) => tw.workout.id),
+        ...allCompTrackWorkouts.map((tw) => tw.workout.id),
+      ]
+      const allMovementsData =
+        allWorkoutIds.length > 0
+          ? await db
+              .select({
+                workoutId: workoutMovements.workoutId,
+                movementId: workoutMovements.movementId,
+              })
+              .from(workoutMovements)
+              .where(inArray(workoutMovements.workoutId, allWorkoutIds))
+          : []
+      // Build lookup: workoutId -> sorted movement IDs string (for comparison)
+      const movementsByWorkout = new Map<string, string>()
+      const grouped = new Map<string, string[]>()
+      for (const m of allMovementsData) {
+        if (!m.workoutId || !m.movementId) continue
+        const arr = grouped.get(m.workoutId) ?? []
+        arr.push(m.movementId)
+        grouped.set(m.workoutId, arr)
+      }
+      for (const [wid, mids] of grouped) {
+        movementsByWorkout.set(wid, mids.sort().join(","))
+      }
 
-    const allSheetsData =
-      allTrackWorkoutIds.length > 0
-        ? await db
-            .select({
-              trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
-              title: eventJudgingSheetsTable.title,
-            })
-            .from(eventJudgingSheetsTable)
-            .where(
-              inArray(
-                eventJudgingSheetsTable.trackWorkoutId,
-                allTrackWorkoutIds,
-              ),
-            )
-        : []
-    const sheetTitlesByEvent = new Map<string, Set<string>>()
-    for (const s of allSheetsData) {
-      const set = sheetTitlesByEvent.get(s.trackWorkoutId) ?? new Set()
-      set.add(s.title.toLowerCase().trim())
-      sheetTitlesByEvent.set(s.trackWorkoutId, set)
-    }
+      // Batch-load resources and judging sheets counts for comparison
+      const allTrackWorkoutIds = [
+        ...filteredTemplateTrackWorkouts.map((tw) => tw.id),
+        ...allCompTrackWorkouts.map((tw) => tw.id),
+      ]
+      const allResourcesData =
+        allTrackWorkoutIds.length > 0
+          ? await db
+              .select({
+                eventId: eventResourcesTable.eventId,
+                title: eventResourcesTable.title,
+              })
+              .from(eventResourcesTable)
+              .where(inArray(eventResourcesTable.eventId, allTrackWorkoutIds))
+          : []
+      const resourceTitlesByEvent = new Map<string, Set<string>>()
+      for (const r of allResourcesData) {
+        const s = resourceTitlesByEvent.get(r.eventId) ?? new Set()
+        s.add(r.title.toLowerCase().trim())
+        resourceTitlesByEvent.set(r.eventId, s)
+      }
 
-    const results: CompetitionEventSyncStatus[] = []
+      const allSheetsData =
+        allTrackWorkoutIds.length > 0
+          ? await db
+              .select({
+                trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
+                title: eventJudgingSheetsTable.title,
+              })
+              .from(eventJudgingSheetsTable)
+              .where(
+                inArray(
+                  eventJudgingSheetsTable.trackWorkoutId,
+                  allTrackWorkoutIds,
+                ),
+              )
+          : []
+      const sheetTitlesByEvent = new Map<string, Set<string>>()
+      for (const s of allSheetsData) {
+        const set = sheetTitlesByEvent.get(s.trackWorkoutId) ?? new Set()
+        set.add(s.title.toLowerCase().trim())
+        sheetTitlesByEvent.set(s.trackWorkoutId, set)
+      }
 
-    for (const comp of comps) {
-      const compMappings = mappingsByComp.get(comp.id) ?? []
-      const compTrackId = compTrackMap.get(comp.id)
-      const compEvents = compTrackId
-        ? allCompTrackWorkouts
-            .filter((tw) => tw.trackId === compTrackId)
-            .sort((a, b) => Number(a.trackOrder) - Number(b.trackOrder))
-        : []
-      const existingEvents = compEvents.map((event) => ({
-        id: event.id,
-        name: event.workout.name,
-      }))
+      const results: CompetitionEventSyncStatus[] = []
 
-      if (compMappings.length === 0) {
-        const claimedIds = new Set<string>()
-        const eventStatuses = filteredTemplateTrackWorkouts.map((templateTw) => {
-          const match = findMatchingCompetitionEvent(
-            templateTw.workout.name,
-            compEvents,
-            claimedIds,
+      for (const comp of comps) {
+        const compMappings = mappingsByComp.get(comp.id) ?? []
+        const compTrackId = compTrackMap.get(comp.id)
+        const compEvents = compTrackId
+          ? allCompTrackWorkouts
+              .filter((tw) => tw.trackId === compTrackId)
+              .sort((a, b) => Number(a.trackOrder) - Number(b.trackOrder))
+          : []
+        const existingEvents = compEvents.map((event) => ({
+          id: event.id,
+          name: event.workout.name,
+        }))
+
+        if (compMappings.length === 0) {
+          const claimedIds = new Set<string>()
+          const eventStatuses = filteredTemplateTrackWorkouts.map(
+            (templateTw) => {
+              const match = findMatchingCompetitionEvent(
+                templateTw.workout.name,
+                compEvents,
+                claimedIds,
+              )
+              if (match) {
+                claimedIds.add(match.id)
+              }
+              return {
+                templateEventId: templateTw.id,
+                templateEventName: templateTw.workout.name,
+                competitionEventId: match?.id ?? null,
+                competitionEventName: match?.workout.name ?? null,
+                status: match
+                  ? ("will-map-existing" as const)
+                  : ("will-create" as const),
+              }
+            },
           )
-          if (match) {
-            claimedIds.add(match.id)
+          results.push({
+            competitionId: comp.id,
+            competitionName: comp.name,
+            status: "unmapped",
+            mappedCount: 0,
+            totalTemplateEvents,
+            divisions: divisionsByComp.get(comp.id) ?? [],
+            existingEvents,
+            eventStatuses,
+          })
+          continue
+        }
+
+        const mappedCount = filteredTemplateTrackWorkouts.filter((templateTw) =>
+          compMappings.some(
+            (mapping) => mapping.templateEventId === templateTw.id,
+          ),
+        ).length
+
+        // Check for custom events (competition events not in any mapping)
+        const mappedCompEventIds = new Set(
+          compMappings.map((m) => m.competitionEventId),
+        )
+        const allCompEventIds = compTrackId
+          ? (compTwIdsByTrack.get(compTrackId) ?? new Set())
+          : new Set<string>()
+        const hasCustomEvents = [...allCompEventIds].some(
+          (id) => !mappedCompEventIds.has(id),
+        )
+
+        // Check if any saved mapped event is behind (different from template).
+        // Missing selected mappings are actionable, but they are not "behind".
+        let hasMappedDifferences = false
+
+        // Build lookup: templateEventId -> competitionEventId
+        const templateToCompEvent = new Map(
+          compMappings.map((m) => [m.templateEventId, m.competitionEventId]),
+        )
+        const claimedCompEventIds = new Set(mappedCompEventIds)
+        const eventStatuses: CompetitionEventSyncStatus["eventStatuses"] = []
+
+        for (const templateTw of filteredTemplateTrackWorkouts) {
+          const compEventId = templateToCompEvent.get(templateTw.id)
+          if (!compEventId) {
+            const match = findMatchingCompetitionEvent(
+              templateTw.workout.name,
+              compEvents,
+              claimedCompEventIds,
+            )
+            if (match) {
+              claimedCompEventIds.add(match.id)
+            }
+            eventStatuses.push({
+              templateEventId: templateTw.id,
+              templateEventName: templateTw.workout.name,
+              competitionEventId: match?.id ?? null,
+              competitionEventName: match?.workout.name ?? null,
+              status: match ? "will-map-existing" : "will-create",
+            })
+            continue
           }
-          return {
+
+          const compTw = compTwMap.get(compEventId)
+          if (!compTw) {
+            eventStatuses.push({
+              templateEventId: templateTw.id,
+              templateEventName: templateTw.workout.name,
+              competitionEventId: compEventId,
+              competitionEventName: null,
+              status: "will-create",
+            })
+            hasMappedDifferences = true
+            continue
+          }
+
+          let eventHasDifferences = false
+
+          // Compare workout fields
+          if (
+            compTw.workout.name !== templateTw.workout.name ||
+            (compTw.workout.description ?? "") !==
+              (templateTw.workout.description ?? "") ||
+            compTw.workout.scheme !== templateTw.workout.scheme ||
+            compTw.workout.scoreType !== templateTw.workout.scoreType ||
+            compTw.workout.timeCap !== templateTw.workout.timeCap ||
+            compTw.workout.roundsToScore !== templateTw.workout.roundsToScore ||
+            compTw.workout.tiebreakScheme !==
+              templateTw.workout.tiebreakScheme ||
+            compTw.workout.repsPerRound !== templateTw.workout.repsPerRound
+          ) {
+            eventHasDifferences = true
+          }
+
+          // Compare track workout fields
+          if (
+            (templateTw.pointsMultiplier !== null &&
+              compTw.pointsMultiplier !== templateTw.pointsMultiplier) ||
+            (templateTw.notes !== undefined &&
+              (compTw.notes ?? null) !== (templateTw.notes ?? null)) ||
+            Number(compTw.trackOrder) !== Number(templateTw.trackOrder)
+          ) {
+            eventHasDifferences = true
+          }
+
+          // Compare movements
+          const templateMvmts =
+            movementsByWorkout.get(templateTw.workout.id) ?? ""
+          const compMvmts = movementsByWorkout.get(compTw.workout.id) ?? ""
+          if (templateMvmts !== compMvmts) {
+            eventHasDifferences = true
+          }
+
+          // Compare resources (check if template has resources missing from competition)
+          const templateResources = resourceTitlesByEvent.get(templateTw.id)
+          if (templateResources && templateResources.size > 0) {
+            const compResources =
+              resourceTitlesByEvent.get(compTw.id) ?? new Set()
+            for (const title of templateResources) {
+              if (!compResources.has(title)) {
+                eventHasDifferences = true
+                break
+              }
+            }
+          }
+
+          // Compare judging sheets (check if template has sheets missing from competition)
+          const templateSheets = sheetTitlesByEvent.get(templateTw.id)
+          if (templateSheets && templateSheets.size > 0) {
+            const compSheets = sheetTitlesByEvent.get(compTw.id) ?? new Set()
+            for (const title of templateSheets) {
+              if (!compSheets.has(title)) {
+                eventHasDifferences = true
+                break
+              }
+            }
+          }
+
+          if (eventHasDifferences) {
+            hasMappedDifferences = true
+          }
+          eventStatuses.push({
             templateEventId: templateTw.id,
             templateEventName: templateTw.workout.name,
-            competitionEventId: match?.id ?? null,
-            competitionEventName: match?.workout.name ?? null,
-            status: match ? "will-map-existing" as const : "will-create" as const,
-          }
+            competitionEventId: compTw.id,
+            competitionEventName: compTw.workout.name,
+            status: eventHasDifferences ? "will-resync" : "synced",
+          })
+        }
+
+        const status = deriveCompetitionEventSyncStatus({
+          hasMappedDifferences,
+          hasCustomEvents,
+          mappedCount,
+          totalTemplateEvents,
         })
+
         results.push({
           competitionId: comp.id,
           competitionName: comp.name,
-          status: "unmapped",
-          mappedCount: 0,
+          status,
+          mappedCount,
           totalTemplateEvents,
           divisions: divisionsByComp.get(comp.id) ?? [],
           existingEvents,
           eventStatuses,
         })
-        continue
       }
 
-      const mappedCount = filteredTemplateTrackWorkouts.filter((templateTw) =>
-        compMappings.some((mapping) => mapping.templateEventId === templateTw.id),
-      ).length
-
-      // Check for custom events (competition events not in any mapping)
-      const mappedCompEventIds = new Set(
-        compMappings.map((m) => m.competitionEventId),
-      )
-      const allCompEventIds = compTrackId
-        ? compTwIdsByTrack.get(compTrackId) ?? new Set()
-        : new Set<string>()
-      const hasCustomEvents = [...allCompEventIds].some(
-        (id) => !mappedCompEventIds.has(id),
-      )
-
-      // Check if any saved mapped event is behind (different from template).
-      // Missing selected mappings are actionable, but they are not "behind".
-      let hasMappedDifferences = false
-
-      // Build lookup: templateEventId -> competitionEventId
-      const templateToCompEvent = new Map(
-        compMappings.map((m) => [m.templateEventId, m.competitionEventId]),
-      )
-      const claimedCompEventIds = new Set(mappedCompEventIds)
-      const eventStatuses: CompetitionEventSyncStatus["eventStatuses"] = []
-
-      for (const templateTw of filteredTemplateTrackWorkouts) {
-        const compEventId = templateToCompEvent.get(templateTw.id)
-        if (!compEventId) {
-          const match = findMatchingCompetitionEvent(
-            templateTw.workout.name,
-            compEvents,
-            claimedCompEventIds,
-          )
-          if (match) {
-            claimedCompEventIds.add(match.id)
-          }
-          eventStatuses.push({
-            templateEventId: templateTw.id,
-            templateEventName: templateTw.workout.name,
-            competitionEventId: match?.id ?? null,
-            competitionEventName: match?.workout.name ?? null,
-            status: match ? "will-map-existing" : "will-create",
-          })
-          continue
-        }
-
-        const compTw = compTwMap.get(compEventId)
-        if (!compTw) {
-          eventStatuses.push({
-            templateEventId: templateTw.id,
-            templateEventName: templateTw.workout.name,
-            competitionEventId: compEventId,
-            competitionEventName: null,
-            status: "will-create",
-          })
-          hasMappedDifferences = true
-          continue
-        }
-
-        let eventHasDifferences = false
-
-        // Compare workout fields
-        if (
-          compTw.workout.name !== templateTw.workout.name ||
-          (compTw.workout.description ?? "") !==
-            (templateTw.workout.description ?? "") ||
-          compTw.workout.scheme !== templateTw.workout.scheme ||
-          compTw.workout.scoreType !== templateTw.workout.scoreType ||
-          compTw.workout.timeCap !== templateTw.workout.timeCap ||
-          compTw.workout.roundsToScore !== templateTw.workout.roundsToScore ||
-          compTw.workout.tiebreakScheme !== templateTw.workout.tiebreakScheme ||
-          compTw.workout.repsPerRound !== templateTw.workout.repsPerRound
-        ) {
-          eventHasDifferences = true
-        }
-
-        // Compare track workout fields
-        if (
-          (templateTw.pointsMultiplier !== null &&
-            compTw.pointsMultiplier !== templateTw.pointsMultiplier) ||
-          (templateTw.notes !== undefined &&
-            (compTw.notes ?? null) !== (templateTw.notes ?? null)) ||
-          Number(compTw.trackOrder) !== Number(templateTw.trackOrder)
-        ) {
-          eventHasDifferences = true
-        }
-
-        // Compare movements
-        const templateMvmts = movementsByWorkout.get(templateTw.workout.id) ?? ""
-        const compMvmts = movementsByWorkout.get(compTw.workout.id) ?? ""
-        if (templateMvmts !== compMvmts) {
-          eventHasDifferences = true
-        }
-
-        // Compare resources (check if template has resources missing from competition)
-        const templateResources = resourceTitlesByEvent.get(templateTw.id)
-        if (templateResources && templateResources.size > 0) {
-          const compResources = resourceTitlesByEvent.get(compTw.id) ?? new Set()
-          for (const title of templateResources) {
-            if (!compResources.has(title)) {
-              eventHasDifferences = true
-              break
-            }
-          }
-        }
-
-        // Compare judging sheets (check if template has sheets missing from competition)
-        const templateSheets = sheetTitlesByEvent.get(templateTw.id)
-        if (templateSheets && templateSheets.size > 0) {
-          const compSheets = sheetTitlesByEvent.get(compTw.id) ?? new Set()
-          for (const title of templateSheets) {
-            if (!compSheets.has(title)) {
-              eventHasDifferences = true
-              break
-            }
-          }
-        }
-
-        if (eventHasDifferences) {
-          hasMappedDifferences = true
-        }
-        eventStatuses.push({
-          templateEventId: templateTw.id,
-          templateEventName: templateTw.workout.name,
-          competitionEventId: compTw.id,
-          competitionEventName: compTw.workout.name,
-          status: eventHasDifferences ? "will-resync" : "synced",
-        })
-      }
-
-      const status = deriveCompetitionEventSyncStatus({
-        hasMappedDifferences,
-        hasCustomEvents,
-        mappedCount,
-        totalTemplateEvents,
-      })
-
-      results.push({
-        competitionId: comp.id,
-        competitionName: comp.name,
-        status,
-        mappedCount,
-        totalTemplateEvents,
-        divisions: divisionsByComp.get(comp.id) ?? [],
-        existingEvents,
-        eventStatuses,
-      })
-    }
-
-    return { competitions: results }
-  })
+      return { competitions: results }
+    },
+  )

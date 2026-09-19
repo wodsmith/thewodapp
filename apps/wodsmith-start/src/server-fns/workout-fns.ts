@@ -41,6 +41,7 @@ import {
   workoutTags,
 } from "@/db/schemas/workouts"
 import { DEFAULT_SCORE_TYPES } from "@/lib/scoring/constants"
+import { workoutScalingDescriptionsSchema } from "@/lib/workout-authoring"
 import { normalizedWorkoutSaveSchema } from "@/lib/workout-import"
 import { scoreableWorkoutCondition } from "@/server/scoreable-workouts"
 import {
@@ -385,6 +386,7 @@ export const getWorkoutByIdFn = createServerFn({ method: "GET" })
 
 // Schema for creating a workout
 const createWorkoutInputSchema = z.object({
+  scalingDescriptions: workoutScalingDescriptionsSchema.optional(),
   name: z.string().min(1, "Name is required"),
   description: z.string().min(1, "Description is required"),
   scheme: z.enum(WORKOUT_SCHEME_VALUES),
@@ -417,6 +419,7 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
     }
 
     const normalized = normalizedWorkoutSaveSchema.parse({
+      scalingDescriptions: data.scalingDescriptions,
       name: data.name,
       description: data.description,
       scheme: data.scheme,

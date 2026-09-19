@@ -128,6 +128,7 @@ function CreateWorkoutPage() {
       )}
       <WorkoutForm
         teamId={teamId}
+        authoringContext={teamId ? { kind: "library", teamId } : undefined}
         mode="create"
         movements={movements}
         onSubmit={handleSubmit}

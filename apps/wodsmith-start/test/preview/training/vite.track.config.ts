@@ -27,6 +27,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: [
+      { find: "@/server-fns/workout-authoring-fns", replacement: local("./authoring-fixture.ts") },
       {find:"@/lib/posthog",replacement:local("./posthog-fixture.ts")},
       {find:"@/server-fns/workout-fns",replacement:local("./log-fixtures.ts")},
       { find: "@/components/workout-import/workout-import-entry", replacement: local("./import-entry-fixture.tsx") },

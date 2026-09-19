@@ -5,7 +5,7 @@ import { validateWorkoutReferences } from "./workout-import/persistence"
 
 type WorkoutReferences = Pick<
   NormalizedWorkoutSave,
-  "movementIds" | "scalingGroupId"
+  "movementIds" | "scalingGroupId" | "scalingDescriptions"
 >
 
 // @lat: [[review-backend#Stored references survive catalog changes]]
@@ -22,9 +22,11 @@ export function validateChangedWorkoutReferences(
         (id) => !previous?.movementIds.includes(id),
       ),
       scalingGroupId:
+        !current.scalingDescriptions?.length &&
         current.scalingGroupId === previous?.scalingGroupId
           ? null
           : current.scalingGroupId,
+      scalingDescriptions: current.scalingDescriptions,
     },
     teamId,
   )

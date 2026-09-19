@@ -123,7 +123,9 @@ test.describe('Competition Organizer', () => {
 
     // Fill event dialog — wait for dialog to appear after React state update
     await expect(page.getByRole('dialog')).toBeVisible({timeout: 10000})
-    await page.getByLabel('Event Name').fill('Event 1 - Fran')
+    await page.getByLabel('Describe your workout').fill(
+      'Event 1 - Fran\nFor time: 21-15-9 thrusters and pull-ups. Record one completion time.',
+    )
 
     // Submit event creation
     const submitEventBtn = page

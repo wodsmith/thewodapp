@@ -5,10 +5,12 @@ import { type Database, getDb } from "@/db"
 import {
   movements,
   scalingGroupsTable,
+  scalingLevelsTable,
   trackWorkoutsTable,
   workoutImportReceiptsTable,
   workoutImportSessionsTable,
   workoutMovements,
+  workoutScalingDescriptionsTable,
   workouts,
 } from "@/db/schema"
 import {
@@ -26,7 +28,10 @@ import {
 
 export async function validateWorkoutReferences(
   db: WorkoutImportDatabase,
-  workout: Pick<NormalizedWorkoutSave, "movementIds" | "scalingGroupId">,
+  workout: Pick<
+    NormalizedWorkoutSave,
+    "movementIds" | "scalingGroupId" | "scalingDescriptions"
+  >,
   teamId: string,
 ): Promise<void> {
   if (workout.movementIds.length) {
@@ -52,6 +57,22 @@ export async function validateWorkoutReferences(
     })
     if (!group) throw new Error("Scaling group is unavailable for this team")
   }
+  if (workout.scalingDescriptions?.length) {
+    if (!workout.scalingGroupId)
+      throw new Error("Scaling prescriptions require a scaling group")
+    const ids = workout.scalingDescriptions.map((item) => item.scalingLevelId)
+    const levels = await db
+      .select({ id: scalingLevelsTable.id })
+      .from(scalingLevelsTable)
+      .where(
+        and(
+          eq(scalingLevelsTable.scalingGroupId, workout.scalingGroupId),
+          inArray(scalingLevelsTable.id, ids),
+        ),
+      )
+    if (levels.length !== ids.length)
+      throw new Error("Scaling prescriptions must belong to the selected group")
+  }
 }
 
 export async function insertWorkoutWithMovements(
@@ -61,7 +82,7 @@ export async function insertWorkoutWithMovements(
   sourceWorkoutId: string | null = null,
 ): Promise<string> {
   const workoutId = `workout_${createId()}`
-  const { movementIds, timeCapSeconds, ...fields } = input
+  const { movementIds, timeCapSeconds, scalingDescriptions, ...fields } = input
   await db.insert(workouts).values({
     ...fields,
     id: workoutId,
@@ -77,6 +98,10 @@ export async function insertWorkoutWithMovements(
         movementId,
       })),
     )
+  if (scalingDescriptions?.length)
+    await db
+      .insert(workoutScalingDescriptionsTable)
+      .values(scalingDescriptions.map((item) => ({ ...item, workoutId })))
   return workoutId
 }
 

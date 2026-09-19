@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { DescriptionWorkoutForm } from "@/components/workouts/description-workout-form"
 import {
   type WorkoutDefinitionField,
   WorkoutDefinitionFields,
@@ -69,12 +70,14 @@ export function TrainingWorkoutDialog({
   >({})
   const [dirty, setDirty] = useState(false)
   const [discard, setDiscard] = useState(false)
+  const [creating, setCreating] = useState(false)
   useEffect(() => {
     onDirtyChange?.(dirty)
     return () => onDirtyChange?.(false)
   }, [dirty, onDirtyChange])
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry counter reloads the catalog after a failed request.
   useEffect(() => {
+    if (!block) return
     let active = true
     setLoadError("")
     getTrainingWorkoutOptionsFn({ data: { teamId } })
@@ -90,7 +93,7 @@ export function TrainingWorkoutDialog({
     return () => {
       active = false
     }
-  }, [teamId, attempt])
+  }, [teamId, attempt, block])
 
   function close() {
     if (dirty) setDiscard(true)
@@ -118,6 +121,67 @@ export function TrainingWorkoutDialog({
     })
     onClose()
   }
+
+  if (!block)
+    return (
+      <Dialog
+        open
+        onOpenChange={(open) => {
+          if (!open && !creating) close()
+        }}
+      >
+        <DialogContent
+          className="max-h-[90dvh] overflow-y-auto sm:max-w-[640px]"
+          onEscapeKeyDown={(event) => {
+            if (creating) event.preventDefault()
+          }}
+          onInteractOutside={(event) => {
+            if (creating) event.preventDefault()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Create workout</DialogTitle>
+            <DialogDescription>
+              Describe what athletes will do, including any scaling options.
+            </DialogDescription>
+          </DialogHeader>
+          <DescriptionWorkoutForm
+            context={{ kind: "programming", teamId }}
+            onCancel={close}
+            submitLabel="Add to session"
+            onDirtyChange={setDirty}
+            onBusyChange={setCreating}
+            onSubmit={(workout) => {
+              onSave({
+                id: crypto.randomUUID(),
+                kind: "workout",
+                title: workout.name,
+                prescription: workout.description,
+                workout,
+                scalingGuidance: "",
+                coachGuidance: "",
+              })
+              onClose()
+            }}
+          />
+          {discard && (
+            <div role="alert" className="space-y-3">
+              <p>Discard your unsaved workout?</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDiscard(false)}
+              >
+                Keep editing
+              </Button>
+              <Button type="button" variant="destructive" onClick={onClose}>
+                Discard changes
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    )
 
   return (
     <Dialog

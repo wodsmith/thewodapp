@@ -14,6 +14,7 @@ export interface TrainingWorkoutSnapshot {
   tiebreakScheme: TiebreakScheme | null
   scalingGroupId: string | null
   movementIds: string[]
+  scalingDescriptions?: { scalingLevelId: string; description: string }[]
 }
 
 export interface TrainingRichScoreInput {

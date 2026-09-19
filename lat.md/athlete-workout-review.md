@@ -28,7 +28,7 @@ Athletes can create instructions or completion sections without saving a persona
 
 ### Athletes assign catalogs with recovery
 
-A catalog failure preserves typed workout details, retry loads the athlete's gym options, and saving persists the chosen movement and scaling group.
+A recognition failure preserves the athlete's description. Retrying uses gym context, and saving the composition retains recognized movements, scaling group, and per-level prescriptions.
 
 ## Reviewed Import Compatibility
 

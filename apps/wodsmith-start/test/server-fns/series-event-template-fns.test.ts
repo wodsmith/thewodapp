@@ -1343,7 +1343,9 @@ describe("Series Event Template Server Functions", () => {
 					trackId: "track-1",
 					workout: {
 						name: "Three efforts",
-						scheme: "time",
+						scheme: "time-with-cap",
+						timeCap: 600,
+						repsPerRound: 30,
 						scoreType: "sum",
 						roundsToScore: 3,
 						tiebreakScheme: "reps",
@@ -1357,6 +1359,8 @@ describe("Series Event Template Server Functions", () => {
 			expect(transactionInsert).toHaveBeenCalledWith(workoutMovements)
 			const workoutValues = chain.values.mock.calls[0][0] as { id: string }
 			expect(workoutValues).toMatchObject({
+				timeCap: 600,
+				repsPerRound: 30,
 				roundsToScore: 3,
 				tiebreakScheme: "reps",
 				scoreType: "sum",
