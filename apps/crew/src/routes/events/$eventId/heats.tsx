@@ -539,7 +539,7 @@ function InlineHeatBuilder({
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(5rem,0.65fr)_minmax(13rem,1.35fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)] xl:grid-cols-[minmax(5rem,0.65fr)_minmax(13rem,1.35fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_minmax(15rem,1.5fr)]">
         <AddHeatField label="Heats" htmlFor={fieldId("heat-count")}>
           <input
             id={fieldId("heat-count")}
@@ -583,7 +583,11 @@ function InlineHeatBuilder({
           />
         </AddHeatField>
         {venues.length > 0 ? (
-          <AddHeatField label="Location" htmlFor={fieldId("heat-venue")}>
+          <AddHeatField
+            label="Location"
+            htmlFor={fieldId("heat-venue")}
+            className="lg:col-span-4 xl:col-span-1"
+          >
             <select
               id={fieldId("heat-venue")}
               value={venueId}
@@ -671,14 +675,16 @@ function InlineHeatBuilder({
 function AddHeatField({
   label,
   htmlFor,
+  className,
   children,
 }: {
   label: string
   htmlFor: string
+  className?: string
   children: ReactNode
 }) {
   return (
-    <label className="block text-sm" htmlFor={htmlFor}>
+    <label className={`block text-sm ${className ?? ""}`} htmlFor={htmlFor}>
       <span className="font-medium">{label}</span>
       <span className="mt-1 block">{children}</span>
     </label>
