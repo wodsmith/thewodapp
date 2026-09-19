@@ -153,6 +153,142 @@ export function workoutDescriptionCandidates(
   }
 }
 
+const phrasePattern = (value: string) => {
+  const tokens = value.toLowerCase().match(/[a-z0-9]+/g) ?? []
+  return tokens
+    .map((token, index) => {
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      return index === tokens.length - 1 && !token.endsWith("s")
+        ? `${escaped}s?`
+        : escaped
+    })
+    .join("[\\s-]+")
+}
+
+const phraseSpans = (source: string, phrase: string) => {
+  const pattern = phrasePattern(phrase)
+  if (!pattern) return []
+  return Array.from(
+    source.matchAll(new RegExp(`\\b${pattern}\\b`, "gi")),
+    (match) => ({
+      start: match.index ?? 0,
+      end: (match.index ?? 0) + match[0].length,
+    }),
+  )
+}
+
+/** Prefer the most specific selected catalog movement unless a broader movement is also stated alone. */
+export function pruneOverlappingMovementIds(
+  description: string,
+  movements: DescriptionCatalog["movements"],
+  selectedIds: string[],
+) {
+  const selected = movements.filter((movement) =>
+    selectedIds.includes(movement.id),
+  )
+  return selectedIds.filter((id) => {
+    const movement = selected.find((candidate) => candidate.id === id)
+    if (!movement) return true
+    const spans = phraseSpans(description, movement.name)
+    if (!spans.length) return true
+    return !selected.some((specific) => {
+      if (specific.id === id || specific.name.length <= movement.name.length)
+        return false
+      const specificSpans = phraseSpans(description, specific.name)
+      return (
+        specificSpans.length > 0 &&
+        spans.every((span) =>
+          specificSpans.some(
+            (specificSpan) =>
+              specificSpan.start <= span.start && specificSpan.end >= span.end,
+          ),
+        )
+      )
+    })
+  })
+}
+
+type InlineScalingAssignment = {
+  description: string
+  scalingLevelId: string
+}
+
+/** Extract compact spoken division/value pairs before Jev assigns broader source lines. */
+export function inlineScalingAssignments(
+  description: string,
+  levels: DescriptionCatalog["levels"],
+): InlineScalingAssignment[] {
+  const levelDetails = levels.map((level) => {
+    const normalized = level.label.toLowerCase()
+    const gender = /\b(women|woman|female|girls?)\b/.test(normalized)
+      ? "women"
+      : /\b(men|man|male|boys?)\b/.test(normalized)
+        ? "men"
+        : null
+    const tier = /\bscaled\b/.test(normalized)
+      ? "scaled"
+      : /\brx(?:'d)?\b/.test(normalized)
+        ? "rx"
+        : null
+    return { ...level, gender, normalized, tier }
+  })
+  if (!levelDetails.some((level) => level.gender)) return []
+
+  const claimPattern =
+    /\b(?:(rx(?:'d)?|scaled)\s+)?(women|woman|female|girls?|men|man|male|boys?)\b\s*(?:(?:are|use|using|at|:|-)\s*)?(\d+(?:\.\d+)?s?(?:\s*\/\s*\d+(?:\.\d+)?s?)?(?:\s*(?:lb|lbs|pounds?|kg|kgs|kilos?))?)/gi
+  const claims = Array.from(description.matchAll(claimPattern))
+  if (claims.length < 2) return []
+
+  const firstClaimStart = claims[0]?.index ?? 0
+  const common = description
+    .slice(0, firstClaimStart)
+    .trim()
+    .replace(/[,:;.-]+$/, "")
+  let activeTier: "rx" | "scaled" = "rx"
+  const assignments = new Map<string, string>()
+  for (const claim of claims) {
+    const explicitTier = claim[1]?.toLowerCase().startsWith("scaled")
+      ? "scaled"
+      : claim[1]
+        ? "rx"
+        : null
+    if (explicitTier) activeTier = explicitTier
+    const gender = /^(women|woman|female|girl)/i.test(claim[2] ?? "")
+      ? "women"
+      : "men"
+    const exactLabel = levelDetails.find((level) => {
+      const matched = claim[0]
+        .slice(0, claim[0].indexOf(claim[3] ?? ""))
+        .replace(/\b(?:are|use|using|at)\b/gi, "")
+        .replace(/[:\s-]+/g, " ")
+        .trim()
+        .toLowerCase()
+      return matched === level.normalized
+    })
+    const level =
+      exactLabel ??
+      levelDetails.find(
+        (candidate) =>
+          candidate.gender === gender && candidate.tier === activeTier,
+      ) ??
+      levelDetails.find(
+        (candidate) =>
+          candidate.gender === gender &&
+          (activeTier === "scaled"
+            ? candidate.normalized.includes("scaled")
+            : !candidate.normalized.includes("scaled")),
+      )
+    if (!level) continue
+    if (assignments.has(level.id)) return []
+    const claimText = claim[0].trim().replace(/[,:;.-]+$/, "")
+    assignments.set(level.id, common ? `${common}\n${claimText}` : claimText)
+  }
+  return [...assignments].map(([scalingLevelId, assignmentDescription]) => ({
+    scalingLevelId,
+    description: assignmentDescription,
+  }))
+}
+
 // @lat: [[workout-authoring#Workout Authoring#Description inference]]
 export async function inferWorkoutDescription(
   description: string,
@@ -411,7 +547,7 @@ export async function inferWorkoutDescription(
         )
   const tiebreak = optionalChoice("tiebreak", "none")
   const reps = optionalChoice("reps", "none")
-  const movementIds = catalog.movements.flatMap((movement, i) => {
+  const selectedMovementIds = catalog.movements.flatMap((movement, i) => {
     const p = probability(`movement${i}`)
     if (p > 0.35 && p < 0.65)
       throw new Error(
@@ -419,6 +555,17 @@ export async function inferWorkoutDescription(
       )
     return p >= 0.65 ? [movement.id] : []
   })
+  const movementIds = pruneOverlappingMovementIds(
+    description,
+    catalog.movements,
+    selectedMovementIds,
+  )
+  const inlineScaling = new Map(
+    inlineScalingAssignments(description, catalog.levels).map((assignment) => [
+      assignment.scalingLevelId,
+      assignment.description,
+    ]),
+  )
   const scalingDescriptions = catalog.levels.flatMap((level, levelIndex) => {
     const roles = candidates.lines.map((_, i) => {
       const id = `level${levelIndex}line${i}`
@@ -433,16 +580,19 @@ export async function inferWorkoutDescription(
         )
       return answer.choice
     })
-    return roles.includes("specific")
-      ? [
-          {
-            scalingLevelId: level.id,
-            description: candidates.lines
-              .filter((_, i) => roles[i] !== "other")
-              .join("\n"),
-          },
-        ]
-      : []
+    const inlineDescription = inlineScaling.get(level.id)
+    return inlineDescription
+      ? [{ scalingLevelId: level.id, description: inlineDescription }]
+      : roles.includes("specific")
+        ? [
+            {
+              scalingLevelId: level.id,
+              description: candidates.lines
+                .filter((_, i) => roles[i] !== "other")
+                .join("\n"),
+            },
+          ]
+        : []
   })
   const finalScheme =
     scheme === "time" && cap !== "none" ? "time-with-cap" : scheme

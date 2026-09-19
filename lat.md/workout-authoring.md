@@ -84,6 +84,8 @@ Competition descriptions first classify the number and boundaries of independent
 
 Scaling descriptions combine shared source instructions with lines explicitly assigned to each existing level. Jev receives all destination level names and IDs; source text cannot invent levels. Single-paragraph named variants are segmented before classification. Requests use bounded batches, bounded retries, and an overall timeout. No API key or raw source text is logged or sent to browser code.
 
+Compact spoken prescriptions such as “men are 50s, women are 35, scaled men are 35, women are 20” are copied into their matching gender and tier levels before broader line classification. When Jev selects both a named movement and a catalog movement wholly contained in that name, only the specific movement is retained unless the broader movement also appears independently in the source.
+
 The TypeSafe API guarantees structured types, not semantic correctness. Mocked tests verify the application contract; optional answers with low confidence are ignored when their branch is unused. Live accuracy and latency require a configured `TYPESAFE_API_KEY` and representative workout evaluation. New ordinary creation uses ordinary destination authorization, independently of the separately entitled image/import-session workflow.
 
 ## Description creation lifecycle

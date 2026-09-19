@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   cohostCreate: vi.fn(),
   addSeriesEvent: vi.fn(),
+  group: vi.fn(),
   errorToast: vi.fn(),
   invalidate: vi.fn(),
   trackEvent: vi.fn(),
@@ -45,7 +46,7 @@ vi.mock("@/components/events/competition-event-row", () => ({
 }))
 vi.mock("@/server-fns/competition-workouts-fns", () => ({
   createWorkoutAndAddToCompetitionFn: mocks.create,
-  groupCompetitionEventsFn: vi.fn(),
+  groupCompetitionEventsFn: mocks.group,
   removeWorkoutFromCompetitionFn: vi.fn(),
   reorderCompetitionEventsFn: vi.fn(),
   updateWorkoutDivisionDescriptionsFn: vi.fn(),
@@ -60,6 +61,7 @@ describe("event creation failure recovery", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.invalidate.mockResolvedValue(undefined)
+    mocks.group.mockResolvedValue({ trackWorkoutId: "parent-event" })
     mocks.describe.mockImplementation(async ({ data }: { data: { description: string } }) => ({
       name: data.description.split("\n")[0], description: data.description, scheme: "time-with-cap", scoreType: "min",
       roundsToScore: 3, timeCapSeconds: 600, tiebreakScheme: "reps", repsPerRound: 30, movementIds: ["thruster"],
@@ -72,6 +74,104 @@ describe("event creation failure recovery", () => {
     ]) {
       mutation.mockRejectedValue(new Error("Creation unavailable"))
     }
+  })
+
+  // @lat: [[workout-authoring#Workout Authoring#Description creation lifecycle]]
+  it("persists every inferred field for both scored parts before grouping them", async () => {
+    const prompt =
+      "A part is 10 reps down to one where you are doing dumbbell squats with a pair of dumbbells men are 50s. Women are 35 scaled men are 35 women are 20 and it’s for time with the time cap of 10 minutes at 10 minutes. your transition to a one rep Max power clean, which has a five minute time cap."
+    const scalingDescriptions = [
+      { scalingLevelId: "rx-men", description: "men are 50s" },
+      { scalingLevelId: "rx-women", description: "Women are 35" },
+      { scalingLevelId: "scaled-men", description: "scaled men are 35" },
+      { scalingLevelId: "scaled-women", description: "women are 20" },
+    ]
+    mocks.describe.mockResolvedValueOnce({
+      kind: "multi-part",
+      name: "Multi-part event",
+      description: prompt,
+      subEvents: [
+        {
+          name: "Part A",
+          description: "Dumbbell squat ladder",
+          scheme: "time-with-cap",
+          scoreType: "min",
+          roundsToScore: 1,
+          timeCapSeconds: 600,
+          tiebreakScheme: null,
+          repsPerRound: null,
+          movementIds: ["dumbbell-squat"],
+          scope: "private",
+          scalingGroupId: "divisions",
+          scalingDescriptions,
+        },
+        {
+          name: "Part B",
+          description: "One rep max power clean",
+          scheme: "load",
+          scoreType: "max",
+          roundsToScore: 1,
+          timeCapSeconds: null,
+          tiebreakScheme: null,
+          repsPerRound: null,
+          movementIds: ["power-clean"],
+          scope: "private",
+          scalingGroupId: "divisions",
+          scalingDescriptions: [],
+        },
+      ],
+    })
+    mocks.create
+      .mockResolvedValueOnce({ trackWorkoutId: "part-a" })
+      .mockResolvedValueOnce({ trackWorkoutId: "part-b" })
+
+    render(
+      <OrganizerEventManager
+        competitionId="competition-1"
+        organizingTeamId="team-1"
+        events={[]}
+        movements={[]}
+        divisions={[]}
+        divisionDescriptionsByWorkout={{}}
+        sponsors={[]}
+      />,
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Create event" }))
+    const dialog = within(screen.getByRole("dialog"))
+    fireEvent.change(dialog.getByLabelText("Describe your workout"), {
+      target: { value: prompt },
+    })
+    fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
+
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(2))
+    expect(mocks.create.mock.calls.map(([call]) => call.data)).toEqual([
+      expect.objectContaining({
+        name: "Part A",
+        scheme: "time-with-cap",
+        scoreType: "min",
+        timeCap: 600,
+        movementIds: ["dumbbell-squat"],
+        scalingGroupId: "divisions",
+        scalingDescriptions,
+      }),
+      expect.objectContaining({
+        name: "Part B",
+        scheme: "load",
+        scoreType: "max",
+        movementIds: ["power-clean"],
+        scalingGroupId: "divisions",
+        scalingDescriptions: [],
+      }),
+    ])
+    expect(mocks.group).toHaveBeenCalledWith({
+      data: {
+        competitionId: "competition-1",
+        teamId: "team-1",
+        trackWorkoutIds: ["part-a", "part-b"],
+        name: "Multi-part event",
+        description: prompt,
+      },
+    })
   })
 
   // @lat: [[authoring-series-review#Series Authoring Review#Organizer refresh failure follows successful creation]]

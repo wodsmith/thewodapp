@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest"
 import {
   inferCompetitionEventDescription,
   inferWorkoutDescription,
+  inlineScalingAssignments,
+  pruneOverlappingMovementIds,
   workoutDescriptionCandidates,
 } from "@/server/workout-description-inference"
 
@@ -27,6 +29,71 @@ function model(overrides: Record<string, unknown> = {}) {
 }
 
 describe("description-first workout recognition", () => {
+  it("isolates spoken division prescriptions and suppresses a generic movement contained in a selected specific movement", () => {
+    const prompt =
+      "10 reps down to one doing dumbbell squats with a pair of dumbbells men are 50s. Women are 35 scaled men are 35 women are 20. Then a one rep max power clean."
+    const levels = [
+      { id: "rx-men", label: "Rx Men" },
+      { id: "rx-women", label: "Rx Women" },
+      { id: "scaled-men", label: "Scaled Men" },
+      { id: "scaled-women", label: "Scaled Women" },
+    ]
+    expect(inlineScalingAssignments(prompt, levels)).toEqual([
+      {
+        scalingLevelId: "rx-men",
+        description:
+          "10 reps down to one doing dumbbell squats with a pair of dumbbells\nmen are 50s",
+      },
+      {
+        scalingLevelId: "rx-women",
+        description:
+          "10 reps down to one doing dumbbell squats with a pair of dumbbells\nWomen are 35",
+      },
+      {
+        scalingLevelId: "scaled-men",
+        description:
+          "10 reps down to one doing dumbbell squats with a pair of dumbbells\nscaled men are 35",
+      },
+      {
+        scalingLevelId: "scaled-women",
+        description:
+          "10 reps down to one doing dumbbell squats with a pair of dumbbells\nwomen are 20",
+      },
+    ])
+    const movements = [
+      { id: "power-clean", name: "Power Clean", type: "weightlifting" },
+      { id: "clean", name: "Clean", type: "weightlifting" },
+      {
+        id: "dumbbell-squat",
+        name: "Dumbbell Squat",
+        type: "weightlifting",
+      },
+      { id: "squat", name: "Squat", type: "weightlifting" },
+    ]
+    expect(
+      pruneOverlappingMovementIds(prompt, movements, ["power-clean", "clean"]),
+    ).toEqual(["power-clean"])
+    expect(
+      pruneOverlappingMovementIds(
+        `${prompt} Finish with one clean.`,
+        movements,
+        ["power-clean", "clean"],
+      ),
+    ).toEqual(["power-clean", "clean"])
+    expect(
+      pruneOverlappingMovementIds(prompt, movements, [
+        "dumbbell-squat",
+        "squat",
+      ]),
+    ).toEqual(["dumbbell-squat"])
+    expect(
+      inlineScalingAssignments(
+        "Rx men are 50 lb, then Rx men are 40 lb for the second movement.",
+        levels,
+      ),
+    ).toEqual([])
+  })
+
   it("creates a parent definition with independently scored time and load sub-events", async () => {
     const description =
       "Part A is 10 reps down to one of dumbbell squats for time with a 10 minute cap. At 10 minutes transition to a one rep max power clean with a five minute window."
