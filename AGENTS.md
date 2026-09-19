@@ -3,6 +3,14 @@
 - Run `lat search` to find sections relevant to your task. Read them to understand the design intent before writing code.
 - Run `lat expand` on user prompts to expand any `[[refs]]` — this resolves section names to file locations and provides context.
 
+# Database schema changes
+
+Database schema deployment is managed directly through PlanetScale branches and deploy requests.
+
+- Update the Drizzle schema declarations needed by application code.
+- Do not generate or commit SQL migration files, Drizzle migration snapshots, or migration journal entries.
+- Let the repository owner apply and merge schema changes through the PlanetScale CLI workflow.
+
 # Production workout authoring
 
 When adding or changing a workout creation or editing surface, inspect Compete's `CreateEventDialog` and `EventDetailsForm` and read `lat.md/workout-authoring.md` first. Reuse `apps/wodsmith-start/src/components/workouts/workout-definition-fields.tsx` for workout definition controls instead of introducing a parallel set of fields.

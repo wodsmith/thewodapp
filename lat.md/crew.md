@@ -198,7 +198,7 @@ The re-sync rule: editing any GLOBAL control (start time, length, gap, count, or
 
 Locations are the floors or areas where heats run; each has a name and a lane count — the number of lanes a heat there has. Crew does not assign athletes to lanes; lane count is purely a property of the location shown at the heat level.
 
-Locations are event-scoped `competition_venues` rows. Along with name and lane count, each stores `transitionMinutes` as its default heat gap and `isDefault` as the preferred location for new heat schedules; heats still associate through `competition_heats.venueId`. Migration `0012_lyrical_mephisto.sql` adds and backfills `is_default` to the first sorted venue for every existing event.
+Locations are event-scoped `competition_venues` rows. Along with name and lane count, each stores `transitionMinutes` as its default heat gap and `isDefault` as the preferred location for new heat schedules; heats still associate through `competition_heats.venueId`. The Drizzle schema declares `is_default`, while deployment is managed through the project's PlanetScale branch and deploy-request workflow rather than checked-in generated migration files.
 
 The Setup page ([[apps/crew/src/routes/events/$eventId/setup.tsx]]) renders location cards with lane count, heat gap, default status, and star/edit/delete actions, loaded by [[apps/crew/src/server-fns/crew-locations-fns.ts#getCrewLocationsFn]]. [[apps/crew/src/server-fns/crew-locations-fns.ts]] gates all mutations with `requireCrewEventManagerAccess`: the first created location becomes default, setting another default clears the old choice transactionally, and deleting the default promotes the next sorted location. Lane count is limited to [1, 100], while heat gap is limited to [0, 120].
 
