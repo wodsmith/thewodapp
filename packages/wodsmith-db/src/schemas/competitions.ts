@@ -243,6 +243,8 @@ export const competitionVenuesTable = mysqlTable(
     laneCount: int().notNull().default(3),
     // Minutes between heats for auto-scheduling
     transitionMinutes: int().notNull().default(3),
+    // Preferred venue when organizers create heats for this competition
+    isDefault: boolean().notNull().default(false),
     sortOrder: int().default(0).notNull(),
     // Address for this venue
     addressId: varchar({ length: 255 }),

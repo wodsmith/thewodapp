@@ -4,6 +4,7 @@ import {
   buildSpacedHeats,
   DEFAULT_HEAT_DURATION_MINUTES,
   DEFAULT_TRANSITION_MINUTES,
+  getInitialHeatSchedule,
 } from "./heat-scheduling"
 
 // @lat: [[crew#Bulk Heat Scheduling]]
@@ -169,5 +170,51 @@ describe("buildCascadedLocalTimes", () => {
     expect(buildCascadedLocalTimes({ count: 0, ...common })).toEqual([])
     expect(buildCascadedLocalTimes({ count: -2, ...common })).toEqual([])
     expect(buildCascadedLocalTimes({ count: 1.5, ...common })).toEqual([])
+  })
+})
+
+// @lat: [[crew#Bulk Heat Scheduling]]
+describe("getInitialHeatSchedule", () => {
+  it("starts a new workout on the event start date", () => {
+    expect(
+      getInitialHeatSchedule({
+        eventStartDate: "2026-09-30",
+        fallbackDurationMinutes: 8,
+        gapMinutes: 2,
+      }),
+    ).toEqual({
+      startLocalValue: "2026-09-30T00:00",
+      lengthMinutes: 8,
+    })
+  })
+
+  it("continues after the final heat using its duration and location gap", () => {
+    expect(
+      getInitialHeatSchedule({
+        eventStartDate: "2026-09-30",
+        lastScheduledLocalValue: "2026-09-30T09:40",
+        lastDurationMinutes: 12,
+        fallbackDurationMinutes: 8,
+        gapMinutes: 3,
+      }),
+    ).toEqual({
+      startLocalValue: "2026-09-30T09:55",
+      lengthMinutes: 12,
+    })
+  })
+
+  it("uses the fallback duration when the previous heat has none", () => {
+    expect(
+      getInitialHeatSchedule({
+        eventStartDate: "2026-09-30",
+        lastScheduledLocalValue: "2026-09-30T09:40",
+        lastDurationMinutes: null,
+        fallbackDurationMinutes: 8,
+        gapMinutes: 4,
+      }),
+    ).toEqual({
+      startLocalValue: "2026-09-30T09:52",
+      lengthMinutes: 8,
+    })
   })
 })

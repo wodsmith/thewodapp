@@ -92,6 +92,19 @@ export interface CascadeInput {
   startHeatNumber?: number
 }
 
+export interface InitialHeatScheduleInput {
+  eventStartDate: string
+  lastScheduledLocalValue?: string | null
+  lastDurationMinutes?: number | null
+  fallbackDurationMinutes: number
+  gapMinutes: number
+}
+
+export interface InitialHeatSchedule {
+  startLocalValue: string
+  lengthMinutes: number
+}
+
 const LOCAL_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
 
 /**
@@ -163,4 +176,42 @@ export function buildCascadedLocalTimes({
       ),
     }
   })
+}
+
+/**
+ * Choose the least-editing defaults when opening the inline heat builder.
+ * Existing schedules continue after the final heat using that heat's own
+ * duration plus the selected location's gap. New schedules begin at midnight
+ * on the event start date so the date is never left blank.
+ */
+export function getInitialHeatSchedule({
+  eventStartDate,
+  lastScheduledLocalValue,
+  lastDurationMinutes,
+  fallbackDurationMinutes,
+  gapMinutes,
+}: InitialHeatScheduleInput): InitialHeatSchedule {
+  const lengthMinutes =
+    lastDurationMinutes && lastDurationMinutes > 0
+      ? lastDurationMinutes
+      : fallbackDurationMinutes
+
+  if (lastScheduledLocalValue) {
+    const [, next] = buildCascadedLocalTimes({
+      count: 2,
+      startLocalValue: lastScheduledLocalValue,
+      lengthMinutes,
+      gapMinutes,
+    })
+    if (next?.localValue) {
+      return { startLocalValue: next.localValue, lengthMinutes }
+    }
+  }
+
+  return {
+    startLocalValue: /^\d{4}-\d{2}-\d{2}$/.test(eventStartDate)
+      ? `${eventStartDate}T00:00`
+      : "",
+    lengthMinutes,
+  }
 }

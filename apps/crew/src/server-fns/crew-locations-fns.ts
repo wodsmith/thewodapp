@@ -14,7 +14,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { createCompetitionVenueId } from "@/db/schemas/common"
@@ -42,6 +42,8 @@ export interface CrewLocation {
   id: string
   name: string
   laneCount: number
+  transitionMinutes: number
+  isDefault: boolean
   /** Number of heats currently assigned to this location. */
   heatCount: number
 }
@@ -53,6 +55,9 @@ export interface CrewLocation {
 const LANE_COUNT_MIN = 1
 const LANE_COUNT_MAX = 100
 const DEFAULT_LANE_COUNT = 3
+const DEFAULT_TRANSITION_MINUTES = 2
+const TRANSITION_MINUTES_MIN = 0
+const TRANSITION_MINUTES_MAX = 120
 
 const eventIdSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),
@@ -67,6 +72,12 @@ const createLocationInputSchema = z.object({
     .min(LANE_COUNT_MIN)
     .max(LANE_COUNT_MAX)
     .default(DEFAULT_LANE_COUNT),
+  transitionMinutes: z
+    .number()
+    .int()
+    .min(TRANSITION_MINUTES_MIN)
+    .max(TRANSITION_MINUTES_MAX)
+    .default(DEFAULT_TRANSITION_MINUTES),
 })
 
 const updateLocationInputSchema = z.object({
@@ -74,6 +85,16 @@ const updateLocationInputSchema = z.object({
   locationId: z.string().min(1, "Location ID is required"),
   name: z.string().trim().min(1, "Location name is required").max(100),
   laneCount: z.number().int().min(LANE_COUNT_MIN).max(LANE_COUNT_MAX),
+  transitionMinutes: z
+    .number()
+    .int()
+    .min(TRANSITION_MINUTES_MIN)
+    .max(TRANSITION_MINUTES_MAX),
+})
+
+const setDefaultLocationInputSchema = z.object({
+  eventId: z.string().min(1, "Event ID is required"),
+  locationId: z.string().min(1, "Location ID is required"),
 })
 
 const deleteLocationInputSchema = z.object({
@@ -143,6 +164,8 @@ export const getCrewLocationsFn = createServerFn({ method: "GET" })
           id: competitionVenuesTable.id,
           name: competitionVenuesTable.name,
           laneCount: competitionVenuesTable.laneCount,
+          transitionMinutes: competitionVenuesTable.transitionMinutes,
+          isDefault: competitionVenuesTable.isDefault,
         })
         .from(competitionVenuesTable)
         .where(eq(competitionVenuesTable.competitionId, event.id))
@@ -163,10 +186,16 @@ export const getCrewLocationsFn = createServerFn({ method: "GET" })
     }
 
     return {
-      locations: locationRows.map((row) => ({
+      locations: locationRows.map((row, index) => ({
         id: row.id,
         name: row.name,
         laneCount: row.laneCount,
+        transitionMinutes: row.transitionMinutes,
+        // The fallback keeps pre-migration or manually imported venue data
+        // usable even if no row was explicitly marked as the default.
+        isDefault:
+          row.isDefault ||
+          (!locationRows.some((location) => location.isDefault) && index === 0),
         heatCount: heatCountByVenue.get(row.id) ?? 0,
       })),
     }
@@ -189,12 +218,17 @@ export const createCrewLocationFn = createServerFn({ method: "POST" })
       .where(eq(competitionVenuesTable.competitionId, event.id))
 
     const locationId = createCompetitionVenueId()
-    await db.insert(competitionVenuesTable).values({
-      id: locationId,
-      competitionId: event.id,
-      name: data.name,
-      laneCount: data.laneCount,
-      sortOrder: existing.length,
+    const isDefault = existing.length === 0
+    await db.transaction(async (tx) => {
+      await tx.insert(competitionVenuesTable).values({
+        id: locationId,
+        competitionId: event.id,
+        name: data.name,
+        laneCount: data.laneCount,
+        transitionMinutes: data.transitionMinutes,
+        isDefault,
+        sortOrder: existing.length,
+      })
     })
 
     addRequestContextAttribute("venueId", locationId)
@@ -203,13 +237,20 @@ export const createCrewLocationFn = createServerFn({ method: "POST" })
       id: locationId,
       parentEntity: "competition",
       parentId: event.id,
-      attributes: { name: data.name, laneCount: data.laneCount },
+      attributes: {
+        name: data.name,
+        laneCount: data.laneCount,
+        transitionMinutes: data.transitionMinutes,
+        isDefault,
+      },
     })
 
     return {
       id: locationId,
       name: data.name,
       laneCount: data.laneCount,
+      transitionMinutes: data.transitionMinutes,
+      isDefault,
       heatCount: 0,
     }
   })
@@ -244,6 +285,7 @@ export const updateCrewLocationFn = createServerFn({ method: "POST" })
       .set({
         name: data.name,
         laneCount: data.laneCount,
+        transitionMinutes: data.transitionMinutes,
         updatedAt: new Date(),
       })
       .where(eq(competitionVenuesTable.id, data.locationId))
@@ -252,13 +294,11 @@ export const updateCrewLocationFn = createServerFn({ method: "POST" })
   })
 
 /**
- * Delete a location. Heats that reference it are NOT deleted — their `venueId`
- * is nulled out first so no heat is left pointing at a missing location (the
- * heat keeps its number/time and simply shows no location until reassigned).
- * The two writes run in a transaction so a delete never half-applies.
+ * Make one event location the default used by new heat schedules. Clearing and
+ * setting happen in one transaction so the event never commits two defaults.
  */
-export const deleteCrewLocationFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => deleteLocationInputSchema.parse(data))
+export const setDefaultCrewLocationFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => setDefaultLocationInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
     const event = await requireManageableCrewEvent(data.eventId)
     const db = getDb()
@@ -279,6 +319,63 @@ export const deleteCrewLocationFn = createServerFn({ method: "POST" })
     }
 
     await db.transaction(async (tx) => {
+      await tx
+        .update(competitionVenuesTable)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(competitionVenuesTable.competitionId, event.id))
+      await tx
+        .update(competitionVenuesTable)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(eq(competitionVenuesTable.id, data.locationId))
+    })
+
+    return { success: true }
+  })
+
+/**
+ * Delete a location. Heats that reference it are NOT deleted — their `venueId`
+ * is nulled out first so no heat is left pointing at a missing location (the
+ * heat keeps its number/time and simply shows no location until reassigned).
+ * The two writes run in a transaction so a delete never half-applies.
+ */
+export const deleteCrewLocationFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => deleteLocationInputSchema.parse(data))
+  .handler(async ({ data }): Promise<{ success: true }> => {
+    const event = await requireManageableCrewEvent(data.eventId)
+    const db = getDb()
+
+    const [location] = await db
+      .select({
+        id: competitionVenuesTable.id,
+        isDefault: competitionVenuesTable.isDefault,
+      })
+      .from(competitionVenuesTable)
+      .where(
+        and(
+          eq(competitionVenuesTable.id, data.locationId),
+          eq(competitionVenuesTable.competitionId, event.id),
+        ),
+      )
+      .limit(1)
+
+    if (!location) {
+      throw new Error("Location not found for this event")
+    }
+
+    const [replacement] = location.isDefault
+      ? await db
+          .select({ id: competitionVenuesTable.id })
+          .from(competitionVenuesTable)
+          .where(
+            and(
+              eq(competitionVenuesTable.competitionId, event.id),
+              ne(competitionVenuesTable.id, data.locationId),
+            ),
+          )
+          .orderBy(asc(competitionVenuesTable.sortOrder))
+      : []
+
+    await db.transaction(async (tx) => {
       // Detach heats from the location before removing it so none are orphaned
       // with a dangling venueId. Scoped to this event for safety.
       await tx
@@ -294,6 +391,13 @@ export const deleteCrewLocationFn = createServerFn({ method: "POST" })
       await tx
         .delete(competitionVenuesTable)
         .where(eq(competitionVenuesTable.id, data.locationId))
+
+      if (replacement) {
+        await tx
+          .update(competitionVenuesTable)
+          .set({ isDefault: true, updatedAt: new Date() })
+          .where(eq(competitionVenuesTable.id, replacement.id))
+      }
     })
 
     logEntityDeleted({
