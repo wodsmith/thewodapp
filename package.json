@@ -3,7 +3,8 @@
 	"private": true,
 	"scripts": {
 		"build": "turbo build",
-		"dev": "turbo dev",
+		"dev": "node scripts/setup-worktree-env.mjs --check && turbo dev",
+		"setup:worktree": "node scripts/setup-worktree-env.mjs",
 		"dev:stripe": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
 		"lint": "turbo lint",
 		"format": "turbo format",

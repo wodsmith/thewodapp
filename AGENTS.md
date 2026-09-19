@@ -3,6 +3,16 @@
 - Run `lat search` to find sections relevant to your task. Read them to understand the design intent before writing code.
 - Run `lat expand` on user prompts to expand any `[[refs]]` — this resolves section names to file locations and provides context.
 
+## Local development database
+
+WODsmith Start and Crew share the PlanetScale `dev` branch in local development. Run `pnpm setup:worktree` once in every new worktree, then start the desired app. The setup command copies the canonical `DATABASE_URL` from `~/.config/wodsmith/database.env` into both apps and `TYPESAFE_API_KEY` from `~/.config/wodsmith/typesafe.env` into Start, while preserving other ignored `.dev.vars` settings.
+
+- PlanetScale target: organization `wodsmith`, database `wodsmith-db`, branch `dev`, engine Vitess/MySQL.
+- Agents may use ordinary application reads and writes. Do not run write SQL directly, change credentials, alter Traffic Control or webhooks, or perform schema changes without explicit user approval.
+- Do not run `pscale connect`; local apps use the direct TLS connection string.
+- Do not run `db:push`, migrations, destructive database tests, or schema experiments against the shared branch unless the task explicitly requires that shared schema change.
+- Use `pnpm --filter wodsmith-start dev:multi` for Start and `pnpm --filter crew dev` for Crew. Their predev checks explain how to repair missing or stale worktree configuration.
+
 # Database schema changes
 
 Database schema deployment is managed directly through PlanetScale branches and deploy requests.
