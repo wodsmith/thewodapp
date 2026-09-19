@@ -48,11 +48,11 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
   const handleSave = async () => {
     setIsSubmitting(true)
     try {
-      const parsedValue = maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)
+      const parsedValue = maxSpots.trim() === "" ? null : Number(maxSpots)
 
       if (
         parsedValue !== null &&
-        (Number.isNaN(parsedValue) || parsedValue < 1)
+        (!Number.isInteger(parsedValue) || parsedValue < 1)
       ) {
         toast.error("Please enter a valid number (1 or higher)")
         setIsSubmitting(false)
@@ -63,7 +63,9 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
 
       if (
         parsedTotal !== null &&
-        (!Number.isFinite(parsedTotal) || !Number.isInteger(parsedTotal) || parsedTotal < 1)
+        (!Number.isFinite(parsedTotal) ||
+          !Number.isInteger(parsedTotal) ||
+          parsedTotal < 1)
       ) {
         toast.error("Please enter a valid number (1 or higher)")
         setIsSubmitting(false)
@@ -90,16 +92,16 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
     }
   }
 
-  const hasChanges = (() => {
-    const parsed = maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)
-    if (parsed !== null && Number.isNaN(parsed)) return false
-    const parsedTotal = maxTotal.trim() === "" ? null : Number(maxTotal)
-    if (parsedTotal !== null && (!Number.isFinite(parsedTotal) || !Number.isInteger(parsedTotal))) return false
-    return (
-      parsed !== competition.defaultMaxSpotsPerDivision ||
-      parsedTotal !== competition.maxTotalRegistrations
-    )
-  })()
+  const isValidCapacity = (value: string) =>
+    value.trim() === "" ||
+    (Number.isInteger(Number(value)) && Number(value) >= 1)
+  const invalidSpots = !isValidCapacity(maxSpots)
+  const invalidTotal = !isValidCapacity(maxTotal)
+  const hasChanges =
+    (maxSpots.trim() === "" ? null : Number(maxSpots)) !==
+      competition.defaultMaxSpotsPerDivision ||
+    (maxTotal.trim() === "" ? null : Number(maxTotal)) !==
+      competition.maxTotalRegistrations
 
   return (
     <Card>
@@ -118,6 +120,8 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
           <div className="flex items-center gap-4">
             <Input
               id="maxTotal"
+              aria-invalid={invalidTotal}
+              aria-describedby={invalidTotal ? "maxTotal-error" : undefined}
               type="number"
               min={1}
               placeholder="Unlimited"
@@ -129,6 +133,15 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
               Leave blank for unlimited
             </span>
           </div>
+          {invalidTotal && (
+            <p
+              id="maxTotal-error"
+              role="alert"
+              className="text-sm text-destructive"
+            >
+              Enter a whole number of 1 or higher, or leave blank for unlimited.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
             Maximum total registrations across all divisions.
           </p>
@@ -139,6 +152,8 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
           <div className="flex items-center gap-4">
             <Input
               id="maxSpots"
+              aria-invalid={invalidSpots}
+              aria-describedby={invalidSpots ? "maxSpots-error" : undefined}
               type="number"
               min={1}
               placeholder="Unlimited"
@@ -150,13 +165,25 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
               Leave blank for unlimited
             </span>
           </div>
+          {invalidSpots && (
+            <p
+              id="maxSpots-error"
+              role="alert"
+              className="text-sm text-destructive"
+            >
+              Enter a whole number of 1 or higher, or leave blank for unlimited.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
             Athletes will see available spots and cannot register when a
             division is full.
           </p>
         </div>
 
-        <Button onClick={handleSave} disabled={isSubmitting || !hasChanges}>
+        <Button
+          onClick={handleSave}
+          disabled={isSubmitting || !hasChanges || invalidSpots || invalidTotal}
+        >
           {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Save changes
         </Button>

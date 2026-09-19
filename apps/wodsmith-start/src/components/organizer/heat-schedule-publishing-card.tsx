@@ -15,8 +15,16 @@ import {
 } from "@/server-fns/competition-heats-fns"
 
 interface HeatSchedulePublishingOverrides {
-  publishHeatFn?: (args: { data: { heatId: string; publish: boolean; organizingTeamId: string } }) => Promise<{ success: boolean; schedulePublishedAt: Date | null }>
-  publishAllFn?: (args: { data: { trackWorkoutId: string; publish: boolean; organizingTeamId: string } }) => Promise<{ success: boolean; updatedCount: number; schedulePublishedAt?: Date | null }>
+  publishHeatFn?: (args: {
+    data: { heatId: string; publish: boolean; organizingTeamId: string }
+  }) => Promise<{ success: boolean; schedulePublishedAt: Date | null }>
+  publishAllFn?: (args: {
+    data: { trackWorkoutId: string; publish: boolean; organizingTeamId: string }
+  }) => Promise<{
+    success: boolean
+    updatedCount: number
+    schedulePublishedAt?: Date | null
+  }>
 }
 
 interface HeatSchedulePublishingCardProps {
@@ -24,6 +32,7 @@ interface HeatSchedulePublishingCardProps {
   eventName: string
   competitionId: string
   organizingTeamId: string
+  timezone: string
   overrides?: HeatSchedulePublishingOverrides
   /** Base route prefix for navigation links (defaults to "/compete/organizer") */
   routePrefix?: string
@@ -32,12 +41,14 @@ interface HeatSchedulePublishingCardProps {
 /**
  * Format time for display (e.g., "9:00 AM")
  */
-function formatTime(date: Date | null): string {
+function formatTime(date: Date | null, timezone: string): string {
   if (!date) return "No time set"
   return new Date(date).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: timezone,
+    timeZoneName: "short",
   })
 }
 
@@ -53,6 +64,7 @@ export function HeatSchedulePublishingCard({
   eventName,
   competitionId,
   organizingTeamId,
+  timezone,
   overrides,
   routePrefix = "/compete/organizer",
 }: HeatSchedulePublishingCardProps) {
@@ -285,7 +297,7 @@ export function HeatSchedulePublishingCard({
                     </span>
                     {status.scheduledTime && (
                       <span className="text-sm text-muted-foreground ml-2 hidden sm:inline">
-                        {formatTime(status.scheduledTime)}
+                        {formatTime(status.scheduledTime, timezone)}
                       </span>
                     )}
                   </div>

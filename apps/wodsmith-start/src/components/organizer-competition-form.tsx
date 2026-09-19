@@ -275,8 +275,8 @@ export function OrganizerCompetitionForm({
 
   // Auto-generate slug from name
   const handleNameChange = (name: string) => {
-    // Only auto-generate slug if we're not in edit mode or the slug hasn't been manually edited
-    if (!isEditMode || !form.formState.dirtyFields.slug) {
+    // Preserve existing and manually customized URLs.
+    if (!isEditMode && !form.formState.dirtyFields.slug) {
       const slug = name
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
@@ -345,6 +345,7 @@ export function OrganizerCompetitionForm({
         })
 
         if (result.competitionId) {
+          const failedSetup: string[] = []
           // Initialize divisions from series template if selected
           if (templateData && selectedDivisionIds.size > 0) {
             try {
@@ -358,7 +359,7 @@ export function OrganizerCompetitionForm({
               })
             } catch (e) {
               console.error("Failed to initialize divisions:", e)
-              // Don't block competition creation
+              failedSetup.push("divisions")
             }
           }
 
@@ -374,7 +375,7 @@ export function OrganizerCompetitionForm({
               })
             } catch (e) {
               console.error("Failed to sync template events:", e)
-              // Don't block competition creation
+              failedSetup.push("workouts")
             }
           }
 
@@ -384,8 +385,32 @@ export function OrganizerCompetitionForm({
             competition_slug: data.slug,
             organizing_team_id: data.teamId,
           })
-          toast.success("Competition created successfully")
-          await router.invalidate()
+          if (failedSetup.length > 0) {
+            toast.warning(
+              "Competition created, but template setup is incomplete",
+              {
+                description: `Could not initialize ${failedSetup.join(" and ")}. Review divisions in competition settings and resync workouts from the series event template.`,
+                duration: Infinity,
+                action: {
+                  label: "Review setup",
+                  onClick: () =>
+                    navigate({
+                      to: "/compete/organizer/$competitionId/divisions",
+                      params: { competitionId: result.competitionId },
+                    }),
+                },
+              },
+            )
+          } else {
+            toast.success("Competition created successfully")
+          }
+          try {
+            await router.invalidate()
+          } catch {
+            toast.warning(
+              "Competition created, but the page could not refresh. Reload to see it.",
+            )
+          }
           onSuccess?.(result.competitionId)
         }
       }
