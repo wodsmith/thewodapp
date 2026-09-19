@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./core": "./src/core/index.ts",
+    "./identity": "./src/identity/index.ts",
     "./mysql": "./src/mysql/index.ts"
   },
   "main": "./src/index.ts",

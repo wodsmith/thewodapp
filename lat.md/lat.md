@@ -2,6 +2,7 @@ This directory defines the high-level concepts, business logic, and architecture
 
 - [[architecture]] — Monorepo structure, tech stack, route groups, and deployment
 - [[shared-application-core]] — Shared Crew and Start operation boundaries, parity gates, and deployment wiring
+- [[identity]] — Canonical competition identities, legacy topology translation, and ownership invariants
 - [[domain]] — Core domain model: teams, competitions, workouts, scoring, volunteers
 - [[submission-integrity]] — Atomic online submissions, review resets, and division-scoped verification tests
 - [[auth]] — Authentication, sessions, authorization, and placeholder users
