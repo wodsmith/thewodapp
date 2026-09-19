@@ -80,6 +80,16 @@ function tiebreakIssues(tiebreak: CanonicalTiebreak | undefined): string[] {
     : ["tiebreak value must be a non-negative safe integer"]
 }
 
+function roundedAverage(values: readonly number[]): number {
+  const total = values.reduce((sum, value) => sum + BigInt(value), 0n)
+  const divisor = BigInt(values.length)
+  const quotient = total / divisor
+  const remainder = total % divisor
+  const rounded = remainder * 2n >= divisor ? quotient + 1n : quotient
+
+  return Number(rounded)
+}
+
 function aggregate(
   aggregation: ScoreAggregation,
   values: readonly number[],
@@ -92,9 +102,7 @@ function aggregate(
     case "sum":
       return values.reduce((total, value) => total + value, 0)
     case "average":
-      return Math.round(
-        values.reduce((total, value) => total + value, 0) / values.length,
-      )
+      return roundedAverage(values)
     case "first":
       return values[0] ?? 0
     case "last":

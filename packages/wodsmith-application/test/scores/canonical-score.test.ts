@@ -76,6 +76,48 @@ describe("canonical competition score values", () => {
     })
   })
 
+  // @lat: [[competition-results#Competition Result Commands#Large averages retain exact rounding]]
+  it("rounds large safe-integer averages without losing precision", () => {
+    const cases = [
+      {
+        values: [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - 2],
+        expected: Number.MAX_SAFE_INTEGER - 1,
+      },
+      {
+        values: [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - 1],
+        expected: Number.MAX_SAFE_INTEGER,
+      },
+      {
+        values: [
+          Number.MAX_SAFE_INTEGER,
+          Number.MAX_SAFE_INTEGER - 2,
+          Number.MAX_SAFE_INTEGER - 2,
+        ],
+        expected: Number.MAX_SAFE_INTEGER - 1,
+      },
+    ]
+
+    for (const { values, expected } of cases) {
+      const result = canonicalizeScore({
+        scheme: "multi-round",
+        aggregation: "average",
+        rounds: values.map((value, index) => ({
+          roundNumber: index + 1,
+          value,
+          outcome: "finished",
+        })),
+      })
+
+      expect(result).toEqual({
+        ok: true,
+        value: expect.objectContaining({ aggregate: expected }),
+      })
+      if (result.ok && result.value.scheme === "multi-round") {
+        expect(Number.isSafeInteger(result.value.aggregate)).toBe(true)
+      }
+    }
+  })
+
   // @lat: [[competition-results#Competition Result Commands#Malformed canonical facts are rejected]]
   it("rejects malformed round facts instead of repairing them", () => {
     const result = canonicalizeScore({

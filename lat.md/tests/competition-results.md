@@ -51,6 +51,10 @@ Canonical score values preserve the distinctions between completed, capped, quan
 
 Multi-round canonicalization derives aggregate values and capped-round counts from validated round facts for every supported aggregation policy.
 
+## Large averages retain exact rounding
+
+Average aggregation sums valid safe-integer rounds exactly and rounds fractional means upward at one-half without losing precision near the safe-integer limit.
+
 ## Malformed canonical facts are rejected
 
 Malformed numeric values, discontinuous rounds, and contradictory cap metadata are rejected rather than silently repaired into authoritative values.
