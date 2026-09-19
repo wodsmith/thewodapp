@@ -206,6 +206,10 @@ An owned score deletion removes its round breakdowns before removing the parent 
 
 An active athlete-team member proves participation through membership even when another user owns the registration, so clearing targets the member's score rather than returning idempotent success.
 
+#### Accepts duplicate membership join rows
+
+Repeated membership joins for one registration ID still prove one participation. Clearing either the captain's or a teammate's score deletes the requested athlete's exact-scope score and rounds.
+
 #### Rejects event outside competition
 
 The delete action rejects a track workout that does not belong to the requested competition before opening a transaction.

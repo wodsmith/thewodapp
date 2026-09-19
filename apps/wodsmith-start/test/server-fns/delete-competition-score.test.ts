@@ -266,6 +266,53 @@ describe("deleteCompetitionScoreFn", () => {
     ])
   })
 
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Accepts duplicate membership join rows]]
+  it.each(["captain-user", "member-user"])(
+    "clears %s's score when membership joins repeat the same registration",
+    async (userId) => {
+      const results = successfulRemovalResults({
+        divisionId: "division-1",
+        scoreRows: [{ id: "score-1" }],
+        userId: "captain-user",
+      })
+      const registration = {
+        id: "registration-1",
+        competitionId: "comp-1",
+        divisionId: "division-1",
+      }
+      results[4] = [registration, { ...registration }]
+      const { db, deleteCalls, deleteWhere, txSelectWhereCalls } =
+        createDbMock(results)
+      mockDb = db
+
+      await expect(
+        deleteCompetitionScoreFn({
+          data: {
+            organizingTeamId: "team-1",
+            competitionId: "comp-1",
+            trackWorkoutId: "tw-1",
+            userId,
+            divisionId: "division-1",
+          },
+        }),
+      ).resolves.toEqual({ success: true })
+
+      expect(renderCondition(txSelectWhereCalls[3]).params).toEqual([
+        "tw-1",
+        userId,
+        "division-1",
+      ])
+      expect(deleteCalls).toEqual([scoreRoundsTable, scoresTable])
+      expect(deleteWhere).toHaveBeenCalledTimes(2)
+      expect(renderCondition(deleteWhere.mock.calls[0]?.[0]).params).toEqual([
+        "score-1",
+      ])
+      expect(renderCondition(deleteWhere.mock.calls[1]?.[0]).params).toEqual([
+        "score-1",
+      ])
+    },
+  )
+
   // @lat: [[organizer-dashboard#Results Entry#Clear Results#Rejects event outside competition]]
   it("rejects an event outside the competition", async () => {
     const { db } = createDbMock([

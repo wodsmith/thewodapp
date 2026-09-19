@@ -149,13 +149,12 @@ function createTransactionAdapter(tx: Transaction): ScoreRemovalTransaction {
           ),
         )
 
-      if (registrations.length === 0)
-        return err({ kind: "ParticipationNotFound" })
-      if (registrations.length > 1)
-        return err({ kind: "AmbiguousParticipation" })
-
       const [registration] = registrations
       if (!registration) return err({ kind: "ParticipationNotFound" })
+      // Duplicate memberships can repeat one registration in the join results.
+      if (registrations.some((row) => row.id !== registration.id)) {
+        return err({ kind: "AmbiguousParticipation" })
+      }
       return ok({
         registrationId: registration.id as RegistrationId,
         competitionId: registration.competitionId as CompetitionId,
