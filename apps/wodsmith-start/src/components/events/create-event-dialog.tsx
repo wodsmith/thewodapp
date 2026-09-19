@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { WorkoutMetadataSuggestionContext } from "@/components/workout-metadata-suggestions"
+import { DescriptionWorkoutForm } from "@/components/workouts/description-workout-form"
 import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import type { Movement } from "@/db/schemas/workouts"
 import type {
@@ -18,10 +19,17 @@ import type {
   TiebreakScheme,
   WorkoutScheme,
 } from "@/lib/scoring/types"
+import type {
+  InferredCompetitionEvent,
+  InferredCompetitionEventGroup,
+  WorkoutAuthoringContext,
+} from "@/lib/workout-authoring"
 import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
+import { describeCompetitionEventFn } from "@/server-fns/workout-authoring-fns"
 
 interface CreateEventDialogProps {
   metadataSuggestions?: WorkoutMetadataSuggestionContext
+  authoringContext?: WorkoutAuthoringContext
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreateEvent: (data: {
@@ -32,16 +40,29 @@ interface CreateEventDialogProps {
     roundsToScore?: number
     tiebreakScheme?: TiebreakScheme
     movementIds?: string[]
+    timeCap?: number
+    repsPerRound?: number
+    scalingGroupId?: string
+    scalingDescriptions?: NormalizedWorkoutSave["scalingDescriptions"]
   }) => Promise<void>
+  onCreateEventGroup?: (group: InferredCompetitionEventGroup) => Promise<void>
   isCreating?: boolean
   movements: Movement[]
 }
 
+function isEventGroup(
+  value: InferredCompetitionEvent,
+): value is InferredCompetitionEventGroup {
+  return "subEvents" in value && Array.isArray(value.subEvents)
+}
+
 export function CreateEventDialog({
   metadataSuggestions,
+  authoringContext,
   open,
   onOpenChange,
   onCreateEvent,
+  onCreateEventGroup,
   isCreating,
   movements,
 }: CreateEventDialogProps) {
@@ -89,6 +110,57 @@ export function CreateEventDialog({
       setSubmitting(false)
     }
   }
+
+  if (authoringContext)
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent
+          className="sm:max-w-[600px] max-h-[90dvh] overflow-y-auto"
+          onEscapeKeyDown={(event) => {
+            if (busy) event.preventDefault()
+          }}
+          onInteractOutside={(event) => {
+            if (busy) event.preventDefault()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Create new event</DialogTitle>
+            <DialogDescription>
+              Describe the workout and any division-specific variations.
+            </DialogDescription>
+          </DialogHeader>
+          <DescriptionWorkoutForm<InferredCompetitionEvent>
+            context={authoringContext}
+            submitLabel="Create event"
+            onBusyChange={setSubmitting}
+            onCancel={() => handleOpenChange(false)}
+            recognize={(description) =>
+              describeCompetitionEventFn({
+                data: { context: authoringContext, description },
+              })
+            }
+            onSubmit={async (workout) => {
+              if (isEventGroup(workout)) {
+                if (!onCreateEventGroup)
+                  throw new Error("Multi-part event creation is unavailable.")
+                await onCreateEventGroup(workout)
+                onOpenChange(false)
+                return
+              }
+              await onCreateEvent({
+                ...workout,
+                scoreType: workout.scoreType ?? undefined,
+                tiebreakScheme: workout.tiebreakScheme ?? undefined,
+                timeCap: workout.timeCapSeconds ?? undefined,
+                repsPerRound: workout.repsPerRound ?? undefined,
+                scalingGroupId: workout.scalingGroupId ?? undefined,
+              })
+              onOpenChange(false)
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    )
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

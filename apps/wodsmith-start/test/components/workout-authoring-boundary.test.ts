@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest"
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 
 const sharedFieldConsumers = [
+  "src/components/workouts/description-workout-form.tsx",
   "src/routes/compete/organizer/series/$groupId/events/$eventId.tsx",
   "src/components/workout-form.tsx",
   "src/components/events/create-event-dialog.tsx",
@@ -16,6 +17,12 @@ const sharedFieldConsumers = [
 ]
 
 const consumers = [
+  ...[
+    "src/components/workout-form.tsx",
+    "src/components/events/create-event-dialog.tsx",
+    "src/components/training/training-workout-dialog.tsx",
+    "src/components/training/athlete-personal-session.tsx",
+  ].map((path) => ({ path, module: "/workouts/description-workout-form", component: "DescriptionWorkoutForm" })),
   { path: "src/components/training/athlete-personal-session.tsx", module: "/personal-workout-definition", component: "PersonalWorkoutDefinition" },
   ...sharedFieldConsumers.map((path) => ({
     path,

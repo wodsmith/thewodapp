@@ -15,9 +15,7 @@ import {
   createTrackWorkoutId,
   createWorkoutScalingDescriptionId,
 } from "@/db/schemas/common"
-import {
-  competitionsTable,
-} from "@/db/schemas/competitions"
+import { competitionsTable } from "@/db/schemas/competitions"
 import {
   PROGRAMMING_TRACK_TYPE,
   programmingTracksTable,
@@ -39,8 +37,17 @@ import {
   workouts,
   workoutTags,
 } from "@/db/schemas/workouts"
+import { workoutScalingDescriptionsSchema } from "@/lib/workout-authoring"
 import { groupCompetitionEvents } from "@/server/group-competition-events"
-import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  insertAuthoringScaling,
+  validateEventAuthoring,
+} from "@/server/workout-authoring-scaling"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
+import { parseCompetitionSettings } from "@/utils/competition-settings"
 
 // ============================================================================
 // Types
@@ -157,6 +164,9 @@ const cohostReorderEventsInputSchema = z.object({
 })
 
 const cohostCreateWorkoutInputSchema = z.object({
+  timeCap: z.number().int().positive().optional(),
+  scalingGroupId: z.string().min(1).optional(),
+  scalingDescriptions: workoutScalingDescriptionsSchema.optional(),
   competitionTeamId: z.string().min(1, "Competition team ID is required"),
   competitionId: z.string().min(1, "Competition ID is required"),
   name: z.string().min(1, "Name is required").max(200),
@@ -214,9 +224,7 @@ async function getNextCompetitionEventOrder(
 
   if (trackWorkouts.length === 0) return 1
 
-  const maxOrder = Math.max(
-    ...trackWorkouts.map((tw) => Number(tw.trackOrder)),
-  )
+  const maxOrder = Math.max(...trackWorkouts.map((tw) => Number(tw.trackOrder)))
   return Math.floor(maxOrder) + 1
 }
 
@@ -240,9 +248,7 @@ async function getNextSubEventOrder(parentEventId: string): Promise<number> {
 
   if (siblings.length === 0) return parentOrder + 0.01
 
-  const maxChildOrder = Math.max(
-    ...siblings.map((s) => Number(s.trackOrder)),
-  )
+  const maxChildOrder = Math.max(...siblings.map((s) => Number(s.trackOrder)))
   return Number((maxChildOrder + 0.01).toFixed(2))
 }
 
@@ -287,7 +293,10 @@ export const cohostGetWorkoutsFn = createServerFn({ method: "GET" })
     // Any cohost can read events — no specific permission required.
     // Events are needed by schedule, results, volunteers, scoring, etc.
     await requireCohostPermission(data.competitionTeamId)
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     const track = await getCompetitionTrack(data.competitionId)
@@ -480,7 +489,10 @@ export const cohostGetBatchDivisionDescriptionsFn = createServerFn({
 
     if (data.divisionIds.length === 0 || data.workoutIds.length === 0) {
       return {
-        descriptionsByWorkout: {} as Record<string, CohostDivisionDescription[]>,
+        descriptionsByWorkout: {} as Record<
+          string,
+          CohostDivisionDescription[]
+        >,
       }
     }
 
@@ -539,9 +551,7 @@ export const cohostGetBatchDivisionDescriptionsFn = createServerFn({
  * Update a competition workout (cohost — status, notes, multiplier)
  */
 export const cohostUpdateWorkoutFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    cohostUpdateWorkoutInputSchema.parse(data),
-  )
+  .inputValidator((data: unknown) => cohostUpdateWorkoutInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "editEvents")
     const db = getDb()
@@ -658,10 +668,7 @@ export const cohostSaveEventFn = createServerFn({ method: "POST" })
           .where(
             and(
               eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-              inArray(
-                workoutScalingDescriptionsTable.scalingLevelId,
-                toDelete,
-              ),
+              inArray(workoutScalingDescriptionsTable.scalingLevelId, toDelete),
             ),
           )
       }
@@ -701,12 +708,13 @@ export const cohostSaveEventFn = createServerFn({ method: "POST" })
  * Reorder competition events (cohost)
  */
 export const cohostReorderEventsFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    cohostReorderEventsInputSchema.parse(data),
-  )
+  .inputValidator((data: unknown) => cohostReorderEventsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "editEvents")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     const track = await getCompetitionTrack(data.competitionId)
@@ -773,146 +781,160 @@ export const cohostReorderEventsFn = createServerFn({ method: "POST" })
  * Create a new workout and add it to a competition (cohost)
  */
 export const cohostCreateWorkoutFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    cohostCreateWorkoutInputSchema.parse(data),
-  )
+  .inputValidator((data: unknown) => cohostCreateWorkoutInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "editEvents")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
-    // Get or create the competition track
-    let track = await getCompetitionTrack(data.competitionId)
-    if (!track) {
+    return db.transaction(async (db) => {
+      // Get or create the competition track
+      let track = await getCompetitionTrack(data.competitionId)
+      if (!track) {
+        const competition = await db.query.competitionsTable.findFirst({
+          where: eq(competitionsTable.id, data.competitionId),
+        })
+        if (!competition) throw new Error("Competition not found")
+
+        const createdTrackId = createProgrammingTrackId()
+        await db.insert(programmingTracksTable).values({
+          id: createdTrackId,
+          name: `${competition.name} - Events`,
+          description: `Competition events for ${competition.name}`,
+          type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+          ownerTeamId: competition.organizingTeamId,
+          competitionId: competition.id,
+          isPublic: 0,
+        })
+
+        const createdTrack = await db.query.programmingTracksTable.findFirst({
+          where: eq(programmingTracksTable.id, createdTrackId),
+        })
+        if (!createdTrack) {
+          throw new Error("Failed to create programming track for competition")
+        }
+        track = createdTrack
+      }
+
+      // Validate parentEventId if provided
+      if (data.parentEventId) {
+        const parentEvent = await db
+          .select({
+            id: trackWorkoutsTable.id,
+            parentEventId: trackWorkoutsTable.parentEventId,
+          })
+          .from(trackWorkoutsTable)
+          .where(
+            and(
+              eq(trackWorkoutsTable.id, data.parentEventId),
+              eq(trackWorkoutsTable.trackId, track.id),
+            ),
+          )
+          .limit(1)
+
+        if (parentEvent.length === 0) {
+          throw new Error("Parent event not found in this competition")
+        }
+        if (parentEvent[0].parentEventId) {
+          throw new Error("Cannot nest sub-events more than one level deep")
+        }
+      }
+
+      const nextOrder = data.parentEventId
+        ? await getNextSubEventOrder(data.parentEventId)
+        : await getNextCompetitionEventOrder(data.competitionId)
+
+      // Get organizing team ID for the workout scope
       const competition = await db.query.competitionsTable.findFirst({
         where: eq(competitionsTable.id, data.competitionId),
+        columns: { organizingTeamId: true, settings: true },
       })
       if (!competition) throw new Error("Competition not found")
 
-      const createdTrackId = createProgrammingTrackId()
-      await db.insert(programmingTracksTable).values({
-        id: createdTrackId,
-        name: `${competition.name} - Events`,
-        description: `Competition events for ${competition.name}`,
-        type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
-        ownerTeamId: competition.organizingTeamId,
-        competitionId: competition.id,
-        isPublic: 0,
+      const workoutId = `workout_${createId()}`
+      await validateEventAuthoring(
+        db,
+        { ...data, scheme: data.scheme, movementIds: data.movementIds },
+        competition.organizingTeamId,
+        parseCompetitionSettings(competition.settings)?.divisions
+          ?.scalingGroupId ?? null,
+      )
+      await db.insert(workouts).values({
+        id: workoutId,
+        name: data.name,
+        scheme: data.scheme as (typeof workouts.$inferInsert)["scheme"],
+        scoreType:
+          data.scoreType as (typeof workouts.$inferInsert)["scoreType"],
+        description: data.description ?? "",
+        teamId: competition.organizingTeamId,
+        scope: "private",
+        roundsToScore: data.roundsToScore ?? null,
+        repsPerRound: data.repsPerRound ?? null,
+        tiebreakScheme: data.tiebreakScheme ?? null,
+        sourceWorkoutId: data.sourceWorkoutId ?? null,
+        timeCap: data.timeCap ?? null,
+        scalingGroupId: data.scalingGroupId ?? null,
       })
+      await insertAuthoringScaling(db, workoutId, data.scalingDescriptions)
 
-      const createdTrack = await db.query.programmingTracksTable.findFirst({
-        where: eq(programmingTracksTable.id, createdTrackId),
-      })
-      if (!createdTrack) {
-        throw new Error("Failed to create programming track for competition")
+      // Handle tags
+      const finalTagIds: string[] = []
+      if (data.tagNames && data.tagNames.length > 0) {
+        for (const tagName of data.tagNames) {
+          const tag = await findOrCreateTag(tagName)
+          if (tag) finalTagIds.push(tag.id)
+        }
       }
-      track = createdTrack
-    }
-
-    // Validate parentEventId if provided
-    if (data.parentEventId) {
-      const parentEvent = await db
-        .select({
-          id: trackWorkoutsTable.id,
-          parentEventId: trackWorkoutsTable.parentEventId,
-        })
-        .from(trackWorkoutsTable)
-        .where(
-          and(
-            eq(trackWorkoutsTable.id, data.parentEventId),
-            eq(trackWorkoutsTable.trackId, track.id),
-          ),
+      if (data.tagIds && data.tagIds.length > 0) {
+        const existingIds = data.tagIds.filter(
+          (id) => !id.startsWith("new_tag_"),
         )
-        .limit(1)
-
-      if (parentEvent.length === 0) {
-        throw new Error("Parent event not found in this competition")
+        finalTagIds.push(...existingIds)
       }
-      if (parentEvent[0].parentEventId) {
-        throw new Error("Cannot nest sub-events more than one level deep")
+      if (finalTagIds.length > 0) {
+        await db.insert(workoutTags).values(
+          finalTagIds.map((tagId) => ({
+            id: `workout_tag_${createId()}`,
+            workoutId,
+            tagId,
+          })),
+        )
       }
-    }
 
-    const nextOrder = data.parentEventId
-      ? await getNextSubEventOrder(data.parentEventId)
-      : await getNextCompetitionEventOrder(data.competitionId)
-
-    // Get organizing team ID for the workout scope
-    const competition = await db.query.competitionsTable.findFirst({
-      where: eq(competitionsTable.id, data.competitionId),
-      columns: { organizingTeamId: true },
-    })
-    if (!competition) throw new Error("Competition not found")
-
-    const workoutId = `workout_${createId()}`
-    await db.insert(workouts).values({
-      id: workoutId,
-      name: data.name,
-      scheme: data.scheme as (typeof workouts.$inferInsert)["scheme"],
-      scoreType: data.scoreType as (typeof workouts.$inferInsert)["scoreType"],
-      description: data.description ?? "",
-      teamId: competition.organizingTeamId,
-      scope: "private",
-      roundsToScore: data.roundsToScore ?? null,
-      repsPerRound: data.repsPerRound ?? null,
-      tiebreakScheme: data.tiebreakScheme ?? null,
-      sourceWorkoutId: data.sourceWorkoutId ?? null,
-    })
-
-    // Handle tags
-    const finalTagIds: string[] = []
-    if (data.tagNames && data.tagNames.length > 0) {
-      for (const tagName of data.tagNames) {
-        const tag = await findOrCreateTag(tagName)
-        if (tag) finalTagIds.push(tag.id)
+      // Insert movements
+      if (data.movementIds && data.movementIds.length > 0) {
+        await db.insert(workoutMovements).values(
+          data.movementIds.map((movementId) => ({
+            id: `workout_movement_${createId()}`,
+            workoutId,
+            movementId,
+          })),
+        )
       }
-    }
-    if (data.tagIds && data.tagIds.length > 0) {
-      const existingIds = data.tagIds.filter((id) => !id.startsWith("new_tag_"))
-      finalTagIds.push(...existingIds)
-    }
-    if (finalTagIds.length > 0) {
-      await db.insert(workoutTags).values(
-        finalTagIds.map((tagId) => ({
-          id: `workout_tag_${createId()}`,
-          workoutId,
-          tagId,
-        })),
-      )
-    }
 
-    // Insert movements
-    if (data.movementIds && data.movementIds.length > 0) {
-      await db.insert(workoutMovements).values(
-        data.movementIds.map((movementId) => ({
-          id: `workout_movement_${createId()}`,
-          workoutId,
-          movementId,
-        })),
-      )
-    }
+      // Add to competition track
+      const trackWorkoutId = createTrackWorkoutId()
+      await db.insert(trackWorkoutsTable).values({
+        id: trackWorkoutId,
+        trackId: track.id,
+        workoutId,
+        trackOrder: nextOrder,
+        pointsMultiplier: 100,
+        parentEventId: data.parentEventId ?? null,
+      })
 
-    // Add to competition track
-    const trackWorkoutId = createTrackWorkoutId()
-    await db.insert(trackWorkoutsTable).values({
-      id: trackWorkoutId,
-      trackId: track.id,
-      workoutId,
-      trackOrder: nextOrder,
-      pointsMultiplier: 100,
-      parentEventId: data.parentEventId ?? null,
+      return { workoutId, trackWorkoutId }
     })
-
-    return { workoutId, trackWorkoutId }
   })
 
 /**
  * Remove a workout from a competition (cohost)
  */
 export const cohostRemoveWorkoutFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    cohostRemoveWorkoutInputSchema.parse(data),
-  )
+  .inputValidator((data: unknown) => cohostRemoveWorkoutInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "editEvents")
     const db = getDb()
@@ -964,9 +986,7 @@ export const cohostRemoveWorkoutFn = createServerFn({ method: "POST" })
         if (parentRow.length > 0) {
           const parentOrder = Math.floor(Number(parentRow[0].trackOrder))
           for (let i = 0; i < remainingSiblings.length; i++) {
-            const newOrder = Number(
-              (parentOrder + 0.01 * (i + 1)).toFixed(2),
-            )
+            const newOrder = Number((parentOrder + 0.01 * (i + 1)).toFixed(2))
             await tx
               .update(trackWorkoutsTable)
               .set({ trackOrder: newOrder, updatedAt: new Date() })

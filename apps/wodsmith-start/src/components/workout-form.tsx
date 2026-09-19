@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { DescriptionWorkoutForm } from "@/components/workouts/description-workout-form"
 import { WorkoutDefinitionFields } from "@/components/workouts/workout-definition-fields"
 import type {
   Movement,
@@ -18,6 +19,8 @@ import type {
   WorkoutScheme,
 } from "@/db/schemas/workouts"
 import type { WorkoutMetadataWritePermission } from "@/lib/workout-metadata-suggestions"
+import type { WorkoutAuthoringContext } from "@/lib/workout-authoring"
+import type { NormalizedWorkoutSave } from "@/lib/workout-import/schemas"
 
 export type WorkoutFormData = {
   name: string
@@ -31,6 +34,7 @@ export type WorkoutFormData = {
   repsPerRound?: number
   tiebreakScheme?: TiebreakScheme
   scalingGroupId?: string
+  scalingDescriptions?: NormalizedWorkoutSave["scalingDescriptions"]
 }
 
 // Flexible movement type that can accept partial Movement data
@@ -39,6 +43,7 @@ type MovementData = Pick<Movement, "id" | "name" | "type">
 type WorkoutFormProps = {
   teamId?: string | null
   metadataWritePermission?: WorkoutMetadataWritePermission
+  authoringContext?: WorkoutAuthoringContext
   mode: "create" | "edit"
   initialData?: Partial<WorkoutFormData>
   onSubmit: (data: WorkoutFormData) => Promise<void>
@@ -62,6 +67,7 @@ type WorkoutFormProps = {
 export function WorkoutForm({
   teamId,
   metadataWritePermission,
+  authoringContext,
   mode,
   initialData,
   onSubmit,
@@ -140,6 +146,34 @@ export function WorkoutForm({
       setIsSubmitting(false)
     }
   }
+
+  if (mode === "create" && !editor && authoringContext)
+    return (
+      <div className="container mx-auto max-w-2xl space-y-6 px-4 py-8">
+        <h1 className="text-2xl font-bold">
+          {isRemix ? "Remix workout" : "Create workout"}
+        </h1>
+        <DescriptionWorkoutForm
+          context={authoringContext}
+          initialDescription={
+            isRemix
+              ? `${initialData?.name ?? ""}\n${initialData?.description ?? ""}`
+              : ""
+          }
+          onCancel={cancel}
+          onSubmit={(workout) =>
+            onSubmit({
+              ...workout,
+              scoreType: workout.scoreType ?? undefined,
+              timeCap: workout.timeCapSeconds ?? undefined,
+              repsPerRound: workout.repsPerRound ?? undefined,
+              tiebreakScheme: workout.tiebreakScheme ?? undefined,
+              scalingGroupId: workout.scalingGroupId ?? undefined,
+            })
+          }
+        />
+      </div>
+    )
 
   return (
     <div

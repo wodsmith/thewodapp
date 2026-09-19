@@ -50,8 +50,14 @@ import {
   workoutTags,
 } from "@/db/schemas/workouts"
 import { getEvlog } from "@/lib/evlog"
+import { workoutScalingDescriptionsSchema } from "@/lib/workout-authoring"
 import { groupCompetitionEvents } from "@/server/group-competition-events"
+import {
+  insertAuthoringScaling,
+  validateEventAuthoring,
+} from "@/server/workout-authoring-scaling"
 import { getSessionFromCookie } from "@/utils/auth"
+import { parseCompetitionSettings } from "@/utils/competition-settings"
 
 // ============================================================================
 // Types
@@ -140,6 +146,9 @@ const addWorkoutToCompetitionInputSchema = z.object({
 })
 
 const createWorkoutAndAddToCompetitionInputSchema = z.object({
+  timeCap: z.number().int().positive().optional(),
+  scalingGroupId: z.string().min(1).optional(),
+  scalingDescriptions: workoutScalingDescriptionsSchema.optional(),
   competitionId: z.string().min(1, "Competition ID is required"),
   teamId: z.string().min(1, "Team ID is required"),
   name: z.string().min(1, "Name is required").max(200),
@@ -1360,6 +1369,7 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
           id: competitionsTable.id,
           name: competitionsTable.name,
           organizingTeamId: competitionsTable.organizingTeamId,
+          settings: competitionsTable.settings,
         })
         .from(competitionsTable)
         .where(
@@ -1447,6 +1457,13 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       }
 
       const workoutId = `workout_${createId()}`
+      await validateEventAuthoring(
+        tx,
+        data,
+        data.teamId,
+        parseCompetitionSettings(competition.settings)?.divisions
+          ?.scalingGroupId ?? null,
+      )
       await tx.insert(workouts).values({
         id: workoutId,
         name: data.name,
@@ -1460,7 +1477,10 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
         repsPerRound: data.repsPerRound ?? null,
         tiebreakScheme: data.tiebreakScheme ?? null,
         sourceWorkoutId: data.sourceWorkoutId ?? null,
+        timeCap: data.timeCap ?? null,
+        scalingGroupId: data.scalingGroupId ?? null,
       })
+      await insertAuthoringScaling(tx, workoutId, data.scalingDescriptions)
 
       const finalTagIds: string[] = []
       for (const tagName of data.tagNames ?? []) {

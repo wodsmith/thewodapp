@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest"
 import { TrainingWorkoutDialog } from "@/components/training/training-workout-dialog"
 import { getTrainingWorkoutOptionsFn } from "@/server-fns/training-fns"
 import type { TrainingBlock } from "@/lib/training/types"
+import { describeWorkoutFn } from "@/server-fns/workout-authoring-fns"
+vi.mock("@/server-fns/workout-authoring-fns", () => ({ describeWorkoutFn: vi.fn() }))
 
 vi.mock("@/server-fns/training-fns", () => ({
   getTrainingWorkoutOptionsFn: vi.fn(),
@@ -72,46 +74,34 @@ describe("programmer workout authoring", () => {
     })
   })
 
-  it("keeps the form after catalog failure and retries without losing edits", async () => {
-    vi.mocked(getTrainingWorkoutOptionsFn)
+  it("keeps the description after recognition failure and retries without losing edits", async () => {
+    vi.mocked(describeWorkoutFn)
       .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValue(
-        options as Awaited<ReturnType<typeof getTrainingWorkoutOptionsFn>>,
-      )
+      .mockResolvedValue(block.workout!)
     const onSave = vi.fn()
     render(
       <TrainingWorkoutDialog teamId="gym" onSave={onSave} onClose={vi.fn()} />,
     )
-    fireEvent.change(screen.getByLabelText("Workout Name"), {
-      target: { value: "Fran" },
+    fireEvent.change(screen.getByLabelText("Describe your workout"), {
+      target: { value: "Intervals\n4 efforts" },
     })
-    fireEvent.change(screen.getByLabelText("Description"), {
-      target: { value: "21-15-9 thrusters and pull-ups" },
-    })
-    expect(
-      await screen.findByRole("button", { name: "Try again" }),
-    ).toBeEnabled()
-    expect(
-      screen.getByRole("button", { name: "Add to session" }),
-    ).toBeDisabled()
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }))
+    fireEvent.click(screen.getByRole("button", { name: "Add to session" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("offline")
+    expect(screen.getByLabelText("Describe your workout")).toHaveValue("Intervals\n4 efforts")
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Add to session" }),
       ).toBeEnabled(),
     )
     fireEvent.click(screen.getByRole("button", { name: "Add to session" }))
-    expect(onSave).toHaveBeenCalledWith(
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "workout",
-        title: "Fran",
-        workout: expect.objectContaining({
-          name: "Fran",
-          description: "21-15-9 thrusters and pull-ups",
-          scheme: "time",
-        }),
+        title: "Intervals",
+        workout: block.workout,
       }),
-    )
+    ))
+    expect(describeWorkoutFn).toHaveBeenCalledWith({ data: { context: { kind: "programming", teamId: "gym" }, description: "Intervals\n4 efforts" } })
   })
 
   it("requires a decision before discarding an unsaved workout", async () => {
@@ -128,19 +118,14 @@ describe("programmer workout authoring", () => {
         onDirtyChange={onDirtyChange}
       />,
     )
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Add to session" }),
-      ).toBeEnabled(),
-    )
-    fireEvent.change(screen.getByLabelText("Workout Name"), {
+    fireEvent.change(screen.getByLabelText("Describe your workout"), {
       target: { value: "Fran" },
     })
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
     expect(onClose).not.toHaveBeenCalled()
     expect(onDirtyChange).toHaveBeenLastCalledWith(true)
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }))
-    expect(screen.getByLabelText("Workout Name")).toHaveValue("Fran")
+    expect(screen.getByLabelText("Describe your workout")).toHaveValue("Fran")
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }))
     expect(onClose).toHaveBeenCalledOnce()

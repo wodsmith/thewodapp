@@ -122,6 +122,11 @@ function EventsPage() {
               | null
               | undefined,
             movementIds: args.data.movementIds as string[] | undefined,
+            timeCap: args.data.timeCap as number | undefined,
+            scalingGroupId: args.data.scalingGroupId as string | undefined,
+            scalingDescriptions: args.data.scalingDescriptions as
+              | { scalingLevelId: string; description: string }[]
+              | undefined,
             sourceWorkoutId: args.data.sourceWorkoutId as
               | string
               | null

@@ -16,6 +16,11 @@ const mocks = vi.hoisted(() => ({
   errorToast: vi.fn(),
   invalidate: vi.fn(),
   trackEvent: vi.fn(),
+  describe: vi.fn(),
+}))
+vi.mock("@/server-fns/workout-authoring-fns", () => ({
+  describeCompetitionEventFn: mocks.describe,
+  describeWorkoutFn: mocks.describe,
 }))
 
 vi.mock("@tanstack/react-router", () => ({
@@ -55,6 +60,11 @@ describe("event creation failure recovery", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.invalidate.mockResolvedValue(undefined)
+    mocks.describe.mockImplementation(async ({ data }: { data: { description: string } }) => ({
+      name: data.description.split("\n")[0], description: data.description, scheme: "time-with-cap", scoreType: "min",
+      roundsToScore: 3, timeCapSeconds: 600, tiebreakScheme: "reps", repsPerRound: 30, movementIds: ["thruster"],
+      scope: "private", scalingGroupId: "divisions", scalingDescriptions: [{ scalingLevelId: "rx", description: "95 lb thrusters" }],
+    }))
     for (const mutation of [
       mocks.create,
       mocks.cohostCreate,
@@ -89,7 +99,7 @@ describe("event creation failure recovery", () => {
       )
       fireEvent.click(screen.getByRole("button", { name: "Create event" }))
       const dialog = within(screen.getByRole("dialog"))
-      fireEvent.change(dialog.getByLabelText("Event Name"), {
+      fireEvent.change(dialog.getByLabelText("Describe your workout"), {
         target: { value: "Created once" },
       })
       fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
@@ -101,7 +111,7 @@ describe("event creation failure recovery", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
       fireEvent.click(screen.getByRole("button", { name: "Create event" }))
       expect(
-        within(screen.getByRole("dialog")).getByLabelText("Event Name"),
+        within(screen.getByRole("dialog")).getByLabelText("Describe your workout"),
       ).toHaveValue("")
       expect(mutation).toHaveBeenCalledTimes(1)
       expect(mocks.trackEvent.mock.calls.map(([event]) => event)).not.toContain(
@@ -132,18 +142,9 @@ describe("event creation failure recovery", () => {
     )
     fireEvent.click(screen.getByRole("button", { name: "Create event" }))
     const dialog = within(screen.getByRole("dialog"))
-    fireEvent.change(dialog.getByLabelText("Event Name"), {
+    fireEvent.change(dialog.getByLabelText("Describe your workout"), {
       target: { value: "Three efforts" },
     })
-    fireEvent.change(dialog.getByLabelText("Rounds to Score"), {
-      target: { value: "3" },
-    })
-    fireEvent.keyDown(
-      dialog.getByRole("combobox", { name: "Tiebreak Scheme (optional)" }),
-      { key: "ArrowDown" },
-    )
-    fireEvent.click(screen.getByRole("option", { name: "Reps" }))
-    fireEvent.click(dialog.getByRole("button", { name: /Thruster/ }))
     fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
     await waitFor(() =>
       expect(mocks.addSeriesEvent).toHaveBeenCalledWith({
@@ -151,17 +152,17 @@ describe("event creation failure recovery", () => {
           workout: expect.objectContaining({
             roundsToScore: 3,
             tiebreakScheme: "reps",
+            timeCap: 600,
+            repsPerRound: 30,
+            scalingGroupId: "divisions",
+            scalingDescriptions: [{ scalingLevelId: "rx", description: "95 lb thrusters" }],
           }),
           movementIds: ["thruster"],
         }),
       }),
     )
     await waitFor(() => expect(dialog.getByRole("alert")).toBeInTheDocument())
-    expect(dialog.getByLabelText("Rounds to Score")).toHaveValue(3)
-    expect(dialog.getByRole("button", { name: /Thruster/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    )
+    expect(dialog.getByLabelText("Describe your workout")).toHaveValue("Three efforts")
   })
 
   // @lat: [[workout-authoring#Workout Authoring#Failed event creation retains entries#Refresh failure after creation]]
@@ -203,7 +204,7 @@ describe("event creation failure recovery", () => {
     )
     fireEvent.click(screen.getByRole("button", { name: "Create event" }))
     const dialog = within(screen.getByRole("dialog"))
-    fireEvent.change(dialog.getByLabelText("Event Name"), {
+    fireEvent.change(dialog.getByLabelText("Describe your workout"), {
       target: { value: "Friday workout" },
     })
     fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
@@ -213,7 +214,7 @@ describe("event creation failure recovery", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Create event" }))
     expect(
-      within(screen.getByRole("dialog")).getByLabelText("Event Name"),
+      within(screen.getByRole("dialog")).getByLabelText("Describe your workout"),
     ).toHaveValue("")
     expect(mocks.addSeriesEvent).toHaveBeenCalledTimes(1)
   })
@@ -253,11 +254,8 @@ describe("event creation failure recovery", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Create event" }))
       const dialog = within(screen.getByRole("dialog"))
-      fireEvent.change(dialog.getByLabelText("Event Name"), {
-        target: { value: "Friday workout" },
-      })
-      fireEvent.change(dialog.getByLabelText("Description"), {
-        target: { value: "21-15-9 thrusters and pull-ups" },
+      fireEvent.change(dialog.getByLabelText("Describe your workout"), {
+        target: { value: "Friday workout\n21-15-9 thrusters and pull-ups" },
       })
       fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
 
@@ -266,9 +264,8 @@ describe("event creation failure recovery", () => {
           "Creation unavailable",
         ),
       )
-      expect(dialog.getByLabelText("Event Name")).toHaveValue("Friday workout")
-      expect(dialog.getByLabelText("Description")).toHaveValue(
-        "21-15-9 thrusters and pull-ups",
+      expect(dialog.getByLabelText("Describe your workout")).toHaveValue(
+        "Friday workout\n21-15-9 thrusters and pull-ups",
       )
       expect(mocks.errorToast).toHaveBeenCalledWith("Creation unavailable")
 
@@ -281,7 +278,8 @@ describe("event creation failure recovery", () => {
       fireEvent.click(dialog.getByRole("button", { name: "Create event" }))
       await waitFor(() => expect(mutation).toHaveBeenCalledTimes(2))
       expect(mutation.mock.calls[1][0]).toEqual(mutation.mock.calls[0][0])
-      expect(dialog.getByLabelText("Event Name")).toHaveValue("Friday workout")
+      expect(dialog.getByLabelText("Describe your workout")).toHaveValue("Friday workout\n21-15-9 thrusters and pull-ups")
+      expect(mocks.describe).toHaveBeenCalledTimes(1)
     },
   )
 })

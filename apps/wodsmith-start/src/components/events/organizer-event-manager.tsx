@@ -12,6 +12,7 @@ import type {
   WorkoutScheme,
 } from "@/db/schemas/workouts"
 import { trackEvent } from "@/lib/posthog"
+import type { InferredCompetitionEventGroup } from "@/lib/workout-authoring"
 import {
   type CompetitionWorkout,
   createWorkoutAndAddToCompetitionFn,
@@ -220,6 +221,10 @@ export function OrganizerEventManager({
     roundsToScore?: number
     tiebreakScheme?: TiebreakScheme
     movementIds?: string[]
+    timeCap?: number
+    repsPerRound?: number
+    scalingGroupId?: string
+    scalingDescriptions?: { scalingLevelId: string; description: string }[]
   }) => {
     setIsCreating(true)
     let created = false
@@ -235,6 +240,10 @@ export function OrganizerEventManager({
           roundsToScore: data.roundsToScore ?? null,
           tiebreakScheme: data.tiebreakScheme ?? null,
           movementIds: data.movementIds,
+          timeCap: data.timeCap,
+          repsPerRound: data.repsPerRound,
+          scalingGroupId: data.scalingGroupId,
+          scalingDescriptions: data.scalingDescriptions,
           parentEventId: subEventParentId ?? undefined,
         },
       })
@@ -269,6 +278,63 @@ export function OrganizerEventManager({
         competition_id: competitionId,
         error_message: message,
       })
+      toast.error(message)
+      throw error
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleCreateEventGroup = async (
+    group: InferredCompetitionEventGroup,
+  ) => {
+    setIsCreating(true)
+    try {
+      const trackWorkoutIds: string[] = []
+      for (const workout of group.subEvents) {
+        const result = await createWorkoutFn({
+          data: {
+            competitionId,
+            teamId: organizingTeamId,
+            name: workout.name,
+            scheme: workout.scheme,
+            scoreType: workout.scoreType,
+            description: workout.description,
+            roundsToScore: workout.roundsToScore,
+            tiebreakScheme: workout.tiebreakScheme,
+            movementIds: workout.movementIds,
+            timeCap: workout.timeCapSeconds ?? undefined,
+            repsPerRound: workout.repsPerRound ?? undefined,
+            scalingGroupId: workout.scalingGroupId ?? undefined,
+            scalingDescriptions: workout.scalingDescriptions,
+          },
+        })
+        if (!result?.trackWorkoutId)
+          throw new Error("A scored sub-event could not be created.")
+        trackWorkoutIds.push(result.trackWorkoutId)
+      }
+      const parent = await groupEventsFn({
+        data: {
+          competitionId,
+          teamId: organizingTeamId,
+          trackWorkoutIds,
+          name: group.name,
+          description: group.description,
+        },
+      })
+      trackEvent("competition_event_group_created", {
+        competition_id: competitionId,
+        event_id: parent.trackWorkoutId,
+        sub_event_count: group.subEvents.length,
+      })
+      toast.success(
+        `Created “${group.name}” with ${group.subEvents.length} scored parts`,
+      )
+      setShowCreateDialog(false)
+      await router.invalidate()
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create event"
       toast.error(message)
       throw error
     } finally {
@@ -694,12 +760,14 @@ export function OrganizerEventManager({
                 writePermission: "manage_competitions",
               }
         }
+        authoringContext={{ kind: "competition", competitionId }}
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)
           if (!open) setSubEventParentId(null)
         }}
         onCreateEvent={handleCreateEvent}
+        onCreateEventGroup={handleCreateEventGroup}
         isCreating={isCreating}
         movements={movements}
       />

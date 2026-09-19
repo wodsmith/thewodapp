@@ -171,6 +171,10 @@ export function SeriesTemplateEventEditor({
     roundsToScore?: number
     tiebreakScheme?: TiebreakScheme
     movementIds?: string[]
+    timeCap?: number
+    repsPerRound?: number
+    scalingGroupId?: string
+    scalingDescriptions?: { scalingLevelId: string; description: string }[]
   }) => {
     setIsCreating(true)
     let created = false
@@ -186,6 +190,10 @@ export function SeriesTemplateEventEditor({
             description: data.description,
             roundsToScore: data.roundsToScore,
             tiebreakScheme: data.tiebreakScheme,
+            timeCap: data.timeCap,
+            repsPerRound: data.repsPerRound,
+            scalingGroupId: data.scalingGroupId,
+            scalingDescriptions: data.scalingDescriptions,
           },
           movementIds: data.movementIds,
           parentEventId: subEventParentId ?? undefined,
@@ -468,6 +476,7 @@ export function SeriesTemplateEventEditor({
               }
             : undefined
         }
+        authoringContext={{ kind: "series", groupId }}
         open={showCreateDialog}
         onOpenChange={(open) => {
           setShowCreateDialog(open)

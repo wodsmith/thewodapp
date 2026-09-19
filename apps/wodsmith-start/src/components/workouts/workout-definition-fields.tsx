@@ -40,6 +40,7 @@ export function WorkoutDefinitionFields({
   required = false,
   allowEmptyScoreType = true,
   metadataSuggestions,
+  descriptionEntry,
 }: {
   value: Partial<NormalizedWorkoutSave>
   onChange: (
@@ -57,6 +58,7 @@ export function WorkoutDefinitionFields({
   required?: boolean
   allowEmptyScoreType?: boolean
   metadataSuggestions?: WorkoutMetadataSuggestionContext
+  descriptionEntry?: { text: string; onChange: (text: string) => void }
 }) {
   const prefix = useId()
   const id = (field: WorkoutDefinitionField) => `${prefix}-${field}`
@@ -101,6 +103,35 @@ export function WorkoutDefinitionFields({
       </div>
     )
   const integer = (text: string) => (text === "" ? null : Number(text))
+
+  if (descriptionEntry)
+    return (
+      <div className="min-w-0 space-y-2" data-workout-definition-fields>
+        <Label htmlFor={id("description")}>Describe your workout</Label>
+        <Textarea
+          id={id("description")}
+          value={descriptionEntry.text}
+          onChange={(event) => descriptionEntry.onChange(event.target.value)}
+          placeholder={
+            "Fran\n21-15-9 reps for time: thrusters and pull-ups.\nTime cap: 10 minutes.\nRx: 95/65 lb. Scaled: 65/45 lb and jumping pull-ups."
+          }
+          rows={8}
+          maxLength={5000}
+          required
+          autoFocus={autoFocus}
+          disabled={disabled}
+          aria-describedby={`${id("description")}-help`}
+          className="min-h-48 w-full resize-y"
+        />
+        <p
+          id={`${id("description")}-help`}
+          className="text-sm text-muted-foreground"
+        >
+          Include a title, movements, reps, scoring, and any scaling options.
+          Use your division or scaling level names.
+        </p>
+      </div>
+    )
 
   return (
     <fieldset
@@ -345,7 +376,12 @@ export function WorkoutDefinitionFields({
           disabled={disabled}
           value={value.scalingGroupId ?? "none"}
           onValueChange={(v) =>
-            onChange({ scalingGroupId: v === "none" ? null : v })
+            onChange({
+              scalingGroupId: v === "none" ? null : v,
+              ...(value.scalingDescriptions?.length
+                ? { scalingDescriptions: [] }
+                : {}),
+            })
           }
         >
           <SelectTrigger {...attributes("scalingGroupId")} className="w-full">
@@ -366,7 +402,7 @@ export function WorkoutDefinitionFields({
               )}
           </SelectContent>
         </Select>,
-        "Loads and scaling prescriptions stay in the description.",
+        "Changing groups clears level assignments; the original prescription stays in the description.",
       )}
     </fieldset>
   )

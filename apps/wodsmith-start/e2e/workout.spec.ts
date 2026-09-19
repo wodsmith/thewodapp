@@ -44,38 +44,26 @@ test.describe('Workouts', () => {
 
   // @lat: [[workout-authoring#Workout Authoring#Library creation browser flow]]
   test('should create a new workout', async ({page}) => {
+    test.setTimeout(90000)
     const uniqueName = `E2E Test Workout ${Date.now()}`
 
     await page.goto('/workouts/new')
     await waitForHydration(page)
 
-    // Heading is "CREATE WORKOUT"
     await expect(
-      page.getByRole('heading', {name: 'CREATE WORKOUT'}),
+      page.getByRole('heading', {name: 'Create workout'}),
     ).toBeVisible({timeout: 15000})
 
-    // Fill name — Label text is "Workout Name"
-    await page.getByLabel('Workout Name').fill(uniqueName)
-
-    // Fill description
-    await page.getByLabel('Description').fill('E2E test workout description')
-
-    // Use the accessible label so placeholder copy and generated IDs can change.
-    const schemeTrigger = page.getByRole('combobox', {name: 'Scheme', exact: true})
-    await schemeTrigger.scrollIntoViewIfNeeded()
-    await schemeTrigger.focus()
-    await schemeTrigger.press('Enter')
-    // Wait for listbox portal to mount, then click option
-    await page.locator('[role="listbox"]').waitFor({state: 'visible', timeout: 5000})
-    await page.getByRole('option', {name: 'For Time', exact: true}).click()
-    await expect(schemeTrigger).toHaveText('For Time')
-    await expect(page.getByRole('combobox', {name: 'Score Type', exact: true})).toContainText('Min')
+    // This live recognition test requires TYPESAFE_API_KEY on the test server.
+    await page.getByLabel('Describe your workout').fill(`${uniqueName}\nFor time: 30 air squats. Record one completion time.`)
+    await expect(page.getByRole('textbox')).toHaveCount(1)
+    await expect(page.getByRole('combobox', {name: 'Scheme', exact: true})).toHaveCount(0)
 
     // Submit
     await page.getByRole('button', {name: 'Create workout'}).click()
 
     // Should redirect to workout detail page
-    await page.waitForURL(/\/workouts\/(?!new)/, {timeout: 15000})
+    await page.waitForURL(/\/workouts\/(?!new)/, {timeout: 75000})
 
     // Detail page heading shows the workout name
     await expect(page.getByRole('heading', {name: uniqueName})).toBeVisible({

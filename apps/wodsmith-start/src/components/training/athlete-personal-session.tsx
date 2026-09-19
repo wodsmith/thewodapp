@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { WorkoutImportEntry } from "@/components/workout-import/workout-import-entry"
+import { DescriptionWorkoutForm } from "@/components/workouts/description-workout-form"
 import { providerDateLabel, workoutScoring } from "@/lib/crossfit/display"
 import { libraryOccurrence } from "@/lib/training/library-occurrence"
 import type {
@@ -1056,7 +1057,38 @@ ${workout.provenance ? "" : workout.description}`,
             />
           </div>
         )}
-      {editor ? (
+      {editor && !editor.itemId && editor.block.kind === "workout" ? (
+        <div className="space-y-4 border-t border-border py-6">
+          <h3 className="text-xl font-semibold">Create a workout</h3>
+          <p className="text-sm text-muted-foreground">
+            Your prescription and results stay private.
+          </p>
+          <DescriptionWorkoutForm
+            context={{ kind: "personal", teamId: team.id }}
+            onCancel={() => setEditor(null)}
+            submitLabel="Apply to draft"
+            onSubmit={async (workout) => {
+              const next: PersonalTrainingItemInput = {
+                id: crypto.randomUUID(),
+                kind: "personal",
+                block: {
+                  ...editor.block,
+                  id: crypto.randomUUID(),
+                  kind: "workout",
+                  title: workout.name,
+                  prescription: workout.description,
+                  workout,
+                },
+              }
+              if (await updateDraft([...inputs, next])) setEditor(null)
+              else
+                throw new Error(
+                  "Could not save your workout. Your description is still here; try again.",
+                )
+            }}
+          />
+        </div>
+      ) : editor ? (
         <form
           className="space-y-4 border-t border-border py-6"
           onSubmit={async (event) => {

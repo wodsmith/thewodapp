@@ -4,9 +4,9 @@ Compete and training share workout definition controls so a workout keeps the sa
 
 ## Library creation browser flow
 
-The browser test selects the library workout scheme by its accessible label, verifies the selected scheme and default scoring, and creates a workout that opens on its detail page.
+New library workouts start with one description field. Jev recognizes the definition before the existing authorized create operation opens the saved workout detail page.
 
-Accessible field names and exact option names protect the user-facing contract without tying the test to placeholder wording or generated input IDs.
+Existing workout editing and controlled import review retain accessible structured controls. New descriptions can include titles, movements, scoring, and named scaling variants. Remix creation seeds the description with the source title and prescription.
 
 ## Canonical organizer flow
 
@@ -73,3 +73,35 @@ Changing a competition event’s scheme preserves an explicit aggregation, defau
 Shared controls expose movement validation and edit behavior accessibly. Coach and athlete previews use the same readable workout summary, including legacy scheme fallbacks.
 
 Movement import errors focus a labeled movement group. Workout edit buttons announce dialogs; instruction editors retain inline expansion semantics. Coach previews display scheme labels and minutes:seconds caps.
+
+## Description inference
+
+New workouts use Jev to select typed scoring values, catalog movements, and source text spans. Uncertain definitions require clarification in the same description field before any save.
+
+[[apps/wodsmith-start/src/server/workout-description-inference.ts#inferWorkoutDescription]] supplies the full scoring scheme set, explicit aggregation and score-count questions, source duration candidates, and per-movement judgments. Prescription rounds differ from separately recorded scores; time caps remain seconds. Titles are selected from source candidates; untitled prescriptions receive a deterministic scheme label.
+
+Competition descriptions first classify the number and boundaries of independently scored parts. A multi-part description becomes one scheduling parent with ordered, independently classified scored sub-events; it is never flattened into rounds of one scoring scheme. Transition text separates adjacent spoken parts, and the full-source scheme judgment disambiguates a time-limited lifting window from a for-time cap.
+
+Scaling descriptions combine shared source instructions with lines explicitly assigned to each existing level. Jev receives all destination level names and IDs; source text cannot invent levels. Single-paragraph named variants are segmented before classification. Requests use bounded batches, bounded retries, and an overall timeout. No API key or raw source text is logged or sent to browser code.
+
+The TypeSafe API guarantees structured types, not semantic correctness. Mocked tests verify the application contract; optional answers with low confidence are ignored when their branch is unused. Live accuracy and latency require a configured `TYPESAFE_API_KEY` and representative workout evaluation. New ordinary creation uses ordinary destination authorization, independently of the separately entitled image/import-session workflow.
+
+## Description creation lifecycle
+
+Library, organizer/cohost events, series templates, coach workouts, and personal workouts share one description form.
+
+An explicit submit recognizes the workout, then invokes the consumer's save or draft operation. Competition multipart results create their scored leaves and group them beneath one parent event.
+
+[[apps/wodsmith-start/src/components/workouts/description-workout-form.tsx#DescriptionWorkoutForm]] renders the shared definition component in description mode. The surrounding consumer retains routing, dialog dismissal, private ownership, track selection, and save behavior. Busy submissions prevent duplicate clicks; failures preserve source text. Save retries reuse the same recognized definition; changing the text or destination invalidates that cached definition.
+
+Crew workout shells remain outside this lifecycle. They are scheduling-only heat groupings with no authored scoring, movements, or scaling contract; [[crew#Workout Shells]] owns that deliberately minimal workflow.
+
+The scoped boundary guard covers the description form and its consumers. Interaction tests cover cap/scoring/movement/scaling adapters, failed recognition, failed saves, and personal session draft semantics. Existing structured edit and import field hooks remain covered separately. Changing a scaling group clears its previous level assignments while retaining the source prescription.
+
+## Authoring access and scaling isolation
+
+Recognition resolves the destination's catalog on the server after authorization. Saving revalidates movement and scaling references so inferred IDs cannot cross team or division boundaries.
+
+[[apps/wodsmith-start/src/server/workout-authoring.ts#getWorkoutAuthoringCatalog]] checks library write permission, personal training access, coach programming access, organizer or cohost event permission, or series programming permission. Competition and series settings supply their division group; training uses the team's stored default group. Foreign or stale group references fail before inference.
+
+Library creation saves scaling descriptions alongside the workout and movements in its transaction. Competition and series creation persist cap seconds and scaling prescriptions with their event. Training stores the same optional scaling prescriptions in its canonical workout snapshot and validates their level membership when saving a draft. Event saves reject a group that no longer matches the destination divisions.
