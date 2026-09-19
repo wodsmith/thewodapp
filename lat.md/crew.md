@@ -652,7 +652,7 @@ Crew persists each checkout attempt before calling Stripe so duplicate clicks, u
 
 Organizers can draft and preview before purchasing. Publishing and exporting require active event-level Crew access from paid, comped, credited, or founder grants; unpaid, pending, and refunded events cannot publish or export.
 
-[[apps/crew/src/routes/events/$eventId/exports.tsx]] redirects unpaid organizers to event billing. [[apps/crew/src/server/crew-pilot-exports.server.ts]] independently enforces the same purchase boundary before returning export data, so direct server-function calls cannot bypass it.
+The event sidebar places Exports between Event Access and Schedule. [[apps/crew/src/routes/events/$eventId/exports.tsx]] redirects unpaid organizers to event billing. [[apps/crew/src/server/crew-pilot-exports.server.ts]] independently enforces the same purchase boundary before returning export data, so direct server-function calls cannot bypass it.
 
 [[crew#Published Volunteer Schedule]] applies the same boundary on the server before publishing and on every public read. Managers may still preview a draft and take an existing publication offline without paid access.
 

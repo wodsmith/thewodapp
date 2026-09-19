@@ -58,6 +58,11 @@ test.describe("Crew organizer scheduling flow", () => {
       await expect(assignments.getByText("1/1 assigned")).toBeVisible()
       await assignments.getByRole("button", { name: "Close", exact: true }).click()
 
+      await page.getByRole("link", { name: "Exports", exact: true }).click()
+      await expect(page).toHaveURL(new RegExp(`${eventPath}/billing$`))
+      await expect(page.getByRole("heading", { name: "Purchase event access" })).toBeVisible()
+      await expect(page.getByRole("button", { name: "Master CSV" })).toHaveCount(0)
+
       await page.getByRole("link", { name: "Schedule", exact: true }).click()
       await expect(page.getByRole("button", { name: "Draft preview" })).toBeVisible()
       await page.getByRole("link", { name: "Print or download", exact: true }).click()

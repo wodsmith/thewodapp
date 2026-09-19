@@ -14,6 +14,7 @@ import {
   CalendarClock,
   ClipboardList,
   CreditCard,
+  Download,
   Eye,
   Gauge,
   Gavel,
@@ -85,6 +86,7 @@ interface CrewEventSidebarShellProps {
 const organizerIconByKey: Record<string, LucideIcon> = {
   home: Home,
   billing: CreditCard,
+  exports: Download,
   setup: Settings,
   heats: LayoutGrid,
   staffing: ClipboardList,
@@ -120,7 +122,9 @@ export function getCrewOrganizerEventSidebarNavigation({
 
   const operationsItems = navItems
     .filter((item) =>
-      ["shifts", "judges", "print-packet", "billing"].includes(item.key),
+      ["shifts", "judges", "billing", "exports", "print-packet"].includes(
+        item.key,
+      ),
     )
     .map((item) => toOrganizerSidebarItem(item, eventId))
 
