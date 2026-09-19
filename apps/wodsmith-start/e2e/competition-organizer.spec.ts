@@ -149,8 +149,8 @@ test.describe('Competition Organizer', () => {
            FROM competition_events ce
            JOIN track_workouts tw ON tw.id = ce.track_workout_id
            JOIN workouts w ON w.id = tw.workout_id
-          WHERE ce.competition_id = ? AND w.name = ?`,
-        [competitionId, 'Event 1 - Fran'],
+          WHERE ce.competition_id = ?`,
+        [competitionId],
       )
 
       expect(rows).toHaveLength(1)

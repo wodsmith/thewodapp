@@ -96,7 +96,7 @@ An explicit submit recognizes the workout, then invokes the consumer's save or d
 
 Crew workout shells remain outside this lifecycle. They are scheduling-only heat groupings with no authored scoring, movements, or scaling contract; [[crew#Workout Shells]] owns that deliberately minimal workflow.
 
-The scoped boundary guard covers the description form and its consumers. Interaction tests cover cap/scoring/movement/scaling adapters, failed recognition, failed saves, and personal session draft semantics. The organizer browser regression creates its event through the description field and verifies all persisted event rows. Existing structured edit and import field hooks remain covered separately. Changing a scaling group clears its previous level assignments while retaining the source prescription.
+The scoped boundary guard covers the description form and its consumers. Interaction tests cover cap/scoring/movement/scaling adapters, failed recognition, failed saves, and personal session draft semantics. The organizer browser regression creates its event through the description field and verifies all persisted event rows without coupling persistence to a model-selected title. Existing structured edit and import field hooks remain covered separately. Changing a scaling group clears its previous level assignments while retaining the source prescription.
 
 ## Authoring access and scaling isolation
 
