@@ -1,5 +1,5 @@
 import { createId } from "@paralleldrive/cuid2"
-import { count, desc, eq, inArray, or } from "drizzle-orm"
+import { and, count, desc, eq, inArray, ne, or } from "drizzle-orm"
 import { getDb } from "../db"
 import {
   type Competition,
@@ -19,6 +19,7 @@ import {
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
 } from "../db/schemas/volunteers"
+import { getCrewEventIdentityUpdate } from "../lib/crew/event-slug"
 import type {
   CrewEventNavigationState,
   CrewViewerRole,
@@ -433,8 +434,9 @@ export async function updateCrewEventSettings(
   }
   if (data.settings !== undefined) updateData.settings = data.settings
 
-  const competitionUpdate: Partial<typeof competitionsTable.$inferInsert> = {}
-  if (data.name !== undefined) competitionUpdate.name = data.name
+  const competitionUpdate: Partial<typeof competitionsTable.$inferInsert> = {
+    ...getCrewEventIdentityUpdate(data.name),
+  }
   if (data.startDate !== undefined) competitionUpdate.startDate = data.startDate
   if (data.endDate !== undefined) competitionUpdate.endDate = data.endDate
   if (data.timezone !== undefined) competitionUpdate.timezone = data.timezone
@@ -448,6 +450,23 @@ export async function updateCrewEventSettings(
   }
 
   const db = getDb()
+  if (competitionUpdate.slug !== undefined) {
+    const [slugOwner] = await db
+      .select({ id: competitionsTable.id })
+      .from(competitionsTable)
+      .where(
+        and(
+          eq(competitionsTable.slug, competitionUpdate.slug),
+          ne(competitionsTable.id, data.competitionId),
+        ),
+      )
+      .limit(1)
+    if (slugOwner) {
+      throw new Error(
+        "Another event already uses this URL name. Choose a different event name.",
+      )
+    }
+  }
   await db
     .update(crewEventSettingsTable)
     .set(updateData)

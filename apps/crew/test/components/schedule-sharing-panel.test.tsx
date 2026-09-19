@@ -57,4 +57,28 @@ describe("schedule publication recovery", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Your schedule is a draft" })).toBeVisible())
     expect(unpublish).toHaveBeenCalledWith({ data: { eventId: "event-one" } })
   })
+
+  it("copies the current event name and slug into the volunteer message", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    })
+
+    render(<CrewScheduleSharingPanel initialData={release} />)
+    fireEvent.click(
+      screen.getByRole("button", { name: "Copy volunteer message" }),
+    )
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledOnce())
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining("schedule for Fall Throwdown is ready"),
+    )
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining("/e/fall-throwdown/schedule"),
+    )
+    expect(writeText).not.toHaveBeenCalledWith(
+      expect.stringContaining("mountain-west-fitness-championship"),
+    )
+  })
 })
