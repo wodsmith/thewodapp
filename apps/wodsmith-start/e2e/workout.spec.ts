@@ -44,7 +44,11 @@ test.describe('Workouts', () => {
 
   // @lat: [[workout-authoring#Workout Authoring#Library creation browser flow]]
   test('should create a new workout', async ({page}) => {
-    test.setTimeout(90000)
+    test.skip(
+      !process.env.TYPESAFE_API_KEY,
+      'Workout creation requires the live recognition service',
+    )
+    test.setTimeout(120_000)
     const uniqueName = `E2E Test Workout ${Date.now()}`
 
     await page.goto('/workouts/new')

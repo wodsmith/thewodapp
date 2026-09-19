@@ -81,7 +81,11 @@ jobs:
 
       - name: Configure environment
         working-directory: apps/wodsmith-start
-        run: echo 'DATABASE_URL=mysql://root:testpassword@127.0.0.1:3306/wodsmith_e2e' >> .dev.vars
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          echo 'DATABASE_URL=mysql://root:testpassword@127.0.0.1:3306/wodsmith_e2e' >> .dev.vars
+          echo "TYPESAFE_API_KEY=${TYPESAFE_API_KEY}" >> .dev.vars
 
       - name: Setup E2E database
         working-directory: apps/wodsmith-start
@@ -102,6 +106,7 @@ jobs:
         env:
           CI: true
           DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_e2e
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -4,11 +4,15 @@ import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 
 test.describe('Competition Organizer', () => {
   // This test creates a competition, sets up divisions, and creates an event
-  test.setTimeout(60_000)
+  test.setTimeout(120_000)
 
   test('should create competition, add division, and add event', async ({
     page,
   }) => {
+    test.skip(
+      !process.env.TYPESAFE_API_KEY,
+      'Event creation requires the live recognition service',
+    )
     const setupConnection = await createConnection(process.env.DATABASE_URL!)
     try {
       await setupConnection.execute(
@@ -133,8 +137,9 @@ test.describe('Competition Organizer', () => {
       .getByRole('button', {name: /create event/i})
     await submitEventBtn.click()
 
-    // Verify event appears
-    await expect(page.getByText('Event 1 - Fran')).toBeVisible({timeout: 10000})
+    // A successful create closes the dialog. Checking the entered title here
+    // would also match the textarea when recognition fails and the dialog stays open.
+    await expect(page.getByRole('dialog')).toBeHidden({timeout: 75_000})
 
     // The organizer mutation must persist the workout, its track entry, and the
     // competition-event settings row as one complete event.
