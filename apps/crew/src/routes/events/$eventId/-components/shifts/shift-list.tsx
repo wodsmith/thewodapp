@@ -40,7 +40,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { CrewRosterVolunteer } from "@/lib/crew/roster-shifts"
+import {
+  type CrewRosterVolunteer,
+  formatCrewShiftRolePreference,
+} from "@/lib/crew/roster-shifts"
 import type {
   CrewShiftBoardItem,
   CrewShiftJudgeAssignment,
@@ -281,7 +284,9 @@ export function ShiftList({
                           {shift.name}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{shift.roleLabel}</Badge>
+                          <Badge variant="outline">
+                            {formatCrewShiftRolePreference(shift.roleType)}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
@@ -446,7 +451,9 @@ function ShiftCard({
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <h3 className="font-semibold">{shift.name}</h3>
-          <p className="text-sm text-muted-foreground">{shift.roleLabel}</p>
+          <p className="text-sm text-muted-foreground">
+            {formatCrewShiftRolePreference(shift.roleType)}
+          </p>
         </div>
         <Badge
           className="shrink-0"

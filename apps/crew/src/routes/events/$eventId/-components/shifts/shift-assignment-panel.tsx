@@ -28,12 +28,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { VOLUNTEER_ROLE_LABELS } from "@/db/schemas/volunteers"
 import {
   type CrewRosterVolunteer,
+  formatCrewShiftRolePreference,
   getCrewRosterAssigneeId,
   isCrewRosterVolunteerStaffable,
-  isVolunteerCompatibleWithShift,
+  partitionVolunteersByShiftRole,
 } from "@/lib/crew/roster-shifts"
 import type {
   CrewShiftBoardItem,
@@ -112,9 +112,9 @@ interface ShiftAssignmentPanelProps {
  * Side panel for viewing and managing volunteer assignments for a specific shift.
  * Shows shift details, currently assigned volunteers, and available volunteers to add.
  *
- * Available volunteers come from the Crew roster (active memberships that are
- * role-compatible with the shift). Assignment changes invalidate the router so
- * the shift board reloads with fresh data.
+ * Available volunteers come from the Crew roster. Role-compatible volunteers
+ * are recommended first, while everyone else remains assignable. Assignment
+ * changes invalidate the router so the shift board reloads with fresh data.
  */
 export function ShiftAssignmentPanel({
   shift,
@@ -148,7 +148,8 @@ export function ShiftAssignmentPanel({
     return new Set(shift.assignments.map((a) => a.assigneeId))
   }, [shift])
 
-  // Filter available volunteers by role compatibility and exclude already assigned
+  // Exclude already assigned volunteers, then use role tags only to prioritize
+  // the remaining roster instead of treating them as an assignment gate.
   const availableVolunteers = useMemo(() => {
     if (!shift) return []
     return assignableVolunteers.filter((volunteer) => {
@@ -156,9 +157,27 @@ export function ShiftAssignmentPanel({
       if (assigneeId && assignedAssigneeIds.has(assigneeId)) {
         return false
       }
-      return isVolunteerCompatibleWithShift(shift.roleType, volunteer.roleTypes)
+      return true
     })
   }, [assignableVolunteers, shift, assignedAssigneeIds])
+
+  const volunteerGroups = useMemo(() => {
+    if (!shift) return []
+    const { recommended, other } = partitionVolunteersByShiftRole(
+      shift.roleType,
+      availableVolunteers,
+    )
+    const roleLabel = formatCrewShiftRolePreference(shift.roleType)
+
+    if (other.length === 0) {
+      return [{ label: "Available volunteers", volunteers: recommended }]
+    }
+
+    return [
+      { label: `Recommended for ${roleLabel}`, volunteers: recommended },
+      { label: "Other volunteers", volunteers: other },
+    ]
+  }, [availableVolunteers, shift])
 
   // Build a map of assignee id -> other shifts they're assigned to
   const volunteerOtherShifts = useMemo(() => {
@@ -236,6 +255,132 @@ export function ShiftAssignmentPanel({
     [shift, unassignVolunteer, eventId, router],
   )
 
+  const renderAvailableVolunteer = (volunteer: CrewRosterVolunteer) => {
+    const volunteerName = volunteer.name
+    const assigneeId = getCrewRosterAssigneeId(volunteer)
+    const otherShifts = assigneeId
+      ? (volunteerOtherShifts.get(assigneeId) ?? [])
+      : []
+    const volunteerJudgeAssignments = assigneeId
+      ? (judgeAssignmentsByAssigneeId.get(assigneeId) ?? [])
+      : []
+
+    return (
+      <div
+        key={volunteer.id}
+        className="flex items-center justify-between rounded-md border bg-card p-2"
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+            <User className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{volunteerName}</p>
+            {volunteer.email.trim() && (
+              <p className="truncate text-xs text-muted-foreground">
+                {volunteer.email.trim()}
+              </p>
+            )}
+            {otherShifts.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    <span className="underline decoration-dotted">
+                      {otherShifts.length} other shift
+                      {otherShifts.length !== 1 ? "s" : ""}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="start">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    Assigned Shifts
+                  </p>
+                  <div className="space-y-1.5">
+                    {otherShifts.map((otherShift) => (
+                      <div key={otherShift.id} className="text-sm">
+                        <p className="font-medium">{otherShift.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatShiftTimeCompact(
+                            otherShift.startTime,
+                            otherShift.endTime,
+                            timezone,
+                          )}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            {volunteerJudgeAssignments.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Gavel className="h-3 w-3 shrink-0" />
+                    <span className="underline decoration-dotted">
+                      {volunteerJudgeAssignments.length} judge assignment
+                      {volunteerJudgeAssignments.length !== 1 ? "s" : ""}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="max-h-72 w-72 overflow-y-auto p-2"
+                  align="start"
+                >
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    Judge Assignments
+                  </p>
+                  <div className="space-y-2">
+                    {volunteerJudgeAssignments.map((assignment) => {
+                      const scheduledTime = formatJudgeAssignmentTimeCompact(
+                        assignment.scheduledTime,
+                        assignment.durationMinutes,
+                        timezone,
+                      )
+                      return (
+                        <div key={assignment.id} className="text-sm">
+                          <p className="font-medium">{assignment.eventName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Heat {assignment.heatNumber}
+                            {assignment.laneNumber
+                              ? ` · Lane ${assignment.laneNumber}`
+                              : ""}
+                          </p>
+                          {scheduledTime && (
+                            <p className="text-xs text-muted-foreground">
+                              {scheduledTime}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => assigneeId && handleAssign(assigneeId)}
+          disabled={isAtCapacity || assigningId === assigneeId || !assigneeId}
+          aria-label={`Add ${volunteerName}`}
+          title={isAtCapacity ? "Shift is at capacity" : `Add ${volunteerName}`}
+        >
+          <Plus className="h-4 w-4 text-primary" />
+        </Button>
+      </div>
+    )
+  }
+
   if (!shift) return null
 
   return (
@@ -253,7 +398,9 @@ export function ShiftAssignmentPanel({
           {/* Shift Details */}
           <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
             <div className="flex min-w-0 items-center gap-2">
-              <Badge variant="outline">{shift.roleLabel}</Badge>
+              <Badge variant="outline">
+                {formatCrewShiftRolePreference(shift.roleType)}
+              </Badge>
               <Badge
                 variant={isAtCapacity ? "default" : "secondary"}
                 className="ml-auto"
@@ -327,164 +474,28 @@ export function ShiftAssignmentPanel({
 
           {/* Available Volunteers */}
           <div className="mt-6 flex-1">
-            <h3 className="mb-3 text-sm font-medium">
-              Available Volunteers (
-              {VOLUNTEER_ROLE_LABELS[shift.roleType] ?? shift.roleLabel})
-            </h3>
             {availableVolunteers.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No available volunteers compatible with the {shift.roleLabel}{" "}
-                role
+                No available volunteers to assign
               </p>
             ) : (
-              <div className="space-y-2">
-                {availableVolunteers.map((volunteer) => {
-                  const volunteerName = volunteer.name
-                  const assigneeId = getCrewRosterAssigneeId(volunteer)
-                  const otherShifts = assigneeId
-                    ? (volunteerOtherShifts.get(assigneeId) ?? [])
-                    : []
-                  const volunteerJudgeAssignments = assigneeId
-                    ? (judgeAssignmentsByAssigneeId.get(assigneeId) ?? [])
-                    : []
-
-                  return (
-                    <div
-                      key={volunteer.id}
-                      className="flex items-center justify-between rounded-md border bg-card p-2"
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium">{volunteerName}</p>
-                          {volunteer.email.trim() && (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {volunteer.email.trim()}
-                            </p>
-                          )}
-                          {otherShifts.length > 0 && (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                                >
-                                  <Calendar className="h-3 w-3 shrink-0" />
-                                  <span className="underline decoration-dotted">
-                                    {otherShifts.length} other shift
-                                    {otherShifts.length !== 1 ? "s" : ""}
-                                  </span>
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-64 p-2"
-                                align="start"
-                              >
-                                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                  Assigned Shifts
-                                </p>
-                                <div className="space-y-1.5">
-                                  {otherShifts.map((s) => (
-                                    <div key={s.id} className="text-sm">
-                                      <p className="font-medium">{s.name}</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {formatShiftTimeCompact(
-                                          s.startTime,
-                                          s.endTime,
-                                          timezone,
-                                        )}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                          {volunteerJudgeAssignments.length > 0 && (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                                >
-                                  <Gavel className="h-3 w-3 shrink-0" />
-                                  <span className="underline decoration-dotted">
-                                    {volunteerJudgeAssignments.length} judge
-                                    assignment
-                                    {volunteerJudgeAssignments.length !== 1
-                                      ? "s"
-                                      : ""}
-                                  </span>
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="max-h-72 w-72 overflow-y-auto p-2"
-                                align="start"
-                              >
-                                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                  Judge Assignments
-                                </p>
-                                <div className="space-y-2">
-                                  {volunteerJudgeAssignments.map(
-                                    (assignment) => {
-                                      const scheduledTime =
-                                        formatJudgeAssignmentTimeCompact(
-                                          assignment.scheduledTime,
-                                          assignment.durationMinutes,
-                                          timezone,
-                                        )
-                                      return (
-                                        <div
-                                          key={assignment.id}
-                                          className="text-sm"
-                                        >
-                                          <p className="font-medium">
-                                            {assignment.eventName}
-                                          </p>
-                                          <p className="text-xs text-muted-foreground">
-                                            Heat {assignment.heatNumber}
-                                            {assignment.laneNumber
-                                              ? ` · Lane ${assignment.laneNumber}`
-                                              : ""}
-                                          </p>
-                                          {scheduledTime && (
-                                            <p className="text-xs text-muted-foreground">
-                                              {scheduledTime}
-                                            </p>
-                                          )}
-                                        </div>
-                                      )
-                                    },
-                                  )}
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        </div>
+              <div className="space-y-6">
+                {volunteerGroups.map((group) => (
+                  <section key={group.label}>
+                    <h3 className="mb-3 text-sm font-medium">
+                      {group.label} ({group.volunteers.length})
+                    </h3>
+                    {group.volunteers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No volunteers in this group
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {group.volunteers.map(renderAvailableVolunteer)}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => assigneeId && handleAssign(assigneeId)}
-                        disabled={
-                          isAtCapacity ||
-                          assigningId === assigneeId ||
-                          !assigneeId
-                        }
-                        aria-label={`Add ${volunteerName}`}
-                        title={
-                          isAtCapacity
-                            ? "Shift is at capacity"
-                            : `Add ${volunteerName}`
-                        }
-                      >
-                        <Plus className="h-4 w-4 text-primary" />
-                      </Button>
-                    </div>
-                  )
-                })}
+                    )}
+                  </section>
+                ))}
               </div>
             )}
             {isAtCapacity && availableVolunteers.length > 0 && (

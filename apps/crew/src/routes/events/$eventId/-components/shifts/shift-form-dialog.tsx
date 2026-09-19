@@ -45,6 +45,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   VOLUNTEER_ROLE_OPTIONS,
   VOLUNTEER_ROLE_TYPE_VALUES,
+  VOLUNTEER_ROLE_TYPES,
 } from "@/db/schemas/volunteers"
 import type { CrewShiftBoardItem } from "@/server-fns/crew-roster-shift-fns"
 import {
@@ -56,12 +57,13 @@ import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 // Zod enum from shared volunteer role types
 const volunteerRoleTypeEnum = z.enum(VOLUNTEER_ROLE_TYPE_VALUES)
+const NO_ROLE_PREFERENCE = "no_role_preference"
 
 // Form validation schema
 const shiftFormSchema = z
   .object({
     name: z.string().min(1, "Name is required").max(200, "Name is too long"),
-    roleType: volunteerRoleTypeEnum,
+    roleType: volunteerRoleTypeEnum.optional(),
     date: z.date(),
     startTime: z
       .string()
@@ -175,7 +177,10 @@ export function ShiftFormDialog({
         // Edit mode - pre-fill with shift values (displayed in event timezone)
         form.reset({
           name: shift.name,
-          roleType: shift.roleType,
+          roleType:
+            shift.roleType === VOLUNTEER_ROLE_TYPES.GENERAL
+              ? undefined
+              : shift.roleType,
           date: parseDateOnly(
             formatDateTimeInTimezone(shift.startTime, timezone, "yyyy-MM-dd"),
           ),
@@ -213,7 +218,7 @@ export function ShiftFormDialog({
             eventId,
             shiftId: shift.id,
             name: values.name,
-            roleType: values.roleType,
+            roleType: values.roleType ?? VOLUNTEER_ROLE_TYPES.GENERAL,
             date,
             startTime: values.startTime,
             endTime: values.endTime,
@@ -228,7 +233,7 @@ export function ShiftFormDialog({
           data: {
             eventId,
             name: values.name,
-            roleType: values.roleType,
+            roleType: values.roleType ?? VOLUNTEER_ROLE_TYPES.GENERAL,
             date,
             startTime: values.startTime,
             endTime: values.endTime,
@@ -298,25 +303,38 @@ export function ShiftFormDialog({
               name="roleType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Role Type</FormLabel>
+                  <FormLabel>Role type (optional)</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
+                    onValueChange={(value) =>
+                      field.onChange(
+                        value === NO_ROLE_PREFERENCE ? undefined : value,
+                      )
+                    }
+                    value={field.value ?? NO_ROLE_PREFERENCE}
                     disabled={isSubmitting}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a role type" />
+                        <SelectValue placeholder="No role preference" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {VOLUNTEER_ROLE_OPTIONS.map((role) => (
+                      <SelectItem value={NO_ROLE_PREFERENCE}>
+                        No role preference
+                      </SelectItem>
+                      {VOLUNTEER_ROLE_OPTIONS.filter(
+                        (role) => role.value !== VOLUNTEER_ROLE_TYPES.GENERAL,
+                      ).map((role) => (
                         <SelectItem key={role.value} value={role.value}>
                           {role.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormDescription>
+                    Selecting a role prioritizes matching volunteers, but you
+                    can still assign anyone on the roster.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
