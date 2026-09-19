@@ -44,8 +44,6 @@ jobs:
 
       - name: Setup Alchemy local config
         working-directory: apps/wodsmith-start
-        env:
-          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
         run: |
           mkdir -p .alchemy/local
           cat > .alchemy/local/wrangler.jsonc << 'EOF'
@@ -80,9 +78,6 @@ jobs:
             ]
           }
           EOF
-          jq --arg value "$TYPESAFE_API_KEY" '.vars.TYPESAFE_API_KEY = $value' \
-            .alchemy/local/wrangler.jsonc > .alchemy/local/wrangler-with-secrets.jsonc
-          mv .alchemy/local/wrangler-with-secrets.jsonc .alchemy/local/wrangler.jsonc
 
       - name: Configure environment
         working-directory: apps/wodsmith-start
@@ -107,7 +102,6 @@ jobs:
         env:
           CI: true
           DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_e2e
-          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
