@@ -1,6 +1,7 @@
 This directory defines the high-level concepts, business logic, and architecture of this project using markdown. It is managed by [lat.md](https://www.npmjs.com/package/lat.md) — a tool that anchors source code to these definitions. Install the `lat` command with `npm i -g lat.md` and run `lat --help`.
 
 - [[architecture]] — Monorepo structure, tech stack, route groups, and deployment
+- [[worktree-environment-tests]] — Shared-secret setup, preservation, rotation, and startup regression tests
 - [[domain]] — Core domain model: teams, competitions, workouts, scoring, volunteers
 - [[submission-integrity]] — Atomic online submissions, review resets, and division-scoped verification tests
 - [[auth]] — Authentication, sessions, authorization, and placeholder users

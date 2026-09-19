@@ -16,6 +16,17 @@ env:
   FORCE_COLOR: true
 
 jobs:
+  worktree-env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test scripts/setup-worktree-env.test.mjs
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20

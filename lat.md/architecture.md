@@ -15,6 +15,18 @@ TanStack Start (React + Vite) deployed to Cloudflare Workers, with PlanetScale (
 - **Deployment**: Alchemy IaC to Cloudflare Workers, Vite build pipeline
 - **Testing**: Vitest (unit/integration), Playwright (E2E), Testing Library (components)
 
+### Shared Worktree Database Environment
+
+Local Start and Crew worktrees use one direct TLS credential for the shared PlanetScale `dev` branch while retaining app-specific ignored environment files.
+
+Canonical secrets live outside Git at `~/.config/wodsmith/database.env` and `~/.config/wodsmith/typesafe.env`. `pnpm setup:worktree` copies `DATABASE_URL` into both apps and `TYPESAFE_API_KEY` into Start, preserves other `.dev.vars` settings, and restricts generated files to mode `0600`. Values use dotenv parsing and literal quoting; every duplicate managed assignment is refreshed so the runtime cannot load an older value.
+
+Each app's dev command explicitly checks that its ignored environment file exists and matches its canonical secrets before starting Vite or portless. This does not depend on pnpm's optional pre/post hooks. Missing or rotated credentials fail early and avoid a long-running `pscale connect` proxy shared across worktrees.
+
+Playwright launches Vite directly because E2E runs supply their own disposable database configuration and must not require a developer's shared credentials. CI runs [[worktree-environment-tests|isolated setup and startup regression tests]] with `node --test scripts/setup-worktree-env.test.mjs`.
+
+The shared credential permits application reads and writes but not schema changes. Schema pushes, migrations, destructive tests, direct write SQL, credential changes, Traffic Control changes, and webhook changes require explicit approval because Start and Crew share the branch.
+
 ### SSR Theme Hydration
 
 The root document permits one intentional root-attribute difference, while all structural client state must match SSR on the first render.

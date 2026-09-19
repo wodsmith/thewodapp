@@ -2,6 +2,12 @@
 # Copy this file to .dev.vars and fill in values
 # These are loaded by `wrangler dev` and override .env variables
 
+# Managed by `pnpm setup:worktree` from ~/.config/wodsmith/database.env.
+DATABASE_URL=mysql://user:password@host/wodsmith-db?ssl=%7B%22rejectUnauthorized%22%3Atrue%7D
+
+# Managed by `pnpm setup:worktree` from ~/.config/wodsmith/typesafe.env.
+TYPESAFE_API_KEY=replace_me_typesafe_api_key
+
 ### Stripe Configuration (Required for Stripe features)
 # Get your API keys from https://dashboard.stripe.com/apikeys
 STRIPE_SECRET_KEY=sk_test_...

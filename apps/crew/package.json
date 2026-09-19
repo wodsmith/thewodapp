@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 3002",
+    "dev": "node ../../scripts/setup-worktree-env.mjs --check --app crew && vite dev --port 3002",
     "build": "vite build",
     "serve": "vite preview",
     "test": "vitest run",
