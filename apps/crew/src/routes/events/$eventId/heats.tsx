@@ -35,6 +35,7 @@ import {
   type CascadedHeatRow,
   DEFAULT_HEAT_DURATION_MINUTES,
   DEFAULT_TRANSITION_MINUTES,
+  getInitialHeatSchedule,
   MAX_BULK_HEATS,
 } from "@/lib/crew/heat-scheduling"
 import {
@@ -52,10 +53,7 @@ import type {
   ImportIssue,
   PreviewImportRow,
 } from "@/lib/crew/imports/types"
-import {
-  deleteHeatFn,
-  getNextHeatNumberFn,
-} from "@/server-fns/competition-heats-fns"
+import { deleteHeatFn } from "@/server-fns/competition-heats-fns"
 import {
   type CrewHeatRow,
   type CrewHeatsTrackWorkout,
@@ -70,7 +68,11 @@ import {
   type PersistedCrewImportPreview,
   saveCrewImportMappingPresetFn,
 } from "@/server-fns/crew-import-fns"
-import { DEFAULT_TIMEZONE, parseTimeInTimezone } from "@/utils/timezone-utils"
+import {
+  DEFAULT_TIMEZONE,
+  formatDateTimeInTimezone,
+  parseTimeInTimezone,
+} from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/events/$eventId/heats")({
   loader: async ({ params }) =>
@@ -132,6 +134,7 @@ function EventHeatsPage() {
             <WorkoutHeatSection
               key={tw.id}
               eventId={eventId}
+              eventStartDate={event.competition.startDate}
               timezone={timezone}
               trackWorkout={tw}
               heats={heatsByTrackWorkoutId[tw.id] ?? []}
@@ -182,6 +185,7 @@ function EmptyWorkoutsNotice({ eventId }: { eventId: string }) {
 
 interface WorkoutHeatSectionProps {
   eventId: string
+  eventStartDate: string
   timezone: string
   trackWorkout: CrewHeatsTrackWorkout
   heats: CrewHeatRow[]
@@ -191,6 +195,7 @@ interface WorkoutHeatSectionProps {
 
 function WorkoutHeatSection({
   eventId,
+  eventStartDate,
   timezone,
   trackWorkout,
   heats,
@@ -217,13 +222,27 @@ function WorkoutHeatSection({
         </div>
         <button
           type="button"
-          onClick={() => setAddOpen(true)}
+          onClick={() => setAddOpen((current) => !current)}
+          aria-expanded={addOpen}
           className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"
         >
           <Plus className="size-4" />
           Add heats
         </button>
       </div>
+
+      {addOpen ? (
+        <InlineHeatBuilder
+          eventId={eventId}
+          eventStartDate={eventStartDate}
+          timezone={timezone}
+          trackWorkoutId={trackWorkout.id}
+          existingHeats={heats}
+          venues={venues}
+          onCancel={() => setAddOpen(false)}
+          onAdded={handleAdded}
+        />
+      ) : null}
 
       {heats.length > 0 ? (
         <div className="divide-y">
@@ -236,16 +255,6 @@ function WorkoutHeatSection({
           No heats yet — add some manually or import from CSV or Excel.
         </p>
       )}
-
-      <AddHeatsDialog
-        open={addOpen}
-        eventId={eventId}
-        timezone={timezone}
-        trackWorkoutId={trackWorkout.id}
-        venues={venues}
-        onClose={() => setAddOpen(false)}
-        onAdded={handleAdded}
-      />
     </section>
   )
 }
@@ -351,7 +360,7 @@ function HeatRow({ heat, onHeatChange }: HeatRowProps) {
 }
 
 // ============================================================================
-// Add heats dialog (bulk builder with per-heat editable times)
+// Inline heat builder (bulk builder with per-heat editable times)
 // ============================================================================
 
 const DEFAULT_HEAT_COUNT = 4
@@ -368,52 +377,65 @@ function localValueToUtc(localValue: string, timezone: string): Date | null {
   return parseTimeInTimezone(timeStr, dateStr, timezone)
 }
 
-interface AddHeatsDialogProps {
-  open: boolean
+interface InlineHeatBuilderProps {
   eventId: string
+  eventStartDate: string
   timezone: string
   trackWorkoutId: string
+  existingHeats: CrewHeatRow[]
   venues: CrewVenueOption[]
-  onClose: () => void
+  onCancel: () => void
   onAdded: () => Promise<void>
 }
 
-function AddHeatsDialog({
-  open,
+function InlineHeatBuilder({
   eventId,
+  eventStartDate,
   timezone,
   trackWorkoutId,
+  existingHeats,
   venues,
-  onClose,
+  onCancel,
   onAdded,
-}: AddHeatsDialogProps) {
+}: InlineHeatBuilderProps) {
   const generateHeats = useServerFn(generateHeatsFn)
-  const getNextHeatNumber = useServerFn(getNextHeatNumberFn)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [nextHeatNumber, setNextHeatNumber] = useState<number>(1)
+  const nextHeatNumber =
+    existingHeats.reduce(
+      (highest, heat) => Math.max(highest, heat.heatNumber),
+      0,
+    ) + 1
+  const defaultVenue =
+    venues.find((venue) => venue.isDefault) ?? venues[0] ?? null
+  const lastHeat = [...existingHeats].sort(
+    (a, b) => b.heatNumber - a.heatNumber,
+  )[0]
+  const lastScheduledLocalValue = lastHeat?.scheduledTime
+    ? formatDateTimeInTimezone(
+        lastHeat.scheduledTime,
+        timezone,
+        "yyyy-MM-dd'T'HH:mm",
+      )
+    : null
+  const initialSchedule = getInitialHeatSchedule({
+    eventStartDate,
+    lastScheduledLocalValue,
+    lastDurationMinutes: lastHeat?.durationMinutes,
+    fallbackDurationMinutes: DEFAULT_HEAT_DURATION_MINUTES,
+    gapMinutes: defaultVenue?.transitionMinutes ?? DEFAULT_TRANSITION_MINUTES,
+  })
   const [count, setCount] = useState(String(DEFAULT_HEAT_COUNT))
-  const [startTime, setStartTime] = useState("")
-  const [venueId, setVenueId] = useState("")
+  const [startTime, setStartTime] = useState(initialSchedule.startLocalValue)
+  const [venueId, setVenueId] = useState(defaultVenue?.id ?? "")
   const [lengthMinutes, setLengthMinutes] = useState(
-    String(DEFAULT_HEAT_DURATION_MINUTES),
+    String(initialSchedule.lengthMinutes),
   )
   const [gapMinutes, setGapMinutes] = useState(
-    String(DEFAULT_TRANSITION_MINUTES),
+    String(defaultVenue?.transitionMinutes ?? DEFAULT_TRANSITION_MINUTES),
   )
   // The editable per-heat list. Recomputed from the global controls below;
   // individual rows can be overridden until the next global change.
   const [heatRows, setHeatRows] = useState<CascadedHeatRow[]>([])
-
-  useEffect(() => {
-    if (!open) return
-    let ignore = false
-    void getNextHeatNumber({ data: { trackWorkoutId } }).then((result) => {
-      if (!ignore) setNextHeatNumber(result.nextHeatNumber)
-    })
-    return () => {
-      ignore = true
-    }
-  }, [open, trackWorkoutId, getNextHeatNumber])
 
   const heatCount = Number(count)
   const length = Number(lengthMinutes)
@@ -427,7 +449,6 @@ function AddHeatsDialog({
   // overwrites any manual per-heat edits — the cascade is the source of truth
   // until the organizer overrides an individual row again.
   useEffect(() => {
-    if (!open) return
     setHeatRows(
       buildCascadedLocalTimes({
         count: Number.isInteger(heatCount) ? heatCount : 0,
@@ -437,16 +458,21 @@ function AddHeatsDialog({
         startHeatNumber: nextHeatNumber,
       }),
     )
-  }, [open, heatCount, startTime, length, gap, nextHeatNumber])
+  }, [heatCount, startTime, length, gap, nextHeatNumber])
 
-  function handleClose() {
-    setCount(String(DEFAULT_HEAT_COUNT))
-    setStartTime("")
-    setVenueId("")
-    setLengthMinutes(String(DEFAULT_HEAT_DURATION_MINUTES))
-    setGapMinutes(String(DEFAULT_TRANSITION_MINUTES))
-    setHeatRows([])
-    onClose()
+  function handleVenueChange(nextVenueId: string) {
+    const nextVenue = venues.find((venue) => venue.id === nextVenueId) ?? null
+    const nextGap = nextVenue?.transitionMinutes ?? DEFAULT_TRANSITION_MINUTES
+    const nextInitialSchedule = getInitialHeatSchedule({
+      eventStartDate,
+      lastScheduledLocalValue,
+      lastDurationMinutes: lastHeat?.durationMinutes,
+      fallbackDurationMinutes: DEFAULT_HEAT_DURATION_MINUTES,
+      gapMinutes: nextGap,
+    })
+    setVenueId(nextVenueId)
+    setGapMinutes(String(nextGap))
+    setStartTime(nextInitialSchedule.startLocalValue)
   }
 
   function updateHeatTime(index: number, localValue: string) {
@@ -489,7 +515,6 @@ function AddHeatsDialog({
       })
       toast.success(`${heatCount} ${heatCount === 1 ? "heat" : "heats"} added`)
       await onAdded()
-      handleClose()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to add heats",
@@ -499,140 +524,147 @@ function AddHeatsDialog({
     }
   }
 
+  const fieldId = (name: string) => `${trackWorkoutId}-${name}`
+
   return (
-    <Dialog open={open} onOpenChange={(val) => !val && handleClose()}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add heats</DialogTitle>
-          <DialogDescription>
-            Set a start time, heat length, and heat gap — the times below fill
-            in automatically. Editing any heat's time overrides just that heat
-            until you change a control above.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <AddHeatField label="How many heats" htmlFor="heat-count">
-              <input
-                id="heat-count"
-                type="number"
-                min={1}
-                max={MAX_BULK_HEATS}
-                value={count}
-                onChange={(e) => setCount(e.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              />
-            </AddHeatField>
-            <AddHeatField label="Start time" htmlFor="heat-start-time">
-              <input
-                id="heat-start-time"
-                type="datetime-local"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              />
-            </AddHeatField>
-            <AddHeatField label="Heat length (minutes)" htmlFor="heat-length">
-              <input
-                id="heat-length"
-                type="number"
-                min={1}
-                max={180}
-                value={lengthMinutes}
-                onChange={(e) => setLengthMinutes(e.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              />
-            </AddHeatField>
-            <AddHeatField label="Heat gap (minutes)" htmlFor="heat-gap">
-              <input
-                id="heat-gap"
-                type="number"
-                min={0}
-                max={120}
-                value={gapMinutes}
-                onChange={(e) => setGapMinutes(e.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              />
-            </AddHeatField>
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 border-b bg-muted/20 px-4 py-4 sm:px-5"
+    >
+      <div>
+        <p className="font-medium">Schedule new heats</p>
+        <p className="text-sm text-muted-foreground">
+          Times cascade automatically. You can still edit any individual heat
+          before adding them.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <AddHeatField label="Heats" htmlFor={fieldId("heat-count")}>
+          <input
+            id={fieldId("heat-count")}
+            type="number"
+            min={1}
+            max={MAX_BULK_HEATS}
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          />
+        </AddHeatField>
+        <AddHeatField label="Start time" htmlFor={fieldId("heat-start-time")}>
+          <input
+            id={fieldId("heat-start-time")}
+            type="datetime-local"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          />
+        </AddHeatField>
+        <AddHeatField label="Heat length" htmlFor={fieldId("heat-length")}>
+          <input
+            id={fieldId("heat-length")}
+            type="number"
+            min={1}
+            max={180}
+            value={lengthMinutes}
+            onChange={(e) => setLengthMinutes(e.target.value)}
+            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          />
+        </AddHeatField>
+        <AddHeatField label="Heat gap" htmlFor={fieldId("heat-gap")}>
+          <input
+            id={fieldId("heat-gap")}
+            type="number"
+            min={0}
+            max={120}
+            value={gapMinutes}
+            onChange={(e) => setGapMinutes(e.target.value)}
+            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          />
+        </AddHeatField>
+        {venues.length > 0 ? (
+          <AddHeatField label="Location" htmlFor={fieldId("heat-venue")}>
+            <select
+              id={fieldId("heat-venue")}
+              value={venueId}
+              onChange={(e) => handleVenueChange(e.target.value)}
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="">No location</option>
+              {venues.map((venue) => (
+                <option key={venue.id} value={venue.id}>
+                  {venue.name} · {venue.laneCount}{" "}
+                  {venue.laneCount === 1 ? "lane" : "lanes"}
+                  {venue.isDefault ? " · default" : ""}
+                </option>
+              ))}
+            </select>
+            {selectedVenue ? (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Uses this location's {selectedVenue.transitionMinutes}-minute
+                heat gap.
+              </span>
+            ) : null}
+          </AddHeatField>
+        ) : null}
+      </div>
+
+      {heatRows.length > 0 ? (
+        <div className="overflow-hidden rounded-md border bg-background">
+          <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium text-muted-foreground">
+            <Clock className="size-3.5" />
+            Heat times ({timezone})
           </div>
-
-          {venues.length > 0 ? (
-            <AddHeatField label="Location" htmlFor="heat-venue">
-              <select
-                id="heat-venue"
-                value={venueId}
-                onChange={(e) => setVenueId(e.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          <ul className="divide-y">
+            {heatRows.map((row, index) => (
+              <li
+                key={row.heatNumber}
+                className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:gap-3"
               >
-                <option value="">No location</option>
-                {venues.map((venue) => (
-                  <option key={venue.id} value={venue.id}>
-                    {venue.name} · {venue.laneCount}{" "}
-                    {venue.laneCount === 1 ? "lane" : "lanes"}
-                  </option>
-                ))}
-              </select>
-              {selectedVenue ? (
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  Heats here have {selectedVenue.laneCount}{" "}
-                  {selectedVenue.laneCount === 1 ? "lane" : "lanes"}.
+                <span className="w-16 shrink-0 text-sm font-medium">
+                  Heat {row.heatNumber}
                 </span>
-              ) : null}
-            </AddHeatField>
-          ) : null}
+                <div className="flex w-full items-center gap-2">
+                  <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+                  <input
+                    type="datetime-local"
+                    aria-label={`Heat ${row.heatNumber} time`}
+                    value={row.localValue}
+                    onChange={(e) => updateHeatTime(index, e.target.value)}
+                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  />
+                </div>
+                {selectedVenue ? (
+                  <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="size-3" />
+                    {selectedVenue.name}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
-          {heatRows.length > 0 ? (
-            <div className="rounded-md border">
-              <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium text-muted-foreground">
-                <Clock className="size-3.5" />
-                Heat times ({timezone})
-              </div>
-              <ul className="divide-y">
-                {heatRows.map((row, index) => (
-                  <li
-                    key={row.heatNumber}
-                    className="flex items-center gap-3 px-3 py-2"
-                  >
-                    <span className="w-16 shrink-0 text-sm font-medium">
-                      Heat {row.heatNumber}
-                    </span>
-                    <input
-                      type="datetime-local"
-                      aria-label={`Heat ${row.heatNumber} time`}
-                      value={row.localValue}
-                      onChange={(e) => updateHeatTime(index, e.target.value)}
-                      className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              Add{" "}
-              {Number.isInteger(heatCount) && heatCount > 0 ? heatCount : ""}{" "}
-              {heatCount === 1 ? "heat" : "heats"}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
+          Add {Number.isInteger(heatCount) && heatCount > 0 ? heatCount : ""}{" "}
+          {heatCount === 1 ? "heat" : "heats"}
+        </button>
+      </div>
+    </form>
   )
 }
 

@@ -5,11 +5,14 @@ import { getDb } from "@/db"
 import { createCompetitionHeatId } from "@/db/schemas/common"
 import {
   competitionHeatsTable,
-  competitionVenuesTable,
   competitionsTable,
+  competitionVenuesTable,
 } from "@/db/schemas/competitions"
 import { crewEventSettingsTable } from "@/db/schemas/crew-event-settings"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+  programmingTracksTable,
+  trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { workouts } from "@/db/schemas/workouts"
 import { logEntityCreated, logInfo } from "@/lib/logging"
@@ -44,6 +47,8 @@ export interface CrewVenueOption {
   id: string
   name: string
   laneCount: number
+  transitionMinutes: number
+  isDefault: boolean
 }
 
 export interface CrewHeatsPageData {
@@ -119,27 +124,40 @@ export const getCrewHeatsPageFn = createServerFn({ method: "GET" })
           id: competitionVenuesTable.id,
           name: competitionVenuesTable.name,
           laneCount: competitionVenuesTable.laneCount,
+          transitionMinutes: competitionVenuesTable.transitionMinutes,
+          isDefault: competitionVenuesTable.isDefault,
         })
         .from(competitionVenuesTable)
         .where(eq(competitionVenuesTable.competitionId, data.eventId))
         .orderBy(asc(competitionVenuesTable.sortOrder)),
     ])
 
-    const trackWorkouts: CrewHeatsTrackWorkout[] = trackWorkoutRows.map((row) => ({
-      id: row.id,
-      label: row.label,
-      trackOrder: Number(row.trackOrder),
-    }))
+    const trackWorkouts: CrewHeatsTrackWorkout[] = trackWorkoutRows.map(
+      (row) => ({
+        id: row.id,
+        label: row.label,
+        trackOrder: Number(row.trackOrder),
+      }),
+    )
 
     // Heats are scoped to this event's venues, so venueRows already covers any
     // venue a heat can reference — reuse it for name + lane count instead of a
     // second query. Divisions still need a batch lookup.
-    const divisionIds = [...new Set(heatRows.map((h) => h.divisionId).filter((id): id is string => id !== null))]
+    const divisionIds = [
+      ...new Set(
+        heatRows
+          .map((h) => h.divisionId)
+          .filter((id): id is string => id !== null),
+      ),
+    ]
 
     const divisionDetails =
       divisionIds.length > 0
         ? await db
-            .select({ id: scalingLevelsTable.id, label: scalingLevelsTable.label })
+            .select({
+              id: scalingLevelsTable.id,
+              label: scalingLevelsTable.label,
+            })
             .from(scalingLevelsTable)
             .where(inArray(scalingLevelsTable.id, divisionIds))
         : []
@@ -160,12 +178,16 @@ export const getCrewHeatsPageFn = createServerFn({ method: "GET" })
         scheduledTime: heat.scheduledTime,
         durationMinutes: heat.durationMinutes,
         venueId: heat.venueId,
-        venueName: heat.venueId ? (venueMap.get(heat.venueId)?.name ?? null) : null,
+        venueName: heat.venueId
+          ? (venueMap.get(heat.venueId)?.name ?? null)
+          : null,
         venueLaneCount: heat.venueId
           ? (venueMap.get(heat.venueId)?.laneCount ?? null)
           : null,
         divisionId: heat.divisionId,
-        divisionLabel: heat.divisionId ? (divisionMap.get(heat.divisionId) ?? null) : null,
+        divisionLabel: heat.divisionId
+          ? (divisionMap.get(heat.divisionId) ?? null)
+          : null,
         notes: heat.notes,
         schedulePublishedAt: heat.schedulePublishedAt,
       })
@@ -174,7 +196,12 @@ export const getCrewHeatsPageFn = createServerFn({ method: "GET" })
     return {
       trackWorkouts,
       heatsByTrackWorkoutId,
-      venues: venueRows,
+      venues: venueRows.map((venue, index) => ({
+        ...venue,
+        isDefault:
+          venue.isDefault ||
+          (!venueRows.some((candidate) => candidate.isDefault) && index === 0),
+      })),
     }
   })
 

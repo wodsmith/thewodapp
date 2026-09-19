@@ -7,6 +7,7 @@ import {
   Pencil,
   Plus,
   Save,
+  Star,
   Trash2,
   X,
 } from "lucide-react"
@@ -23,15 +24,16 @@ import {
 } from "@/components/ui/dialog"
 import { updateCrewEventSettingsFn } from "@/server-fns/crew-event-settings-fns"
 import {
-  createCrewLocationFn,
   type CrewLocation,
+  createCrewLocationFn,
   deleteCrewLocationFn,
   getCrewLocationsFn,
+  setDefaultCrewLocationFn,
   updateCrewLocationFn,
 } from "@/server-fns/crew-locations-fns"
 import {
-  createCrewWorkoutShellFn,
   type CrewWorkoutShell,
+  createCrewWorkoutShellFn,
   deleteCrewWorkoutShellFn,
   getCrewWorkoutShellsFn,
   updateCrewWorkoutShellFn,
@@ -158,7 +160,9 @@ function EventSetupPage() {
               <select
                 id="crew-setup-timezone"
                 value={timezone}
-                onChange={(changeEvent) => setTimezone(changeEvent.target.value)}
+                onChange={(changeEvent) =>
+                  setTimezone(changeEvent.target.value)
+                }
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm"
               >
                 {COMMON_US_TIMEZONES.map((tz) => (
@@ -273,7 +277,11 @@ function WorkoutsSection({ eventId, workouts }: WorkoutsSectionProps) {
       )}
 
       <WorkoutShellDialog
-        key={dialogState?.mode === "edit" ? dialogState.workout.workoutId : "create"}
+        key={
+          dialogState?.mode === "edit"
+            ? dialogState.workout.workoutId
+            : "create"
+        }
         eventId={eventId}
         state={dialogState}
         onClose={() => setDialogState(null)}
@@ -290,7 +298,12 @@ interface WorkoutCardProps {
   onDeleted: () => Promise<void>
 }
 
-function WorkoutCard({ eventId, workout, onEdit, onDeleted }: WorkoutCardProps) {
+function WorkoutCard({
+  eventId,
+  workout,
+  onEdit,
+  onDeleted,
+}: WorkoutCardProps) {
   const deleteShell = useServerFn(deleteCrewWorkoutShellFn)
   const [isDeleting, setIsDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -482,7 +495,9 @@ function WorkoutShellDialog({
               disabled={isSubmitting}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isSubmitting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
               {isEdit ? "Save workout" : "Add workout"}
             </button>
           </DialogFooter>
@@ -499,6 +514,9 @@ function WorkoutShellDialog({
 const DEFAULT_LANE_COUNT = 3
 const LANE_COUNT_MIN = 1
 const LANE_COUNT_MAX = 100
+const DEFAULT_TRANSITION_MINUTES = 2
+const TRANSITION_MINUTES_MIN = 0
+const TRANSITION_MINUTES_MAX = 120
 
 interface LocationsSectionProps {
   eventId: string
@@ -555,7 +573,7 @@ function LocationsSection({ eventId, locations }: LocationsSectionProps) {
               eventId={eventId}
               location={location}
               onEdit={() => setDialogState({ mode: "edit", location })}
-              onDeleted={handleSaved}
+              onChanged={handleSaved}
             />
           ))}
         </div>
@@ -576,17 +594,19 @@ interface LocationCardProps {
   eventId: string
   location: CrewLocation
   onEdit: () => void
-  onDeleted: () => Promise<void>
+  onChanged: () => Promise<void>
 }
 
 function LocationCard({
   eventId,
   location,
   onEdit,
-  onDeleted,
+  onChanged,
 }: LocationCardProps) {
   const deleteLocation = useServerFn(deleteCrewLocationFn)
+  const setDefaultLocation = useServerFn(setDefaultCrewLocationFn)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isSettingDefault, setIsSettingDefault] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   async function handleDelete() {
@@ -596,7 +616,7 @@ function LocationCard({
         data: { eventId, locationId: location.id },
       })
       toast.success("Location removed")
-      await onDeleted()
+      await onChanged()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to remove location",
@@ -607,11 +627,56 @@ function LocationCard({
     }
   }
 
+  async function handleSetDefault() {
+    if (location.isDefault) return
+    setIsSettingDefault(true)
+    try {
+      await setDefaultLocation({
+        data: { eventId, locationId: location.id },
+      })
+      toast.success(`${location.name} is now the default location`)
+      await onChanged()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update the default location",
+      )
+    } finally {
+      setIsSettingDefault(false)
+    }
+  }
+
   return (
     <article className="flex flex-col rounded-md border bg-background p-4">
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold leading-tight">{location.name}</h3>
         <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={handleSetDefault}
+            disabled={location.isDefault || isSettingDefault}
+            aria-label={
+              location.isDefault
+                ? `${location.name} is the default location`
+                : `Make ${location.name} the default location`
+            }
+            title={location.isDefault ? "Default location" : "Make default"}
+            className={`inline-flex size-8 items-center justify-center rounded-md border hover:bg-muted disabled:cursor-default ${
+              location.isDefault
+                ? "border-amber-300 bg-amber-50 text-amber-600"
+                : "text-muted-foreground hover:text-amber-600"
+            }`}
+          >
+            {isSettingDefault ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Star
+                className="size-3.5"
+                fill={location.isDefault ? "currentColor" : "none"}
+              />
+            )}
+          </button>
           <button
             type="button"
             onClick={onEdit}
@@ -633,7 +698,15 @@ function LocationCard({
 
       <p className="mt-2 text-sm text-muted-foreground">
         {location.laneCount} {location.laneCount === 1 ? "lane" : "lanes"}
+        {" · "}
+        {location.transitionMinutes} min heat gap
       </p>
+
+      {location.isDefault ? (
+        <p className="mt-2 text-xs font-medium text-amber-700">
+          Default for new heats
+        </p>
+      ) : null}
 
       <p className="mt-3 text-xs text-muted-foreground">
         {location.heatCount === 0
@@ -645,9 +718,8 @@ function LocationCard({
         <div className="mt-3 flex flex-col gap-2 border-t pt-3">
           {location.heatCount > 0 ? (
             <span className="text-xs text-muted-foreground">
-              {location.heatCount}{" "}
-              {location.heatCount === 1 ? "heat" : "heats"} will keep their
-              times but lose this location.
+              {location.heatCount} {location.heatCount === 1 ? "heat" : "heats"}{" "}
+              will keep their times but lose this location.
             </span>
           ) : null}
           <div className="flex items-center gap-2">
@@ -696,6 +768,11 @@ function LocationDialog({
   const [laneCount, setLaneCount] = useState(
     String(isEdit ? state.location.laneCount : DEFAULT_LANE_COUNT),
   )
+  const [transitionMinutes, setTransitionMinutes] = useState(
+    String(
+      isEdit ? state.location.transitionMinutes : DEFAULT_TRANSITION_MINUTES,
+    ),
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -706,12 +783,25 @@ function LocationDialog({
       return
     }
     const lanes = Number(laneCount)
+    const heatGap = Number(transitionMinutes)
     if (
       !Number.isInteger(lanes) ||
       lanes < LANE_COUNT_MIN ||
       lanes > LANE_COUNT_MAX
     ) {
-      toast.error(`Lane count must be between ${LANE_COUNT_MIN} and ${LANE_COUNT_MAX}`)
+      toast.error(
+        `Lane count must be between ${LANE_COUNT_MIN} and ${LANE_COUNT_MAX}`,
+      )
+      return
+    }
+    if (
+      !Number.isInteger(heatGap) ||
+      heatGap < TRANSITION_MINUTES_MIN ||
+      heatGap > TRANSITION_MINUTES_MAX
+    ) {
+      toast.error(
+        `Heat gap must be between ${TRANSITION_MINUTES_MIN} and ${TRANSITION_MINUTES_MAX} minutes`,
+      )
       return
     }
 
@@ -724,12 +814,18 @@ function LocationDialog({
             locationId: state.location.id,
             name: trimmedName,
             laneCount: lanes,
+            transitionMinutes: heatGap,
           },
         })
         toast.success("Location updated")
       } else {
         await createLocation({
-          data: { eventId, name: trimmedName, laneCount: lanes },
+          data: {
+            eventId,
+            name: trimmedName,
+            laneCount: lanes,
+            transitionMinutes: heatGap,
+          },
         })
         toast.success("Location added")
       }
@@ -778,6 +874,21 @@ function LocationDialog({
               How many lanes a heat at this location has.
             </span>
           </label>
+          <label className="block text-sm" htmlFor="location-heat-gap">
+            <span className="font-medium">Default heat gap (minutes)</span>
+            <input
+              id="location-heat-gap"
+              type="number"
+              min={TRANSITION_MINUTES_MIN}
+              max={TRANSITION_MINUTES_MAX}
+              value={transitionMinutes}
+              onChange={(e) => setTransitionMinutes(e.target.value)}
+              className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"
+            />
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Used between heats when this location is selected.
+            </span>
+          </label>
           <DialogFooter className="gap-2 sm:gap-0">
             <button
               type="button"
@@ -791,7 +902,9 @@ function LocationDialog({
               disabled={isSubmitting}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isSubmitting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
               {isEdit ? "Save location" : "Add location"}
             </button>
           </DialogFooter>
