@@ -1,0 +1,29 @@
+{
+  "name": "@repo/wodsmith-application",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./core": "./src/core/index.ts",
+    "./mysql": "./src/mysql/index.ts"
+  },
+  "main": "./src/index.ts",
+  "files": [
+    "src/**"
+  ],
+  "scripts": {
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:drift": "node scripts/check-drift.mjs",
+    "check:guardrails": "pnpm check:drift && pnpm check:boundaries",
+    "pretest": "pnpm check:guardrails",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run && node --test scripts/boundary-rules.node-test.mjs"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.19.3",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.5"
+  }
+}

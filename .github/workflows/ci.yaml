@@ -98,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [wodsmith-start, crew]
+        app: [wodsmith-start, crew, '@repo/wodsmith-application']
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -122,7 +122,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [wodsmith-start, crew, '@repo/wodsmith-db']
+        package: [wodsmith-start, crew, '@repo/wodsmith-db', '@repo/wodsmith-application']
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

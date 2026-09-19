@@ -51,6 +51,8 @@ Organizer list dates use UTC calendar formatting so Cloudflare SSR and browsers 
 
 The monorepo uses Turborepo with pnpm workspaces. The main app lives in `apps/wodsmith-start/`.
 
+Common Crew and Start application behavior moves one vertical slice at a time into [[lat.md/shared-application-core#Shared Application Core]]. The package shares business authority without merging the apps' routes, identity adapters, runtime bindings, or deployments.
+
 ### apps/wodsmith-start
 
 The primary web application containing all user-facing functionality.

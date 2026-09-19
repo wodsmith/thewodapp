@@ -1,0 +1,24 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "scripts/**",
+        "guardrails/**",
+        "$TURBO_ROOT$/apps/crew/src/server-fns/**",
+        "$TURBO_ROOT$/apps/wodsmith-start/src/server-fns/**"
+      ]
+    },
+    "test:coverage": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "scripts/**",
+        "guardrails/**",
+        "$TURBO_ROOT$/apps/crew/src/server-fns/**",
+        "$TURBO_ROOT$/apps/wodsmith-start/src/server-fns/**"
+      ]
+    }
+  }
+}

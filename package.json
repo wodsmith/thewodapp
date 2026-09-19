@@ -8,6 +8,7 @@
 		"lint": "turbo lint",
 		"format": "turbo format",
 		"check": "turbo check",
+		"check:application-boundaries": "pnpm --filter @repo/wodsmith-application check:guardrails",
 		"check:schema-ownership": "node scripts/check-wodsmith-schema-ownership.mjs",
 		"type-check": "turbo type-check",
 		"test": "turbo test",
