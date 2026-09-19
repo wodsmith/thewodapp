@@ -47,7 +47,7 @@ test.describe("Crew organizer scheduling flow", () => {
       await page.getByRole("button", { name: "Add shift", exact: true }).click()
       const shiftDialog = page.getByRole("dialog", { name: "Add shift" })
       await shiftDialog.getByRole("textbox", { name: "Shift Name", exact: true }).fill("Morning judges")
-      await shiftDialog.getByRole("combobox", { name: "Role Type" }).click()
+      await shiftDialog.getByRole("combobox", { name: "Role type (optional)" }).click()
       await page.getByRole("option", { name: "Judge", exact: true }).click()
       await shiftDialog.getByRole("button", { name: "Create shift", exact: true }).click()
       await expect(shiftDialog).not.toBeVisible()

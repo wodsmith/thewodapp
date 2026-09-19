@@ -173,7 +173,7 @@ test("creates and assigns a volunteer schedule on a small phone", async ({
     await shift
       .getByRole("textbox", { name: "Shift Name", exact: true })
       .fill("Morning judges")
-    await shift.getByRole("combobox", { name: "Role Type" }).click()
+    await shift.getByRole("combobox", { name: "Role type (optional)" }).click()
     await page.getByRole("option", { name: "Judge", exact: true }).click()
     await shift
       .getByRole("button", { name: "Create shift", exact: true })
