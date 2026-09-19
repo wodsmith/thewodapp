@@ -4,10 +4,8 @@
   "type": "module",
   "portless": "wodsmith",
   "scripts": {
-    "predev": "node ../../scripts/setup-worktree-env.mjs --check --app wodsmith-start",
-    "dev": "vite dev --port 3000",
-    "predev:multi": "node ../../scripts/setup-worktree-env.mjs --check --app wodsmith-start",
-    "dev:multi": "portless run vite dev",
+    "dev": "node ../../scripts/setup-worktree-env.mjs --check --app wodsmith-start && vite dev --port 3000",
+    "dev:multi": "node ../../scripts/setup-worktree-env.mjs --check --app wodsmith-start && portless run vite dev",
     "build": "vite build",
     "serve": "vite preview",
     "test": "vitest run && pnpm test:workout-import-runtime",

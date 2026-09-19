@@ -11,7 +11,7 @@ WODsmith Start and Crew share the PlanetScale `dev` branch in local development.
 - Agents may use ordinary application reads and writes. Do not run write SQL directly, change credentials, alter Traffic Control or webhooks, or perform schema changes without explicit user approval.
 - Do not run `pscale connect`; local apps use the direct TLS connection string.
 - Do not run `db:push`, migrations, destructive database tests, or schema experiments against the shared branch unless the task explicitly requires that shared schema change.
-- Use `pnpm --filter wodsmith-start dev:multi` for Start and `pnpm --filter crew dev` for Crew. Their predev checks explain how to repair missing or stale worktree configuration.
+- Use `pnpm --filter wodsmith-start dev:multi` for Start and `pnpm --filter crew dev` for Crew. Their startup checks explain how to repair missing or stale worktree configuration.
 
 # Database schema changes
 

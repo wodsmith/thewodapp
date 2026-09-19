@@ -4,6 +4,7 @@ import { chmod, mkdir, readFile, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { parseEnv } from "node:util"
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const defaultConfigPath = resolve(homedir(), ".config/wodsmith/database.env")
@@ -23,11 +24,12 @@ const appDirectories = {
 }
 
 function environmentValueFrom(contents, variable, source) {
-  const match = contents.match(new RegExp(`^${variable}=(.*)$`, "m"))
-  const value = match?.[1]?.trim().replace(/^(['"])(.*)\1$/, "$2")
+  const value = parseEnv(contents)[variable]
 
   if (!value) {
-    throw new Error(`${source} must contain ${variable}.`)
+    throw new Error(
+      `${source} must contain ${variable}. Run pnpm setup:worktree after updating the shared config.`,
+    )
   }
 
   return value
@@ -40,7 +42,12 @@ function databaseUrlFrom(contents, source) {
   if (url.protocol !== "mysql:") {
     throw new Error(`${source} DATABASE_URL must use the mysql protocol.`)
   }
-  if (!url.username || !url.password || !url.hostname || !url.pathname.slice(1)) {
+  if (
+    !url.username ||
+    !url.password ||
+    !url.hostname ||
+    !url.pathname.slice(1)
+  ) {
     throw new Error(
       `${source} DATABASE_URL must include username, password, host, and database.`,
     )
@@ -63,7 +70,7 @@ function selectedApps() {
   if (appIndex === -1) return Object.keys(appDirectories)
 
   const app = process.argv[appIndex + 1]
-  if (!appDirectories[app]) {
+  if (!Object.hasOwn(appDirectories, app)) {
     throw new Error(
       `Unknown app ${JSON.stringify(app)}. Expected ${Object.keys(appDirectories).join(" or ")}.`,
     )
@@ -125,19 +132,47 @@ async function main() {
       continue
     }
 
-    let next = current ?? ""
-    for (const [variable, value] of Object.entries(managedValues)) {
-      const pattern = new RegExp(`^${variable}=.*$`, "m")
-      next = pattern.test(next)
-        ? next.replace(pattern, `${variable}=${value}`)
-        : `${variable}=${value}\n${next}`
-    }
+    const next = updateEnvironment(current ?? "", managedValues)
 
     await mkdir(dirname(envPath), { recursive: true })
+    // Tighten existing files before writing secrets, not just afterwards.
+    if (current !== undefined) await chmod(envPath, 0o600)
     await writeFile(envPath, next, { mode: 0o600 })
     await chmod(envPath, 0o600)
     console.log(`Configured shared development secrets for ${app}.`)
   }
+}
+
+function updateEnvironment(contents, values) {
+  const remaining = new Set(Object.keys(values))
+  const assignments = Object.fromEntries(
+    Object.entries(values).map(([variable, value]) => {
+      // Quote literal values so # and whitespace survive dotenv loading.
+      const quote = ["'", "`", '"'].find(
+        (candidate) => !value.includes(candidate),
+      )
+      const assignment = `${variable}=${quote}${value}${quote}`
+      if (!quote || parseEnv(assignment)[variable] !== value) {
+        throw new Error(`Cannot safely serialize ${variable} into .dev.vars.`)
+      }
+      return [variable, assignment]
+    }),
+  )
+  // Match whole assignments, including unrelated multiline values, so a line
+  // inside a quoted value cannot be mistaken for a managed setting.
+  const pattern =
+    /^[\t ]*(?:export[\t ]+)?([\w.-]+)[\t ]*=[\t ]*(?:'[^']*'|"[^"]*"|`[^`]*`|[^\r\n]*?)[\t ]*(?:#[^\r\n]*)?(?=\r?$)/gm
+  const next = contents.replace(pattern, (assignment, variable) => {
+    if (!Object.hasOwn(assignments, variable)) return assignment
+    remaining.delete(variable)
+    // A callback keeps $&, $', and $` in credentials literal. Replace every
+    // duplicate because dotenv uses the last assignment.
+    return assignments[variable]
+  })
+  return (
+    [...remaining].map((variable) => `${assignments[variable]}\n`).join("") +
+    next
+  )
 }
 
 main().catch((error) => {

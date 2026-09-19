@@ -34,7 +34,8 @@ export default defineConfig({
   webServer: {
     // TanStack Start with Alchemy requires vite dev (not vite preview)
     // because the Alchemy Cloudflare plugin only works in dev mode
-    command: "pnpm dev",
+    // E2E uses its own disposable database config, not shared worktree secrets.
+    command: "pnpm exec vite dev --port 3000",
     url: baseURL,
     reuseExistingServer: !isCI,
     timeout: 120_000,
