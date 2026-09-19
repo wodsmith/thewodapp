@@ -47,6 +47,8 @@ Divisions segment athletes within a competition (e.g., "RX Male", "Scaled Female
 
 Stored in competition `settings` JSON. Athletes register into a specific division. Division-specific registration fees can override the competition default.
 
+Organizer division rows keep the division label primary, show the team-size type as a compact badge, and keep optional metadata in the expandable details area.
+
 ### Heats
 
 Heats are scheduled time blocks where groups of athletes perform a workout event together.
