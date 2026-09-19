@@ -8,9 +8,9 @@ The application identity boundary translates legacy storage aliases into a valid
 
 The additive boundary is implemented in `@repo/wodsmith-application/identity`. It does not rename tables or change writes. Callers provide a legacy snapshot through one reader, then receive canonical values or a typed corruption result.
 
-`Organization`, `PersonalWorkspace`, `Competition`, `CompetitionEvent`, `CompetitionDivision`, `Registration`, and `Squad` have distinct branded identities. The existing `trwk_*` value is the canonical event ID; `cevt_*` identifies only legacy window configuration.
+`Organization`, `PersonalWorkspace`, `Competition`, `CompetitionEvent`, `CompetitionDivision`, `Registration`, and `Squad` have distinct branded identities. Event occurrence IDs retain their stored `trwk_*` or seeded `tw_*` values; `cevt_*` identifies only legacy window configuration.
 
-The topology resolver proves organization and synthetic access-team relationships, event ownership through programming tracks, division ownership through the selected scaling group, registration ownership, and squad metadata/roster consistency.
+The topology resolver proves organization and synthetic access-team relationships, event ownership through programming tracks, named division ownership through the selected scaling group, registration ownership, and squad roster consistency.
 
 The compiler contract keeps context-owned IDs non-assignable. Runtime decoders reject incorrect prefixes at the legacy boundary, and domain maps require branded keys.
 
@@ -59,3 +59,41 @@ A removed squad registration remains loadable after removal deactivates its rost
 ### Rejects a reader snapshot for another competition
 
 The store rejects a valid legacy snapshot when its competition identity differs from the identity requested by the caller.
+
+## Legacy producer compatibility
+
+The boundary translates supported database producer shapes into explicit domain values without changing persisted rows or inventing missing registrations.
+
+### Loads competitions before division selection
+
+A newly created competition can have no selected scaling group, divisions, events, or registrations. A null selected group produces no named divisions and never adopts unrelated scaling levels.
+
+### Preserves open registration scope
+
+Null registration division IDs become `division: { kind: "open" }`; named selections carry a validated branded division ID. Open entries remain distinct from named divisions and do not create a synthetic scaling level.
+
+Open participation uses the persisted athlete or squad reference. Without a named division there is no team-size constraint to infer; named division participation modes remain checked.
+
+### Loads active runtime squads
+
+Runtime registration creates one squad registration and captain membership; accepted teammates add active members. Active roster members receive participant access and the declared captain must be present.
+
+### Reconciles transferred squad divisions
+
+Registration division selection is authoritative because existing transfers leave squad metadata unchanged. Supplied metadata still validates competition ownership and identifier shape, but its obsolete division cannot override registrations.
+
+### Normalizes demo squad registrations
+
+Demo squads may lack metadata, use member roles for every athlete, and store one registration per member. Their parent access team proves competition ownership and shared `captainUserId` supplies captain identity.
+
+All member registrations remain distinct and resolve to one squad independent of row order. The canonical roster promotes the declared captain. Older reader projections may omit `captainUserId`; their registration owner must then have captain membership.
+
+### Rejects conflicting squad authority
+
+Registrations sharing a squad must agree on division selection and captain identity. Contradictory rows, malformed supplied metadata, foreign competition metadata, or a missing active captain yield typed corruption instead of guessing.
+
+### Accepts persisted seed identifier aliases
+
+The legacy boundary accepts the persisted `track_*` and `tw_*` prefixes alongside generated `ptrk_*` and `trwk_*` values. Branding preserves stored identity in windows and parent links without renaming IDs or allowing `cevt_*` event occurrences.
+
+Public generated-ID decoders retain strict prefixes; alias acceptance lives only in the legacy adapter. Fixtures use the actual `track_online_qualifier_2026` and `tw_online_event1` IDs from both applications' seed producers.

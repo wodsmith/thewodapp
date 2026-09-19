@@ -60,10 +60,14 @@ export type RegistrationState =
   | Readonly<{ kind: "active" }>
   | Readonly<{ kind: "removed" }>
 
+export type DivisionSelection =
+  | Readonly<{ kind: "open" }>
+  | Readonly<{ kind: "named"; divisionId: CompetitionDivisionId }>
+
 export interface Registration {
   readonly id: RegistrationId
   readonly competitionId: CompetitionId
-  readonly divisionId: CompetitionDivisionId
+  readonly division: DivisionSelection
   readonly participation: Participation
   readonly state: RegistrationState
 }
@@ -76,7 +80,7 @@ export interface SquadMember {
 export interface Squad {
   readonly id: SquadId
   readonly competitionId: CompetitionId
-  readonly divisionId: CompetitionDivisionId
+  readonly division: DivisionSelection
   readonly name: string
   readonly captainId: UserId
   readonly members: readonly SquadMember[]

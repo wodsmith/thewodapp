@@ -52,6 +52,7 @@ export type {
   CompetitionDivision,
   CompetitionEvent,
   CompetitionTopology,
+  DivisionSelection,
   Organization,
   Participation,
   PersonalWorkspace,

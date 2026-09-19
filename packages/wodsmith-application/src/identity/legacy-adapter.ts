@@ -29,6 +29,7 @@ import type {
   CompetitionDivision,
   CompetitionEvent,
   CompetitionTopology,
+  DivisionSelection,
   PersonalWorkspace,
   Registration,
   Squad,
@@ -51,7 +52,6 @@ export type IdentityCorruptionCode =
   | "DIVISION_OUTSIDE_COMPETITION"
   | "DUPLICATE_DIVISION_CONFIGURATION"
   | "CROSS_COMPETITION_REGISTRATION"
-  | "MISSING_REGISTRATION_DIVISION"
   | "PARTICIPATION_MODE_MISMATCH"
   | "MISSING_SQUAD"
   | "INVALID_SQUAD"
@@ -59,6 +59,7 @@ export type IdentityCorruptionCode =
   | "CROSS_COMPETITION_SQUAD"
   | "CROSS_DIVISION_SQUAD"
   | "MISSING_SQUAD_CAPTAIN"
+  | "CONFLICTING_SQUAD_CAPTAIN"
 
 export interface IdentityCorruption {
   readonly kind: "IdentityCorruption"
@@ -111,19 +112,11 @@ function decodeAt<TId extends string>(
 function parseSquadMetadata(
   row: LegacyTeamIdentityRow,
 ): Result<
-  Readonly<{ competitionId: string; divisionId: string }>,
+  Readonly<{ competitionId: string; divisionId: string }> | null,
   IdentityCorruption
 > {
-  if (!row.competitionMetadata) {
-    return err(
-      corrupt(
-        "INVALID_SQUAD",
-        "teams",
-        row.id,
-        "A legacy squad must declare its competition and division",
-      ),
-    )
-  }
+  // Demo creation relies on the parent access team and registrations instead.
+  if (row.competitionMetadata === null) return ok(null)
 
   try {
     const parsed: unknown = JSON.parse(row.competitionMetadata)
@@ -160,6 +153,30 @@ function parseSquadMetadata(
     )
   }
 }
+
+/** Validate known persisted aliases without rewriting storage identity. */
+function legacyDecoder<TId extends string>(
+  decode: (value: string) => Result<TId, InvalidIdentifier>,
+  legacyPrefix: string,
+  canonicalPrefix: string,
+): (value: string) => Result<TId, InvalidIdentifier> {
+  return (value) => {
+    if (!value.startsWith(legacyPrefix)) return decode(value)
+    const result = decode(canonicalPrefix + value.slice(legacyPrefix.length))
+    return result.ok ? ok(value as TId) : decode(value)
+  }
+}
+
+const decodePersistedEventId = legacyDecoder(
+  decodeCompetitionEventId,
+  "tw_",
+  "trwk_",
+)
+const decodePersistedTrackId = legacyDecoder(
+  decodeLegacyProgrammingTrackId,
+  "track_",
+  "ptrk_",
+)
 
 /**
  * Converts the legacy storage graph into one validated, context-owned topology.
@@ -291,7 +308,7 @@ export function resolveLegacyCompetitionTopology(
   const trackOwnerById = new Map<string, string | null>()
   for (const track of snapshot.tracks) {
     const trackIdResult = decodeAt(
-      decodeLegacyProgrammingTrackId,
+      decodePersistedTrackId,
       track.id,
       "programming_tracks",
       track.id,
@@ -360,7 +377,7 @@ export function resolveLegacyCompetitionTopology(
       )
     }
     const eventIdResult = decodeAt(
-      decodeCompetitionEventId,
+      decodePersistedEventId,
       configuration.trackWorkoutId,
       "competition_events",
       configuration.id,
@@ -399,7 +416,7 @@ export function resolveLegacyCompetitionTopology(
     }
     if (owner !== competitionId) continue
     const eventIdResult = decodeAt(
-      decodeCompetitionEventId,
+      decodePersistedEventId,
       event.id,
       "track_workouts",
       event.id,
@@ -419,7 +436,7 @@ export function resolveLegacyCompetitionTopology(
         )
       }
       const parentResult = decodeAt(
-        decodeCompetitionEventId,
+        decodePersistedEventId,
         event.parentEventId,
         "track_workouts",
         event.id,
@@ -436,13 +453,15 @@ export function resolveLegacyCompetitionTopology(
     })
   }
 
-  const scalingGroupResult = decodeAt(
-    decodeLegacyScalingGroupId,
-    snapshot.selectedScalingGroupId,
-    "competitions",
-    snapshot.competition.id,
-  )
-  if (scalingGroupResult.ok === false) return err(scalingGroupResult.error)
+  if (snapshot.selectedScalingGroupId !== null) {
+    const scalingGroupResult = decodeAt(
+      decodeLegacyScalingGroupId,
+      snapshot.selectedScalingGroupId,
+      "competitions",
+      snapshot.competition.id,
+    )
+    if (scalingGroupResult.ok === false) return err(scalingGroupResult.error)
+  }
 
   const currentDivisionConfigurations: LegacyDivisionConfigurationIdentityRow[] =
     []
@@ -487,7 +506,7 @@ export function resolveLegacyCompetitionTopology(
 
   const divisions = new Map<CompetitionDivisionId, CompetitionDivision>()
   for (const level of snapshot.scalingLevels) {
-    if (level.scalingGroupId !== scalingGroupResult.value) continue
+    if (level.scalingGroupId !== snapshot.selectedScalingGroupId) continue
     const divisionIdResult = decodeAt(
       decodeCompetitionDivisionId,
       level.id,
@@ -571,34 +590,29 @@ export function resolveLegacyCompetitionTopology(
         ),
       )
     }
-    if (row.divisionId === null) {
-      return err(
-        corrupt(
-          "MISSING_REGISTRATION_DIVISION",
-          "competition_registrations",
-          row.id,
-          "A registration must belong to one competition division",
-        ),
+    let selection: DivisionSelection = { kind: "open" }
+    let division: CompetitionDivision | undefined
+    if (row.divisionId !== null) {
+      const divisionIdResult = decodeAt(
+        decodeCompetitionDivisionId,
+        row.divisionId,
+        "competition_registrations",
+        row.id,
       )
-    }
-    const divisionIdResult = decodeAt(
-      decodeCompetitionDivisionId,
-      row.divisionId,
-      "competition_registrations",
-      row.id,
-    )
-    if (divisionIdResult.ok === false) return err(divisionIdResult.error)
-    const division = divisions.get(divisionIdResult.value)
-    if (!division) {
-      return err(
-        corrupt(
-          "DIVISION_OUTSIDE_COMPETITION",
-          "competition_registrations",
-          row.id,
-          "A registration division must belong to its competition",
-          [row.divisionId, competitionId],
-        ),
-      )
+      if (divisionIdResult.ok === false) return err(divisionIdResult.error)
+      division = divisions.get(divisionIdResult.value)
+      if (!division) {
+        return err(
+          corrupt(
+            "DIVISION_OUTSIDE_COMPETITION",
+            "competition_registrations",
+            row.id,
+            "A registration division must belong to its competition",
+            [row.divisionId, competitionId],
+          ),
+        )
+      }
+      selection = { kind: "named", divisionId: division.id }
     }
     const athleteIdResult = decodeAt(
       decodeUserId,
@@ -610,7 +624,7 @@ export function resolveLegacyCompetitionTopology(
 
     let participation: Registration["participation"]
     if (row.athleteTeamId === null) {
-      if (division.teamSize !== 1) {
+      if (division && division.teamSize !== 1) {
         return err(
           corrupt(
             "PARTICIPATION_MODE_MISMATCH",
@@ -624,7 +638,7 @@ export function resolveLegacyCompetitionTopology(
       participation = { kind: "individual", athleteId: athleteIdResult.value }
       if (row.status === "active") participantIds.add(athleteIdResult.value)
     } else {
-      if (division.teamSize === 1) {
+      if (division?.teamSize === 1) {
         return err(
           corrupt(
             "PARTICIPATION_MODE_MISMATCH",
@@ -670,41 +684,68 @@ export function resolveLegacyCompetitionTopology(
       }
       const metadata = parseSquadMetadata(squadRow)
       if (metadata.ok === false) return err(metadata.error)
-      const squadCompetitionIdResult = decodeAt(
-        decodeCompetitionId,
-        metadata.value.competitionId,
-        "teams",
-        squadRow.id,
-      )
-      if (squadCompetitionIdResult.ok === false)
-        return err(squadCompetitionIdResult.error)
-      const squadDivisionIdResult = decodeAt(
-        decodeCompetitionDivisionId,
-        metadata.value.divisionId,
-        "teams",
-        squadRow.id,
-      )
-      if (squadDivisionIdResult.ok === false)
-        return err(squadDivisionIdResult.error)
-      if (squadCompetitionIdResult.value !== competitionId) {
-        return err(
-          corrupt(
-            "CROSS_COMPETITION_SQUAD",
-            "teams",
-            squadRow.id,
-            "Squad and registration must belong to the same competition",
-            [metadata.value.competitionId, competitionId],
-          ),
+      if (metadata.value !== null) {
+        const squadCompetitionIdResult = decodeAt(
+          decodeCompetitionId,
+          metadata.value.competitionId,
+          "teams",
+          squadRow.id,
         )
+        if (squadCompetitionIdResult.ok === false)
+          return err(squadCompetitionIdResult.error)
+        const squadDivisionIdResult = decodeAt(
+          decodeCompetitionDivisionId,
+          metadata.value.divisionId,
+          "teams",
+          squadRow.id,
+        )
+        if (squadDivisionIdResult.ok === false)
+          return err(squadDivisionIdResult.error)
+        if (squadCompetitionIdResult.value !== competitionId) {
+          return err(
+            corrupt(
+              "CROSS_COMPETITION_SQUAD",
+              "teams",
+              squadRow.id,
+              "Squad and registration must belong to the same competition",
+              [metadata.value.competitionId, competitionId],
+            ),
+          )
+        }
       }
-      if (squadDivisionIdResult.value !== division.id) {
+      // Transfers update registrations, leaving the old metadata division behind.
+      const previousSquad = squads.get(squadIdResult.value)
+      if (
+        previousSquad &&
+        (previousSquad.division.kind !== selection.kind ||
+          (previousSquad.division.kind === "named" &&
+            selection.kind === "named" &&
+            previousSquad.division.divisionId !== selection.divisionId))
+      ) {
         return err(
           corrupt(
             "CROSS_DIVISION_SQUAD",
             "teams",
             squadRow.id,
-            "Squad and registration must belong to the same division",
-            [metadata.value.divisionId, division.id],
+            "All registrations for a squad must agree on its division",
+          ),
+        )
+      }
+      const captainIdResult = decodeAt(
+        decodeUserId,
+        row.captainUserId ?? row.userId,
+        "competition_registrations",
+        row.id,
+      )
+      if (captainIdResult.ok === false) return err(captainIdResult.error)
+      if (previousSquad && previousSquad.captainId !== captainIdResult.value) {
+        return err(
+          corrupt(
+            "CONFLICTING_SQUAD_CAPTAIN",
+            "competition_registrations",
+            row.id,
+            "All registrations for a squad must agree on its captain",
+            [previousSquad.captainId, captainIdResult.value],
           ),
         )
       }
@@ -722,10 +763,11 @@ export function resolveLegacyCompetitionTopology(
           `${membership.teamId}:${membership.userId}`,
         )
         if (memberIdResult.ok === false) return err(memberIdResult.error)
-        const role = membership.roleId === "captain" ? "captain" : "member"
+        const role =
+          memberIdResult.value === captainIdResult.value ? "captain" : "member"
         if (
-          memberIdResult.value === athleteIdResult.value &&
-          role === "captain"
+          memberIdResult.value === captainIdResult.value &&
+          (row.captainUserId != null || membership.roleId === "captain")
         ) {
           hasCaptain = true
         }
@@ -738,17 +780,17 @@ export function resolveLegacyCompetitionTopology(
             "MISSING_SQUAD_CAPTAIN",
             "teams",
             squadRow.id,
-            "An active squad registration must have its owner as an active captain",
-            [row.userId],
+            "An active squad must have its declared captain in the active roster",
+            [captainIdResult.value],
           ),
         )
       }
       squads.set(squadIdResult.value, {
         id: squadIdResult.value,
         competitionId,
-        divisionId: division.id,
+        division: selection,
         name: squadRow.name,
-        captainId: athleteIdResult.value,
+        captainId: captainIdResult.value,
         members,
       })
       participation = { kind: "squad", squadId: squadIdResult.value }
@@ -757,7 +799,7 @@ export function resolveLegacyCompetitionTopology(
     registrations.set(registrationIdResult.value, {
       id: registrationIdResult.value,
       competitionId,
-      divisionId: division.id,
+      division: selection,
       participation,
       state: { kind: row.status },
     })

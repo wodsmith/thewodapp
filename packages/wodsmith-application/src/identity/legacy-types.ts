@@ -66,6 +66,7 @@ export interface LegacyRegistrationIdentityRow {
   readonly divisionId: string | null
   readonly status: "active" | "removed"
   readonly athleteTeamId: string | null
+  readonly captainUserId?: string | null
 }
 
 export interface LegacyTeamMembershipIdentityRow {
@@ -81,7 +82,7 @@ export interface LegacyCompetitionIdentitySnapshot {
   readonly tracks: readonly LegacyProgrammingTrackIdentityRow[]
   readonly events: readonly LegacyCompetitionEventIdentityRow[]
   readonly eventConfigurations: readonly LegacyEventConfigurationIdentityRow[]
-  readonly selectedScalingGroupId: string
+  readonly selectedScalingGroupId: string | null
   readonly scalingLevels: readonly LegacyScalingLevelIdentityRow[]
   readonly divisionConfigurations: readonly LegacyDivisionConfigurationIdentityRow[]
   readonly registrations: readonly LegacyRegistrationIdentityRow[]

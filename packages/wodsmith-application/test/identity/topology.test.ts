@@ -276,13 +276,13 @@ describe("legacy competition identity boundary", () => {
       {
         id: ids.registrationA,
         competitionId: ids.competitionA,
-        divisionId: ids.divisionA,
+        division: { kind: "named", divisionId: ids.divisionA },
         participation: { kind: "individual", athleteId: ids.athlete },
       },
       {
         id: ids.registrationB,
         competitionId: ids.competitionA,
-        divisionId: ids.divisionB,
+        division: { kind: "named", divisionId: ids.divisionB },
         participation: { kind: "individual", athleteId: ids.athlete },
       },
     ])
@@ -305,10 +305,14 @@ describe("legacy competition identity boundary", () => {
 
     const registrations = [...result.value.registrations.values()]
     expect(
-      registrations.find((registration) => registration.id === ids.registrationA),
+      registrations.find(
+        (registration) => registration.id === ids.registrationA,
+      ),
     ).toMatchObject({ state: { kind: "removed" } })
     expect(
-      registrations.find((registration) => registration.id === ids.registrationB),
+      registrations.find(
+        (registration) => registration.id === ids.registrationB,
+      ),
     ).toMatchObject({ state: { kind: "active" } })
     expect([...result.value.access.participantIds]).toEqual([ids.athlete])
   })
@@ -396,7 +400,9 @@ describe("legacy competition identity boundary", () => {
         }),
     })
 
-    await expect(store.load(requestedCompetitionId.value)).resolves.toMatchObject({
+    await expect(
+      store.load(requestedCompetitionId.value),
+    ).resolves.toMatchObject({
       ok: false,
       error: {
         kind: "IdentityCorruption",
