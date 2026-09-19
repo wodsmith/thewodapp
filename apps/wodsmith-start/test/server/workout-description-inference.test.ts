@@ -63,6 +63,12 @@ describe("description-first workout recognition", () => {
     const movements = [
       { id: "power-clean", name: "Power Clean", type: "weightlifting" },
       { id: "clean", name: "Clean", type: "weightlifting" },
+      {
+        id: "dumbbell-squat",
+        name: "Dumbbell Squat",
+        type: "weightlifting",
+      },
+      { id: "squat", name: "Squat", type: "weightlifting" },
     ]
     expect(
       pruneOverlappingMovementIds(prompt, movements, ["power-clean", "clean"]),
@@ -74,6 +80,18 @@ describe("description-first workout recognition", () => {
         ["power-clean", "clean"],
       ),
     ).toEqual(["power-clean", "clean"])
+    expect(
+      pruneOverlappingMovementIds(prompt, movements, [
+        "dumbbell-squat",
+        "squat",
+      ]),
+    ).toEqual(["dumbbell-squat"])
+    expect(
+      inlineScalingAssignments(
+        "Rx men are 50 lb, then Rx men are 40 lb for the second movement.",
+        levels,
+      ),
+    ).toEqual([])
   })
 
   it("creates a parent definition with independently scored time and load sub-events", async () => {

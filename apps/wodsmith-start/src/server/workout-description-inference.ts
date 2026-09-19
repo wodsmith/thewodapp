@@ -153,12 +153,17 @@ export function workoutDescriptionCandidates(
   }
 }
 
-const phrasePattern = (value: string) =>
-  value
-    .toLowerCase()
-    .match(/[a-z0-9]+/g)
-    ?.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("[\\s-]+") ?? ""
+const phrasePattern = (value: string) => {
+  const tokens = value.toLowerCase().match(/[a-z0-9]+/g) ?? []
+  return tokens
+    .map((token, index) => {
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      return index === tokens.length - 1 && !token.endsWith("s")
+        ? `${escaped}s?`
+        : escaped
+    })
+    .join("[\\s-]+")
+}
 
 const phraseSpans = (source: string, phrase: string) => {
   const pattern = phrasePattern(phrase)
@@ -273,7 +278,8 @@ export function inlineScalingAssignments(
             ? candidate.normalized.includes("scaled")
             : !candidate.normalized.includes("scaled")),
       )
-    if (!level || assignments.has(level.id)) continue
+    if (!level) continue
+    if (assignments.has(level.id)) return []
     const claimText = claim[0].trim().replace(/[,:;.-]+$/, "")
     assignments.set(level.id, common ? `${common}\n${claimText}` : claimText)
   }
