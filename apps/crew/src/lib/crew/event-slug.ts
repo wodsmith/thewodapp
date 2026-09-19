@@ -17,3 +17,23 @@ export function getCrewEventIdentityUpdate(
 
   return { name, slug }
 }
+
+export function isCrewEventSlugCollisionError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false
+
+  const candidate = error as {
+    code?: unknown
+    errno?: unknown
+    message?: unknown
+    cause?: unknown
+  }
+
+  return (
+    candidate.code === "ER_DUP_ENTRY" ||
+    candidate.errno === 1062 ||
+    (typeof candidate.message === "string" &&
+      candidate.message.includes("Duplicate entry")) ||
+    (candidate.cause !== error &&
+      isCrewEventSlugCollisionError(candidate.cause))
+  )
+}

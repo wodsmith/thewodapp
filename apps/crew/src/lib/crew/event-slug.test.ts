@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { getCrewEventIdentityUpdate } from "./event-slug"
+import {
+  getCrewEventIdentityUpdate,
+  isCrewEventSlugCollisionError,
+} from "./event-slug"
 
 describe("Crew event URL names", () => {
   // @lat: [[crew#Event Setup Dashboard]]
@@ -24,6 +27,14 @@ describe("Crew event URL names", () => {
   it("rejects event names that cannot produce a public slug", () => {
     expect(() => getCrewEventIdentityUpdate("🍂", "Old name")).toThrow(
       "Event name must include letters or numbers",
+    )
+  })
+
+  it("recognizes direct and wrapped MySQL slug collisions", () => {
+    expect(isCrewEventSlugCollisionError({ code: "ER_DUP_ENTRY" })).toBe(true)
+    expect(isCrewEventSlugCollisionError({ cause: { errno: 1062 } })).toBe(true)
+    expect(isCrewEventSlugCollisionError(new Error("Connection closed"))).toBe(
+      false,
     )
   })
 })

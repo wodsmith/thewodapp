@@ -19,7 +19,10 @@ import {
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
 } from "../db/schemas/volunteers"
-import { getCrewEventIdentityUpdate } from "../lib/crew/event-slug"
+import {
+  getCrewEventIdentityUpdate,
+  isCrewEventSlugCollisionError,
+} from "../lib/crew/event-slug"
 import type {
   CrewEventNavigationState,
   CrewViewerRole,
@@ -453,33 +456,47 @@ export async function updateCrewEventSettings(
   }
 
   const db = getDb()
-  if (competitionUpdate.slug !== undefined) {
-    const [slugOwner] = await db
-      .select({ id: competitionsTable.id })
-      .from(competitionsTable)
-      .where(
-        and(
-          eq(competitionsTable.slug, competitionUpdate.slug),
-          ne(competitionsTable.id, data.competitionId),
-        ),
-      )
-      .limit(1)
-    if (slugOwner) {
+  try {
+    await db.transaction(async (tx) => {
+      if (competitionUpdate.slug !== undefined) {
+        const [slugOwner] = await tx
+          .select({ id: competitionsTable.id })
+          .from(competitionsTable)
+          .where(
+            and(
+              eq(competitionsTable.slug, competitionUpdate.slug),
+              ne(competitionsTable.id, data.competitionId),
+            ),
+          )
+          .limit(1)
+        if (slugOwner) {
+          throw new Error(
+            "Another event already uses this URL name. Choose a different event name.",
+          )
+        }
+      }
+      await tx
+        .update(crewEventSettingsTable)
+        .set(updateData)
+        .where(eq(crewEventSettingsTable.competitionId, data.competitionId))
+
+      if (Object.keys(competitionUpdate).length > 0) {
+        await tx
+          .update(competitionsTable)
+          .set(competitionUpdate)
+          .where(eq(competitionsTable.id, data.competitionId))
+      }
+    })
+  } catch (error) {
+    if (
+      competitionUpdate.slug !== undefined &&
+      isCrewEventSlugCollisionError(error)
+    ) {
       throw new Error(
         "Another event already uses this URL name. Choose a different event name.",
       )
     }
-  }
-  await db
-    .update(crewEventSettingsTable)
-    .set(updateData)
-    .where(eq(crewEventSettingsTable.competitionId, data.competitionId))
-
-  if (Object.keys(competitionUpdate).length > 0) {
-    await db
-      .update(competitionsTable)
-      .set(competitionUpdate)
-      .where(eq(competitionsTable.id, data.competitionId))
+    throw error
   }
 
   const event = await getCrewEventByCompetitionId(data.competitionId)
