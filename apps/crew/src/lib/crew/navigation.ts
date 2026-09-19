@@ -84,16 +84,22 @@ export const CREW_EVENT_NAV_ITEMS = [
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
   {
-    key: "print-packet",
-    label: "Schedule",
-    to: "/events/$eventId/schedule",
-    persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
-  },
-  {
     key: "billing",
     label: "Event Access",
     to: "/events/$eventId/billing",
     persona: ["wodsmith_operator", "organizer_admin"],
+  },
+  {
+    key: "exports",
+    label: "Exports",
+    to: "/events/$eventId/exports",
+    persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
+  },
+  {
+    key: "print-packet",
+    label: "Schedule",
+    to: "/events/$eventId/schedule",
+    persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
 ] as const satisfies readonly CrewNavItem[]
 
