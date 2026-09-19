@@ -6,6 +6,8 @@ Compete and training share workout definition controls so a workout keeps the sa
 
 New library workouts start with one description field. Jev recognizes the definition before the existing authorized create operation opens the saved workout detail page.
 
+Pull-request browser tests do not invoke live recognition because its credential and model behavior are unsuitable for an untrusted deterministic gate. Component tests cover recognition handoff, adapters, failures, and retries; server tests cover authorized creation.
+
 Existing workout editing and controlled import review retain accessible structured controls. New descriptions can include titles, movements, scoring, and named scaling variants. Remix creation seeds the description with the source title and prescription.
 
 ## Canonical organizer flow
@@ -98,7 +100,7 @@ An explicit submit recognizes the workout, then invokes the consumer's save or d
 
 Crew workout shells remain outside this lifecycle. They are scheduling-only heat groupings with no authored scoring, movements, or scaling contract; [[crew#Workout Shells]] owns that deliberately minimal workflow.
 
-The scoped boundary guard covers the description form and its consumers. Interaction tests cover cap/scoring/movement/scaling adapters, failed recognition, failed saves, and personal session draft semantics. The organizer browser regression creates its event through the description field and verifies all persisted event rows without coupling persistence to a model-selected title. Existing structured edit and import field hooks remain covered separately. Changing a scaling group clears its previous level assignments while retaining the source prescription.
+The scoped boundary guard covers the description form and its consumers. Interaction tests cover cap/scoring/movement/scaling adapters, failed recognition, failed saves, organizer dialog dismissal, and personal session draft semantics. Server tests cover authorized workout creation and persistence. Existing structured edit and import field hooks remain covered separately. Changing a scaling group clears its previous level assignments while retaining the source prescription.
 
 ## Authoring access and scaling isolation
 

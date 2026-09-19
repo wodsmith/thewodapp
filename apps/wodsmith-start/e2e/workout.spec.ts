@@ -42,32 +42,4 @@ test.describe('Workouts', () => {
     ).toBeVisible({timeout: 10000})
   })
 
-  // @lat: [[workout-authoring#Workout Authoring#Library creation browser flow]]
-  test('should create a new workout', async ({page}) => {
-    test.setTimeout(90000)
-    const uniqueName = `E2E Test Workout ${Date.now()}`
-
-    await page.goto('/workouts/new')
-    await waitForHydration(page)
-
-    await expect(
-      page.getByRole('heading', {name: 'Create workout'}),
-    ).toBeVisible({timeout: 15000})
-
-    // This live recognition test requires TYPESAFE_API_KEY on the test server.
-    await page.getByLabel('Describe your workout').fill(`${uniqueName}\nFor time: 30 air squats. Record one completion time.`)
-    await expect(page.getByRole('textbox')).toHaveCount(1)
-    await expect(page.getByRole('combobox', {name: 'Scheme', exact: true})).toHaveCount(0)
-
-    // Submit
-    await page.getByRole('button', {name: 'Create workout'}).click()
-
-    // Should redirect to workout detail page
-    await page.waitForURL(/\/workouts\/(?!new)/, {timeout: 75000})
-
-    // Detail page heading shows the workout name
-    await expect(page.getByRole('heading', {name: uniqueName})).toBeVisible({
-      timeout: 10000,
-    })
-  })
 })

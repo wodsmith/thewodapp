@@ -1,14 +1,12 @@
 import {expect, test} from '@playwright/test'
-import {createConnection, type RowDataPacket} from 'mysql2/promise'
+import {createConnection} from 'mysql2/promise'
 import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 
 test.describe('Competition Organizer', () => {
-  // This test creates a competition, sets up divisions, and creates an event
+  // This test creates a competition and sets up divisions.
   test.setTimeout(60_000)
 
-  test('should create competition, add division, and add event', async ({
-    page,
-  }) => {
+  test('should create competition and add divisions', async ({page}) => {
     const setupConnection = await createConnection(process.env.DATABASE_URL!)
     try {
       await setupConnection.execute(
@@ -110,57 +108,6 @@ test.describe('Competition Organizer', () => {
       await startFresh.click()
       // Wait for divisions to appear
       await expect(page.getByText(/open/i)).toBeVisible({timeout: 10000})
-    }
-
-    // Navigate directly to events page
-    await page.goto(`${compDetailPath}/events`)
-    await waitForHydration(page)
-
-    // Create an event
-    const createEventBtn = page.getByRole('button', {name: /create.*event/i}).first()
-    await expect(createEventBtn).toBeVisible({timeout: 10000})
-    await createEventBtn.click()
-
-    // Fill event dialog — wait for dialog to appear after React state update
-    await expect(page.getByRole('dialog')).toBeVisible({timeout: 10000})
-    await page.getByLabel('Describe your workout').fill(
-      'Event 1 - Fran\nFor time: 21-15-9 thrusters and pull-ups. Record one completion time.',
-    )
-
-    // Submit event creation
-    const submitEventBtn = page
-      .getByRole('dialog')
-      .getByRole('button', {name: /create event/i})
-    await submitEventBtn.click()
-
-    // Verify event appears
-    await expect(page.getByText('Event 1 - Fran')).toBeVisible({timeout: 10000})
-
-    // The organizer mutation must persist the workout, its track entry, and the
-    // competition-event settings row as one complete event.
-    const competitionId = compDetailPath?.split('/').at(-1)
-    expect(competitionId).toBeTruthy()
-    const connection = await createConnection(process.env.DATABASE_URL!)
-    try {
-      const [rows] = await connection.query<RowDataPacket[]>(
-        `SELECT w.id AS workoutId,
-                tw.id AS trackWorkoutId,
-                ce.id AS competitionEventId
-           FROM competition_events ce
-           JOIN track_workouts tw ON tw.id = ce.track_workout_id
-           JOIN workouts w ON w.id = tw.workout_id
-          WHERE ce.competition_id = ?`,
-        [competitionId],
-      )
-
-      expect(rows).toHaveLength(1)
-      expect(rows[0]).toMatchObject({
-        workoutId: expect.any(String),
-        trackWorkoutId: expect.any(String),
-        competitionEventId: expect.any(String),
-      })
-    } finally {
-      await connection.end()
     }
   })
 })

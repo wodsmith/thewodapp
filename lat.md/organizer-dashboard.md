@@ -42,7 +42,7 @@ Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerE
 
 Pending organizers can build complete private draft events while their application is under review.
 
-[[apps/wodsmith-start/src/server-fns/competition-workouts-fns.ts#createWorkoutAndAddToCompetitionFn]] requires the organizing team's `MANAGE_COMPETITIONS` permission and verifies that the requested competition belongs to that team. It locks the competition and atomically creates or resolves its programming track, private workout, `track_workouts` link, tags and movements, and `competition_events` settings row. This avoids cross-team writes and read-after-write gaps across Cloudflare/PlanetScale connections. `apps/wodsmith-start/e2e/competition-organizer.spec.ts` covers the pending-organizer flow and verifies all three event records persist.
+[[apps/wodsmith-start/src/server-fns/competition-workouts-fns.ts#createWorkoutAndAddToCompetitionFn]] requires the organizing team's `MANAGE_COMPETITIONS` permission and verifies that the requested competition belongs to that team. It locks the competition and atomically creates or resolves its programming track, private workout, `track_workouts` link, tags and movements, and `competition_events` settings row. This avoids cross-team writes and read-after-write gaps across Cloudflare/PlanetScale connections. The browser regression covers pending-organizer competition and division setup without invoking live recognition; deterministic component tests cover event-dialog submission and dismissal behavior, while server tests cover persistence primitives.
 
 ### Grouping Existing Events Under a Parent
 
